@@ -28,19 +28,26 @@
         <button class="nav-link" data-target="profiles"><i class='bx bx-cloud'></i> Perfiles</button>
       </nav>
       <div class="sidebar-foot">
-        <p class="mini">Datos locales. Sin conexiones externas.</p>
-        <button id="clearStorage" class="ghost-btn"><i class='bx bx-trash'></i>Limpiar datos locales</button>
+        <p class="mini">Datos locales, respaldo inmediato.</p>
       </div>
     </aside>
     <main class="content">
       <header class="topbar">
         <div>
-          <h1>Gestor integral de Plan de Ahorro Chevrolet</h1>
-          <p class="muted">Campaña de renovación 2025 • Llave por llave • Planes flexibles y plantillas rápidas</p>
+          <h1>Gestor integral Chevrolet</h1>
+          <p class="muted subtle">Planes, clientes y plantillas en una sola vista.</p>
         </div>
         <div class="top-actions">
+          <button id="quickSnapshot" class="secondary-btn"><i class='bx bx-layer'></i> Guardar snapshot</button>
           <button id="exportProfile" class="primary-btn"><i class='bx bx-download'></i> Exportar perfil</button>
           <label class="primary-btn upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+          <div class="icon-menu" id="settingsMenu">
+            <button class="ghost-btn icon-only" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i></button>
+            <div class="menu-panel" id="settingsPanel">
+              <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
+              <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -112,9 +119,15 @@
           <div>
             <p class="eyebrow">Mensajes</p>
             <h2>Plantillas con variables</h2>
-            <p class="muted">Edita texto, agrega variables (ej. {{cliente}}, {{modelo}}, {{asesor}}) y copia con reemplazos instantáneos.</p>
+            <p class="muted subtle">Gestión completa con previsualización y búsqueda.</p>
           </div>
-          <button id="addTemplate" class="ghost-btn"><i class='bx bx-plus'></i>Nueva plantilla</button>
+          <div class="actions">
+            <div class="search-field">
+              <i class='bx bx-search'></i>
+              <input id="templateSearch" placeholder="Buscar plantillas" />
+            </div>
+            <button id="addTemplate" class="ghost-btn"><i class='bx bx-plus'></i>Nueva plantilla</button>
+          </div>
         </div>
         <div class="templates-layout">
           <aside class="template-list" id="templateList"></aside>
@@ -181,7 +194,7 @@
           <div>
             <p class="eyebrow">Simulador</p>
             <h2>Armar plan para cliente</h2>
-            <p class="muted">Configura modelo, tipo de plan, entrega llave por llave y nota interna. Guarda el cliente en memoria local.</p>
+            <p class="muted subtle">Control total de cuotas y llave por llave.</p>
           </div>
           <button id="saveClient" class="primary-btn"><i class='bx bx-user-check'></i>Guardar cliente</button>
         </div>
@@ -232,7 +245,10 @@
             <div id="planSummary" class="summary"></div>
             <div class="card-head">
               <p class="eyebrow">Clientes guardados</p>
-              <p class="muted">Haz clic para cargar y reactivar la simulación.</p>
+              <div class="search-field compact">
+                <i class='bx bx-filter-alt'></i>
+                <input id="clientSearch" placeholder="Buscar cliente" />
+              </div>
             </div>
             <div id="clientList" class="client-list"></div>
           </div>
@@ -244,7 +260,7 @@
           <div>
             <p class="eyebrow">Portabilidad</p>
             <h2>Respaldos rápidos</h2>
-            <p class="muted">Exporta e importa tus valores, plantillas y clientes para usarlos en otros equipos.</p>
+            <p class="muted subtle">Exporta, importa y conserva snapshots dentro del equipo.</p>
           </div>
         </div>
         <div class="grid three">
@@ -268,18 +284,34 @@
             <p class="muted">Adaptable a colores, seguros bonificados y financiación sin interés.</p>
           </div>
           <div class="card">
-            <p class="eyebrow">Tips</p>
-            <h3>Mejoras de cierre</h3>
-            <ul class="muted">
-              <li>Refuerza la prioridad por ser cliente Chevrolet.</li>
-              <li>Recuerda la entrega sin sorteo ni licitación.</li>
-              <li>Destaca que financia fábrica, sin bancos.</li>
-              <li>Adjunta checklist de fotos y consulta sobre servicios oficiales.</li>
-            </ul>
+            <p class="eyebrow">Snapshots locales</p>
+            <h3>Perfiles listos</h3>
+            <div class="search-field compact">
+              <i class='bx bx-search'></i>
+              <input id="profileSearch" placeholder="Buscar snapshot" />
+            </div>
+            <div id="profileList" class="snapshot-list"></div>
           </div>
         </div>
       </section>
     </main>
+  </div>
+  <div id="toastContainer" class="toast-container"></div>
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="modalEyebrow">Confirmación</p>
+          <h3 id="modalTitle"></h3>
+          <p class="muted" id="modalMessage"></p>
+        </div>
+        <button id="modalClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions">
+        <button id="modalCancel" class="ghost-btn">Cancelar</button>
+        <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
   </div>
   <script type="module" src="app.js"></script>
 </body>

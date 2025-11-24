@@ -113,6 +113,52 @@ function parseMoney(raw) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="icon">${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}</span><div><strong>${message}</strong></div>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(6px)';
+    setTimeout(() => toast.remove(), 180);
+  }, 3500);
+}
+
+function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm } = {}) {
+  const modal = document.getElementById('modal');
+  if (!modal) return;
+  modal.classList.add('show');
+  modal.classList.remove('hidden');
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMessage').textContent = message;
+  const confirmBtn = document.getElementById('modalConfirm');
+  const cancelBtn = document.getElementById('modalCancel');
+  const closeBtn = document.getElementById('modalClose');
+  confirmBtn.textContent = confirmText;
+  cancelBtn.textContent = cancelText;
+
+  const cleanup = () => {
+    modal.classList.remove('show');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+    closeBtn.onclick = null;
+  };
+
+  confirmBtn.onclick = () => {
+    cleanup();
+    if (typeof onConfirm === 'function') onConfirm();
+  };
+  cancelBtn.onclick = cleanup;
+  closeBtn.onclick = cleanup;
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) cleanup();
+  }, { once: true });
+}
+
 function bindMoneyInput(el, onChange) {
   if (!el) return;
   el.addEventListener('input', () => {
@@ -129,6 +175,101 @@ function bindMoneyInput(el, onChange) {
   });
   el.addEventListener('focus', () => {
     el.value = el.dataset.raw || el.value.replace(/[^\d]/g, '');
+  });
+}
+
+function applyProfileData(parsed) {
+  vehicles = cloneVehicles(parsed.vehicles || defaultVehicles);
+  templates = ensureTemplateIds(parsed.templates || defaultTemplates);
+  clients = parsed.clients || [];
+  uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
+  uiState.templateSearch = uiState.templateSearch || '';
+  uiState.clientSearch = uiState.clientSearch || '';
+  uiState.profileSearch = uiState.profileSearch || '';
+  selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
+  selectedTemplateId = templates[selectedTemplateIndex]?.id;
+  planDraftApplied = false;
+  persist();
+  applyToggleState();
+  renderVehicleTable();
+  renderTemplates();
+  renderPlanForm();
+  renderClients();
+  renderSnapshots();
+  renderStats();
+}
+
+function saveSnapshot() {
+  const title = `Snapshot ${new Date().toLocaleString('es-AR')}`;
+  const data = {
+    vehicles: cloneVehicles(vehicles),
+    templates: ensureTemplateIds(JSON.parse(JSON.stringify(templates))),
+    clients: JSON.parse(JSON.stringify(clients)),
+    uiState: { ...uiState }
+  };
+  snapshots.push({ id: `snap-${Date.now()}`, name: title, createdAt: new Date().toISOString(), data });
+  persist();
+  renderSnapshots();
+  showToast('Snapshot guardado en el dispositivo', 'success');
+}
+
+function renderSnapshots() {
+  const list = document.getElementById('profileList');
+  if (!list) return;
+  const searchInput = document.getElementById('profileSearch');
+  if (searchInput && searchInput.value !== uiState.profileSearch) {
+    searchInput.value = uiState.profileSearch || '';
+  }
+  const search = (uiState.profileSearch || '').toLowerCase();
+  const filtered = snapshots.filter(s => s.name.toLowerCase().includes(search));
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted">Sin snapshots guardados.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map(s => `
+    <div class="snapshot-card" data-id="${s.id}">
+      <div class="row">
+        <strong>${s.name}</strong>
+        <span class="pill">${new Date(s.createdAt).toLocaleString('es-AR')}</span>
+      </div>
+      <div class="actions">
+        <button class="secondary-btn" data-action="apply" data-id="${s.id}"><i class='bx bx-play-circle'></i> Aplicar</button>
+        <button class="ghost-btn" data-action="delete" data-id="${s.id}"><i class='bx bx-trash'></i> Borrar</button>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action="apply"]').forEach(btn => btn.addEventListener('click', () => applySnapshot(btn.dataset.id)));
+  list.querySelectorAll('[data-action="delete"]').forEach(btn => btn.addEventListener('click', () => deleteSnapshot(btn.dataset.id)));
+}
+
+function applySnapshot(id) {
+  const snap = snapshots.find(s => s.id === id);
+  if (!snap) return;
+  confirmAction({
+    title: 'Aplicar snapshot',
+    message: 'Se reemplazarán los datos actuales por el snapshot elegido.',
+    confirmText: 'Aplicar',
+    onConfirm: () => {
+      applyProfileData(snap.data || {});
+      showToast('Snapshot aplicado', 'success');
+    }
+  });
+}
+
+function deleteSnapshot(id) {
+  const idx = snapshots.findIndex(s => s.id === id);
+  if (idx < 0) return;
+  confirmAction({
+    title: 'Eliminar snapshot',
+    message: 'Se borrará el respaldo local seleccionado.',
+    confirmText: 'Eliminar',
+    onConfirm: () => {
+      snapshots.splice(idx, 1);
+      persist();
+      renderSnapshots();
+      showToast('Snapshot eliminado', 'success');
+    }
   });
 }
 
@@ -151,6 +292,12 @@ let clients = load('clients') || [];
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
+let snapshots = load('snapshots') || [];
+
+uiState.templateSearch = uiState.templateSearch || '';
+uiState.clientSearch = uiState.clientSearch || '';
+uiState.profileSearch = uiState.profileSearch || '';
+let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
 uiState.variableValues = uiState.variableValues || {};
 uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
@@ -162,6 +309,7 @@ function init() {
   try {
     bindNavigation();
     bindProfileActions();
+    bindSettingsMenu();
     applyToggleState();
     renderStats();
     renderQuickOverview();
@@ -169,6 +317,7 @@ function init() {
     renderVehicleTable();
     renderPlanForm();
     renderClients();
+    renderSnapshots();
     attachPlanListeners();
     attachTemplateActions();
     attachVehicleToggles();
@@ -190,6 +339,20 @@ function bindNavigation() {
         target.classList.add('active');
       }
     });
+  });
+}
+
+function bindSettingsMenu() {
+  const toggle = document.getElementById('settingsToggle');
+  const panel = document.getElementById('settingsPanel');
+  if (!toggle || !panel) return;
+  toggle.addEventListener('click', () => {
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && !toggle.contains(e.target)) {
+      panel.classList.remove('open');
+    }
   });
 }
 
@@ -228,30 +391,80 @@ function renderQuickOverview() {
 
 function renderTemplates() {
   const list = document.getElementById('templateList');
+  const searchInput = document.getElementById('templateSearch');
+  if (searchInput && searchInput.value !== uiState.templateSearch) {
+    searchInput.value = uiState.templateSearch || '';
+  }
   if (!templates.length) {
     list.innerHTML = '<p class="muted">Sin plantillas cargadas.</p>';
     renderStats();
     return;
   }
-  list.innerHTML = templates.map((tpl, idx) => `
-    <div class="template-item ${idx === selectedTemplateIndex ? 'active' : ''}" data-idx="${idx}">
-      <h4>${tpl.title}</h4>
+  const search = (uiState.templateSearch || '').toLowerCase();
+  const filtered = templates.filter(t => t.title.toLowerCase().includes(search) || t.body.toLowerCase().includes(search));
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted">Sin coincidencias.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map((tpl) => `
+    <div class="template-item ${tpl.id === selectedTemplateId ? 'active' : ''}" data-id="${tpl.id}">
+      <div class="controls">
+        <h4>${tpl.title}</h4>
+        <div class="small-actions">
+          <button class="mini-btn" data-action="move-up" data-id="${tpl.id}" title="Subir"><i class='bx bx-up-arrow-alt'></i></button>
+          <button class="mini-btn" data-action="move-down" data-id="${tpl.id}" title="Bajar"><i class='bx bx-down-arrow-alt'></i></button>
+          <button class="mini-btn" data-action="delete" data-id="${tpl.id}" title="Eliminar"><i class='bx bx-trash'></i></button>
+        </div>
+      </div>
       <p>${tpl.body.slice(0, 120)}${tpl.body.length > 120 ? '…' : ''}</p>
+      <span class="pill">${extractVariables(tpl.body).length || 0} variables</span>
     </div>
   `).join('');
 
   list.querySelectorAll('.template-item').forEach(item => {
-    item.addEventListener('click', () => {
-      selectedTemplateIndex = Number(item.dataset.idx);
+    item.addEventListener('click', (e) => {
+      const id = item.dataset.id;
+      if ((e.target.closest('.mini-btn'))) return;
+      selectedTemplateId = id;
+      selectedTemplateIndex = templates.findIndex(t => t.id === id);
       uiState.selectedTemplateIndex = selectedTemplateIndex;
       persist();
       renderTemplates();
     });
   });
 
-  const safeIndex = Math.max(0, Math.min(selectedTemplateIndex, templates.length - 1));
-  selectedTemplateIndex = safeIndex;
-  loadTemplate(safeIndex);
+  list.querySelectorAll('.mini-btn').forEach(btn => {
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'delete') {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        confirmAction({
+          title: 'Eliminar plantilla',
+          message: 'Se quitará la plantilla seleccionada.',
+          confirmText: 'Eliminar',
+          onConfirm: () => deleteTemplate(id)
+        });
+      });
+    }
+    if (btn.dataset.action === 'move-up') {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moveTemplate(id, -1);
+      });
+    }
+    if (btn.dataset.action === 'move-down') {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moveTemplate(id, 1);
+      });
+    }
+  });
+
+  const currentTemplate = templates.find(t => t.id === selectedTemplateId) || templates[0];
+  selectedTemplateId = currentTemplate.id;
+  selectedTemplateIndex = templates.findIndex(t => t.id === selectedTemplateId);
+  uiState.selectedTemplateIndex = selectedTemplateIndex;
+  loadTemplate(selectedTemplateIndex);
   renderStats();
 }
 
@@ -307,6 +520,33 @@ function insertVariable(variable) {
   updatePreview();
 }
 
+function deleteTemplate(id) {
+  const idx = templates.findIndex(t => t.id === id);
+  if (idx < 0) return;
+  templates.splice(idx, 1);
+  if (!templates.length) {
+    templates = ensureTemplateIds([...defaultTemplates]);
+  }
+  selectedTemplateIndex = Math.max(0, Math.min(selectedTemplateIndex, templates.length - 1));
+  selectedTemplateId = templates[selectedTemplateIndex].id;
+  persist();
+  renderTemplates();
+  showToast('Plantilla eliminada', 'success');
+}
+
+function moveTemplate(id, direction) {
+  const idx = templates.findIndex(t => t.id === id);
+  if (idx < 0) return;
+  const newIndex = idx + direction;
+  if (newIndex < 0 || newIndex >= templates.length) return;
+  const [tpl] = templates.splice(idx, 1);
+  templates.splice(newIndex, 0, tpl);
+  selectedTemplateIndex = newIndex;
+  selectedTemplateId = tpl.id;
+  persist();
+  renderTemplates();
+}
+
 function updatePreview() {
   const body = document.getElementById('templateBody').value || '';
   const values = { ...(uiState.variableValues || {}) };
@@ -325,6 +565,15 @@ function updatePreview() {
 }
 
 function attachTemplateActions() {
+  const templateSearch = document.getElementById('templateSearch');
+  if (templateSearch) {
+    templateSearch.value = uiState.templateSearch || '';
+    templateSearch.addEventListener('input', () => {
+      uiState.templateSearch = templateSearch.value;
+      persist();
+      renderTemplates();
+    });
+  }
   document.getElementById('templateTitle').addEventListener('input', e => {
     if (templates[selectedTemplateIndex]) {
       templates[selectedTemplateIndex].title = e.target.value;
@@ -362,8 +611,10 @@ function attachTemplateActions() {
   });
 
   document.getElementById('addTemplate').addEventListener('click', () => {
-    templates.push({ id: `tpl-${Date.now()}`, title: 'Nueva plantilla', body: 'Mensaje personalizado con {{cliente}}' });
+    const id = `tpl-${Date.now()}`;
+    templates.push({ id, title: 'Nueva plantilla', body: 'Mensaje personalizado con {{cliente}}' });
     selectedTemplateIndex = templates.length - 1;
+    selectedTemplateId = id;
     uiState.selectedTemplateIndex = selectedTemplateIndex;
     persist();
     renderTemplates();
@@ -468,11 +719,11 @@ function renderPlanForm() {
     document.getElementById('planType').addEventListener('change', updatePlanSummary);
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
     bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
-  document.getElementById('clientName').addEventListener('input', updatePlanSummary);
-  document.getElementById('clientContact').addEventListener('input', updatePlanSummary);
-  document.getElementById('notes').addEventListener('input', updatePlanSummary);
-  select.dataset.bound = 'true';
-}
+    document.getElementById('clientName').addEventListener('input', updatePlanSummary);
+    document.getElementById('clientContact').addEventListener('input', updatePlanSummary);
+    document.getElementById('notes').addEventListener('input', updatePlanSummary);
+    select.dataset.bound = 'true';
+  }
   if (!planDraftApplied) {
     applyPlanDraft();
     planDraftApplied = true;
@@ -484,13 +735,15 @@ function updatePlanSummary() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
   const plan = document.getElementById('planType').value;
   const tradeIn = document.getElementById('tradeIn').checked;
-  const tradeInValue = parseMoney(document.getElementById('tradeInValue').value || 0);
+  const tradeInInput = document.getElementById('tradeInValue');
+  const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
   const v = vehicles[modelIdx] || vehicles[0];
   if (!v) return;
   const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
   const reserva1 = v.reservations['1'];
   const total = v.integration;
   const outstanding = Math.max(total - (tradeIn ? tradeInValue : 0), 0);
+  const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
 
   const rows = [
     { label: 'Modelo', value: v.name },
@@ -498,7 +751,7 @@ function updatePlanSummary() {
     { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
     { label: 'Reserva mínima', value: currency.format(reserva1) },
     { label: 'Integración', value: currency.format(total) },
-    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${currency.format(tradeInValue) || 'a definir'})` : 'No' },
+    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
     { label: 'Saldo estimado', value: currency.format(outstanding) }
   ];
 
@@ -538,7 +791,7 @@ function savePlanDraft() {
     planModel: document.getElementById('planModel').value,
     planType: document.getElementById('planType').value,
     tradeIn: document.getElementById('tradeIn').checked,
-    tradeInValue: parseMoney(document.getElementById('tradeInValue').value),
+    tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
     clientName: document.getElementById('clientName').value,
     clientContact: document.getElementById('clientContact').value,
     notes: document.getElementById('notes').value
@@ -565,22 +818,63 @@ function attachPlanListeners() {
     persist();
     renderClients();
     renderStats();
+    showToast('Cliente guardado', 'success');
   });
+
+  const clientSearch = document.getElementById('clientSearch');
+  if (clientSearch) {
+    clientSearch.value = uiState.clientSearch || '';
+    clientSearch.addEventListener('input', () => {
+      uiState.clientSearch = clientSearch.value;
+      persist();
+      renderClients();
+    });
+  }
 }
 
 function renderClients() {
   const list = document.getElementById('clientList');
-  if (!clients.length) {
-    list.innerHTML = '<p class="muted">Aún no guardaste clientes.</p>';
+  const searchInput = document.getElementById('clientSearch');
+  if (searchInput && searchInput.value !== uiState.clientSearch) {
+    searchInput.value = uiState.clientSearch || '';
+  }
+  const search = (uiState.clientSearch || '').toLowerCase();
+  const filtered = clients.filter(c => c.name.toLowerCase().includes(search) || c.model.toLowerCase().includes(search));
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted">Sin clientes aún.</p>';
     return;
   }
-  list.innerHTML = clients.map((c, idx) => `
+  list.innerHTML = filtered.map((c) => {
+    const idx = clients.indexOf(c);
+    return `
     <div class="client-card" data-idx="${idx}">
-      <h4>${c.name}</h4>
-      <p>${c.model} · ${planLabel(c.plan)} · ${currency.format(c.cuota || 0)}</p>
+      <button class="delete-btn" data-idx="${idx}" title="Eliminar"><i class='bx bx-x'></i></button>
+      <div class="row">
+        <h4>${c.name}</h4>
+        <span class="tag">${planLabel(c.plan)}</span>
+      </div>
+      <p>${c.model} · ${currency.format(c.cuota || 0)}</p>
       <p class="muted">${c.tradeIn ? `Entrega usado: ${currency.format(c.tradeInValue || 0)}` : 'Sin entrega'} · ${new Date(c.timestamp).toLocaleString('es-AR')}</p>
     </div>
-  `).join('');
+  `;
+  }).join('');
+
+  list.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const idx = Number(btn.dataset.idx);
+    confirmAction({
+      title: 'Eliminar cliente',
+      message: 'Se quitará el registro seleccionado.',
+      confirmText: 'Eliminar',
+      onConfirm: () => {
+        clients.splice(idx, 1);
+        persist();
+        renderClients();
+        renderStats();
+        showToast('Cliente eliminado', 'success');
+      }
+    });
+  }));
 
   list.querySelectorAll('.client-card').forEach(card => card.addEventListener('click', () => {
     const c = clients[Number(card.dataset.idx)];
@@ -613,43 +907,85 @@ function attachVehicleToggles() {
 }
 
 function bindProfileActions() {
+  document.getElementById('quickSnapshot').addEventListener('click', saveSnapshot);
+
   document.getElementById('exportProfile').addEventListener('click', () => {
-    const payload = { version: 2, vehicles, templates, clients, uiState };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chevrolet-plan-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    confirmAction({
+      title: 'Exportar perfil',
+      message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
+      confirmText: 'Exportar',
+      onConfirm: () => {
+        const payload = { version: 2, vehicles, templates, clients, uiState };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chevrolet-plan-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Perfil exportado', 'success');
+      }
+    });
   });
 
   document.getElementById('importProfile').addEventListener('change', e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result);
-        vehicles = cloneVehicles(parsed.vehicles || vehicles);
-        templates = ensureTemplateIds(parsed.templates || templates);
-        clients = parsed.clients || clients;
-        uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
-        selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
-        planDraftApplied = false;
-        persist();
-        applyToggleState();
-        renderVehicleTable();
-        renderTemplates();
-        renderPlanForm();
-        renderClients();
-        renderStats();
-      } catch (err) {
-        alert('No se pudo leer el perfil.');
+    confirmAction({
+      title: 'Importar perfil',
+      message: `Se reemplazarán datos actuales por ${file.name}.`,
+      confirmText: 'Importar',
+      onConfirm: () => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            applyProfileData(parsed);
+            showToast('Perfil importado y aplicado', 'success');
+          } catch (err) {
+            showToast('No se pudo leer el perfil.', 'error');
+          } finally {
+            e.target.value = '';
+          }
+        };
+        reader.readAsText(file);
       }
-    };
-    reader.readAsText(file);
+    });
   });
+
+  const profileSearch = document.getElementById('profileSearch');
+  if (profileSearch) {
+    profileSearch.value = uiState.profileSearch || '';
+    profileSearch.addEventListener('input', () => {
+      uiState.profileSearch = profileSearch.value;
+      persist();
+      renderSnapshots();
+    });
+  }
+
+  const resetBtn = document.getElementById('resetDefaults');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      confirmAction({
+        title: 'Restaurar valores base',
+        message: 'Se repondrán vehículos y plantillas originales, manteniendo los clientes.',
+        confirmText: 'Restaurar',
+        onConfirm: () => {
+          vehicles = cloneVehicles(defaultVehicles);
+          templates = ensureTemplateIds([...defaultTemplates]);
+          selectedTemplateIndex = 0;
+          selectedTemplateId = templates[0].id;
+          planDraftApplied = false;
+          persist();
+          renderVehicleTable();
+          renderTemplates();
+          renderPlanForm();
+          renderStats();
+          showToast('Valores base restaurados', 'success');
+        }
+      });
+    });
+  }
 }
 
 function persist() {
@@ -657,6 +993,7 @@ function persist() {
   save('templates', templates);
   save('clients', clients);
   save('uiState', uiState);
+  save('snapshots', snapshots);
 }
 
 function save(key, value) {
@@ -673,19 +1010,30 @@ function load(key) {
 }
 
 function clearStorage() {
-  localStorage.clear();
-  vehicles = defaultVehicles.map(v => ({ ...v, shareByPlan: { ...v.shareByPlan }, reservations: { ...v.reservations } }));
-  templates = ensureTemplateIds([...defaultTemplates]);
-  clients = [];
-  uiState = { ...defaultUiState };
-  selectedTemplateIndex = 0;
-  planDraftApplied = false;
-  applyToggleState();
-  renderVehicleTable();
-  renderTemplates();
-  renderPlanForm();
-  renderClients();
-  renderStats();
-  persist();
+  confirmAction({
+    title: 'Limpiar datos locales',
+    message: 'Se eliminarán clientes, plantillas y valores personalizados.',
+    confirmText: 'Limpiar',
+    onConfirm: () => {
+      localStorage.clear();
+      vehicles = defaultVehicles.map(v => ({ ...v, shareByPlan: { ...v.shareByPlan }, reservations: { ...v.reservations } }));
+      templates = ensureTemplateIds([...defaultTemplates]);
+      clients = [];
+      snapshots = [];
+      uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '' };
+      selectedTemplateIndex = 0;
+      selectedTemplateId = templates[0].id;
+      planDraftApplied = false;
+      applyToggleState();
+      renderVehicleTable();
+      renderTemplates();
+      renderPlanForm();
+      renderClients();
+      renderSnapshots();
+      renderStats();
+      persist();
+      showToast('Datos locales eliminados', 'success');
+    }
+  });
 }
 
