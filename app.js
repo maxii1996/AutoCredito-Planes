@@ -113,10 +113,29 @@ function parseMoney(raw) {
   return Number.isFinite(num) ? num : 0;
 }
 
-function formatMoneyInput(el) {
+function bindMoneyInput(el, onChange) {
   if (!el) return;
-  const numeric = parseMoney(el.value);
-  el.dataset.raw = numeric;
+  el.addEventListener('input', () => {
+    const cleaned = (el.value || '').replace(/[^\d]/g, '');
+    el.dataset.raw = cleaned;
+    el.value = cleaned;
+    if (onChange) onChange(parseMoney(cleaned));
+  });
+  el.addEventListener('blur', () => {
+    const numeric = parseMoney(el.dataset.raw || el.value);
+    el.dataset.raw = numeric ? String(Math.trunc(numeric)) : '';
+    el.value = numeric ? number.format(numeric) : '';
+    if (onChange) onChange(numeric);
+  });
+  el.addEventListener('focus', () => {
+    el.value = el.dataset.raw || el.value.replace(/[^\d]/g, '');
+  });
+}
+
+function setMoneyValue(el, value) {
+  if (!el) return;
+  const numeric = parseMoney(value);
+  el.dataset.raw = numeric ? String(Math.trunc(numeric)) : '';
   el.value = numeric ? number.format(numeric) : '';
 }
 
@@ -376,7 +395,7 @@ function renderVehicleTable() {
         <td>
           <div class="money-field">
             <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" placeholder="$ 0">
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
           </div>
         </td>`;
     }).join('')}</tr>`;
@@ -389,7 +408,7 @@ function renderVehicleTable() {
         return `<td>
           <div class="money-field">
             <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" placeholder="$ 0">
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
           </div>
         </td>`;
       }).join('')}</tr>`);
@@ -401,7 +420,7 @@ function renderVehicleTable() {
       return `<td>
         <div class="money-field">
           <span class="prefix">$</span>
-          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" placeholder="$ 0">
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0">
         </div>
       </td>`;
     }).join('')}</tr>`);
@@ -409,7 +428,7 @@ function renderVehicleTable() {
       <td>
         <div class="money-field">
           <span class="prefix">$</span>
-          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" placeholder="$ 0">
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" data-raw="${v.basePrice || ''}" placeholder="$ 0">
         </div>
       </td>`).join('')}</tr>`);
   }
@@ -418,19 +437,14 @@ function renderVehicleTable() {
   table.querySelector('tbody').innerHTML = bodyRows.join('');
 
   table.querySelectorAll('input').forEach(inp => {
-    formatMoneyInput(inp);
-    inp.addEventListener('input', e => {
-      formatMoneyInput(e.target);
-      updateVehicleValue(e);
-    });
-    inp.addEventListener('blur', e => formatMoneyInput(e.target));
+    bindMoneyInput(inp, () => updateVehicleValue({ target: inp }));
   });
 }
 
 function updateVehicleValue(e) {
   const { vehicle } = e.target.dataset;
   const idx = Number(vehicle);
-  const val = parseMoney(e.target.value || 0);
+  const val = parseMoney(e.target.dataset.raw || e.target.value || 0);
   if ('plan' in e.target.dataset) {
     vehicles[idx].shareByPlan[e.target.dataset.plan] = val;
   } else if (e.target.dataset.reserva) {
@@ -453,16 +467,12 @@ function renderPlanForm() {
     select.addEventListener('change', updatePlanSummary);
     document.getElementById('planType').addEventListener('change', updatePlanSummary);
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
-    document.getElementById('tradeInValue').addEventListener('input', e => {
-      formatMoneyInput(e.target);
-      updatePlanSummary();
-    });
-    document.getElementById('clientName').addEventListener('input', updatePlanSummary);
-    document.getElementById('clientContact').addEventListener('input', updatePlanSummary);
-    document.getElementById('notes').addEventListener('input', updatePlanSummary);
-    select.dataset.bound = 'true';
-  }
-  formatMoneyInput(document.getElementById('tradeInValue'));
+    bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
+  document.getElementById('clientName').addEventListener('input', updatePlanSummary);
+  document.getElementById('clientContact').addEventListener('input', updatePlanSummary);
+  document.getElementById('notes').addEventListener('input', updatePlanSummary);
+  select.dataset.bound = 'true';
+}
   if (!planDraftApplied) {
     applyPlanDraft();
     planDraftApplied = true;
@@ -517,10 +527,7 @@ function applyPlanDraft() {
   if (draft.planModel !== undefined) document.getElementById('planModel').value = draft.planModel;
   if (draft.planType) document.getElementById('planType').value = draft.planType;
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
-  if (draft.tradeInValue) {
-    document.getElementById('tradeInValue').value = number.format(draft.tradeInValue);
-    formatMoneyInput(document.getElementById('tradeInValue'));
-  }
+  setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
   document.getElementById('clientContact').value = draft.clientContact || '';
   document.getElementById('notes').value = draft.notes || '';
@@ -584,8 +591,7 @@ function renderClients() {
     document.getElementById('planModel').value = found >= 0 ? found : 0;
     document.getElementById('planType').value = c.plan;
     document.getElementById('tradeIn').checked = c.tradeIn;
-    document.getElementById('tradeInValue').value = c.tradeInValue ? number.format(c.tradeInValue) : '';
-    formatMoneyInput(document.getElementById('tradeInValue'));
+    setMoneyValue(document.getElementById('tradeInValue'), c.tradeInValue || '');
     document.getElementById('notes').value = c.notes;
     updatePlanSummary();
   }));
