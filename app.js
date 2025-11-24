@@ -1,6 +1,13 @@
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat('es-AR');
 
+const defaultUiState = {
+  selectedTemplateIndex: 0,
+  variableValues: {},
+  planDraft: {},
+  toggles: { showReservations: true, showIntegration: true }
+};
+
 const defaultVehicles = [
   {
     name: 'Nuevo Onix 1.0 Turbo LT MT',
@@ -79,10 +86,12 @@ const defaultTemplates = [
   }
 ];
 
-let vehicles = load('vehicles') || defaultVehicles;
-let templates = load('templates') || defaultTemplates;
+let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
+let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
-let selectedTemplateIndex = 0;
+let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
+let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
+let planDraftApplied = false;
 
 init();
 
@@ -90,9 +99,9 @@ function init() {
   try {
     bindNavigation();
     bindProfileActions();
+    applyToggleState();
     renderStats();
     renderQuickOverview();
-    renderVariableInputs();
     renderTemplates();
     renderVehicleTable();
     renderPlanForm();
