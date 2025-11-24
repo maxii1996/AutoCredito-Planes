@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chevrolet Plan Manager 2025</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🚗</div>
+        <div>
+          <p class="brand-title">Chevrolet Plan</p>
+          <p class="brand-subtitle">Gestor Noviembre 2025</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i> Panel</button>
+        <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i> Plantillas</button>
+        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i> Autos y valores</button>
+        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i> Planes y clientes</button>
+        <button class="nav-link" data-target="profiles"><i class='bx bx-cloud'></i> Perfiles</button>
+      </nav>
+      <div class="sidebar-foot">
+        <p class="mini">Datos locales. Sin conexiones externas.</p>
+        <button id="clearStorage" class="ghost-btn"><i class='bx bx-trash'></i>Limpiar datos locales</button>
+      </div>
+    </aside>
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1>Gestor integral de Plan de Ahorro Chevrolet</h1>
+          <p class="muted">Campaña de renovación 2025 • Llave por llave • Planes flexibles y plantillas rápidas</p>
+        </div>
+        <div class="top-actions">
+          <button id="exportProfile" class="primary-btn"><i class='bx bx-download'></i> Exportar perfil</button>
+          <label class="primary-btn upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+        </div>
+      </header>
+
+      <section id="dashboard" class="panel active">
+        <div class="grid stats">
+          <div class="stat-card">
+            <p class="label">Modelos activos</p>
+            <p class="value" id="modelCount">0</p>
+            <p class="helper">Todos los vehículos de la lista Chevrolet Nov. 2025</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Plantillas</p>
+            <p class="value" id="templateCount">0</p>
+            <p class="helper">Mensaje de inicio, respuesta, beneficios y más</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Clientes en memoria</p>
+            <p class="value" id="clientCount">0</p>
+            <p class="helper">Guardados localmente para seguimiento</p>
+          </div>
+          <div class="stat-card highlight">
+            <p class="label">Compatibilidad llave por llave</p>
+            <p class="value">Disponible</p>
+            <p class="helper">Entrega de usado al retiro del 0 km</p>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Resumen</p>
+                <h3>Campaña de renovación Chevrolet 2025</h3>
+                <p class="muted">Usa esta vista para armar rápidamente una propuesta con valores directos de fábrica, financiación en pesos sin interés y modalidad llave por llave.</p>
+              </div>
+              <div class="badges">
+                <span class="badge">Sin interés</span>
+                <span class="badge">Cuotas en pesos</span>
+                <span class="badge">Color a elección</span>
+              </div>
+            </div>
+            <div class="timeline" id="quickOverview"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <p class="eyebrow">Checklist de fotos</p>
+              <h3>Requerimientos para cotizar usado</h3>
+            </div>
+            <div class="photos">
+              <img src="img/Template/FotosReferenciaParaCliente.jpg" alt="Referencias de fotos" class="preview">
+              <div class="photo-steps">
+                <ol>
+                  <li>Foto interior (parabrisas) y frente con patente.</li>
+                  <li>Laterales, techo y baúl con patente visible.</li>
+                  <li>Velocímetro/odómetro y llantas.</li>
+                  <li>Rueda de auxilio o kit sellante.</li>
+                  <li>10 fotos mínimas para validar cotización.</li>
+                </ol>
+                <p class="muted">Incluye preguntas clave: kilómetros, servicios oficiales, estado (1-10), historial de choques y deudas.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="templates" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Mensajes</p>
+            <h2>Plantillas con variables</h2>
+            <p class="muted">Edita texto, agrega variables (ej. {{cliente}}, {{modelo}}, {{asesor}}) y copia con reemplazos instantáneos.</p>
+          </div>
+          <button id="addTemplate" class="ghost-btn"><i class='bx bx-plus'></i>Nueva plantilla</button>
+        </div>
+        <div class="templates-layout">
+          <aside class="template-list" id="templateList"></aside>
+          <div class="template-editor">
+            <div class="field">
+              <label for="templateTitle">Título</label>
+              <input id="templateTitle" placeholder="Ej: Mensaje de inicio" />
+            </div>
+            <div class="field">
+              <label for="templateBody">Contenido</label>
+              <textarea id="templateBody" rows="12" placeholder="Escribe el mensaje con variables"></textarea>
+            </div>
+            <div class="variables">
+              <div>
+                <p class="muted">Variables sugeridas</p>
+                <div class="chips" id="variableChips"></div>
+              </div>
+              <div>
+                <label for="variablePreview">Reemplazar variables</label>
+                <div class="variable-grid" id="variableInputs"></div>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="saveTemplate" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+              <button id="copyTemplate" class="secondary-btn"><i class='bx bx-copy'></i>Copiar con reemplazos</button>
+              <span id="copyStatus" class="muted"></span>
+            </div>
+            <div class="preview-box">
+              <p class="eyebrow">Previsualización</p>
+              <pre id="templatePreview"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="vehicles" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Valores oficiales</p>
+            <h2>Tabla Chevrolet Noviembre 2025</h2>
+            <p class="muted">Basada en la lista oficial: Onix, Onix Plus, Montana, S10, Tracker y Spin. Ajusta los importes a conveniencia.</p>
+          </div>
+          <div class="toggles">
+            <label class="toggle">
+              <input type="checkbox" id="showReservations" checked>
+              <span>Ver reservas (1, 3 y 6 cuotas)</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="showIntegration" checked>
+              <span>Ver integración</span>
+            </label>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table id="vehicleTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="plans" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Simulador</p>
+            <h2>Armar plan para cliente</h2>
+            <p class="muted">Configura modelo, tipo de plan, entrega llave por llave y nota interna. Guarda el cliente en memoria local.</p>
+          </div>
+          <button id="saveClient" class="primary-btn"><i class='bx bx-user-check'></i>Guardar cliente</button>
+        </div>
+        <div class="grid two">
+          <div class="card form">
+            <div class="field">
+              <label for="clientName">Cliente</label>
+              <input id="clientName" placeholder="Nombre y apellido" />
+            </div>
+            <div class="field">
+              <label for="clientContact">Contacto</label>
+              <input id="clientContact" placeholder="Teléfono o email" />
+            </div>
+            <div class="field">
+              <label for="planModel">Modelo</label>
+              <select id="planModel"></select>
+            </div>
+            <div class="field">
+              <label for="planType">Plan</label>
+              <select id="planType">
+                <option value="2a12">2 a 12</option>
+                <option value="13a21">13 a 21</option>
+                <option value="22a84">22 a 84</option>
+                <option value="85a120">85 a 120</option>
+                <option value="ctapura">Cuota pura</option>
+              </select>
+            </div>
+            <div class="field inline">
+              <label class="toggle">
+                <input type="checkbox" id="tradeIn" checked>
+                <span>Entrega llave por llave</span>
+              </label>
+              <input id="tradeInValue" type="number" min="0" step="100000" placeholder="Valor estimado usado" />
+            </div>
+            <div class="field">
+              <label for="notes">Notas internas</label>
+              <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <p class="eyebrow">Resultado</p>
+              <h3>Resumen del plan</h3>
+            </div>
+            <div id="planSummary" class="summary"></div>
+            <div class="card-head">
+              <p class="eyebrow">Clientes guardados</p>
+              <p class="muted">Haz clic para cargar y reactivar la simulación.</p>
+            </div>
+            <div id="clientList" class="client-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="profiles" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Portabilidad</p>
+            <h2>Respaldos rápidos</h2>
+            <p class="muted">Exporta e importa tus valores, plantillas y clientes para usarlos en otros equipos.</p>
+          </div>
+        </div>
+        <div class="grid three">
+          <div class="card">
+            <p class="eyebrow">InfoAuto</p>
+            <h3>Base de cotización</h3>
+            <p class="muted">Usa la guía oficial para transparentar valores. Adjunta la imagen InfoAuto al cliente.</p>
+            <img src="img/Template/InfoAuto.jpg" alt="InfoAuto" class="preview">
+          </div>
+          <div class="card">
+            <p class="eyebrow">Lista Chevrolet</p>
+            <h3>Modelos compatibles</h3>
+            <ul class="muted">
+              <li>Nuevo Onix 1.0 Turbo LT MT</li>
+              <li>Nuevo Onix Plus 1.0 Turbo LT MT</li>
+              <li>Nueva Montana LT</li>
+              <li>Nueva S10 CD 2.8 TD 4x2 WT</li>
+              <li>Nueva Tracker 1.2T LT AT</li>
+              <li>Nueva Spin 1.8 (7 pasajeros)</li>
+            </ul>
+            <p class="muted">Adaptable a colores, seguros bonificados y financiación sin interés.</p>
+          </div>
+          <div class="card">
+            <p class="eyebrow">Tips</p>
+            <h3>Mejoras de cierre</h3>
+            <ul class="muted">
+              <li>Refuerza la prioridad por ser cliente Chevrolet.</li>
+              <li>Recuerda la entrega sin sorteo ni licitación.</li>
+              <li>Destaca que financia fábrica, sin bancos.</li>
+              <li>Adjunta checklist de fotos y consulta sobre servicios oficiales.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
