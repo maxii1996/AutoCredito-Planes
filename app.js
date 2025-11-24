@@ -176,8 +176,10 @@ function bindNavigation() {
 
 function applyToggleState() {
   const toggles = uiState.toggles || defaultUiState.toggles;
-  document.getElementById('showReservations').checked = toggles.showReservations;
-  document.getElementById('showIntegration').checked = toggles.showIntegration;
+  const res = document.getElementById('showReservations');
+  const integ = document.getElementById('showIntegration');
+  if (res) res.checked = toggles.showReservations;
+  if (integ) integ.checked = toggles.showIntegration;
 }
 
 function renderStats() {
@@ -350,11 +352,14 @@ function attachTemplateActions() {
 }
 
 function renderVehicleTable() {
-  const showRes = document.getElementById('showReservations').checked;
-  const showInt = document.getElementById('showIntegration').checked;
+  const resToggle = document.getElementById('showReservations');
+  const intToggle = document.getElementById('showIntegration');
+  const showRes = resToggle ? resToggle.checked : true;
+  const showInt = intToggle ? intToggle.checked : true;
   uiState.toggles = { showReservations: showRes, showIntegration: showInt };
   persist();
   const table = document.getElementById('vehicleTable');
+  if (!table) return;
   const plans = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
   const labels = {
     '2a12': 'Cuota 2 a 12',
@@ -457,6 +462,7 @@ function renderPlanForm() {
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
   }
+  formatMoneyInput(document.getElementById('tradeInValue'));
   if (!planDraftApplied) {
     applyPlanDraft();
     planDraftApplied = true;
