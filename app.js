@@ -87,19 +87,23 @@ let selectedTemplateIndex = 0;
 init();
 
 function init() {
-  bindNavigation();
-  bindProfileActions();
-  renderStats();
-  renderQuickOverview();
-  renderTemplates();
-  renderVariableInputs();
-  renderVehicleTable();
-  renderPlanForm();
-  renderClients();
-  attachPlanListeners();
-  attachTemplateActions();
-  attachVehicleToggles();
-  document.getElementById('clearStorage').addEventListener('click', clearStorage);
+  try {
+    bindNavigation();
+    bindProfileActions();
+    renderStats();
+    renderQuickOverview();
+    renderVariableInputs();
+    renderTemplates();
+    renderVehicleTable();
+    renderPlanForm();
+    renderClients();
+    attachPlanListeners();
+    attachTemplateActions();
+    attachVehicleToggles();
+    document.getElementById('clearStorage').addEventListener('click', clearStorage);
+  } catch (err) {
+    console.error('Error during initialization:', err);
+  }
 }
 
 function bindNavigation() {
@@ -167,7 +171,7 @@ function loadTemplate(idx) {
   const tpl = templates[idx];
   document.getElementById('templateTitle').value = tpl?.title || '';
   document.getElementById('templateBody').value = tpl?.body || '';
-  updatePreview();
+  setTimeout(updatePreview, 0);
 }
 
 function renderVariableInputs() {
@@ -199,14 +203,20 @@ function insertVariable(variable) {
 }
 
 function updatePreview() {
-  const body = document.getElementById('templateBody').value;
+  const body = document.getElementById('templateBody').value || '';
   const values = {};
-  document.querySelectorAll('#variableInputs input').forEach(inp => values[inp.dataset.var] = inp.value);
+  const inputs = document.querySelectorAll('#variableInputs input');
+  inputs.forEach(inp => {
+    values[inp.dataset.var] = inp.value || '';
+  });
   const replaced = body.replace(/{{(.*?)}}/g, (_, key) => {
     const k = key.trim();
     return values[k] !== undefined && values[k] !== '' ? values[k] : `{{${k}}}`;
   });
-  document.getElementById('templatePreview').textContent = replaced;
+  const preview = document.getElementById('templatePreview');
+  if (preview) {
+    preview.textContent = replaced;
+  }
 }
 
 function attachTemplateActions() {
