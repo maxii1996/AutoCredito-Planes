@@ -104,11 +104,15 @@ function init() {
 
 function bindNavigation() {
   document.querySelectorAll('.nav-link').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
       document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById(btn.dataset.target).classList.add('active');
+      const target = document.getElementById(btn.dataset.target);
+      if (target) {
+        target.classList.add('active');
+      }
     });
   });
 }
@@ -179,6 +183,9 @@ function renderVariableInputs() {
     </div>`).join('');
 
   inputs.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updatePreview));
+  
+  // Trigger initial preview update
+  setTimeout(updatePreview, 0);
 }
 
 function insertVariable(variable) {
