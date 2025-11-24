@@ -119,33 +119,33 @@
         <div class="templates-layout">
           <aside class="template-list" id="templateList"></aside>
           <div class="template-editor">
+            <div class="preview-stack">
+              <div class="preview-box">
+                <p class="eyebrow">Previsualización</p>
+                <pre id="templatePreview"></pre>
+              </div>
+              <div class="actions compact">
+                <button id="saveTemplate" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+                <button id="copyTemplate" class="secondary-btn"><i class='bx bx-copy'></i>Copiar con reemplazos</button>
+                <span id="copyStatus" class="muted"></span>
+              </div>
+            </div>
             <div class="field">
               <label for="templateTitle">Título</label>
               <input id="templateTitle" placeholder="Ej: Mensaje de inicio" />
             </div>
-            <div class="field">
+            <div class="field textarea-field">
               <label for="templateBody">Contenido</label>
-              <textarea id="templateBody" rows="12" placeholder="Escribe el mensaje con variables"></textarea>
-            </div>
-            <div class="variables">
-              <div>
-                <p class="muted">Variables sugeridas</p>
-                <div class="chips" id="variableChips"></div>
-              </div>
-              <div>
-                <label for="variablePreview">Reemplazar variables</label>
-                <div class="variable-grid" id="variableInputs"></div>
+              <div class="textarea-shell">
+                <textarea id="templateBody" rows="10" placeholder="Escribe el mensaje con variables"></textarea>
+                <div class="chips inline" id="variableChips"></div>
               </div>
             </div>
-            <div class="actions">
-              <button id="saveTemplate" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
-              <button id="copyTemplate" class="secondary-btn"><i class='bx bx-copy'></i>Copiar con reemplazos</button>
-              <span id="copyStatus" class="muted"></span>
+            <div class="variables-head">
+              <p class="eyebrow">Variables activas</p>
+              <p class="muted tiny">Solo las que están en el mensaje.</p>
             </div>
-            <div class="preview-box">
-              <p class="eyebrow">Previsualización</p>
-              <pre id="templatePreview"></pre>
-            </div>
+            <div class="variable-grid" id="variableInputs"></div>
           </div>
         </div>
       </section>
@@ -214,7 +214,10 @@
                 <input type="checkbox" id="tradeIn" checked>
                 <span>Entrega llave por llave</span>
               </label>
-              <input id="tradeInValue" type="number" min="0" step="100000" placeholder="Valor estimado usado" />
+              <div class="money-field">
+                <span class="prefix">$</span>
+                <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+              </div>
             </div>
             <div class="field">
               <label for="notes">Notas internas</label>

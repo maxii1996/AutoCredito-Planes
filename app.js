@@ -86,12 +86,56 @@ const defaultTemplates = [
   }
 ];
 
+function cloneVehicles(list) {
+  return (list || []).map(v => ({
+    ...v,
+    shareByPlan: { ...v.shareByPlan },
+    reservations: { ...v.reservations }
+  }));
+}
+
+function ensureTemplateIds(list) {
+  return (list || []).map((tpl, idx) => ({
+    id: tpl.id || `tpl-${idx}-${Date.now()}`,
+    ...tpl
+  }));
+}
+
+function formatMoney(value) {
+  if (value === undefined || value === null || Number.isNaN(value)) return '';
+  return currency.format(Number(value));
+}
+
+function parseMoney(raw) {
+  if (raw === undefined || raw === null) return 0;
+  const cleaned = String(raw).replace(/[^0-9.-]/g, '');
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function formatMoneyInput(el) {
+  if (!el) return;
+  const numeric = parseMoney(el.value);
+  el.dataset.raw = numeric;
+  el.value = numeric ? number.format(numeric) : '';
+}
+
+function extractVariables(body = '') {
+  const matches = body.match(/{{(.*?)}}/g) || [];
+  const vars = matches.map(m => m.replace(/[{}]/g, '').trim()).filter(Boolean);
+  return Array.from(new Set(vars));
+}
+
 let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
+
+uiState.variableValues = uiState.variableValues || {};
+uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
+uiState.planDraft = uiState.planDraft || {};
 
 init();
 
@@ -130,6 +174,12 @@ function bindNavigation() {
   });
 }
 
+function applyToggleState() {
+  const toggles = uiState.toggles || defaultUiState.toggles;
+  document.getElementById('showReservations').checked = toggles.showReservations;
+  document.getElementById('showIntegration').checked = toggles.showIntegration;
+}
+
 function renderStats() {
   document.getElementById('modelCount').textContent = vehicles.length;
   document.getElementById('templateCount').textContent = templates.length;
@@ -157,6 +207,11 @@ function renderQuickOverview() {
 
 function renderTemplates() {
   const list = document.getElementById('templateList');
+  if (!templates.length) {
+    list.innerHTML = '<p class="muted">Sin plantillas cargadas.</p>';
+    renderStats();
+    return;
+  }
   list.innerHTML = templates.map((tpl, idx) => `
     <div class="template-item ${idx === selectedTemplateIndex ? 'active' : ''}" data-idx="${idx}">
       <h4>${tpl.title}</h4>
@@ -167,35 +222,54 @@ function renderTemplates() {
   list.querySelectorAll('.template-item').forEach(item => {
     item.addEventListener('click', () => {
       selectedTemplateIndex = Number(item.dataset.idx);
+      uiState.selectedTemplateIndex = selectedTemplateIndex;
+      persist();
       renderTemplates();
-      loadTemplate(selectedTemplateIndex);
     });
   });
 
-  loadTemplate(selectedTemplateIndex);
+  const safeIndex = Math.max(0, Math.min(selectedTemplateIndex, templates.length - 1));
+  selectedTemplateIndex = safeIndex;
+  loadTemplate(safeIndex);
   renderStats();
 }
 
 function loadTemplate(idx) {
-  const tpl = templates[idx];
+  const tpl = templates[idx] || templates[0] || { title: '', body: '' };
   document.getElementById('templateTitle').value = tpl?.title || '';
   document.getElementById('templateBody').value = tpl?.body || '';
+  renderVariableInputs(extractVariables(tpl?.body));
+  uiState.selectedTemplateIndex = idx;
+  persist();
   setTimeout(updatePreview, 0);
 }
 
-function renderVariableInputs() {
+function renderVariableInputs(vars = []) {
   const chips = document.getElementById('variableChips');
-  chips.innerHTML = variableSuggestions.map(v => `<span class="chip" data-var="${v}">{{${v}}}</span>`).join('');
+  const inputs = document.getElementById('variableInputs');
+  if (!vars.length) {
+    chips.innerHTML = `<span class="chip muted">Sin variables en esta plantilla</span>`;
+    inputs.innerHTML = `<p class="muted tiny">Agrega {{variable}} en el texto para habilitar reemplazos.</p>`;
+    setTimeout(updatePreview, 0);
+    return;
+  }
+  chips.innerHTML = vars.map(v => `<span class="chip compact" data-var="${v}">{{${v}}}</span>`).join('');
   chips.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => insertVariable(chip.dataset.var)));
 
-  const inputs = document.getElementById('variableInputs');
-  inputs.innerHTML = variableSuggestions.map(v => `
-    <div class="field">
+  inputs.innerHTML = vars.map(v => `
+    <div class="field inline-variable">
       <label>${v}</label>
       <input data-var="${v}" placeholder="${v}">
     </div>`).join('');
 
-  inputs.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updatePreview));
+  inputs.querySelectorAll('input').forEach(inp => {
+    inp.value = uiState.variableValues?.[inp.dataset.var] || '';
+    inp.addEventListener('input', () => {
+      uiState.variableValues[inp.dataset.var] = inp.value;
+      persist();
+      updatePreview();
+    });
+  });
   
   // Trigger initial preview update
   setTimeout(updatePreview, 0);
@@ -208,12 +282,13 @@ function insertVariable(variable) {
   const insertion = `{{${variable}}}`;
   textarea.value = text.slice(0, cursor) + insertion + text.slice(cursor);
   textarea.focus();
+  renderVariableInputs(extractVariables(textarea.value));
   updatePreview();
 }
 
 function updatePreview() {
   const body = document.getElementById('templateBody').value || '';
-  const values = {};
+  const values = { ...(uiState.variableValues || {}) };
   const inputs = document.querySelectorAll('#variableInputs input');
   inputs.forEach(inp => {
     values[inp.dataset.var] = inp.value || '';
@@ -242,6 +317,7 @@ function attachTemplateActions() {
       templates[selectedTemplateIndex].body = document.getElementById('templateBody').value;
       persist();
       updatePreview();
+      renderVariableInputs(extractVariables(templates[selectedTemplateIndex].body));
       renderTemplates();
     }
   });
@@ -250,8 +326,9 @@ function attachTemplateActions() {
     const title = document.getElementById('templateTitle').value.trim();
     const body = document.getElementById('templateBody').value.trim();
     if (!title || !body) return;
-    templates[selectedTemplateIndex] = { title, body };
+    templates[selectedTemplateIndex] = { ...(templates[selectedTemplateIndex] || {}), title, body };
     persist();
+    renderVariableInputs(extractVariables(body));
     renderTemplates();
   });
 
@@ -264,8 +341,9 @@ function attachTemplateActions() {
   });
 
   document.getElementById('addTemplate').addEventListener('click', () => {
-    templates.push({ title: 'Nueva plantilla', body: 'Mensaje personalizado con {{variables}}' });
+    templates.push({ id: `tpl-${Date.now()}`, title: 'Nueva plantilla', body: 'Mensaje personalizado con {{cliente}}' });
     selectedTemplateIndex = templates.length - 1;
+    uiState.selectedTemplateIndex = selectedTemplateIndex;
     persist();
     renderTemplates();
   });
@@ -274,6 +352,8 @@ function attachTemplateActions() {
 function renderVehicleTable() {
   const showRes = document.getElementById('showReservations').checked;
   const showInt = document.getElementById('showIntegration').checked;
+  uiState.toggles = { showReservations: showRes, showIntegration: showInt };
+  persist();
   const table = document.getElementById('vehicleTable');
   const plans = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
   const labels = {
@@ -287,8 +367,13 @@ function renderVehicleTable() {
   const bodyRows = plans.map(plan => {
     return `<tr><td>${labels[plan]}</td>${vehicles.map((v, idx) => {
       const value = v.shareByPlan[plan] ?? v.cuotaPura;
-      const display = value ? number.format(value) : '—';
-      return `<td><input type="number" data-vehicle="${idx}" data-plan="${plan}" value="${value ?? ''}" placeholder="${display}"></td>`;
+      return `
+        <td>
+          <div class="money-field">
+            <span class="prefix">$</span>
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" placeholder="$ 0">
+          </div>
+        </td>`;
     }).join('')}</tr>`;
   });
 
@@ -296,28 +381,51 @@ function renderVehicleTable() {
     ['1', '3', '6'].forEach(res => {
       bodyRows.push(`<tr><td>Reserva ${res} cuota(s)</td>${vehicles.map((v, idx) => {
         const value = v.reservations[res];
-        return `<td><input type="number" data-vehicle="${idx}" data-reserva="${res}" value="${value}"></td>`;
+        return `<td>
+          <div class="money-field">
+            <span class="prefix">$</span>
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" placeholder="$ 0">
+          </div>
+        </td>`;
       }).join('')}</tr>`);
     });
   }
 
   if (showInt) {
     bodyRows.push(`<tr><td>Integración</td>${vehicles.map((v, idx) => {
-      return `<td><input type="number" data-vehicle="${idx}" data-integration="true" value="${v.integration}"></td>`;
+      return `<td>
+        <div class="money-field">
+          <span class="prefix">$</span>
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" placeholder="$ 0">
+        </div>
+      </td>`;
     }).join('')}</tr>`);
-    bodyRows.push(`<tr><td>Precio de lista</td>${vehicles.map((v, idx) => `<td><input type="number" data-vehicle="${idx}" data-base="true" value="${v.basePrice}"></td>`).join('')}</tr>`);
+    bodyRows.push(`<tr><td>Precio de lista</td>${vehicles.map((v, idx) => `
+      <td>
+        <div class="money-field">
+          <span class="prefix">$</span>
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" placeholder="$ 0">
+        </div>
+      </td>`).join('')}</tr>`);
   }
 
   table.querySelector('thead').innerHTML = head;
   table.querySelector('tbody').innerHTML = bodyRows.join('');
 
-  table.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateVehicleValue));
+  table.querySelectorAll('input').forEach(inp => {
+    formatMoneyInput(inp);
+    inp.addEventListener('input', e => {
+      formatMoneyInput(e.target);
+      updateVehicleValue(e);
+    });
+    inp.addEventListener('blur', e => formatMoneyInput(e.target));
+  });
 }
 
 function updateVehicleValue(e) {
   const { vehicle } = e.target.dataset;
   const idx = Number(vehicle);
-  const val = Number(e.target.value || 0);
+  const val = parseMoney(e.target.value || 0);
   if ('plan' in e.target.dataset) {
     vehicles[idx].shareByPlan[e.target.dataset.plan] = val;
   } else if (e.target.dataset.reserva) {
@@ -333,15 +441,25 @@ function updateVehicleValue(e) {
 
 function renderPlanForm() {
   const select = document.getElementById('planModel');
+  const currentValue = select.value;
   select.innerHTML = vehicles.map((v, idx) => `<option value="${idx}">${v.name}</option>`).join('');
+  select.value = uiState.planDraft?.planModel ?? currentValue ?? 0;
   if (!select.dataset.bound) {
     select.addEventListener('change', updatePlanSummary);
     document.getElementById('planType').addEventListener('change', updatePlanSummary);
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
-    document.getElementById('tradeInValue').addEventListener('input', updatePlanSummary);
+    document.getElementById('tradeInValue').addEventListener('input', e => {
+      formatMoneyInput(e.target);
+      updatePlanSummary();
+    });
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
+    document.getElementById('clientContact').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
+  }
+  if (!planDraftApplied) {
+    applyPlanDraft();
+    planDraftApplied = true;
   }
   updatePlanSummary();
 }
@@ -350,8 +468,9 @@ function updatePlanSummary() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
   const plan = document.getElementById('planType').value;
   const tradeIn = document.getElementById('tradeIn').checked;
-  const tradeInValue = Number(document.getElementById('tradeInValue').value || 0);
-  const v = vehicles[modelIdx];
+  const tradeInValue = parseMoney(document.getElementById('tradeInValue').value || 0);
+  const v = vehicles[modelIdx] || vehicles[0];
+  if (!v) return;
   const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
   const reserva1 = v.reservations['1'];
   const total = v.integration;
@@ -374,6 +493,7 @@ function updatePlanSummary() {
       <strong>${r.value}</strong>
     </div>
   `).join('');
+  savePlanDraft();
 }
 
 function planLabel(key) {
@@ -386,6 +506,33 @@ function planLabel(key) {
   }[key] || key;
 }
 
+function applyPlanDraft() {
+  const draft = uiState.planDraft || {};
+  if (draft.planModel !== undefined) document.getElementById('planModel').value = draft.planModel;
+  if (draft.planType) document.getElementById('planType').value = draft.planType;
+  document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
+  if (draft.tradeInValue) {
+    document.getElementById('tradeInValue').value = number.format(draft.tradeInValue);
+    formatMoneyInput(document.getElementById('tradeInValue'));
+  }
+  document.getElementById('clientName').value = draft.clientName || '';
+  document.getElementById('clientContact').value = draft.clientContact || '';
+  document.getElementById('notes').value = draft.notes || '';
+}
+
+function savePlanDraft() {
+  uiState.planDraft = {
+    planModel: document.getElementById('planModel').value,
+    planType: document.getElementById('planType').value,
+    tradeIn: document.getElementById('tradeIn').checked,
+    tradeInValue: parseMoney(document.getElementById('tradeInValue').value),
+    clientName: document.getElementById('clientName').value,
+    clientContact: document.getElementById('clientContact').value,
+    notes: document.getElementById('notes').value
+  };
+  persist();
+}
+
 function attachPlanListeners() {
   document.getElementById('saveClient').addEventListener('click', () => {
     const name = document.getElementById('clientName').value.trim();
@@ -394,7 +541,7 @@ function attachPlanListeners() {
     const modelIdx = Number(document.getElementById('planModel').value || 0);
     const plan = document.getElementById('planType').value;
     const tradeIn = document.getElementById('tradeIn').checked;
-    const tradeInValue = Number(document.getElementById('tradeInValue').value || 0);
+    const tradeInValue = parseMoney(document.getElementById('tradeInValue').value || 0);
     const notes = document.getElementById('notes').value.trim();
     const v = vehicles[modelIdx];
     const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
@@ -427,23 +574,36 @@ function renderClients() {
     if (!c) return;
     document.getElementById('clientName').value = c.name;
     document.getElementById('clientContact').value = c.contact;
-    document.getElementById('planModel').value = vehicles.findIndex(v => v.name === c.model);
+    const found = vehicles.findIndex(v => v.name === c.model);
+    document.getElementById('planModel').value = found >= 0 ? found : 0;
     document.getElementById('planType').value = c.plan;
     document.getElementById('tradeIn').checked = c.tradeIn;
-    document.getElementById('tradeInValue').value = c.tradeInValue;
+    document.getElementById('tradeInValue').value = c.tradeInValue ? number.format(c.tradeInValue) : '';
+    formatMoneyInput(document.getElementById('tradeInValue'));
     document.getElementById('notes').value = c.notes;
     updatePlanSummary();
   }));
 }
 
 function attachVehicleToggles() {
-  document.getElementById('showReservations').addEventListener('change', renderVehicleTable);
-  document.getElementById('showIntegration').addEventListener('change', renderVehicleTable);
+  const res = document.getElementById('showReservations');
+  const integ = document.getElementById('showIntegration');
+  res.addEventListener('change', () => {
+    uiState.toggles.showReservations = res.checked;
+    persist();
+    renderVehicleTable();
+  });
+  integ.addEventListener('change', () => {
+    uiState.toggles.showIntegration = integ.checked;
+    persist();
+    renderVehicleTable();
+  });
 }
 
 function bindProfileActions() {
   document.getElementById('exportProfile').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ vehicles, templates, clients }, null, 2)], { type: 'application/json' });
+    const payload = { version: 2, vehicles, templates, clients, uiState };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -459,10 +619,14 @@ function bindProfileActions() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        vehicles = parsed.vehicles || vehicles;
-        templates = parsed.templates || templates;
+        vehicles = cloneVehicles(parsed.vehicles || vehicles);
+        templates = ensureTemplateIds(parsed.templates || templates);
         clients = parsed.clients || clients;
+        uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
+        selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
+        planDraftApplied = false;
         persist();
+        applyToggleState();
         renderVehicleTable();
         renderTemplates();
         renderPlanForm();
@@ -480,6 +644,7 @@ function persist() {
   save('vehicles', vehicles);
   save('templates', templates);
   save('clients', clients);
+  save('uiState', uiState);
 }
 
 function save(key, value) {
@@ -498,13 +663,17 @@ function load(key) {
 function clearStorage() {
   localStorage.clear();
   vehicles = defaultVehicles.map(v => ({ ...v, shareByPlan: { ...v.shareByPlan }, reservations: { ...v.reservations } }));
-  templates = [...defaultTemplates];
+  templates = ensureTemplateIds([...defaultTemplates]);
   clients = [];
+  uiState = { ...defaultUiState };
   selectedTemplateIndex = 0;
+  planDraftApplied = false;
+  applyToggleState();
   renderVehicleTable();
   renderTemplates();
   renderPlanForm();
   renderClients();
   renderStats();
+  persist();
 }
 
