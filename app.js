@@ -1449,6 +1449,7 @@ function renderClientManager() {
   const helper = document.getElementById('clientManagerHelper');
   if (!table) return;
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
+  const totalColumns = visibleColumns.length + 2;
   let colgroup = table.querySelector('colgroup');
   if (!colgroup) {
     colgroup = document.createElement('colgroup');
@@ -1465,14 +1466,14 @@ function renderClientManager() {
 
   const rows = filteredManagerClients();
   if (!rows.length) {
-    table.querySelector('tbody').innerHTML = '<tr><td colspan="10" class="muted">Sin clientes importados.</td></tr>';
+    table.querySelector('tbody').innerHTML = `<tr><td colspan="${totalColumns}" class="muted">Sin clientes importados.</td></tr>`;
     if (helper) helper.textContent = 'Sube el Excel y el gestor detectará duplicados automáticamente.';
     return;
   }
 
   const groups = clientManagerState.groupByModel ? groupByModel(rows) : { 'Todos': rows };
   const body = Object.entries(groups).map(([group, items]) => {
-    const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${visibleColumns.length + 2}" class="group-title">${group} (${items.length})</td></tr>` : '';
+    const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${totalColumns}" class="group-title">${group} (${items.length})</td></tr>` : '';
     const content = items.map(c => {
       const status = clientStatus(c);
       const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;

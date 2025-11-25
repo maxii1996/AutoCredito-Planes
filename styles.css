@@ -262,8 +262,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 #vehicleTable th, #vehicleTable td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 #vehicleTable thead { background: #101728; }
 #vehicleTable input { width: 100%; }
-.table-wrapper.dense table { width: 100%; border-collapse: collapse; min-width: 820px; table-layout: auto; }
-.table-wrapper.dense th, .table-wrapper.dense td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.table-wrapper.dense table { width: 100%; border-collapse: collapse; min-width: 820px; table-layout: fixed; }
+.table-wrapper.dense th, .table-wrapper.dense td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; word-break: break-word; }
 .table-wrapper.dense th.selector, .table-wrapper.dense td.selector { width: 52px; text-align: center; }
 .table-wrapper.dense th.status-col, .table-wrapper.dense td.status-col { text-align: center; font-weight: 700; }
 .table-wrapper.dense th.actions-cell, .table-wrapper.dense td.actions-cell { width: auto; }
