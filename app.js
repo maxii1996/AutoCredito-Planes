@@ -75,18 +75,18 @@ const variableSuggestions = [
 ];
 
 const clientColumns = {
-  name: { label: 'Nombre', default: true, width: 240 },
-  model: { label: 'Modelo', default: true, width: 200 },
-  phone: { label: 'Celular', default: true, width: 150 },
-  brand: { label: 'Marca', default: false, width: 150 },
-  city: { label: 'Localidad', default: false, width: 180 },
-  province: { label: 'Provincia', default: false, width: 150 },
-  document: { label: 'Documento', default: false, width: 150 },
-  cuit: { label: 'CUIT', default: false, width: 150 },
-  birthDate: { label: 'Nacimiento', default: false, width: 140 },
-  purchaseDate: { label: 'Fecha compra', default: false, width: 150 },
-  postalCode: { label: 'CP', default: false, width: 120 },
-  type: { label: 'Tipo', default: false, width: 150 }
+  name: { label: 'Nombre', default: true },
+  model: { label: 'Modelo', default: true },
+  phone: { label: 'Celular', default: true },
+  brand: { label: 'Marca', default: false },
+  city: { label: 'Localidad', default: false },
+  province: { label: 'Provincia', default: false },
+  document: { label: 'Documento', default: false },
+  cuit: { label: 'CUIT', default: false },
+  birthDate: { label: 'Nacimiento', default: false },
+  purchaseDate: { label: 'Fecha compra', default: false },
+  postalCode: { label: 'CP', default: false },
+  type: { label: 'Tipo', default: false }
 };
 
 const defaultClientManagerState = {
@@ -1432,8 +1432,7 @@ function renderClientManager() {
   const helper = document.getElementById('clientManagerHelper');
   if (!table) return;
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
-  renderClientManagerColumnGroup(table, visibleColumns);
-  const headerCells = [...visibleColumns.map(([key, col]) => `<th class="col-${key}">${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
+  const headerCells = [...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
   table.querySelector('thead').innerHTML = `<tr>${headerCells}</tr>`;
 
   const rows = filteredManagerClients();
@@ -1450,7 +1449,7 @@ function renderClientManager() {
       const status = clientStatus(c);
       const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
       const rowClass = `client-row ${status.className}`;
-      const cells = visibleColumns.map(([key]) => `<td class="col-${key}">${formatCell(key, c)}</td>`).join('');
+      const cells = visibleColumns.map(([key]) => `<td>${formatCell(key, c)}</td>`).join('');
       return `
         <tr data-id="${c.id}" class="${rowClass}" style="${statusVars}">
           ${cells}
@@ -1533,22 +1532,11 @@ function updateStatusSetting(status, payload = {}) {
 }
 
 function formatCell(key, client) {
-  if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.city || client.province || 'Localidad no indicada'}</p></div></div>`;
-  if (key === 'model') return `<div class="model-cell"><strong>${client.model}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div>`;
+  if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div></div>`;
+  if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.type || 'Plan vigente'}</p></div>`;
   if (key === 'phone') return `<div class="tip"><i class='bx bx-help-circle helper-icon' title="Teléfono sanitizado"></i><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
   return client[key] || '-';
-}
-
-function renderClientManagerColumnGroup(table, visibleColumns) {
-  let colgroup = table.querySelector('colgroup');
-  if (!colgroup) {
-    colgroup = document.createElement('colgroup');
-    table.prepend(colgroup);
-  }
-  const cols = visibleColumns.map(([key, col]) => `<col class="col-${key}" style="width:${col.width || 160}px">`);
-  cols.push('<col class="status-col">', '<col class="actions-col">');
-  colgroup.innerHTML = cols.join('');
 }
 
 function groupByModel(list) {
