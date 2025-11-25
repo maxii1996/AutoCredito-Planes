@@ -336,6 +336,67 @@
               </label>
             </div>
           </div>
+          <div class="global-config" id="globalConfig">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Configuraciones globales</p>
+                <h3>Tipo y asesor predeterminado</h3>
+                <p class="muted subtle">Se aplican a los mensajes y al gestor de clientes.</p>
+              </div>
+            </div>
+            <div class="grid two">
+              <div class="field">
+                <label for="globalAdvisor">Asesor</label>
+                <input id="globalAdvisor" placeholder="Nombre del asesor" />
+              </div>
+              <div class="field">
+                <label for="globalType">Tipo</label>
+                <input id="globalType" placeholder="Tipo de cliente" />
+              </div>
+            </div>
+            <div class="palette-grid">
+              <div class="palette-row">
+                <div>
+                  <p class="muted tiny">Cliente contactado</p>
+                  <input type="color" data-status-color="contacted" />
+                </div>
+                <div class="slider-group">
+                  <label>Opacidad</label>
+                  <input type="range" min="5" max="80" data-status-opacity="contacted" />
+                </div>
+              </div>
+              <div class="palette-row">
+                <div>
+                  <p class="muted tiny">Número no disponible</p>
+                  <input type="color" data-status-color="noNumber" />
+                </div>
+                <div class="slider-group">
+                  <label>Opacidad</label>
+                  <input type="range" min="5" max="80" data-status-opacity="noNumber" />
+                </div>
+              </div>
+              <div class="palette-row">
+                <div>
+                  <p class="muted tiny">Favorito</p>
+                  <input type="color" data-status-color="favorite" />
+                </div>
+                <div class="slider-group">
+                  <label>Opacidad</label>
+                  <input type="range" min="5" max="80" data-status-opacity="favorite" />
+                </div>
+              </div>
+              <div class="palette-row">
+                <div>
+                  <p class="muted tiny">Pendiente</p>
+                  <input type="color" data-status-color="pending" />
+                </div>
+                <div class="slider-group">
+                  <label>Opacidad</label>
+                  <input type="range" min="5" max="80" data-status-opacity="pending" />
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="column-pills" id="columnToggles"></div>
           <div class="table-wrapper dense">
             <table id="clientManagerTable">

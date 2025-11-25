@@ -5,7 +5,17 @@ const defaultUiState = {
   selectedTemplateIndex: 0,
   variableValues: {},
   planDraft: {},
-  toggles: { showReservations: true, showIntegration: true }
+  toggles: { showReservations: true, showIntegration: true },
+  globalSettings: {
+    advisorName: 'Equipo Chevrolet',
+    clientType: 'Cliente Chevrolet',
+    statusPalette: {
+      contacted: { color: '#34d399', opacity: 0.16 },
+      noNumber: { color: '#f87171', opacity: 0.16 },
+      favorite: { color: '#f6b04b', opacity: 0.16 },
+      pending: { color: '#9fb1c5', opacity: 0.14 }
+    }
+  }
 };
 
 const defaultVehicles = [
@@ -213,16 +223,19 @@ function applyProfileData(parsed) {
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
+  uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
   selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
   selectedTemplateId = templates[selectedTemplateIndex]?.id;
   planDraftApplied = false;
   persist();
   applyToggleState();
+  applyStatusPalette();
   renderVehicleTable();
   renderTemplates();
   renderPlanForm();
   renderClients();
   renderClientManager();
+  renderGlobalSettings();
   renderSnapshots();
   renderStats();
 }
@@ -316,6 +329,21 @@ function extractVariables(body = '') {
   return Array.from(new Set(vars));
 }
 
+function mergeGlobalSettings(current = {}) {
+  const base = defaultUiState.globalSettings;
+  const palette = current.statusPalette || {};
+  return {
+    advisorName: current.advisorName || base.advisorName,
+    clientType: current.clientType || base.clientType,
+    statusPalette: {
+      contacted: { ...base.statusPalette.contacted, ...(palette.contacted || {}) },
+      noNumber: { ...base.statusPalette.noNumber, ...(palette.noNumber || {}) },
+      favorite: { ...base.statusPalette.favorite, ...(palette.favorite || {}) },
+      pending: { ...base.statusPalette.pending, ...(palette.pending || {}) }
+    }
+  };
+}
+
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '');
 }
@@ -325,7 +353,7 @@ function clientStatus(client = {}) {
   if (flags.noNumber) return { label: 'Número no disponible', className: 'status-no-number' };
   if (flags.favorite) return { label: 'Favorito', className: 'status-favorite' };
   if (flags.contacted) return { label: 'Contactado', className: 'status-contacted' };
-  return { label: 'Pendiente', className: '' };
+  return { label: 'Pendiente', className: 'status-pending' };
 }
 
 function initialTemplate() {
@@ -335,13 +363,25 @@ function initialTemplate() {
 function buildMessageForClient(client) {
   const tpl = initialTemplate();
   if (!tpl) return '';
+  const globalSettings = mergeGlobalSettings(uiState.globalSettings);
+  const year = (client.purchaseDate || '').slice(0, 4) || '';
   const replacements = {
     cliente: client.name || '',
+    asesor: globalSettings.advisorName || '',
+    tipo: client.type || globalSettings.clientType || '',
     modelo_actual: client.model || client.brand || '',
-    telefono: client.phone || ''
+    modelo_nuevo: uiState.planDraft?.planModel !== undefined ? vehicles[uiState.planDraft.planModel]?.name : '',
+    telefono: client.phone || '',
+    anio_retiro: year,
+    plan: client.plan || '',
+    cuota: client.cuota ? currency.format(client.cuota) : '',
+    entrega_usado: client.tradeIn ? 'Sí' : 'No',
+    valor_efectivo: client.tradeInValue ? currency.format(client.tradeInValue) : '',
+    version: client.version || ''
   };
   let content = tpl.body || '';
-  Object.entries(replacements).forEach(([key, value]) => {
+  extractVariables(content).forEach(key => {
+    const value = replacements[key] ?? uiState.variableValues[key] ?? '';
     const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
     content = content.replace(regex, value);
   });
@@ -376,6 +416,7 @@ let snapshots = load('snapshots') || [];
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
 uiState.profileSearch = uiState.profileSearch || '';
+uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
 uiState.variableValues = uiState.variableValues || {};
@@ -391,6 +432,7 @@ function init() {
     bindProfileActions();
     bindSettingsMenu();
     applyToggleState();
+    applyStatusPalette();
     renderStats();
     renderQuickOverview();
     renderTemplates();
@@ -398,6 +440,7 @@ function init() {
     renderPlanForm();
     renderClients();
     renderClientManager();
+    renderGlobalSettings();
     renderSnapshots();
     attachPlanListeners();
     attachTemplateActions();
@@ -1204,6 +1247,65 @@ function renderClientManager() {
   if (helper) helper.textContent = `${rows.length} clientes visibles · columnas activas: ${visibleColumns.length}`;
 }
 
+function renderGlobalSettings() {
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  uiState.globalSettings = settings;
+  const advisor = document.getElementById('globalAdvisor');
+  const type = document.getElementById('globalType');
+  if (advisor) {
+    if (advisor.value !== settings.advisorName) advisor.value = settings.advisorName;
+    if (!advisor.dataset.bound) {
+      advisor.addEventListener('input', () => {
+        uiState.globalSettings.advisorName = advisor.value;
+        persist();
+      });
+      advisor.dataset.bound = 'true';
+    }
+  }
+  if (type) {
+    if (type.value !== settings.clientType) type.value = settings.clientType;
+    if (!type.dataset.bound) {
+      type.addEventListener('input', () => {
+        uiState.globalSettings.clientType = type.value;
+        persist();
+      });
+      type.dataset.bound = 'true';
+    }
+  }
+
+  ['contacted', 'noNumber', 'favorite', 'pending'].forEach(status => {
+    const colorInput = document.querySelector(`[data-status-color="${status}"]`);
+    const opacityInput = document.querySelector(`[data-status-opacity="${status}"]`);
+    const current = settings.statusPalette[status];
+    if (colorInput && colorInput.value !== current.color) colorInput.value = current.color;
+    if (opacityInput && Number(opacityInput.value) !== Math.round((current.opacity || 0.12) * 100)) {
+      opacityInput.value = Math.round((current.opacity || 0.12) * 100);
+    }
+    if (colorInput && !colorInput.dataset.bound) {
+      colorInput.addEventListener('input', () => updateStatusSetting(status, { color: colorInput.value }));
+      colorInput.dataset.bound = 'true';
+    }
+    if (opacityInput && !opacityInput.dataset.bound) {
+      opacityInput.addEventListener('input', () => {
+        const value = Math.max(5, Math.min(100, Number(opacityInput.value || 0)));
+        updateStatusSetting(status, { opacity: value / 100 });
+      });
+      opacityInput.dataset.bound = 'true';
+    }
+  });
+
+  applyStatusPalette();
+}
+
+function updateStatusSetting(status, payload = {}) {
+  uiState.globalSettings.statusPalette = uiState.globalSettings.statusPalette || {};
+  const current = uiState.globalSettings.statusPalette[status] || {};
+  uiState.globalSettings.statusPalette[status] = { ...current, ...payload };
+  persist();
+  applyStatusPalette();
+  renderClientManager();
+}
+
 function formatCell(key, client) {
   if (key === 'name') return `<div class="row"><div class="avatar">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Cliente Chevrolet'}</p></div></div>`;
   if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.type || 'Plan vigente'}</p></div>`;
@@ -1273,6 +1375,32 @@ function updateClientFlag(id, flag) {
   }
   persist();
   renderClientManager();
+}
+
+function applyStatusPalette() {
+  const root = document.documentElement;
+  const palette = mergeGlobalSettings(uiState.globalSettings).statusPalette;
+  const setVars = (key, target) => {
+    const { color, opacity } = target;
+    const rgba = hexToRgba(color, opacity || 0.12);
+    const border = hexToRgba(color, Math.min((opacity || 0.12) + 0.12, 1));
+    root.style.setProperty(`--${key}-bg`, rgba);
+    root.style.setProperty(`--${key}-border`, border);
+    root.style.setProperty(`--${key}-text`, color);
+  };
+  setVars('status-contacted', palette.contacted);
+  setVars('status-no-number', palette.noNumber);
+  setVars('status-favorite', palette.favorite);
+  setVars('status-pending', palette.pending);
+}
+
+function hexToRgba(hex, alpha = 1) {
+  const cleaned = hex.replace('#', '');
+  const bigint = parseInt(cleaned, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function exportManagerClients() {
@@ -1433,6 +1561,7 @@ function clearStorage() {
       selectedTemplateId = templates[0].id;
       planDraftApplied = false;
       applyToggleState();
+      applyStatusPalette();
       renderVehicleTable();
       renderTemplates();
       renderPlanForm();
