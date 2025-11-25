@@ -1445,57 +1445,60 @@ function filteredManagerClients() {
 }
 
 function renderClientManager() {
-  const table = document.getElementById('clientManagerTable');
+  const grid = document.getElementById('clientManagerTable');
   const helper = document.getElementById('clientManagerHelper');
-  if (!table) return;
+  if (!grid) return;
+  const head = grid.querySelector('.grid-head');
+  const bodyContainer = grid.querySelector('.grid-body');
+  if (!head || !bodyContainer) return;
+
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
-  const totalColumns = visibleColumns.length + 2;
-  let colgroup = table.querySelector('colgroup');
-  if (!colgroup) {
-    colgroup = document.createElement('colgroup');
-    table.insertBefore(colgroup, table.firstChild);
-  }
-  const colgroupHtml = [
-    ...visibleColumns.map(([key]) => `<col style="width:${clientColumnWidths[key] || '160px'}">`),
-    `<col class="status-col" style="width:${clientColumnWidths.status}">`,
-    `<col class="actions-col" style="width:${clientColumnWidths.actions}">`
+  const templateColumns = [
+    ...visibleColumns.map(([key]) => `minmax(${clientColumnWidths[key] || '160px'}, 1fr)`),
+    `minmax(${clientColumnWidths.status}, 160px)`,
+    `minmax(${clientColumnWidths.actions}, 220px)`
+  ].join(' ');
+  grid.style.setProperty('--grid-template', templateColumns);
+
+  const headerCells = [
+    ...visibleColumns.map(([, col]) => `<div class="grid-cell">${col.label}</div>`),
+    '<div class="grid-cell status-col">Estado</div>',
+    '<div class="grid-cell actions-col">Acciones</div>'
   ].join('');
-  colgroup.innerHTML = colgroupHtml;
-  const headerCells = [...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
-  table.querySelector('thead').innerHTML = `<tr>${headerCells}</tr>`;
+  head.innerHTML = `<div class="grid-row grid-header">${headerCells}</div>`;
 
   const rows = filteredManagerClients();
   if (!rows.length) {
-    table.querySelector('tbody').innerHTML = `<tr><td colspan="${totalColumns}" class="muted">Sin clientes importados.</td></tr>`;
+    bodyContainer.innerHTML = `<div class="grid-row empty-row"><div class="grid-cell">Sin clientes importados.</div></div>`;
     if (helper) helper.textContent = 'Sube el Excel y el gestor detectará duplicados automáticamente.';
     return;
   }
 
   const groups = clientManagerState.groupByModel ? groupByModel(rows) : { 'Todos': rows };
   const body = Object.entries(groups).map(([group, items]) => {
-    const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${totalColumns}" class="group-title">${group} (${items.length})</td></tr>` : '';
+    const groupTitle = clientManagerState.groupByModel ? `<div class="group-row">${group} (${items.length})</div>` : '';
     const content = items.map(c => {
       const status = clientStatus(c);
       const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
-      const rowClass = `client-row ${status.className}`;
-      const cells = visibleColumns.map(([key]) => `<td>${formatCell(key, c)}</td>`).join('');
+      const rowClass = `grid-row client-row ${status.className}`;
+      const cells = visibleColumns.map(([key, col]) => `<div class="grid-cell" data-label="${col.label}">${formatCell(key, c)}</div>`).join('');
       return `
-        <tr data-id="${c.id}" class="${rowClass}" style="${statusVars}">
+        <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
           ${cells}
-          <td class="status-col"><span class="status-pill ${status.className}">${status.label}</span></td>
-          <td class="actions-cell">
+          <div class="grid-cell status-col" data-label="Estado"><span class="status-pill ${status.className}">${status.label}</span></div>
+          <div class="grid-cell actions-col" data-label="Acciones">
             <button class="icon-btn" data-action="contacted" title="Marcar como contactado"><i class='bx bx-check-circle'></i></button>
             <button class="icon-btn" data-action="no_number" title="Número no disponible"><i class='bx bx-block'></i></button>
             <button class="icon-btn" data-action="favorite" title="Agregar a favoritos"><i class='bx bx-star'></i></button>
             <button class="icon-btn" data-action="copy_message" title="Copiar mensaje inicial"><i class='bx bx-message-square-dots'></i></button>
             <button class="icon-btn" data-action="copy_phone" title="Copiar número"><i class='bx bx-phone'></i></button>
-          </td>
-        </tr>`;
+          </div>
+        </div>`;
     }).join('');
     return `${groupTitle}${content}`;
   }).join('');
 
-  table.querySelector('tbody').innerHTML = body;
+  bodyContainer.innerHTML = body;
   bindClientTableActions();
   if (helper) helper.textContent = `${rows.length} clientes visibles · columnas activas: ${visibleColumns.length}`;
 }
@@ -1578,9 +1581,9 @@ function groupByModel(list) {
 }
 
 function bindClientTableActions() {
-  document.querySelectorAll('#clientManagerTable [data-action]').forEach(btn => btn.addEventListener('click', (e) => {
+  document.querySelectorAll('#clientManagerTable .grid-body [data-action]').forEach(btn => btn.addEventListener('click', (e) => {
     const action = btn.dataset.action;
-    const row = btn.closest('tr');
+    const row = btn.closest('.client-row');
     const id = row?.dataset.id;
     if (!id) return;
     e.stopPropagation();
