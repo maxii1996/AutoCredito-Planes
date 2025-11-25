@@ -15,7 +15,8 @@ const defaultUiState = {
       favorite: { color: '#f6b04b', opacity: 0.16 },
       pending: { color: '#9fb1c5', opacity: 0.14 }
     }
-  }
+  },
+  advisorNote: ''
 };
 
 const defaultVehicles = [
@@ -577,119 +578,139 @@ function renderStats() {
   document.getElementById('templateCount').textContent = templates.length;
   document.getElementById('clientCount').textContent = clients.length + managerClients.length;
   renderWelcomeHero();
+  renderAdvisorNote();
 }
 
 function renderWelcomeHero() {
-  const title = document.getElementById('welcomeTitle');
-  const subtitle = document.getElementById('welcomeSubtitle');
-  const side = document.getElementById('heroSide');
-  const hero = document.getElementById('welcomeHero');
-  if (!title || !subtitle || !side || !hero) return;
+  const heading = document.getElementById('dashboardHeading');
+  const subtitle = document.getElementById('dashboardSubtitle');
+  const helper = document.getElementById('advisorHelper');
+  const input = document.getElementById('advisorInput');
+  const saveBtn = document.getElementById('advisorSave');
+  const resetBtn = document.getElementById('advisorReset');
+  const datalist = document.getElementById('advisorSuggestions');
+  if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
   const advisor = (settings.advisorName || '').trim();
-  const totalClients = clients.length + managerClients.length;
-  const actions = [
-    { icon: '🧭', text: 'Explora plantillas y arma mensajes listos', target: 'templates' },
-    { icon: '📂', text: 'Importa clientes desde clients_list/1.xlsx', target: 'clientManager' },
-    { icon: '🔗', text: 'Crea un plan y comparte resumen', target: 'plans' }
-  ];
+  heading.textContent = advisor ? `Panel de ${advisor}` : 'Control de vendedores y accesos';
+  subtitle.textContent = advisor ? 'Personalización activa para tu jornada.' : 'Define quién atiende y salta directo a los flujos clave.';
+  if (helper) helper.textContent = advisor ? `Vendedor activo: ${advisor}. Puedes ajustarlo cuando quieras.` : 'Personaliza el panel y se guarda en tu dispositivo.';
 
-  if (advisor) {
-    title.textContent = `Bienvenido de vuelta, ${advisor}`;
-    subtitle.textContent = '¿A dónde vamos ahora? Usa los accesos rápidos para continuar.';
-    side.innerHTML = `
-      <div class="assistant-box">
-        <strong>Tu jornada</strong>
-        <div class="assistant-steps">
-          <div class="tip"><i class='bx bx-car'></i>${vehicles.length} modelos activos</div>
-          <div class="tip"><i class='bx bx-message-dots'></i>${templates.length} plantillas listas</div>
-          <div class="tip"><i class='bx bx-group'></i>${totalClients} clientes en memoria</div>
-        </div>
-        <div class="assistant-steps">
-          ${actions.map(a => `<button class="secondary-btn" data-jump="${a.target}"><i class='bx bx-right-arrow-alt'></i>${a.text}</button>`).join('')}
-        </div>
-      </div>
-    `;
-  } else {
-    title.textContent = 'Configura tu perfil de asesor';
-    subtitle.textContent = 'Completa tu nombre y activa el panel personalizado.';
-    side.innerHTML = `
-      <div class="assistant-box">
-        <div class="field">
-          <label for="advisorQuickInput">Nombre del asesor</label>
-          <input id="advisorQuickInput" placeholder="Ingresa tu nombre" />
-        </div>
-        <button class="primary-btn" id="saveAdvisorQuick"><i class='bx bx-check'></i>Guardar y continuar</button>
-        <div class="assistant-steps">
-          <div class="tip"><i class='bx bx-spreadsheet'></i>Importa clients_list/1.xlsx en Gestor de clientes</div>
-          <div class="tip"><i class='bx bx-cloud-download'></i>Exporta un snapshot desde Opciones para respaldar</div>
-        </div>
-      </div>
-    `;
+  const suggestions = Array.from(new Set([
+    'Equipo Chevrolet',
+    'Sofía Alvarez',
+    'Martín Rivas',
+    'Agustina Torres',
+    advisor
+  ].filter(Boolean)));
+  if (datalist) {
+    datalist.innerHTML = suggestions.map(name => `<option value="${name}"></option>`).join('');
   }
 
-  const quickInput = document.getElementById('advisorQuickInput');
-  const quickSave = document.getElementById('saveAdvisorQuick');
-  if (quickInput && advisor && quickInput.value !== advisor) quickInput.value = advisor;
-  if (quickInput && !quickInput.dataset.bound) {
-    quickInput.addEventListener('input', () => {
-      uiState.globalSettings.advisorName = quickInput.value;
-    });
-    quickInput.dataset.bound = 'true';
+  if (input && input.value !== advisor) input.value = advisor;
+
+  const saveAdvisor = () => {
+    uiState.globalSettings.advisorName = (input?.value || '').trim();
+    persist();
+    renderGlobalSettings();
+    renderWelcomeHero();
+    showToast('Vendedor actualizado', 'success');
+  };
+
+  if (saveBtn && !saveBtn.dataset.bound) {
+    saveBtn.addEventListener('click', saveAdvisor);
+    saveBtn.dataset.bound = 'true';
   }
-  if (quickSave && !quickSave.dataset.bound) {
-    quickSave.addEventListener('click', () => {
-      uiState.globalSettings.advisorName = (quickInput?.value || '').trim();
+
+  if (resetBtn && !resetBtn.dataset.bound) {
+    resetBtn.addEventListener('click', () => {
+      if (input) input.value = '';
+      uiState.globalSettings.advisorName = '';
       persist();
       renderGlobalSettings();
       renderWelcomeHero();
-      showToast('Asesor actualizado', 'success');
+      showToast('Se limpió el vendedor', 'info');
     });
-    quickSave.dataset.bound = 'true';
+    resetBtn.dataset.bound = 'true';
+  }
+
+  if (input && !input.dataset.bound) {
+    input.addEventListener('input', () => {
+      uiState.globalSettings.advisorName = input.value;
+    });
+    input.dataset.bound = 'true';
   }
   bindQuickLinks();
 }
 
 function renderQuickOverview() {
   const steps = [
-    { icon: '💬', title: 'Contacto inmediato', text: 'Usa la plantilla de inicio con variables y comprueba si sigue con su Chevrolet actual.' },
-    { icon: '🧾', title: 'Cotización InfoAuto', text: 'Comparte la guía oficial y arma la propuesta con valores de fábrica y cuotas en pesos.' },
-    { icon: '🔑', title: 'Llave por llave', text: 'Confirma entrega de usado al momento de retirar el 0 km. Sin sorteo ni licitación.' },
-    { icon: '📦', title: 'Plan y reservas', text: 'Bloquea cupo con 1, 3 o 6 cuotas. Planes sin interés y pre cancelables.' }
+    { icon: '🎯', title: 'Selecciona vendedor', text: 'Confirma el nombre activo y sincroniza el panel.', target: 'dashboard' },
+    { icon: '💬', title: 'Plantillas listas', text: 'Prepara el mensaje inicial con variables y copia en un clic.', target: 'templates' },
+    { icon: '🚘', title: 'Valores y reservas', text: 'Revisa precios, integración y reservas disponibles.', target: 'vehicles' },
+    { icon: '👥', title: 'Base de clientes', text: 'Agrupa, filtra y prioriza con el gestor dedicado.', target: 'clientManager' }
   ];
   const container = document.getElementById('quickOverview');
+  if (!container) return;
   container.innerHTML = steps.map(step => `
-    <div class="timeline-step">
-      <div class="icon">${step.icon}</div>
-      <div>
-        <strong>${step.title}</strong>
-        <p class="muted">${step.text}</p>
-      </div>
+    <div class="flow-step">
+      <strong><span class="badge">${step.icon}</span>${step.title}</strong>
+      <p class="muted">${step.text}</p>
+      ${step.target ? `<div class="flow-actions"><button class="secondary-btn" data-jump="${step.target}"><i class='bx bx-right-arrow-alt'></i>Ir ahora</button></div>` : ''}
     </div>
   `).join('');
+  bindQuickLinks();
 }
 
 function renderHomeShortcuts() {
   const shortcuts = [
-    { icon: '📲', title: 'Plantillas rápidas', body: 'Personaliza y copia los mensajes con variables.', target: 'templates' },
-    { icon: '📊', title: 'Valores actualizados', body: 'Consulta precios, integración y reservas.', target: 'vehicles' },
-    { icon: '🗂️', title: 'Gestor de clientes', body: 'Importa, limpia y actúa sobre la base.', target: 'clientManager' },
-    { icon: '☁️', title: 'Perfiles y backups', body: 'Exporta tu configuración y respáldala.', target: 'profiles' }
+    { icon: '📲', title: 'Plantillas rápidas', body: 'Personaliza y copia los mensajes con variables.', target: 'templates', badge: 'Mensajes' },
+    { icon: '📊', title: 'Valores actualizados', body: 'Consulta precios, integración y reservas.', target: 'vehicles', badge: 'Finanzas' },
+    { icon: '🗂️', title: 'Gestor de clientes', body: 'Importa, limpia y actúa sobre la base.', target: 'clientManager', badge: 'Clientes' },
+    { icon: '☁️', title: 'Perfiles y backups', body: 'Exporta tu configuración y respáldala.', target: 'profiles', badge: 'Backups' }
   ];
   const container = document.getElementById('homeShortcuts');
   if (!container) return;
   container.innerHTML = shortcuts.map(card => `
-    <article class="shortcut-card">
-      <div class="shortcut-icon">${card.icon}</div>
+    <article class="quick-card">
+      <span class="badge">${card.badge}</span>
       <div class="shortcut-body">
+        <div class="shortcut-icon">${card.icon}</div>
         <h4>${card.title}</h4>
         <p class="muted">${card.body}</p>
       </div>
-      <button class="primary-btn ghosted" data-jump="${card.target}"><i class='bx bx-chevron-right'></i>Ir ahora</button>
+      <button class="primary-btn ghosted" data-jump="${card.target}"><i class='bx bx-right-arrow-alt'></i>Ir ahora</button>
     </article>
   `).join('');
   bindQuickLinks();
+}
+
+function renderAdvisorNote() {
+  const note = document.getElementById('advisorNote');
+  const status = document.getElementById('advisorNoteStatus');
+  const saveBtn = document.getElementById('saveAdvisorNote');
+  if (note && note.value !== (uiState.advisorNote || '')) {
+    note.value = uiState.advisorNote || '';
+  }
+  if (status) {
+    status.textContent = uiState.advisorNote ? 'Nota guardada en este dispositivo.' : 'Solo visible en este dispositivo.';
+  }
+  if (note && !note.dataset.bound) {
+    note.addEventListener('input', () => {
+      uiState.advisorNote = note.value;
+    });
+    note.dataset.bound = 'true';
+  }
+  if (saveBtn && !saveBtn.dataset.bound) {
+    saveBtn.addEventListener('click', () => {
+      uiState.advisorNote = note?.value || '';
+      persist();
+      renderAdvisorNote();
+      showToast('Nota del asesor guardada', 'success');
+    });
+    saveBtn.dataset.bound = 'true';
+  }
 }
 
 function renderTemplates() {

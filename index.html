@@ -62,83 +62,104 @@
       </header>
 
       <section id="dashboard" class="panel active">
-        <div class="welcome-hero" id="welcomeHero">
-          <div class="hero-main">
-            <div class="eyebrow">Inicio</div>
-            <h2 id="welcomeTitle">Bienvenido de vuelta</h2>
-            <p class="muted" id="welcomeSubtitle">¿A dónde vamos ahora? Elige un destino para continuar.</p>
-            <div class="hero-actions">
-              <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i> Gestor de clientes</button>
-              <button class="secondary-btn" data-jump="plans"><i class='bx bx-notepad'></i> Crear plan</button>
-              <button class="ghost-btn" data-jump="templates"><i class='bx bx-message-dots'></i> Plantillas</button>
+        <div class="dashboard-hero" id="welcomeHero">
+          <div class="hero-main modern">
+            <div class="eyebrow">Panel principal</div>
+            <h2 id="dashboardHeading">Control de vendedores y accesos</h2>
+            <p class="muted" id="dashboardSubtitle">Define quién atiende y salta directo a los flujos clave.</p>
+            <div class="advisor-card">
+              <div class="field">
+                <label for="advisorInput">Nombre del vendedor</label>
+                <div class="advisor-input">
+                  <input id="advisorInput" list="advisorSuggestions" placeholder="Ej: Sofía Alvarez" />
+                  <datalist id="advisorSuggestions"></datalist>
+                  <button class="primary-btn" id="advisorSave"><i class='bx bx-check'></i>Guardar</button>
+                  <button class="ghost-btn" id="advisorReset"><i class='bx bx-eraser'></i>Limpiar</button>
+                </div>
+              </div>
+              <p class="muted tiny" id="advisorHelper">Personaliza el panel y se guarda en tu dispositivo.</p>
+            </div>
+            <div class="hero-actions tight">
+              <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i>Gestor de clientes</button>
+              <button class="secondary-btn" data-jump="plans"><i class='bx bx-notepad'></i>Crear plan</button>
+              <button class="ghost-btn" data-jump="templates"><i class='bx bx-message-dots'></i>Plantillas</button>
             </div>
           </div>
-          <div class="hero-side" id="heroSide"></div>
-        </div>
-        <div class="grid stats">
-          <div class="stat-card">
-            <p class="label">Modelos activos</p>
-            <p class="value" id="modelCount">0</p>
-            <p class="helper">Todos los vehículos de la lista Chevrolet Nov. 2025</p>
-          </div>
-          <div class="stat-card">
-            <p class="label">Plantillas</p>
-            <p class="value" id="templateCount">0</p>
-            <p class="helper">Mensaje de inicio, respuesta, beneficios y más</p>
-          </div>
-          <div class="stat-card">
-            <p class="label">Clientes en memoria</p>
-            <p class="value" id="clientCount">0</p>
-            <p class="helper">Guardados localmente para seguimiento</p>
-          </div>
-          <div class="stat-card highlight">
-            <p class="label">Compatibilidad llave por llave</p>
-            <p class="value">Disponible</p>
-            <p class="helper">Entrega de usado al retiro del 0 km</p>
+          <div class="hero-side metrics">
+            <div class="stat-tiles">
+              <div class="tile" data-tone="amber">
+                <div class="tile-icon">🚘</div>
+                <div>
+                  <p class="label">Modelos activos</p>
+                  <p class="value" id="modelCount">0</p>
+                  <p class="helper">Lista oficial Chevrolet Nov. 2025</p>
+                </div>
+              </div>
+              <div class="tile" data-tone="blue">
+                <div class="tile-icon">💬</div>
+                <div>
+                  <p class="label">Plantillas</p>
+                  <p class="value" id="templateCount">0</p>
+                  <p class="helper">Mensajes listos con variables</p>
+                </div>
+              </div>
+              <div class="tile" data-tone="green">
+                <div class="tile-icon">👥</div>
+                <div>
+                  <p class="label">Clientes en memoria</p>
+                  <p class="value" id="clientCount">0</p>
+                  <p class="helper">Locales y listos para acción</p>
+                </div>
+              </div>
+            </div>
+            <div class="highlight-banner">
+              <div>
+                <p class="eyebrow">Llave por llave</p>
+                <h4>Entrega tu usado al retirar el 0 km</h4>
+                <p class="muted tiny">Compatibilidad activa en todos los planes destacados.</p>
+              </div>
+              <button class="primary-btn ghosted" data-jump="vehicles"><i class='bx bx-right-arrow-alt'></i>Ver modelos</button>
+            </div>
           </div>
         </div>
 
-        <div class="grid two">
-          <div class="card">
+        <div class="dashboard-grid">
+          <div class="panel-card glass">
             <div class="card-head">
               <div>
-                <p class="eyebrow">Resumen</p>
-                <h3>Campaña de renovación Chevrolet 2025</h3>
-                <p class="muted">Usa esta vista para armar rápidamente una propuesta con valores directos de fábrica, financiación en pesos sin interés y modalidad llave por llave.</p>
+                <p class="eyebrow">Flujo sugerido</p>
+                <h3>Avanza en minutos</h3>
+                <p class="muted subtle">Guía breve para arrancar el día con el vendedor seleccionado.</p>
               </div>
-              <div class="badges">
-                <span class="badge">Sin interés</span>
-                <span class="badge">Cuotas en pesos</span>
-                <span class="badge">Color a elección</span>
-              </div>
+              <span class="badge">Sin fricción</span>
             </div>
-            <div class="timeline" id="quickOverview"></div>
+            <div class="flow-grid" id="quickOverview"></div>
           </div>
 
-          <div class="card">
+          <div class="panel-card glass">
             <div class="card-head">
-              <p class="eyebrow">Accesos directos</p>
-              <h3>Todo al alcance en el inicio</h3>
+              <div>
+                <p class="eyebrow">Accesos rápidos</p>
+                <h3>Todo a un clic</h3>
+                <p class="muted subtle">Tarjetas para saltar directo a las áreas más usadas.</p>
+              </div>
             </div>
-            <div class="shortcut-grid" id="homeShortcuts"></div>
+            <div class="quick-grid" id="homeShortcuts"></div>
           </div>
 
-          <div class="card">
+          <div class="panel-card glass">
             <div class="card-head">
-              <p class="eyebrow">Checklist de fotos</p>
-              <h3>Requerimientos para cotizar usado</h3>
+              <div>
+                <p class="eyebrow">Notas del asesor</p>
+                <h3>Mensaje rápido</h3>
+                <p class="muted subtle">Un recordatorio breve para tu jornada.</p>
+              </div>
             </div>
-            <div class="photos">
-              <img src="img/Template/FotosReferenciaParaCliente.jpg" alt="Referencias de fotos" class="preview">
-              <div class="photo-steps">
-                <ol>
-                  <li>Foto interior (parabrisas) y frente con patente.</li>
-                  <li>Laterales, techo y baúl con patente visible.</li>
-                  <li>Velocímetro/odómetro y llantas.</li>
-                  <li>Rueda de auxilio o kit sellante.</li>
-                  <li>10 fotos mínimas para validar cotización.</li>
-                </ol>
-                <p class="muted">Incluye preguntas clave: kilómetros, servicios oficiales, estado (1-10), historial de choques y deudas.</p>
+            <div class="note-box">
+              <textarea id="advisorNote" placeholder="Ej: Priorizar a los clientes con entrega de usado. Llamar a las 10:00." rows="4"></textarea>
+              <div class="note-actions">
+                <button class="primary-btn" id="saveAdvisorNote"><i class='bx bx-save'></i>Guardar nota</button>
+                <span class="muted tiny" id="advisorNoteStatus">Solo visible en este dispositivo.</span>
               </div>
             </div>
           </div>
