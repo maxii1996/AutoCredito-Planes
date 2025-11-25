@@ -35,15 +35,22 @@
     </aside>
     <main class="content">
       <header class="topbar">
-        <div>
-          <h1>Gestor integral Chevrolet</h1>
-          <p class="muted subtle">Planes, clientes y plantillas en una sola vista.</p>
+        <div class="title-area">
+          <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú"><i class='bx bx-menu-alt-left'></i></button>
+          <div>
+            <h1>Gestor integral Chevrolet</h1>
+            <p class="muted subtle">Planes, clientes y plantillas en una sola vista.</p>
+          </div>
         </div>
         <div class="top-actions">
-          <button id="sidebarToggle" class="ghost-btn"><i class='bx bx-layout'></i><span>Ocultar menú</span></button>
-          <button id="quickSnapshot" class="secondary-btn"><i class='bx bx-layer'></i> Guardar snapshot</button>
-          <button id="exportProfile" class="primary-btn"><i class='bx bx-download'></i> Exportar perfil</button>
-          <label class="primary-btn upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+          <div class="action-menu" id="actionMenu">
+            <button class="primary-btn" id="actionMenuToggle"><i class='bx bx-collection'></i> Opciones</button>
+            <div class="menu-panel" id="actionMenuPanel">
+              <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
+              <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+              <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+            </div>
+          </div>
           <div class="icon-menu" id="settingsMenu">
             <button class="ghost-btn icon-only" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i></button>
             <div class="menu-panel" id="settingsPanel">
@@ -55,6 +62,19 @@
       </header>
 
       <section id="dashboard" class="panel active">
+        <div class="welcome-hero" id="welcomeHero">
+          <div class="hero-main">
+            <div class="eyebrow">Inicio</div>
+            <h2 id="welcomeTitle">Bienvenido de vuelta</h2>
+            <p class="muted" id="welcomeSubtitle">¿A dónde vamos ahora? Elige un destino para continuar.</p>
+            <div class="hero-actions">
+              <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i> Gestor de clientes</button>
+              <button class="secondary-btn" data-jump="plans"><i class='bx bx-notepad'></i> Crear plan</button>
+              <button class="ghost-btn" data-jump="templates"><i class='bx bx-message-dots'></i> Plantillas</button>
+            </div>
+          </div>
+          <div class="hero-side" id="heroSide"></div>
+        </div>
         <div class="grid stats">
           <div class="stat-card">
             <p class="label">Modelos activos</p>

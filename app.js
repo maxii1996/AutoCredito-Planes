@@ -481,11 +481,13 @@ function init() {
     bindNavigation();
     bindProfileActions();
     bindSettingsMenu();
+    bindActionMenu();
     bindSidebarToggle();
     bindQuickLinks();
     applyToggleState();
     applyStatusPalette();
     renderStats();
+    renderWelcomeHero();
     renderQuickOverview();
     renderHomeShortcuts();
     renderTemplates();
@@ -530,7 +532,7 @@ function bindSidebarToggle() {
   if (!toggle || !sidebar) return;
   toggle.addEventListener('click', () => {
     document.body.classList.toggle('menu-collapsed');
-    toggle.querySelector('span').textContent = document.body.classList.contains('menu-collapsed') ? 'Mostrar menú' : 'Ocultar menú';
+    toggle.setAttribute('aria-pressed', document.body.classList.contains('menu-collapsed'));
   });
 }
 
@@ -548,6 +550,20 @@ function bindSettingsMenu() {
   });
 }
 
+function bindActionMenu() {
+  const toggle = document.getElementById('actionMenuToggle');
+  const panel = document.getElementById('actionMenuPanel');
+  const wrapper = document.getElementById('actionMenu');
+  if (!toggle || !panel || !wrapper) return;
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!wrapper.contains(e.target)) panel.classList.remove('open');
+  });
+}
+
 function applyToggleState() {
   const toggles = uiState.toggles || defaultUiState.toggles;
   const res = document.getElementById('showReservations');
@@ -560,6 +576,79 @@ function renderStats() {
   document.getElementById('modelCount').textContent = vehicles.length;
   document.getElementById('templateCount').textContent = templates.length;
   document.getElementById('clientCount').textContent = clients.length + managerClients.length;
+  renderWelcomeHero();
+}
+
+function renderWelcomeHero() {
+  const title = document.getElementById('welcomeTitle');
+  const subtitle = document.getElementById('welcomeSubtitle');
+  const side = document.getElementById('heroSide');
+  const hero = document.getElementById('welcomeHero');
+  if (!title || !subtitle || !side || !hero) return;
+
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const advisor = (settings.advisorName || '').trim();
+  const totalClients = clients.length + managerClients.length;
+  const actions = [
+    { icon: '🧭', text: 'Explora plantillas y arma mensajes listos', target: 'templates' },
+    { icon: '📂', text: 'Importa clientes desde clients_list/1.xlsx', target: 'clientManager' },
+    { icon: '🔗', text: 'Crea un plan y comparte resumen', target: 'plans' }
+  ];
+
+  if (advisor) {
+    title.textContent = `Bienvenido de vuelta, ${advisor}`;
+    subtitle.textContent = '¿A dónde vamos ahora? Usa los accesos rápidos para continuar.';
+    side.innerHTML = `
+      <div class="assistant-box">
+        <strong>Tu jornada</strong>
+        <div class="assistant-steps">
+          <div class="tip"><i class='bx bx-car'></i>${vehicles.length} modelos activos</div>
+          <div class="tip"><i class='bx bx-message-dots'></i>${templates.length} plantillas listas</div>
+          <div class="tip"><i class='bx bx-group'></i>${totalClients} clientes en memoria</div>
+        </div>
+        <div class="assistant-steps">
+          ${actions.map(a => `<button class="secondary-btn" data-jump="${a.target}"><i class='bx bx-right-arrow-alt'></i>${a.text}</button>`).join('')}
+        </div>
+      </div>
+    `;
+  } else {
+    title.textContent = 'Configura tu perfil de asesor';
+    subtitle.textContent = 'Completa tu nombre y activa el panel personalizado.';
+    side.innerHTML = `
+      <div class="assistant-box">
+        <div class="field">
+          <label for="advisorQuickInput">Nombre del asesor</label>
+          <input id="advisorQuickInput" placeholder="Ingresa tu nombre" />
+        </div>
+        <button class="primary-btn" id="saveAdvisorQuick"><i class='bx bx-check'></i>Guardar y continuar</button>
+        <div class="assistant-steps">
+          <div class="tip"><i class='bx bx-spreadsheet'></i>Importa clients_list/1.xlsx en Gestor de clientes</div>
+          <div class="tip"><i class='bx bx-cloud-download'></i>Exporta un snapshot desde Opciones para respaldar</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const quickInput = document.getElementById('advisorQuickInput');
+  const quickSave = document.getElementById('saveAdvisorQuick');
+  if (quickInput && advisor && quickInput.value !== advisor) quickInput.value = advisor;
+  if (quickInput && !quickInput.dataset.bound) {
+    quickInput.addEventListener('input', () => {
+      uiState.globalSettings.advisorName = quickInput.value;
+    });
+    quickInput.dataset.bound = 'true';
+  }
+  if (quickSave && !quickSave.dataset.bound) {
+    quickSave.addEventListener('click', () => {
+      uiState.globalSettings.advisorName = (quickInput?.value || '').trim();
+      persist();
+      renderGlobalSettings();
+      renderWelcomeHero();
+      showToast('Asesor actualizado', 'success');
+    });
+    quickSave.dataset.bound = 'true';
+  }
+  bindQuickLinks();
 }
 
 function renderQuickOverview() {
@@ -1372,6 +1461,7 @@ function renderGlobalSettings() {
       advisor.addEventListener('input', () => {
         uiState.globalSettings.advisorName = advisor.value;
         persist();
+        renderWelcomeHero();
       });
       advisor.dataset.bound = 'true';
     }
@@ -1421,7 +1511,7 @@ function updateStatusSetting(status, payload = {}) {
 }
 
 function formatCell(key, client) {
-  if (key === 'name') return `<div class="row"><div class="avatar">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div></div>`;
+  if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div></div>`;
   if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.type || 'Plan vigente'}</p></div>`;
   if (key === 'phone') return `<div class="tip"><i class='bx bx-help-circle helper-icon' title="Teléfono sanitizado"></i><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
