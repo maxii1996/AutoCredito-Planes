@@ -1087,6 +1087,30 @@ function bindClientManager() {
     exportBtn.addEventListener('click', exportManagerClients);
   }
 
+  const paletteOverlay = document.getElementById('paletteOverlay');
+  const openPalette = document.getElementById('openPalette');
+  const closePalette = document.getElementById('closePalette');
+  const applyPalette = document.getElementById('applyPalette');
+  const togglePalette = (show) => {
+    if (!paletteOverlay) return;
+    paletteOverlay.classList[show ? 'add' : 'remove']('show');
+  };
+  if (openPalette) openPalette.addEventListener('click', () => togglePalette(true));
+  if (closePalette) closePalette.addEventListener('click', () => togglePalette(false));
+  if (paletteOverlay) {
+    paletteOverlay.addEventListener('click', (e) => {
+      if (e.target === paletteOverlay) togglePalette(false);
+    });
+  }
+  if (applyPalette) {
+    applyPalette.addEventListener('click', () => {
+      applyStatusPalette();
+      persist();
+      togglePalette(false);
+      showToast('Paleta aplicada', 'success');
+    });
+  }
+
   renderColumnToggles();
 }
 
@@ -1209,7 +1233,7 @@ function renderClientManager() {
     }
   });
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
-  const headerCells = ['<th class="selector"><input type="checkbox" id="toggleAllClients" title="Seleccionar todos" /></th>', ...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th>Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
+  const headerCells = ['<th class="selector"><input type="checkbox" id="toggleAllClients" title="Seleccionar todos" /></th>', ...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
   table.querySelector('thead').innerHTML = `<tr>${headerCells}</tr>`;
 
   const rows = filteredManagerClients();
@@ -1224,12 +1248,14 @@ function renderClientManager() {
     const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${visibleColumns.length + 3}" class="group-title">${group} (${items.length})</td></tr>` : '';
     const content = items.map(c => {
       const status = clientStatus(c);
+      const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
+      const rowClass = `client-row ${status.className} ${c.selected ? 'is-selected' : ''}`;
       const cells = visibleColumns.map(([key]) => `<td>${formatCell(key, c)}</td>`).join('');
       return `
-        <tr data-id="${c.id}">
+        <tr data-id="${c.id}" class="${rowClass}" style="${statusVars}">
           <td class="selector"><input type="checkbox" data-action="select" ${c.selected ? 'checked' : ''}></td>
           ${cells}
-          <td><span class="status-pill ${status.className}">${status.label}</span></td>
+          <td class="status-col"><span class="status-pill ${status.className}">${status.label}</span></td>
           <td class="actions-cell">
             <button class="icon-btn" data-action="contacted" title="Marcar como contactado"><i class='bx bx-check-circle'></i></button>
             <button class="icon-btn" data-action="no_number" title="Número no disponible"><i class='bx bx-block'></i></button>

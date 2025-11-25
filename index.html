@@ -343,6 +343,9 @@
                 <h3>Tipo y asesor predeterminado</h3>
                 <p class="muted subtle">Se aplican a los mensajes y al gestor de clientes.</p>
               </div>
+              <div class="actions compact">
+                <button id="openPalette" class="secondary-btn"><i class='bx bx-palette'></i> Colores de estados</button>
+              </div>
             </div>
             <div class="grid two">
               <div class="field">
@@ -352,48 +355,6 @@
               <div class="field">
                 <label for="globalType">Tipo</label>
                 <input id="globalType" placeholder="Tipo de cliente" />
-              </div>
-            </div>
-            <div class="palette-grid">
-              <div class="palette-row">
-                <div>
-                  <p class="muted tiny">Cliente contactado</p>
-                  <input type="color" data-status-color="contacted" />
-                </div>
-                <div class="slider-group">
-                  <label>Opacidad</label>
-                  <input type="range" min="5" max="80" data-status-opacity="contacted" />
-                </div>
-              </div>
-              <div class="palette-row">
-                <div>
-                  <p class="muted tiny">Número no disponible</p>
-                  <input type="color" data-status-color="noNumber" />
-                </div>
-                <div class="slider-group">
-                  <label>Opacidad</label>
-                  <input type="range" min="5" max="80" data-status-opacity="noNumber" />
-                </div>
-              </div>
-              <div class="palette-row">
-                <div>
-                  <p class="muted tiny">Favorito</p>
-                  <input type="color" data-status-color="favorite" />
-                </div>
-                <div class="slider-group">
-                  <label>Opacidad</label>
-                  <input type="range" min="5" max="80" data-status-opacity="favorite" />
-                </div>
-              </div>
-              <div class="palette-row">
-                <div>
-                  <p class="muted tiny">Pendiente</p>
-                  <input type="color" data-status-color="pending" />
-                </div>
-                <div class="slider-group">
-                  <label>Opacidad</label>
-                  <input type="range" min="5" max="80" data-status-opacity="pending" />
-                </div>
               </div>
             </div>
           </div>
@@ -408,6 +369,63 @@
         </div>
       </section>
     </main>
+  </div>
+  <div class="popover-overlay" id="paletteOverlay">
+    <div class="popover" id="palettePopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Colores de estados</p>
+          <h3>Personaliza los resaltados de filas</h3>
+          <p class="muted subtle">Se aplican a toda la fila, columna de estado y etiquetas.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closePalette"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="palette-grid">
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Cliente contactado</p>
+            <input type="color" data-status-color="contacted" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="contacted" />
+          </div>
+        </div>
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Número no disponible</p>
+            <input type="color" data-status-color="noNumber" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="noNumber" />
+          </div>
+        </div>
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Favorito</p>
+            <input type="color" data-status-color="favorite" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="favorite" />
+          </div>
+        </div>
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Pendiente</p>
+            <input type="color" data-status-color="pending" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="pending" />
+          </div>
+        </div>
+      </div>
+      <div class="actions compact end">
+        <button class="primary-btn" id="applyPalette"><i class='bx bx-check-double'></i> Guardar colores</button>
+      </div>
+    </div>
   </div>
   <div id="toastContainer" class="toast-container"></div>
   <div id="modal" class="modal hidden">
