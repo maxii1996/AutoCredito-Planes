@@ -178,6 +178,31 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 #vehicleTable th, #vehicleTable td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 #vehicleTable thead { background: #101728; }
 #vehicleTable input { width: 100%; }
+.table-wrapper.dense table { width: 100%; border-collapse: collapse; min-width: 680px; }
+.table-wrapper.dense th, .table-wrapper.dense td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.table-wrapper.dense thead { background: #101728; position: sticky; top: 0; z-index: 1; }
+.table-wrapper.dense tbody tr:hover { background: #10192a; }
+.table-wrapper.dense .status-pill { padding: 4px 8px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+.table-wrapper.dense .actions-cell { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.table-wrapper.dense .icon-btn { background: #162032; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.table-wrapper.dense .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.table-wrapper.dense .selector { display: flex; align-items: center; justify-content: center; }
+.table-wrapper.dense .helper-icon { color: var(--muted); font-size: 18px; }
+.table-wrapper.dense .group-title { background: #101728; padding: 10px; font-weight: 700; position: sticky; left: 0; border-bottom: 1px solid var(--border); }
+
+.column-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.column-pills .pill { cursor: pointer; }
+
+.client-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.client-controls .toggles { gap: 8px; }
+
+.status-contacted { border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.08); }
+.status-no-number { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.08); }
+.status-favorite { border-color: rgba(246, 176, 75, 0.5); background: rgba(246, 176, 75, 0.08); }
+
+.table-wrapper .avatar { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #1f2937, #0f172a); display: grid; place-items: center; font-weight: 700; color: var(--accent); }
+
+.tip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 
 .toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
 

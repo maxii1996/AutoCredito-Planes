@@ -63,6 +63,30 @@ const variableSuggestions = [
   'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo', 'version'
 ];
 
+const clientColumns = {
+  name: { label: 'Nombre', default: true },
+  model: { label: 'Modelo', default: true },
+  phone: { label: 'Celular', default: true },
+  brand: { label: 'Marca', default: false },
+  city: { label: 'Localidad', default: false },
+  province: { label: 'Provincia', default: false },
+  document: { label: 'Documento', default: false },
+  cuit: { label: 'CUIT', default: false },
+  birthDate: { label: 'Nacimiento', default: false },
+  purchaseDate: { label: 'Fecha compra', default: false },
+  postalCode: { label: 'CP', default: false },
+  type: { label: 'Tipo', default: false }
+};
+
+const defaultClientManagerState = {
+  search: '',
+  statusFilter: 'all',
+  groupByModel: true,
+  showOnlySelected: false,
+  columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
+  selection: {}
+};
+
 const defaultTemplates = [
   {
     title: 'Mensaje de inicio',
@@ -182,7 +206,10 @@ function applyProfileData(parsed) {
   vehicles = cloneVehicles(parsed.vehicles || defaultVehicles);
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
   clients = parsed.clients || [];
+  managerClients = parsed.managerClients || [];
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
+  clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
+  clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
@@ -195,6 +222,7 @@ function applyProfileData(parsed) {
   renderTemplates();
   renderPlanForm();
   renderClients();
+  renderClientManager();
   renderSnapshots();
   renderStats();
 }
@@ -205,7 +233,9 @@ function saveSnapshot() {
     vehicles: cloneVehicles(vehicles),
     templates: ensureTemplateIds(JSON.parse(JSON.stringify(templates))),
     clients: JSON.parse(JSON.stringify(clients)),
-    uiState: { ...uiState }
+    managerClients: JSON.parse(JSON.stringify(managerClients)),
+    uiState: { ...uiState },
+    clientManagerState: { ...clientManagerState }
   };
   snapshots.push({ id: `snap-${Date.now()}`, name: title, createdAt: new Date().toISOString(), data });
   persist();
@@ -286,10 +316,59 @@ function extractVariables(body = '') {
   return Array.from(new Set(vars));
 }
 
+function normalizePhone(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function clientStatus(client = {}) {
+  const flags = client.flags || {};
+  if (flags.noNumber) return { label: 'Número no disponible', className: 'status-no-number' };
+  if (flags.favorite) return { label: 'Favorito', className: 'status-favorite' };
+  if (flags.contacted) return { label: 'Contactado', className: 'status-contacted' };
+  return { label: 'Pendiente', className: '' };
+}
+
+function initialTemplate() {
+  return templates.find(t => (t.title || '').toLowerCase().includes('inicio')) || templates[0];
+}
+
+function buildMessageForClient(client) {
+  const tpl = initialTemplate();
+  if (!tpl) return '';
+  const replacements = {
+    cliente: client.name || '',
+    modelo_actual: client.model || client.brand || '',
+    telefono: client.phone || ''
+  };
+  let content = tpl.body || '';
+  Object.entries(replacements).forEach(([key, value]) => {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
+    content = content.replace(regex, value);
+  });
+  return content;
+}
+
+function copyText(text, label = 'Contenido copiado') {
+  if (!text) return;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast(label, 'success')).catch(() => showToast('No se pudo copiar.', 'error'));
+  } else {
+    const area = document.createElement('textarea');
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+    showToast(label, 'success');
+  }
+}
+
 let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
+let managerClients = load('managerClients') || [];
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
+let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
 let snapshots = load('snapshots') || [];
@@ -302,6 +381,7 @@ let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 uiState.variableValues = uiState.variableValues || {};
 uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
 uiState.planDraft = uiState.planDraft || {};
+clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
 
 init();
 
@@ -317,10 +397,12 @@ function init() {
     renderVehicleTable();
     renderPlanForm();
     renderClients();
+    renderClientManager();
     renderSnapshots();
     attachPlanListeners();
     attachTemplateActions();
     attachVehicleToggles();
+    bindClientManager();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
   } catch (err) {
     console.error('Error during initialization:', err);
@@ -367,7 +449,7 @@ function applyToggleState() {
 function renderStats() {
   document.getElementById('modelCount').textContent = vehicles.length;
   document.getElementById('templateCount').textContent = templates.length;
-  document.getElementById('clientCount').textContent = clients.length;
+  document.getElementById('clientCount').textContent = clients.length + managerClients.length;
 }
 
 function renderQuickOverview() {
@@ -906,6 +988,328 @@ function attachVehicleToggles() {
   });
 }
 
+function bindClientManager() {
+  const importInput = document.getElementById('clientExcel');
+  if (importInput) {
+    importInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      handleClientImport(file);
+      e.target.value = '';
+    });
+  }
+
+  const search = document.getElementById('clientManagerSearch');
+  if (search) {
+    search.value = clientManagerState.search || '';
+    search.addEventListener('input', () => {
+      clientManagerState.search = search.value;
+      persist();
+      renderClientManager();
+    });
+  }
+
+  const group = document.getElementById('groupByModel');
+  if (group) {
+    group.checked = clientManagerState.groupByModel;
+    group.addEventListener('change', () => {
+      clientManagerState.groupByModel = group.checked;
+      persist();
+      renderClientManager();
+    });
+  }
+
+  const showSelected = document.getElementById('showOnlySelected');
+  if (showSelected) {
+    showSelected.checked = clientManagerState.showOnlySelected;
+    showSelected.addEventListener('change', () => {
+      clientManagerState.showOnlySelected = showSelected.checked;
+      persist();
+      renderClientManager();
+    });
+  }
+
+  const statusFilter = document.getElementById('statusFilter');
+  if (statusFilter) {
+    statusFilter.value = clientManagerState.statusFilter;
+    statusFilter.addEventListener('change', () => {
+      clientManagerState.statusFilter = statusFilter.value;
+      persist();
+      renderClientManager();
+    });
+  }
+
+  const exportBtn = document.getElementById('exportClients');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportManagerClients);
+  }
+
+  renderColumnToggles();
+}
+
+function renderColumnToggles() {
+  const container = document.getElementById('columnToggles');
+  if (!container) return;
+  container.innerHTML = Object.entries(clientColumns).map(([key, col]) => {
+    const active = clientManagerState.columnVisibility[key];
+    return `<span class="pill ${active ? 'badge' : ''}" data-key="${key}"><input type="checkbox" ${active ? 'checked' : ''} data-key="${key}" /> ${col.label}</span>`;
+  }).join('');
+
+  container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
+    clientManagerState.columnVisibility[cb.dataset.key] = cb.checked;
+    persist();
+    renderClientManager();
+  }));
+}
+
+function normalizeCell(value) {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return (value || '').toString().trim();
+}
+
+function mapRow(row, headers) {
+  const headerMap = {
+    'NOMBRE': 'name',
+    'CELULAR12': 'phone',
+    'CELULAR': 'phone',
+    'MODELO': 'model',
+    'MARCA': 'brand',
+    'OLOC': 'city',
+    'OPCIA': 'province',
+    'DOC': 'document',
+    'CUIT0': 'cuit',
+    'FECNAC': 'birthDate',
+    'FECHA1': 'purchaseDate',
+    'CP': 'postalCode',
+    'TIPO': 'type'
+  };
+
+  const mapped = { flags: {}, selected: false };
+  headers.forEach((h, idx) => {
+    const normalized = (h || '').toString().trim().toUpperCase();
+    const key = headerMap[normalized];
+    if (key) {
+      mapped[key] = normalizeCell(row[idx]);
+    }
+  });
+  mapped.id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  mapped.name = mapped.name || 'Sin nombre';
+  mapped.model = mapped.model || 'Sin modelo';
+  mapped.phone = normalizePhone(mapped.phone || '');
+  return mapped;
+}
+
+function handleClientImport(file) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      const [headerRow, ...rows] = json;
+      if (!headerRow || !rows.length) {
+        showToast('El archivo no tiene registros.', 'error');
+        return;
+      }
+      const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
+      let imported = 0;
+      let skipped = 0;
+      rows.forEach(r => {
+        const mapped = mapRow(r, headerRow);
+        const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
+        if (existingKeys.has(key)) {
+          skipped += 1;
+          return;
+        }
+        existingKeys.add(key);
+        imported += 1;
+        managerClients.push(mapped);
+      });
+      persist();
+      renderClientManager();
+      renderStats();
+      const msg = skipped ? `Importados ${imported}, duplicados omitidos: ${skipped}` : `Importados ${imported} clientes`;
+      showToast(msg, 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('No se pudo procesar el Excel.', 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function filteredManagerClients() {
+  const search = (clientManagerState.search || '').toLowerCase();
+  return managerClients.filter(c => {
+    const status = clientStatus(c).label;
+    const matchesSearch = [c.name, c.model, c.phone].some(v => (v || '').toLowerCase().includes(search));
+    const matchesStatus = clientManagerState.statusFilter === 'all'
+      ? true
+      : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
+      : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
+      : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
+      : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite);
+    const matchesSelection = clientManagerState.showOnlySelected ? c.selected : true;
+    return matchesSearch && matchesStatus && matchesSelection && status !== 'Oculto';
+  });
+}
+
+function renderClientManager() {
+  const table = document.getElementById('clientManagerTable');
+  const helper = document.getElementById('clientManagerHelper');
+  if (!table) return;
+  managerClients.forEach(c => {
+    if (clientManagerState.selection[c.id] !== undefined) {
+      c.selected = clientManagerState.selection[c.id];
+    }
+  });
+  const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
+  const headerCells = ['<th class="selector"><input type="checkbox" id="toggleAllClients" title="Seleccionar todos" /></th>', ...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th>Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
+  table.querySelector('thead').innerHTML = `<tr>${headerCells}</tr>`;
+
+  const rows = filteredManagerClients();
+  if (!rows.length) {
+    table.querySelector('tbody').innerHTML = '<tr><td colspan="10" class="muted">Sin clientes importados.</td></tr>';
+    if (helper) helper.textContent = 'Sube el Excel y el gestor detectará duplicados automáticamente.';
+    return;
+  }
+
+  const groups = clientManagerState.groupByModel ? groupByModel(rows) : { 'Todos': rows };
+  const body = Object.entries(groups).map(([group, items]) => {
+    const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${visibleColumns.length + 3}" class="group-title">${group} (${items.length})</td></tr>` : '';
+    const content = items.map(c => {
+      const status = clientStatus(c);
+      const cells = visibleColumns.map(([key]) => `<td>${formatCell(key, c)}</td>`).join('');
+      return `
+        <tr data-id="${c.id}">
+          <td class="selector"><input type="checkbox" data-action="select" ${c.selected ? 'checked' : ''}></td>
+          ${cells}
+          <td><span class="status-pill ${status.className}">${status.label}</span></td>
+          <td class="actions-cell">
+            <button class="icon-btn" data-action="contacted" title="Marcar como contactado"><i class='bx bx-check-circle'></i></button>
+            <button class="icon-btn" data-action="no_number" title="Número no disponible"><i class='bx bx-block'></i></button>
+            <button class="icon-btn" data-action="favorite" title="Agregar a favoritos"><i class='bx bx-star'></i></button>
+            <button class="icon-btn" data-action="copy_message" title="Copiar mensaje inicial"><i class='bx bx-message-square-dots'></i></button>
+            <button class="icon-btn" data-action="copy_phone" title="Copiar número"><i class='bx bx-phone'></i></button>
+          </td>
+        </tr>`;
+    }).join('');
+    return `${groupTitle}${content}`;
+  }).join('');
+
+  table.querySelector('tbody').innerHTML = body;
+  bindClientTableActions();
+  if (helper) helper.textContent = `${rows.length} clientes visibles · columnas activas: ${visibleColumns.length}`;
+}
+
+function formatCell(key, client) {
+  if (key === 'name') return `<div class="row"><div class="avatar">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Cliente Chevrolet'}</p></div></div>`;
+  if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.type || 'Plan vigente'}</p></div>`;
+  if (key === 'phone') return `<div class="tip"><i class='bx bx-help-circle helper-icon' title="Teléfono sanitizado"></i><span>${normalizePhone(client.phone)}</span></div>`;
+  return client[key] || '-';
+}
+
+function groupByModel(list) {
+  return list.reduce((acc, item) => {
+    const model = item.model || 'Sin modelo';
+    acc[model] = acc[model] || [];
+    acc[model].push(item);
+    return acc;
+  }, {});
+}
+
+function bindClientTableActions() {
+  document.querySelectorAll('#clientManagerTable [data-action]').forEach(btn => btn.addEventListener('click', (e) => {
+    const action = btn.dataset.action;
+    const row = btn.closest('tr');
+    const id = row?.dataset.id;
+    if (!id) return;
+    e.stopPropagation();
+    if (action === 'contacted') updateClientFlag(id, 'contacted');
+    if (action === 'no_number') updateClientFlag(id, 'noNumber');
+    if (action === 'favorite') updateClientFlag(id, 'favorite');
+    if (action === 'copy_message') copyText(buildMessageForClient(managerClients.find(c => c.id === id)), 'Mensaje copiado');
+    if (action === 'copy_phone') copyText(normalizePhone(managerClients.find(c => c.id === id)?.phone || ''), 'Número copiado');
+  }));
+
+  document.querySelectorAll('#clientManagerTable input[data-action="select"]').forEach(cb => cb.addEventListener('change', () => {
+    const row = cb.closest('tr');
+    const id = row?.dataset.id;
+    const client = managerClients.find(c => c.id === id);
+    if (!client) return;
+    client.selected = cb.checked;
+    clientManagerState.selection[id] = cb.checked;
+    persist();
+  }));
+
+  const toggleAll = document.getElementById('toggleAllClients');
+  if (toggleAll) {
+    toggleAll.checked = filteredManagerClients().every(c => c.selected);
+    toggleAll.addEventListener('change', () => {
+      filteredManagerClients().forEach(c => {
+        c.selected = toggleAll.checked;
+        clientManagerState.selection[c.id] = toggleAll.checked;
+      });
+      persist();
+      renderClientManager();
+    });
+  }
+}
+
+function updateClientFlag(id, flag) {
+  const client = managerClients.find(c => c.id === id);
+  if (!client) return;
+  client.flags = client.flags || {};
+  if (flag === 'favorite') {
+    client.flags.favorite = !client.flags.favorite;
+  } else if (flag === 'noNumber') {
+    client.flags.noNumber = !client.flags.noNumber;
+    if (client.flags.noNumber) client.flags.contacted = false;
+  } else if (flag === 'contacted') {
+    client.flags.contacted = !client.flags.contacted;
+    if (client.flags.contacted) client.flags.noNumber = false;
+  }
+  persist();
+  renderClientManager();
+}
+
+function exportManagerClients() {
+  const rows = filteredManagerClients();
+  if (!rows.length) {
+    showToast('No hay clientes para exportar.', 'error');
+    return;
+  }
+  const data = rows.map(c => ({
+    Nombre: c.name,
+    Modelo: c.model,
+    Celular: normalizePhone(c.phone),
+    Marca: c.brand,
+    Localidad: c.city,
+    Provincia: c.province,
+    Documento: c.document,
+    CUIT: c.cuit,
+    Nacimiento: c.birthDate,
+    'Fecha compra': c.purchaseDate,
+    CP: c.postalCode,
+    Tipo: c.type,
+    Estado: clientStatus(c).label
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `clientes-${new Date().toISOString().slice(0,10)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exportación lista', 'success');
+}
+
 function bindProfileActions() {
   document.getElementById('quickSnapshot').addEventListener('click', saveSnapshot);
 
@@ -915,7 +1319,7 @@ function bindProfileActions() {
       message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
       confirmText: 'Exportar',
       onConfirm: () => {
-        const payload = { version: 2, vehicles, templates, clients, uiState };
+        const payload = { version: 3, vehicles, templates, clients, managerClients, uiState, clientManagerState };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -992,7 +1396,9 @@ function persist() {
   save('vehicles', vehicles);
   save('templates', templates);
   save('clients', clients);
+  save('managerClients', managerClients);
   save('uiState', uiState);
+  save('clientManagerState', clientManagerState);
   save('snapshots', snapshots);
 }
 
@@ -1019,8 +1425,10 @@ function clearStorage() {
       vehicles = defaultVehicles.map(v => ({ ...v, shareByPlan: { ...v.shareByPlan }, reservations: { ...v.reservations } }));
       templates = ensureTemplateIds([...defaultTemplates]);
       clients = [];
+      managerClients = [];
       snapshots = [];
       uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '' };
+      clientManagerState = { ...defaultClientManagerState };
       selectedTemplateIndex = 0;
       selectedTemplateId = templates[0].id;
       planDraftApplied = false;
@@ -1029,6 +1437,7 @@ function clearStorage() {
       renderTemplates();
       renderPlanForm();
       renderClients();
+      renderClientManager();
       renderSnapshots();
       renderStats();
       persist();
