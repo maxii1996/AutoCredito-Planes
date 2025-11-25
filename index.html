@@ -22,12 +22,12 @@
         </div>
       </div>
       <nav class="nav">
-        <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i> Panel</button>
-        <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i> Plantillas</button>
-        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i> Autos y valores</button>
-        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i> Planes y clientes</button>
-        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i> Gestor de clientes</button>
-        <button class="nav-link" data-target="profiles"><i class='bx bx-cloud'></i> Perfiles</button>
+        <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Panel</span></button>
+        <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
+        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y valores</span></button>
+        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Planes y clientes</span></button>
+        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de clientes</span></button>
+        <button class="nav-link" data-target="profiles"><i class='bx bx-cloud'></i><span class="label"> Perfiles</span></button>
       </nav>
       <div class="sidebar-foot">
         <p class="mini">Datos locales, respaldo inmediato.</p>
@@ -40,6 +40,7 @@
           <p class="muted subtle">Planes, clientes y plantillas en una sola vista.</p>
         </div>
         <div class="top-actions">
+          <button id="sidebarToggle" class="ghost-btn"><i class='bx bx-layout'></i><span>Ocultar menú</span></button>
           <button id="quickSnapshot" class="secondary-btn"><i class='bx bx-layer'></i> Guardar snapshot</button>
           <button id="exportProfile" class="primary-btn"><i class='bx bx-download'></i> Exportar perfil</button>
           <label class="primary-btn upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
@@ -92,6 +93,14 @@
               </div>
             </div>
             <div class="timeline" id="quickOverview"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <p class="eyebrow">Accesos directos</p>
+              <h3>Todo al alcance en el inicio</h3>
+            </div>
+            <div class="shortcut-grid" id="homeShortcuts"></div>
           </div>
 
           <div class="card">

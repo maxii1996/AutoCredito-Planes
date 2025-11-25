@@ -8,7 +8,7 @@ const defaultUiState = {
   toggles: { showReservations: true, showIntegration: true },
   globalSettings: {
     advisorName: 'Equipo Chevrolet',
-    clientType: 'Cliente Chevrolet',
+    clientType: 'Cliente de la marca',
     statusPalette: {
       contacted: { color: '#34d399', opacity: 0.16 },
       noNumber: { color: '#f87171', opacity: 0.16 },
@@ -344,6 +344,56 @@ function mergeGlobalSettings(current = {}) {
   };
 }
 
+function parseExcelDate(value) {
+  if (value instanceof Date) return value;
+  if (typeof value === 'number' && Number.isFinite(value) && value > 20000) {
+    const parsed = XLSX?.SSF?.parse_date_code(value);
+    if (parsed) {
+      const { y, m, d } = parsed;
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    }
+  }
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 20000) return parseExcelDate(numeric);
+    const parts = value.split(/[\/\-]/);
+    if (parts.length === 3) {
+      const [a, b, c] = parts.map(p => Number(p));
+      if ([a, b, c].every(n => Number.isFinite(n))) {
+        if (a > 1900) return new Date(Date.UTC(a, (b || 1) - 1, c || 1));
+        if (c > 1900) return new Date(Date.UTC(c, (b || 1) - 1, a || 1));
+      }
+    }
+    const iso = new Date(value);
+    if (!Number.isNaN(iso.getTime())) return iso;
+  }
+  return null;
+}
+
+function formatDateISO(value) {
+  const date = parseExcelDate(value);
+  if (!date) return '';
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateForDisplay(value) {
+  const iso = formatDateISO(value);
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function extractYear(value) {
+  const iso = formatDateISO(value);
+  if (iso) return iso.slice(0, 4);
+  const text = (value || '').toString();
+  const match = text.match(/(19|20)\d{2}/);
+  return match ? match[0] : '';
+}
+
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '');
 }
@@ -364,7 +414,7 @@ function buildMessageForClient(client) {
   const tpl = initialTemplate();
   if (!tpl) return '';
   const globalSettings = mergeGlobalSettings(uiState.globalSettings);
-  const year = (client.purchaseDate || '').slice(0, 4) || '';
+  const year = extractYear(client.purchaseDate || client.birthDate || '');
   const replacements = {
     cliente: client.name || '',
     asesor: globalSettings.advisorName || '',
@@ -431,10 +481,13 @@ function init() {
     bindNavigation();
     bindProfileActions();
     bindSettingsMenu();
+    bindSidebarToggle();
+    bindQuickLinks();
     applyToggleState();
     applyStatusPalette();
     renderStats();
     renderQuickOverview();
+    renderHomeShortcuts();
     renderTemplates();
     renderVehicleTable();
     renderPlanForm();
@@ -446,6 +499,7 @@ function init() {
     attachTemplateActions();
     attachVehicleToggles();
     bindClientManager();
+    startRealtimePersistence();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
   } catch (err) {
     console.error('Error during initialization:', err);
@@ -456,14 +510,27 @@ function bindNavigation() {
   document.querySelectorAll('.nav-link').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      const target = document.getElementById(btn.dataset.target);
-      if (target) {
-        target.classList.add('active');
-      }
+      activatePanel(btn.dataset.target);
     });
+  });
+}
+
+function activatePanel(targetId) {
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.target === targetId));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
+}
+
+function bindQuickLinks() {
+  document.querySelectorAll('[data-jump]').forEach(btn => btn.addEventListener('click', () => activatePanel(btn.dataset.jump)));
+}
+
+function bindSidebarToggle() {
+  const toggle = document.getElementById('sidebarToggle');
+  const sidebar = document.querySelector('.sidebar');
+  if (!toggle || !sidebar) return;
+  toggle.addEventListener('click', () => {
+    document.body.classList.toggle('menu-collapsed');
+    toggle.querySelector('span').textContent = document.body.classList.contains('menu-collapsed') ? 'Mostrar menú' : 'Ocultar menú';
   });
 }
 
@@ -512,6 +579,28 @@ function renderQuickOverview() {
       </div>
     </div>
   `).join('');
+}
+
+function renderHomeShortcuts() {
+  const shortcuts = [
+    { icon: '📲', title: 'Plantillas rápidas', body: 'Personaliza y copia los mensajes con variables.', target: 'templates' },
+    { icon: '📊', title: 'Valores actualizados', body: 'Consulta precios, integración y reservas.', target: 'vehicles' },
+    { icon: '🗂️', title: 'Gestor de clientes', body: 'Importa, limpia y actúa sobre la base.', target: 'clientManager' },
+    { icon: '☁️', title: 'Perfiles y backups', body: 'Exporta tu configuración y respáldala.', target: 'profiles' }
+  ];
+  const container = document.getElementById('homeShortcuts');
+  if (!container) return;
+  container.innerHTML = shortcuts.map(card => `
+    <article class="shortcut-card">
+      <div class="shortcut-icon">${card.icon}</div>
+      <div class="shortcut-body">
+        <h4>${card.title}</h4>
+        <p class="muted">${card.body}</p>
+      </div>
+      <button class="primary-btn ghosted" data-jump="${card.target}"><i class='bx bx-chevron-right'></i>Ir ahora</button>
+    </article>
+  `).join('');
+  bindQuickLinks();
 }
 
 function renderTemplates() {
@@ -1157,7 +1246,12 @@ function mapRow(row, headers) {
     const normalized = (h || '').toString().trim().toUpperCase();
     const key = headerMap[normalized];
     if (key) {
-      mapped[key] = normalizeCell(row[idx]);
+      const rawValue = row[idx];
+      if (key === 'purchaseDate' || key === 'birthDate') {
+        mapped[key] = formatDateISO(rawValue) || normalizeCell(rawValue);
+      } else {
+        mapped[key] = normalizeCell(rawValue);
+      }
     }
   });
   mapped.id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -1227,13 +1321,8 @@ function renderClientManager() {
   const table = document.getElementById('clientManagerTable');
   const helper = document.getElementById('clientManagerHelper');
   if (!table) return;
-  managerClients.forEach(c => {
-    if (clientManagerState.selection[c.id] !== undefined) {
-      c.selected = clientManagerState.selection[c.id];
-    }
-  });
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
-  const headerCells = ['<th class="selector"><input type="checkbox" id="toggleAllClients" title="Seleccionar todos" /></th>', ...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
+  const headerCells = [...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
   table.querySelector('thead').innerHTML = `<tr>${headerCells}</tr>`;
 
   const rows = filteredManagerClients();
@@ -1245,15 +1334,14 @@ function renderClientManager() {
 
   const groups = clientManagerState.groupByModel ? groupByModel(rows) : { 'Todos': rows };
   const body = Object.entries(groups).map(([group, items]) => {
-    const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${visibleColumns.length + 3}" class="group-title">${group} (${items.length})</td></tr>` : '';
+    const groupTitle = clientManagerState.groupByModel ? `<tr><td colspan="${visibleColumns.length + 2}" class="group-title">${group} (${items.length})</td></tr>` : '';
     const content = items.map(c => {
       const status = clientStatus(c);
       const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
-      const rowClass = `client-row ${status.className} ${c.selected ? 'is-selected' : ''}`;
+      const rowClass = `client-row ${status.className}`;
       const cells = visibleColumns.map(([key]) => `<td>${formatCell(key, c)}</td>`).join('');
       return `
         <tr data-id="${c.id}" class="${rowClass}" style="${statusVars}">
-          <td class="selector"><input type="checkbox" data-action="select" ${c.selected ? 'checked' : ''}></td>
           ${cells}
           <td class="status-col"><span class="status-pill ${status.className}">${status.label}</span></td>
           <td class="actions-cell">
@@ -1333,9 +1421,10 @@ function updateStatusSetting(status, payload = {}) {
 }
 
 function formatCell(key, client) {
-  if (key === 'name') return `<div class="row"><div class="avatar">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Cliente Chevrolet'}</p></div></div>`;
+  if (key === 'name') return `<div class="row"><div class="avatar">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div></div>`;
   if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.type || 'Plan vigente'}</p></div>`;
   if (key === 'phone') return `<div class="tip"><i class='bx bx-help-circle helper-icon' title="Teléfono sanitizado"></i><span>${normalizePhone(client.phone)}</span></div>`;
+  if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
   return client[key] || '-';
 }
 
@@ -1361,29 +1450,6 @@ function bindClientTableActions() {
     if (action === 'copy_message') copyText(buildMessageForClient(managerClients.find(c => c.id === id)), 'Mensaje copiado');
     if (action === 'copy_phone') copyText(normalizePhone(managerClients.find(c => c.id === id)?.phone || ''), 'Número copiado');
   }));
-
-  document.querySelectorAll('#clientManagerTable input[data-action="select"]').forEach(cb => cb.addEventListener('change', () => {
-    const row = cb.closest('tr');
-    const id = row?.dataset.id;
-    const client = managerClients.find(c => c.id === id);
-    if (!client) return;
-    client.selected = cb.checked;
-    clientManagerState.selection[id] = cb.checked;
-    persist();
-  }));
-
-  const toggleAll = document.getElementById('toggleAllClients');
-  if (toggleAll) {
-    toggleAll.checked = filteredManagerClients().every(c => c.selected);
-    toggleAll.addEventListener('change', () => {
-      filteredManagerClients().forEach(c => {
-        c.selected = toggleAll.checked;
-        clientManagerState.selection[c.id] = toggleAll.checked;
-      });
-      persist();
-      renderClientManager();
-    });
-  }
 }
 
 function updateClientFlag(id, flag) {
@@ -1554,6 +1620,38 @@ function persist() {
   save('uiState', uiState);
   save('clientManagerState', clientManagerState);
   save('snapshots', snapshots);
+}
+
+function startRealtimePersistence() {
+  const persistNow = () => persist();
+  ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
+  setInterval(persistNow, 15000);
+  window.addEventListener('storage', (e) => {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots'].includes(e.key)) {
+      syncFromStorage();
+    }
+  });
+}
+
+function syncFromStorage() {
+  vehicles = cloneVehicles(load('vehicles') || vehicles);
+  templates = ensureTemplateIds(load('templates') || templates);
+  clients = load('clients') || clients;
+  managerClients = load('managerClients') || managerClients;
+  uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
+  clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
+  snapshots = load('snapshots') || snapshots;
+  applyStatusPalette();
+  renderStats();
+  renderQuickOverview();
+  renderHomeShortcuts();
+  renderTemplates();
+  renderVehicleTable();
+  renderPlanForm();
+  renderClients();
+  renderClientManager();
+  renderGlobalSettings();
+  renderSnapshots();
 }
 
 function save(key, value) {
