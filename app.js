@@ -98,6 +98,23 @@ const defaultClientManagerState = {
   selection: {}
 };
 
+const clientColumnWidths = {
+  name: '240px',
+  model: '190px',
+  phone: '170px',
+  brand: '160px',
+  city: '160px',
+  province: '160px',
+  document: '160px',
+  cuit: '160px',
+  birthDate: '170px',
+  purchaseDate: '170px',
+  postalCode: '120px',
+  type: '170px',
+  status: '180px',
+  actions: '300px'
+};
+
 const defaultTemplates = [
   {
     title: 'Mensaje de inicio',
@@ -1432,6 +1449,17 @@ function renderClientManager() {
   const helper = document.getElementById('clientManagerHelper');
   if (!table) return;
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
+  let colgroup = table.querySelector('colgroup');
+  if (!colgroup) {
+    colgroup = document.createElement('colgroup');
+    table.insertBefore(colgroup, table.firstChild);
+  }
+  const colgroupHtml = [
+    ...visibleColumns.map(([key]) => `<col style="width:${clientColumnWidths[key] || '160px'}">`),
+    `<col class="status-col" style="width:${clientColumnWidths.status}">`,
+    `<col class="actions-col" style="width:${clientColumnWidths.actions}">`
+  ].join('');
+  colgroup.innerHTML = colgroupHtml;
   const headerCells = [...visibleColumns.map(([, col]) => `<th>${col.label}</th>`), '<th class="status-col">Estado</th>', '<th class="actions-cell">Acciones</th>'].join('');
   table.querySelector('thead').innerHTML = `<tr>${headerCells}</tr>`;
 

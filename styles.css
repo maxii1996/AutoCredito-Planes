@@ -262,12 +262,13 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 #vehicleTable th, #vehicleTable td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 #vehicleTable thead { background: #101728; }
 #vehicleTable input { width: 100%; }
-.table-wrapper.dense table { width: 100%; border-collapse: collapse; min-width: 680px; }
+.table-wrapper.dense table { width: 100%; border-collapse: collapse; min-width: 820px; table-layout: auto; }
 .table-wrapper.dense th, .table-wrapper.dense td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
-.table-wrapper.dense table { table-layout: fixed; }
 .table-wrapper.dense th.selector, .table-wrapper.dense td.selector { width: 52px; text-align: center; }
-.table-wrapper.dense th.status-col, .table-wrapper.dense td.status-col { width: 180px; text-align: center; font-weight: 700; }
-.table-wrapper.dense th.actions-cell, .table-wrapper.dense td.actions-cell { width: 320px; }
+.table-wrapper.dense th.status-col, .table-wrapper.dense td.status-col { text-align: center; font-weight: 700; }
+.table-wrapper.dense th.actions-cell, .table-wrapper.dense td.actions-cell { width: auto; }
+.table-wrapper.dense col.status-col { width: 180px; }
+.table-wrapper.dense col.actions-col { width: 300px; }
 .table-wrapper.dense thead { background: #101728; position: sticky; top: 0; z-index: 1; }
 .table-wrapper.dense thead th { background: #101728; }
 .table-wrapper.dense tbody tr:hover { background: #10192a; }
@@ -277,7 +278,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .table-wrapper.dense .icon-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 8px 22px rgba(0,0,0,0.25); transform: translateY(-1px); }
 .table-wrapper.dense .selector { display: flex; align-items: center; justify-content: center; }
 .table-wrapper.dense .helper-icon { color: var(--muted); font-size: 18px; }
-.table-wrapper.dense .group-title { background: #101728; padding: 10px; font-weight: 700; position: sticky; left: 0; border-bottom: 1px solid var(--border); }
+.table-wrapper.dense .group-title { background: #101728; padding: 10px; font-weight: 700; border-bottom: 1px solid var(--border); }
 
 .column-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .column-pills .pill { cursor: pointer; }
