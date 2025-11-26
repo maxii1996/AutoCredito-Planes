@@ -573,11 +573,6 @@ function activatePanel(targetId) {
   document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.target === targetId));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
   const targetPanel = document.getElementById(targetId);
-  if (targetPanel) {
-    targetPanel.classList.remove('animate');
-    void targetPanel.offsetWidth;
-    targetPanel.classList.add('animate');
-  }
   updateSectionTitle(targetId);
 }
 
@@ -1400,8 +1395,7 @@ function calculateReservationsFromBase(multiplier) {
   const targetId = multiplier === 3 ? 'reservation3' : 'reservation6';
   const target = document.getElementById(targetId);
   if (!target) return;
-  const total = base * multiplier;
-  setMoneyValue(target, total);
+  setMoneyValue(target, base);
   target.dataset.manual = 'true';
   updatePlanSummary();
 }
@@ -1428,6 +1422,8 @@ function updatePlanSummary() {
   const total = v.integration;
   const outstanding = Math.max(total - (tradeIn ? tradeInValue : 0), 0);
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
+  const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
+  const cuota6 = reserva6 ? currency.format(reserva6 / 6) : currency.format(0);
 
   const rows = [
     { label: 'Modelo', value: v.name },
@@ -1435,8 +1431,8 @@ function updatePlanSummary() {
     { label: 'Plan establecido', value: v.planProfile?.label || 'Personalizar' },
     { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
     { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
-    { label: 'Reserva 3 cuotas', value: currency.format(reserva3) },
-    { label: 'Reserva 6 cuotas', value: currency.format(reserva6) },
+    { label: 'Reserva 3 cuotas', value: `${currency.format(reserva3)} (3 cuotas de ${cuota3})` },
+    { label: 'Reserva 6 cuotas', value: `${currency.format(reserva6)} (6 cuotas de ${cuota6})` },
     { label: 'Integración', value: currency.format(total) },
     { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
     { label: 'Saldo estimado', value: currency.format(outstanding) }
@@ -1489,12 +1485,14 @@ function buildQuoteFromForm() {
 }
 
 function buildQuoteSummaryText(quote) {
+  const cuota3 = quote.reservation3 ? currency.format(quote.reservation3 / 3) : currency.format(0);
+  const cuota6 = quote.reservation6 ? currency.format(quote.reservation6 / 6) : currency.format(0);
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
     `Cuota estimada: ${quote.cuota ? currency.format(quote.cuota) : 'Completar manual'}`,
-    `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} · 6 cuotas ${currency.format(quote.reservation6 || 0)}`,
+    `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} (3 de ${cuota3}) · 6 cuotas ${currency.format(quote.reservation6 || 0)} (6 de ${cuota6})`,
     `Integración objetivo: ${currency.format(quote.integration || 0)}`,
     `Entrega llave por llave: ${quote.tradeIn ? `Sí (toma usado por ${currency.format(quote.tradeInValue || 0)})` : 'No'}`,
     `Notas: ${quote.notes || 'Sin notas'}`,
