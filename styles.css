@@ -232,6 +232,7 @@ button, .icon-btn { cursor: pointer; }
 .field { display: grid; gap: 6px; }
 .field.inline { grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }
 .field.inline-variable input { background: #0f1625; }
+.picker-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 .tiny { font-size: 12px; margin: 0; }
 label { color: var(--muted); font-weight: 600; }
 input, select, textarea { width: 100%; background: #0f1625; border: 1px solid var(--border); color: var(--text); padding: 11px 12px; border-radius: 12px; font-family: inherit; transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
@@ -258,6 +259,12 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .search-field input { border: none; background: transparent; padding: 6px 0; }
 .search-field input:focus { box-shadow: none; }
 .search-field.compact { padding: 6px 8px; }
+.plan-profile-cell { display: grid; gap: 6px; }
+.picker-list { max-height: 400px; overflow-y: auto; margin-top: 12px; display: grid; gap: 10px; }
+.picker-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #0f1625; display: grid; gap: 4px; }
+.picker-card:hover { border-color: var(--accent); cursor: pointer; }
+.picker-card .muted { font-size: 13px; }
+.modal-content.wide { max-width: 720px; }
 .preview-box { background: #0f1625; border: 1px solid var(--border); border-radius: 14px; padding: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
 .preview-box pre { white-space: pre-wrap; font-family: 'Inter', monospace; margin: 6px 0 0; color: #e2e8f0; }
 
