@@ -93,7 +93,6 @@ const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
   groupByModel: true,
-  showOnlySelected: false,
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
   selection: {}
 };
@@ -625,6 +624,8 @@ function renderWelcomeHero() {
   const advisor = (settings.advisorName || '').trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
   subtitle.textContent = advisor ? 'Personalización activa para tu jornada.' : 'Define quién atiende y ajusta tu jornada.';
+  updateSidebarAdvisor(advisor);
+  renderAdvisorSelector(advisor);
   if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
 
   const suggestions = Array.from(new Set([
@@ -646,10 +647,38 @@ function renderWelcomeHero() {
       persist();
       renderGlobalSettings();
       renderWelcomeHero();
+      renderClientManager();
     });
     input.dataset.bound = 'true';
   }
   bindQuickLinks();
+}
+
+function updateSidebarAdvisor(advisor) {
+  const sidebarLabel = document.getElementById('sidebarAdvisor');
+  if (sidebarLabel) sidebarLabel.textContent = advisor || 'Sin asesor';
+}
+
+function renderAdvisorSelector(advisor) {
+  const select = document.getElementById('advisorSelector');
+  if (!select) return;
+  const suggestions = Array.from(new Set([
+    'Equipo Chevrolet',
+    advisor
+  ].filter(Boolean)));
+  select.innerHTML = suggestions.map(name => `<option value="${name}">${name}</option>`).join('');
+  const current = advisor || suggestions[0] || '';
+  select.value = current;
+  if (!select.dataset.bound) {
+    select.addEventListener('change', () => {
+      uiState.globalSettings.advisorName = select.value.trim();
+      persist();
+      renderWelcomeHero();
+      renderGlobalSettings();
+      renderClientManager();
+    });
+    select.dataset.bound = 'true';
+  }
 }
 
 function renderQuickOverview() {
@@ -1249,6 +1278,8 @@ function bindClientManager() {
     });
   }
 
+  renderAdvisorSelector(mergeGlobalSettings(uiState.globalSettings).advisorName);
+
   const search = document.getElementById('clientManagerSearch');
   if (search) {
     search.value = clientManagerState.search || '';
@@ -1269,16 +1300,6 @@ function bindClientManager() {
     });
   }
 
-  const showSelected = document.getElementById('showOnlySelected');
-  if (showSelected) {
-    showSelected.checked = clientManagerState.showOnlySelected;
-    showSelected.addEventListener('change', () => {
-      clientManagerState.showOnlySelected = showSelected.checked;
-      persist();
-      renderClientManager();
-    });
-  }
-
   const statusFilter = document.getElementById('statusFilter');
   if (statusFilter) {
     statusFilter.value = clientManagerState.statusFilter;
@@ -1288,6 +1309,7 @@ function bindClientManager() {
       renderClientManager();
     });
   }
+  renderStatusFilter();
 
   const exportBtn = document.getElementById('exportClients');
   if (exportBtn) {
@@ -1295,7 +1317,7 @@ function bindClientManager() {
   }
 
   const paletteOverlay = document.getElementById('paletteOverlay');
-  const openPalette = document.getElementById('openPalette');
+  const openPalette = document.getElementById('openPaletteFromMenu');
   const closePalette = document.getElementById('closePalette');
   const applyPalette = document.getElementById('applyPalette');
   const togglePalette = (show) => {
@@ -1482,6 +1504,39 @@ function handleClientImport(file) {
   reader.readAsArrayBuffer(file);
 }
 
+function statusCounters() {
+  const totals = { all: managerClients.length, contacted: 0, no_number: 0, favorite: 0, pending: 0 };
+  managerClients.forEach((client) => {
+    const status = clientStatus(client).className;
+    if (status === 'status-contacted') totals.contacted += 1;
+    else if (status === 'status-no-number') totals.no_number += 1;
+    else if (status === 'status-favorite') totals.favorite += 1;
+    else totals.pending += 1;
+  });
+  return totals;
+}
+
+function renderStatusFilter() {
+  const select = document.getElementById('statusFilter');
+  const label = document.getElementById('statusFilterLabel');
+  if (!select) return;
+  const counts = statusCounters();
+  const options = [
+    { value: 'all', label: 'Todos', count: counts.all },
+    { value: 'contacted', label: 'Contactados', count: counts.contacted },
+    { value: 'no_number', label: 'Número no disponible', count: counts.no_number },
+    { value: 'favorite', label: 'Favoritos', count: counts.favorite },
+    { value: 'pending', label: 'Pendientes', count: counts.pending }
+  ];
+  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
+  if (!options.some(opt => opt.value === clientManagerState.statusFilter)) {
+    clientManagerState.statusFilter = 'all';
+  }
+  select.value = clientManagerState.statusFilter;
+  const current = options.find(opt => opt.value === select.value) || options[0];
+  if (label) label.textContent = `${current.label} (${current.count})`;
+}
+
 function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
   return managerClients.filter(c => {
@@ -1493,8 +1548,7 @@ function filteredManagerClients() {
       : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
       : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
       : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite);
-    const matchesSelection = clientManagerState.showOnlySelected ? c.selected : true;
-    return matchesSearch && matchesStatus && matchesSelection && status !== 'Oculto';
+    return matchesSearch && matchesStatus && status !== 'Oculto';
   });
 }
 
@@ -1505,6 +1559,7 @@ function renderClientManager() {
   const head = grid.querySelector('.grid-head');
   const bodyContainer = grid.querySelector('.grid-body');
   if (!head || !bodyContainer) return;
+  renderStatusFilter();
 
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
   const templateColumns = [
@@ -1565,7 +1620,6 @@ function renderGlobalSettings() {
   const settings = mergeGlobalSettings(uiState.globalSettings);
   uiState.globalSettings = settings;
   const advisor = document.getElementById('globalAdvisor');
-  const type = document.getElementById('globalType');
   if (advisor) {
     if (advisor.value !== settings.advisorName) advisor.value = settings.advisorName;
     if (!advisor.dataset.bound) {
@@ -1573,18 +1627,9 @@ function renderGlobalSettings() {
         uiState.globalSettings.advisorName = advisor.value;
         persist();
         renderWelcomeHero();
+        renderAdvisorSelector(advisor.value);
       });
       advisor.dataset.bound = 'true';
-    }
-  }
-  if (type) {
-    if (type.value !== settings.clientType) type.value = settings.clientType;
-    if (!type.dataset.bound) {
-      type.addEventListener('input', () => {
-        uiState.globalSettings.clientType = type.value;
-        persist();
-      });
-      type.dataset.bound = 'true';
     }
   }
 

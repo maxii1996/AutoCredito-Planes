@@ -17,8 +17,8 @@
       <div class="brand">
         <div class="brand-icon">🚗</div>
         <div>
-          <p class="brand-title">Chevrolet Plan</p>
-          <p class="brand-subtitle">Gestor Noviembre 2025</p>
+          <p class="brand-title">Asesor:</p>
+          <p class="brand-subtitle" id="sidebarAdvisor">Equipo Chevrolet</p>
         </div>
       </div>
       <nav class="nav">
@@ -38,17 +38,24 @@
         <div class="title-area">
           <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú"><i class='bx bx-menu-alt-left'></i></button>
           <div>
-            <h1>Gestor integral Chevrolet</h1>
-            <p class="muted subtle">Planes, clientes y plantillas en una sola vista.</p>
+            <h1>Gestor de Clientes</h1>
           </div>
         </div>
         <div class="top-actions">
+          <div class="client-file-actions">
+            <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
+            <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+          </div>
           <div class="action-menu" id="actionMenu">
             <button class="primary-btn" id="actionMenuToggle"><i class='bx bx-collection'></i> Opciones</button>
             <div class="menu-panel" id="actionMenuPanel">
               <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
               <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
               <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+              <div class="menu-sub">
+                <p class="menu-subtitle"><i class='bx bx-palette'></i> Colores de estado</p>
+                <button class="menu-item" id="openPaletteFromMenu"><i class='bx bx-adjust'></i> Ajustar colores</button>
+              </div>
             </div>
           </div>
           <div class="icon-menu" id="settingsMenu">
@@ -290,18 +297,20 @@
         <div class="panel-head">
           <div>
             <p class="eyebrow">Clientes importados</p>
-            <h2>Gestor inteligente de clientes</h2>
-            <p class="muted subtle">Importa, limpia duplicados, agrupa por modelo y conecta con tus plantillas.</p>
-          </div>
-          <div class="actions">
-            <label class="primary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
-            <button id="exportClients" class="secondary-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i> Exportar</button>
+            <h2>Gestor de Clientes</h2>
           </div>
         </div>
 
         <div class="card">
           <div class="client-controls">
-            <div class="search-field">
+            <div class="advisor-combo">
+              <div class="combo-head">Asesor activo</div>
+              <div class="combo-shell">
+                <i class='bx bx-user-voice'></i>
+                <select id="advisorSelector"></select>
+              </div>
+            </div>
+            <div class="search-field compact">
               <i class='bx bx-search'></i>
               <input id="clientManagerSearch" placeholder="Buscar por nombre, modelo o teléfono" />
             </div>
@@ -310,11 +319,12 @@
                 <input type="checkbox" id="groupByModel" checked>
                 <span>Agrupar por modelo</span>
               </label>
-              <label class="toggle" title="Solo ver clientes seleccionados">
-                <input type="checkbox" id="showOnlySelected">
-                <span>Solo seleccionados</span>
-              </label>
-              <label class="toggle" title="Filtrar por estado de contacto">
+              <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+                <i class='bx bx-filter-alt'></i>
+                <div class="filter-label">
+                  <span class="muted tiny">Mostrar:</span>
+                  <strong id="statusFilterLabel">Todos</strong>
+                </div>
                 <select id="statusFilter">
                   <option value="all">Todos</option>
                   <option value="contacted">Contactado</option>
@@ -322,28 +332,21 @@
                   <option value="favorite">Favoritos</option>
                   <option value="pending">Pendientes</option>
                 </select>
-              </label>
+              </div>
             </div>
           </div>
           <div class="global-config" id="globalConfig">
             <div class="card-head">
               <div>
                 <p class="eyebrow">Configuraciones globales</p>
-                <h3>Tipo y asesor predeterminado</h3>
+                <h3>Asesor predeterminado</h3>
                 <p class="muted subtle">Se aplican a los mensajes y al gestor de clientes.</p>
-              </div>
-              <div class="actions compact">
-                <button id="openPalette" class="secondary-btn"><i class='bx bx-palette'></i> Colores de estados</button>
               </div>
             </div>
             <div class="grid two">
               <div class="field">
                 <label for="globalAdvisor">Asesor</label>
                 <input id="globalAdvisor" placeholder="Nombre del asesor" />
-              </div>
-              <div class="field">
-                <label for="globalType">Notas</label>
-                <input id="globalType" placeholder="Notas predeterminadas" />
               </div>
             </div>
           </div>
