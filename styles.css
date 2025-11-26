@@ -232,6 +232,10 @@ button, .icon-btn { cursor: pointer; }
 .field { display: grid; gap: 6px; }
 .field.inline { grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }
 .field.inline-variable input { background: #0f1625; }
+.field-group { display: grid; gap: 10px; border: 1px solid var(--border); padding: 12px; border-radius: 12px; background: #0f1625; }
+.field-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.reservation-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.reservation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .picker-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 .tiny { font-size: 12px; margin: 0; }
 label { color: var(--muted); font-weight: 600; }

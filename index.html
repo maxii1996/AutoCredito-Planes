@@ -232,6 +232,41 @@
                 <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
               </div>
             </div>
+            <div class="field-group">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Reservas editables</p>
+                  <p class="muted tiny">Usa los valores sugeridos por modelo o ajusta para tentar al cliente.</p>
+                </div>
+                <div class="reservation-actions">
+                  <button id="calcReservation3" class="ghost-btn" type="button"><i class='bx bx-calculator'></i>Calcular 3 cuotas sin interés</button>
+                  <button id="calcReservation6" class="ghost-btn" type="button"><i class='bx bx-math'></i>Calcular 6 cuotas</button>
+                </div>
+              </div>
+              <div class="reservation-grid">
+                <div class="field">
+                  <label for="reservation1">Precio en 1 cuota</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="reservation1" class="money" type="text" inputmode="numeric" placeholder="Valor de reserva en 1 cuota" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="reservation3">Precio en 3 cuotas</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 3" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="reservation6">Precio en 6 cuotas</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 6" />
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="field">
               <label for="notes">Notas internas</label>
               <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
@@ -274,12 +309,12 @@
             <p class="eyebrow">Lista Chevrolet</p>
             <h3>Modelos compatibles</h3>
             <ul class="muted">
-              <li>Nuevo Onix 1.0 Turbo LT MT</li>
-              <li>Nuevo Onix Plus 1.0 Turbo LT MT</li>
-              <li>Nueva Montana LT</li>
-              <li>Nueva S10 CD 2.8 TD 4x2 WT</li>
-              <li>Nueva Tracker 1.2T LT AT</li>
-              <li>Nueva Spin 1.8 (7 pasajeros)</li>
+              <li>NUEVO ONIX 1.0 TURBO LT MT</li>
+              <li>NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT</li>
+              <li>LA NUEVA MONTANA LT 1.2 AT</li>
+              <li>LA NUEVA S10 CD 2.8 TD 4x2 WT</li>
+              <li>NUEVA TRACKER LT 1.2AT</li>
+              <li>NUEVA SPIN 1.8 LT 5AA MT</li>
             </ul>
             <p class="muted">Adaptable a colores, seguros bonificados y financiación sin interés.</p>
           </div>

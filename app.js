@@ -21,7 +21,7 @@ const defaultUiState = {
 
 const defaultVehicles = [
   {
-    name: 'Nuevo Onix 1.0 Turbo LT MT',
+    name: 'NUEVO ONIX 1.0 TURBO LT MT',
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -30,7 +30,7 @@ const defaultVehicles = [
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 }
   },
   {
-    name: 'Nuevo Onix Plus 1.0 Turbo LT MT',
+    name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
@@ -39,7 +39,7 @@ const defaultVehicles = [
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 }
   },
   {
-    name: 'Nueva Montana LT',
+    name: 'LA NUEVA MONTANA LT 1.2 AT',
     basePrice: 37808900,
     integration: 11342670,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -48,7 +48,7 @@ const defaultVehicles = [
     reservations: { '1': 1211400, '3': 1574820, '6': 1817100 }
   },
   {
-    name: 'Nueva S10 CD 2.8 TD 4x2 WT',
+    name: 'LA NUEVA S10 CD 2.8 TD 4x2 WT',
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
@@ -57,7 +57,7 @@ const defaultVehicles = [
     reservations: { '1': 1825000, '3': 2372500, '6': 2737500 }
   },
   {
-    name: 'Nueva Tracker 1.2T LT AT',
+    name: 'NUEVA TRACKER LT 1.2AT',
     basePrice: 37823900,
     integration: 11347170,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -66,7 +66,7 @@ const defaultVehicles = [
     reservations: { '1': 1211710, '3': 1575223, '6': 1817565 }
   },
   {
-    name: 'Nueva Spin 1.8 (7 pasajeros)',
+    name: 'NUEVA SPIN 1.8 LT 5AA MT',
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
@@ -1109,18 +1109,40 @@ function updatePlanProfile(idx, payload = {}) {
   renderPlanForm();
 }
 
-function applyPlanDefaultsForModel(modelIdx) {
+function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetManual = false } = {}) {
   const planSelect = document.getElementById('planType');
   const helper = document.getElementById('planProfileHelper');
   const vehicle = vehicles[modelIdx] || vehicles[0];
+  if (resetManual && planSelect) planSelect.dataset.manual = '';
   if (vehicle?.planProfile?.planType && planSelect) {
-    planSelect.value = vehicle.planProfile.planType;
+    if (!preserveExisting || planSelect.dataset.manual !== 'true') {
+      planSelect.value = vehicle.planProfile.planType;
+    }
   }
   if (helper) {
     helper.textContent = vehicle?.planProfile?.label
       ? `Plan sugerido: ${vehicle.planProfile.label}`
       : 'Plan sugerido según el modelo.';
   }
+}
+
+function applyReservationDefaultsForModel(modelIdx, { preserveExisting = false, resetManual = false } = {}) {
+  const vehicle = vehicles[modelIdx] || vehicles[0];
+  const map = {
+    '1': document.getElementById('reservation1'),
+    '3': document.getElementById('reservation3'),
+    '6': document.getElementById('reservation6')
+  };
+  ['1', '3', '6'].forEach(key => {
+    const input = map[key];
+    if (!input) return;
+    if (resetManual) input.dataset.manual = '';
+    const current = parseMoney(input.dataset.raw || input.value || 0);
+    const hasCustom = current > 0 && input.dataset.manual === 'true';
+    if (!preserveExisting || !hasCustom) {
+      setMoneyValue(input, vehicle?.reservations?.[key] || 0);
+    }
+  });
 }
 
 function bindClientPicker() {
@@ -1198,7 +1220,8 @@ function selectClientForPlan(id) {
   uiState.planDraft.selectedClientId = id;
   const modelIdx = vehicles.findIndex(v => (v.name || '').toLowerCase() === (client.model || '').toLowerCase());
   if (modelIdx >= 0) document.getElementById('planModel').value = modelIdx;
-  applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0));
+  applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
   refreshClientSelectionHint(client);
   updatePlanSummary();
   closeClientPicker();
@@ -1224,12 +1247,34 @@ function renderPlanForm() {
   select.value = uiState.planDraft?.planModel ?? currentValue ?? 0;
   if (!select.dataset.bound) {
     select.addEventListener('change', () => {
-      applyPlanDefaultsForModel(Number(select.value || 0));
+      applyPlanDefaultsForModel(Number(select.value || 0), { resetManual: true });
+      applyReservationDefaultsForModel(Number(select.value || 0), { resetManual: true });
       updatePlanSummary();
     });
-    document.getElementById('planType').addEventListener('change', updatePlanSummary);
+    const planTypeSelect = document.getElementById('planType');
+    planTypeSelect.addEventListener('change', () => {
+      planTypeSelect.dataset.manual = 'true';
+      updatePlanSummary();
+    });
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
     bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
+    ['reservation1', 'reservation3', 'reservation6'].forEach(id => {
+      const el = document.getElementById(id);
+      bindMoneyInput(el, () => {
+        el.dataset.manual = 'true';
+        updatePlanSummary();
+      });
+    });
+    const calc3 = document.getElementById('calcReservation3');
+    const calc6 = document.getElementById('calcReservation6');
+    if (calc3 && !calc3.dataset.bound) {
+      calc3.addEventListener('click', () => calculateReservationsFromBase(3));
+      calc3.dataset.bound = 'true';
+    }
+    if (calc6 && !calc6.dataset.bound) {
+      calc6.addEventListener('click', () => calculateReservationsFromBase(6));
+      calc6.dataset.bound = 'true';
+    }
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
@@ -1238,8 +1283,35 @@ function renderPlanForm() {
     applyPlanDraft();
     planDraftApplied = true;
   }
-  applyPlanDefaultsForModel(Number(select.value || 0));
+  const draft = uiState.planDraft || {};
+  const hasCustomReservations = ['reservation1', 'reservation3', 'reservation6'].some(key => parseMoney(draft[key]));
+  applyPlanDefaultsForModel(Number(select.value || 0), { preserveExisting: !!draft.planType });
+  applyReservationDefaultsForModel(Number(select.value || 0), { preserveExisting: hasCustomReservations });
   updatePlanSummary();
+}
+
+function calculateReservationsFromBase(multiplier) {
+  const baseInput = document.getElementById('reservation1');
+  if (!baseInput) return;
+  const base = parseMoney(baseInput.dataset.raw || baseInput.value || 0);
+  if (!base) {
+    showToast('Primero ingresa el valor en 1 cuota para calcular.', 'error');
+    return;
+  }
+  const targetId = multiplier === 3 ? 'reservation3' : 'reservation6';
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const total = base * multiplier;
+  setMoneyValue(target, total);
+  target.dataset.manual = 'true';
+  updatePlanSummary();
+}
+
+function getReservationValue(id, fallback = 0) {
+  const el = document.getElementById(id);
+  if (!el) return fallback;
+  const val = parseMoney(el.dataset.raw || el.value || 0);
+  return val || fallback;
 }
 
 function updatePlanSummary() {
@@ -1251,7 +1323,9 @@ function updatePlanSummary() {
   const v = vehicles[modelIdx] || vehicles[0];
   if (!v) return;
   const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
-  const reserva1 = v.reservations['1'];
+  const reserva1 = getReservationValue('reservation1', v.reservations['1']);
+  const reserva3 = getReservationValue('reservation3', v.reservations['3']);
+  const reserva6 = getReservationValue('reservation6', v.reservations['6']);
   const total = v.integration;
   const outstanding = Math.max(total - (tradeIn ? tradeInValue : 0), 0);
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
@@ -1261,7 +1335,9 @@ function updatePlanSummary() {
     { label: 'Plan', value: planLabel(plan) },
     { label: 'Perfil sugerido', value: v.planProfile?.label || 'Personalizar' },
     { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
-    { label: 'Reserva mínima', value: currency.format(reserva1) },
+    { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
+    { label: 'Reserva 3 cuotas', value: currency.format(reserva3) },
+    { label: 'Reserva 6 cuotas', value: currency.format(reserva6) },
     { label: 'Integración', value: currency.format(total) },
     { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
     { label: 'Saldo estimado', value: currency.format(outstanding) }
@@ -1290,12 +1366,23 @@ function planLabel(key) {
 function applyPlanDraft() {
   const draft = uiState.planDraft || {};
   if (draft.planModel !== undefined) document.getElementById('planModel').value = draft.planModel;
-  if (draft.planType) document.getElementById('planType').value = draft.planType;
+  const planTypeSelect = document.getElementById('planType');
+  if (draft.planType) {
+    planTypeSelect.value = draft.planType;
+    planTypeSelect.dataset.manual = 'true';
+  }
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
   document.getElementById('notes').value = draft.notes || '';
   selectedPlanClientId = draft.selectedClientId || null;
+  ['reservation1', 'reservation3', 'reservation6'].forEach(key => {
+    const el = document.getElementById(key);
+    if (el) {
+      setMoneyValue(el, draft[key] || '');
+      if (parseMoney(draft[key])) el.dataset.manual = 'true';
+    }
+  });
   refreshClientSelectionHint();
 }
 
@@ -1307,7 +1394,10 @@ function savePlanDraft() {
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
     clientName: document.getElementById('clientName').value,
     notes: document.getElementById('notes').value,
-    selectedClientId: selectedPlanClientId
+    selectedClientId: selectedPlanClientId,
+    reservation1: parseMoney(document.getElementById('reservation1').dataset.raw || document.getElementById('reservation1').value),
+    reservation3: parseMoney(document.getElementById('reservation3').dataset.raw || document.getElementById('reservation3').value),
+    reservation6: parseMoney(document.getElementById('reservation6').dataset.raw || document.getElementById('reservation6').value)
   };
   persist();
 }
@@ -1397,6 +1487,9 @@ function renderClients() {
     const found = vehicles.findIndex(v => v.name === c.model);
     document.getElementById('planModel').value = found >= 0 ? found : 0;
     document.getElementById('planType').value = c.plan;
+    document.getElementById('planType').dataset.manual = 'true';
+    applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { preserveExisting: true });
+    applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
     document.getElementById('tradeIn').checked = c.tradeIn;
     setMoneyValue(document.getElementById('tradeInValue'), c.tradeInValue || '');
     document.getElementById('notes').value = c.notes;
