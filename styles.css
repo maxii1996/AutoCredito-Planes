@@ -242,7 +242,7 @@ label { color: var(--muted); font-weight: 600; }
 input, select, textarea { width: 100%; background: #0f1625; border: 1px solid var(--border); color: var(--text); padding: 11px 12px; border-radius: 12px; font-family: inherit; transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
 textarea { resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(125, 211, 176, 0.25); background: #111a2a; }
-input[type="checkbox"] { appearance: none; width: 18px; height: 18px; border-radius: 6px; border: 1px solid var(--border); background: #0f1625; position: relative; cursor: pointer; transition: 0.2s; }
+input[type="checkbox"] { appearance: none; width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--border); background: #0f1625; position: relative; cursor: pointer; transition: 0.2s; }
 input[type="checkbox"]:checked { background: linear-gradient(135deg, #ffb703, #f97316); border-color: #f6b04b; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2); }
 input[type="checkbox"]:checked::after { content: '✓'; color: #0b0f19; position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
 input[type="range"] { -webkit-appearance: none; height: 6px; border-radius: 999px; background: #1d2534; border: 1px solid var(--border); }
@@ -347,6 +347,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 
 .client-controls { display: flex; align-items: flex-end; justify-content: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .client-controls .toggles { gap: 8px; align-items: stretch; }
+.client-controls .filter-toggle { margin-left: auto; }
 .advisor-combo { display: grid; gap: 6px; flex: 0 1 30%; min-width: 260px; }
 .combo-head { font-size: 12px; letter-spacing: 0.3px; color: var(--muted); text-transform: uppercase; }
 .combo-shell { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, rgba(255, 183, 3, 0.08), rgba(15, 22, 37, 0.92)); box-shadow: 0 10px 28px rgba(0,0,0,0.35); }
