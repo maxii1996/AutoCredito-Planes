@@ -8,7 +8,7 @@ const defaultUiState = {
   toggles: { showReservations: true, showIntegration: true },
   globalSettings: {
     advisorName: 'Equipo Chevrolet',
-    clientType: 'Cliente de la marca',
+    clientType: '',
     statusPalette: {
       contacted: { color: '#34d399', opacity: 0.16 },
       noNumber: { color: '#f87171', opacity: 0.16 },
@@ -86,7 +86,7 @@ const clientColumns = {
   birthDate: { label: 'Nacimiento', default: false },
   purchaseDate: { label: 'Fecha compra', default: false },
   postalCode: { label: 'CP', default: false },
-  type: { label: 'Tipo', default: false }
+  type: { label: 'Notas', default: true }
 };
 
 const defaultClientManagerState = {
@@ -112,7 +112,7 @@ const clientColumnWidths = {
   postalCode: '120px',
   type: '170px',
   status: '180px',
-  actions: '300px'
+  actions: '340px'
 };
 
 const defaultTemplates = [
@@ -416,6 +416,15 @@ function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+function normalizeNotesValue(value) {
+  const text = (value || '').toString().trim();
+  return text && text !== '-' ? text : '-';
+}
+
+function hasNotes(client = {}) {
+  return normalizeNotesValue(client.type) !== '-';
+}
+
 function clientStatus(client = {}) {
   const flags = client.flags || {};
   if (flags.noNumber) return { label: 'Número no disponible', className: 'status-no-number' };
@@ -433,10 +442,13 @@ function buildMessageForClient(client) {
   if (!tpl) return '';
   const globalSettings = mergeGlobalSettings(uiState.globalSettings);
   const year = extractYear(client.purchaseDate || client.birthDate || '');
+  const noteValue = normalizeNotesValue(client.type);
+  const defaultNote = normalizeNotesValue(globalSettings.clientType);
+  const noteForMessage = noteValue !== '-' ? noteValue : (defaultNote !== '-' ? defaultNote : '');
   const replacements = {
     cliente: client.name || '',
     asesor: globalSettings.advisorName || '',
-    tipo: client.type || globalSettings.clientType || '',
+    tipo: noteForMessage,
     modelo_actual: client.model || client.brand || '',
     modelo_nuevo: uiState.planDraft?.planModel !== undefined ? vehicles[uiState.planDraft.planModel]?.name : '',
     telefono: client.phone || '',
@@ -480,6 +492,7 @@ let clientManagerState = { ...defaultClientManagerState, ...(load('clientManager
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
 let snapshots = load('snapshots') || [];
+let activeNoteClientId = null;
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
@@ -515,6 +528,7 @@ function init() {
     renderClientManager();
     renderGlobalSettings();
     renderSnapshots();
+    bindNoteModal();
     attachPlanListeners();
     attachTemplateActions();
     attachVehicleToggles();
@@ -591,9 +605,10 @@ function applyToggleState() {
 }
 
 function renderStats() {
-  document.getElementById('modelCount').textContent = vehicles.length;
-  document.getElementById('templateCount').textContent = templates.length;
-  document.getElementById('clientCount').textContent = clients.length + managerClients.length;
+  const templateCount = document.getElementById('templateCount');
+  const clientCount = document.getElementById('clientCount');
+  if (templateCount) templateCount.textContent = templates.length;
+  if (clientCount) clientCount.textContent = clients.length + managerClients.length;
   renderWelcomeHero();
   renderAdvisorNote();
 }
@@ -603,16 +618,14 @@ function renderWelcomeHero() {
   const subtitle = document.getElementById('dashboardSubtitle');
   const helper = document.getElementById('advisorHelper');
   const input = document.getElementById('advisorInput');
-  const saveBtn = document.getElementById('advisorSave');
-  const resetBtn = document.getElementById('advisorReset');
   const datalist = document.getElementById('advisorSuggestions');
   if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
   const advisor = (settings.advisorName || '').trim();
-  heading.textContent = advisor ? `Panel de ${advisor}` : 'Control de vendedores y accesos';
-  subtitle.textContent = advisor ? 'Personalización activa para tu jornada.' : 'Define quién atiende y salta directo a los flujos clave.';
-  if (helper) helper.textContent = advisor ? `Vendedor activo: ${advisor}. Puedes ajustarlo cuando quieras.` : 'Personaliza el panel y se guarda en tu dispositivo.';
+  heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
+  subtitle.textContent = advisor ? 'Personalización activa para tu jornada.' : 'Define quién atiende y ajusta tu jornada.';
+  if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
 
   const suggestions = Array.from(new Set([
     'Equipo Chevrolet',
@@ -627,34 +640,12 @@ function renderWelcomeHero() {
 
   if (input && input.value !== advisor) input.value = advisor;
 
-  const saveAdvisor = () => {
-    uiState.globalSettings.advisorName = (input?.value || '').trim();
-    persist();
-    renderGlobalSettings();
-    renderWelcomeHero();
-    showToast('Vendedor actualizado', 'success');
-  };
-
-  if (saveBtn && !saveBtn.dataset.bound) {
-    saveBtn.addEventListener('click', saveAdvisor);
-    saveBtn.dataset.bound = 'true';
-  }
-
-  if (resetBtn && !resetBtn.dataset.bound) {
-    resetBtn.addEventListener('click', () => {
-      if (input) input.value = '';
-      uiState.globalSettings.advisorName = '';
+  if (input && !input.dataset.bound) {
+    input.addEventListener('input', () => {
+      uiState.globalSettings.advisorName = input.value.trim();
       persist();
       renderGlobalSettings();
       renderWelcomeHero();
-      showToast('Se limpió el vendedor', 'info');
-    });
-    resetBtn.dataset.bound = 'true';
-  }
-
-  if (input && !input.dataset.bound) {
-    input.addEventListener('input', () => {
-      uiState.globalSettings.advisorName = input.value;
     });
     input.dataset.bound = 'true';
   }
@@ -1345,6 +1336,68 @@ function renderColumnToggles() {
   }));
 }
 
+function openClientNotes(id) {
+  const modal = document.getElementById('clientNoteModal');
+  const title = document.getElementById('clientNoteTitle');
+  const subtitle = document.getElementById('clientNoteSubtitle');
+  const textarea = document.getElementById('clientNoteText');
+  const client = managerClients.find(c => c.id === id);
+  if (!modal || !textarea || !client) return;
+  activeNoteClientId = id;
+  if (title) title.textContent = client.name || 'Cliente';
+  if (subtitle) subtitle.textContent = client.model ? `Modelo: ${client.model}` : '';
+  textarea.value = hasNotes(client) ? client.type : '';
+  modal.classList.add('show');
+  modal.classList.remove('hidden');
+  textarea.focus();
+}
+
+function closeClientNotes() {
+  const modal = document.getElementById('clientNoteModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+  activeNoteClientId = null;
+}
+
+function saveClientNotes() {
+  const textarea = document.getElementById('clientNoteText');
+  if (!activeNoteClientId || !textarea) {
+    closeClientNotes();
+    return;
+  }
+  const client = managerClients.find(c => c.id === activeNoteClientId);
+  if (!client) {
+    closeClientNotes();
+    return;
+  }
+  client.type = normalizeNotesValue(textarea.value);
+  persist();
+  renderClientManager();
+  showToast('Notas actualizadas', 'success');
+  closeClientNotes();
+}
+
+function bindNoteModal() {
+  const modal = document.getElementById('clientNoteModal');
+  if (!modal) return;
+  const closeButtons = [document.getElementById('clientNoteClose'), document.getElementById('clientNoteCancel')];
+  closeButtons.forEach(btn => {
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', closeClientNotes);
+      btn.dataset.bound = 'true';
+    }
+  });
+  const saveBtn = document.getElementById('clientNoteSave');
+  if (saveBtn && !saveBtn.dataset.bound) {
+    saveBtn.addEventListener('click', saveClientNotes);
+    saveBtn.dataset.bound = 'true';
+  }
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeClientNotes();
+  });
+}
+
 function normalizeCell(value) {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
@@ -1385,6 +1438,7 @@ function mapRow(row, headers) {
   mapped.name = mapped.name || 'Sin nombre';
   mapped.model = mapped.model || 'Sin modelo';
   mapped.phone = normalizePhone(mapped.phone || '');
+  mapped.type = normalizeNotesValue(mapped.type);
   return mapped;
 }
 
@@ -1432,7 +1486,7 @@ function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
   return managerClients.filter(c => {
     const status = clientStatus(c).label;
-    const matchesSearch = [c.name, c.model, c.phone].some(v => (v || '').toLowerCase().includes(search));
+    const matchesSearch = [c.name, c.model, c.phone, c.type].some(v => (v || '').toLowerCase().includes(search));
     const matchesStatus = clientManagerState.statusFilter === 'all'
       ? true
       : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
@@ -1481,6 +1535,9 @@ function renderClientManager() {
       const status = clientStatus(c);
       const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
       const rowClass = `grid-row client-row ${status.className}`;
+      const notesActive = hasNotes(c);
+      const notesClass = notesActive ? ' has-notes' : '';
+      const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
       const cells = visibleColumns.map(([key, col]) => `<div class="grid-cell" data-label="${col.label}">${formatCell(key, c)}</div>`).join('');
       return `
         <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
@@ -1490,6 +1547,7 @@ function renderClientManager() {
             <button class="icon-btn" data-action="contacted" title="Marcar como contactado"><i class='bx bx-check-circle'></i></button>
             <button class="icon-btn" data-action="no_number" title="Número no disponible"><i class='bx bx-block'></i></button>
             <button class="icon-btn" data-action="favorite" title="Agregar a favoritos"><i class='bx bx-star'></i></button>
+            <button class="icon-btn${notesClass}" data-action="open_notes" title="${notesTitle}"><i class='bx bx-note'></i></button>
             <button class="icon-btn" data-action="copy_message" title="Copiar mensaje inicial"><i class='bx bx-message-square-dots'></i></button>
             <button class="icon-btn" data-action="copy_phone" title="Copiar número"><i class='bx bx-phone'></i></button>
           </div>
@@ -1565,9 +1623,10 @@ function updateStatusSetting(status, payload = {}) {
 
 function formatCell(key, client) {
   if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div></div>`;
-  if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.type || 'Plan vigente'}</p></div>`;
+  if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div>`;
   if (key === 'phone') return `<div class="tip"><i class='bx bx-help-circle helper-icon' title="Teléfono sanitizado"></i><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
+  if (key === 'type') return normalizeNotesValue(client.type).replace(/\n/g, '<br>');
   return client[key] || '-';
 }
 
@@ -1590,6 +1649,7 @@ function bindClientTableActions() {
     if (action === 'contacted') updateClientFlag(id, 'contacted');
     if (action === 'no_number') updateClientFlag(id, 'noNumber');
     if (action === 'favorite') updateClientFlag(id, 'favorite');
+    if (action === 'open_notes') openClientNotes(id);
     if (action === 'copy_message') copyText(buildMessageForClient(managerClients.find(c => c.id === id)), 'Mensaje copiado');
     if (action === 'copy_phone') copyText(normalizePhone(managerClients.find(c => c.id === id)?.phone || ''), 'Número copiado');
   }));
@@ -1656,7 +1716,7 @@ function exportManagerClients() {
     Nacimiento: c.birthDate,
     'Fecha compra': c.purchaseDate,
     CP: c.postalCode,
-    Tipo: c.type,
+    Tipo: normalizeNotesValue(c.type),
     Estado: clientStatus(c).label
   }));
   const ws = XLSX.utils.json_to_sheet(data);

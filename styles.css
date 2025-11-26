@@ -279,6 +279,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .table-wrapper.dense .actions-cell { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .table-wrapper.dense .icon-btn { background: #162032; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .table-wrapper.dense .icon-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 8px 22px rgba(0,0,0,0.25); transform: translateY(-1px); }
+.table-wrapper.dense .icon-btn.has-notes { border-color: var(--accent); color: var(--accent); }
 .table-wrapper.dense .helper-icon { color: var(--muted); font-size: 18px; }
 .table-wrapper .avatar { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #1f2937, #0f172a); display: grid; place-items: center; font-weight: 700; color: var(--accent); }
 .table-wrapper .avatar.small { width: 30px; height: 30px; }
