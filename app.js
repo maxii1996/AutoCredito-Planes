@@ -1,6 +1,14 @@
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat('es-AR');
 
+const panelTitles = {
+  dashboard: 'Inicio',
+  templates: 'Plantillas',
+  vehicles: 'Autos y Valores',
+  plans: 'Cotizaciones',
+  clientManager: 'Gestor de Clientes'
+};
+
 const defaultUiState = {
   selectedTemplateIndex: 0,
   variableValues: {},
@@ -177,13 +185,15 @@ function showToast(message, type = 'info') {
   if (!container) return;
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
   toast.innerHTML = `<span class="icon">${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}</span><div><strong>${message}</strong></div>`;
   container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('visible'));
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(6px)';
-    setTimeout(() => toast.remove(), 180);
-  }, 3500);
+    toast.classList.add('hide');
+    setTimeout(() => toast.remove(), 260);
+  }, 3800);
 }
 
 function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm } = {}) {
@@ -562,6 +572,19 @@ function bindNavigation() {
 function activatePanel(targetId) {
   document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.target === targetId));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
+  const targetPanel = document.getElementById(targetId);
+  if (targetPanel) {
+    targetPanel.classList.remove('animate');
+    void targetPanel.offsetWidth;
+    targetPanel.classList.add('animate');
+  }
+  updateSectionTitle(targetId);
+}
+
+function updateSectionTitle(targetId) {
+  const title = document.getElementById('sectionTitle');
+  if (!title) return;
+  title.textContent = panelTitles[targetId] || 'Inicio';
 }
 
 function bindQuickLinks() {
@@ -957,21 +980,11 @@ function attachTemplateActions() {
     }
   });
 
-  document.getElementById('saveTemplate').addEventListener('click', () => {
-    const title = document.getElementById('templateTitle').value.trim();
-    const body = document.getElementById('templateBody').value.trim();
-    if (!title || !body) return;
-    templates[selectedTemplateIndex] = { ...(templates[selectedTemplateIndex] || {}), title, body };
-    persist();
-    renderVariableInputs(extractVariables(body));
-    renderTemplates();
-  });
-
   document.getElementById('copyTemplate').addEventListener('click', async () => {
     const text = document.getElementById('templatePreview').textContent;
     await navigator.clipboard.writeText(text);
     const status = document.getElementById('copyStatus');
-    status.textContent = 'Copiado con variables reemplazadas';
+    status.textContent = 'Plantilla copiada con variables aplicadas';
     setTimeout(() => status.textContent = '', 2000);
   });
 
@@ -1322,7 +1335,7 @@ function refreshClientSelectionHint(client) {
     const phone = applied.phone ? ` · Tel: ${normalizePhone(applied.phone)}` : '';
     hint.textContent = `Usando datos de ${applied.name}${phone}`;
   } else {
-    hint.textContent = 'Selecciona un cliente importado para completar los datos.';
+    hint.textContent = 'Puedes escribir los datos o aplicar uno importado.';
   }
 }
 
@@ -1898,12 +1911,10 @@ function handleClientImport(file) {
       const processImport = (headersToUse, dataRows, showWarning = false) => {
         const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
         let imported = 0;
-        let skipped = 0;
         dataRows.forEach(r => {
           const mapped = mapRow(r, headersToUse);
           const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
           if (existingKeys.has(key)) {
-            skipped += 1;
             return;
           }
           existingKeys.add(key);
@@ -1914,8 +1925,7 @@ function handleClientImport(file) {
         renderClientManager();
         renderStats();
         const extra = showWarning ? ' (usando cabezales por defecto)' : '';
-        const msg = skipped ? `Importados ${imported}, duplicados omitidos: ${skipped}${extra}` : `Importados ${imported} clientes${extra}`;
-        showToast(msg, 'success');
+        showToast(`Se han importado ${imported} clientes correctamente${extra}.`, 'success');
       };
 
       if (!recognized.length) {

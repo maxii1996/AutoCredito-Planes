@@ -23,10 +23,10 @@
       </div>
       <nav class="nav">
         <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
+        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
         <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
-        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y valores</span></button>
-        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Planes y clientes</span></button>
-        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de clientes</span></button>
+        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
+        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
       </nav>
       <div class="sidebar-foot">
         <p class="mini">Datos locales, respaldo inmediato.</p>
@@ -37,7 +37,7 @@
         <div class="title-area">
           <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú"><i class='bx bx-menu-alt-left'></i></button>
           <div>
-            <h1>Gestor de Clientes</h1>
+            <h1 id="sectionTitle">Inicio</h1>
           </div>
         </div>
         <div class="top-actions">
@@ -135,8 +135,8 @@
                 <pre id="templatePreview"></pre>
               </div>
               <div class="actions compact">
-                <button id="saveTemplate" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
-                <button id="copyTemplate" class="secondary-btn"><i class='bx bx-copy'></i>Copiar con reemplazos</button>
+                <div class="autosave-hint">Guardado en tiempo real</div>
+                <button id="copyTemplate" class="secondary-btn"><i class='bx bx-copy'></i>Copiar esta plantilla</button>
                 <span id="copyStatus" class="muted"></span>
               </div>
             </div>
@@ -229,10 +229,10 @@
             <div class="field">
               <label for="clientName">Cliente</label>
               <div class="picker-row">
-                <input id="clientName" placeholder="Nombre y apellido" readonly />
+                <input id="clientName" placeholder="Nombre y apellido" />
                 <button id="openClientPicker" class="secondary-btn" type="button"><i class='bx bx-user-voice'></i>Seleccionar...</button>
               </div>
-              <p class="muted tiny" id="selectedClientHint">Selecciona un cliente importado para completar los datos.</p>
+              <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
             </div>
             <div class="field">
               <label for="planModel">Modelo</label>
