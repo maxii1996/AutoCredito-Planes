@@ -7,7 +7,7 @@ const defaultUiState = {
   planDraft: {},
   toggles: { showReservations: true, showIntegration: true },
   globalSettings: {
-    advisorName: 'Equipo Chevrolet',
+    advisorName: '',
     clientType: '',
     statusPalette: {
       contacted: { color: '#34d399', opacity: 0.16 },
@@ -621,11 +621,12 @@ function renderWelcomeHero() {
   if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
-  const advisor = (settings.advisorName || '').trim();
+  const advisorRaw = settings.advisorName || '';
+  const advisor = advisorRaw.trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
   subtitle.textContent = advisor ? 'Personalización activa para tu jornada.' : 'Define quién atiende y ajusta tu jornada.';
   updateSidebarAdvisor(advisor);
-  renderAdvisorSelector(advisor);
+  renderAdvisorSelector(advisorRaw);
   if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
 
   const suggestions = Array.from(new Set([
@@ -639,11 +640,11 @@ function renderWelcomeHero() {
     datalist.innerHTML = suggestions.map(name => `<option value="${name}"></option>`).join('');
   }
 
-  if (input && input.value !== advisor) input.value = advisor;
+  if (input && input.value !== advisorRaw) input.value = advisorRaw;
 
   if (input && !input.dataset.bound) {
     input.addEventListener('input', () => {
-      uiState.globalSettings.advisorName = input.value.trim();
+      uiState.globalSettings.advisorName = input.value.replace(/\s+/g, ' ');
       persist();
       renderGlobalSettings();
       renderWelcomeHero();
@@ -662,23 +663,15 @@ function updateSidebarAdvisor(advisor) {
 function renderAdvisorSelector(advisor) {
   const select = document.getElementById('advisorSelector');
   if (!select) return;
+  const cleanAdvisor = (advisor || '').replace(/\s+/g, ' ').trim();
   const suggestions = Array.from(new Set([
     'Equipo Chevrolet',
-    advisor
+    cleanAdvisor
   ].filter(Boolean)));
-  select.innerHTML = suggestions.map(name => `<option value="${name}">${name}</option>`).join('');
-  const current = advisor || suggestions[0] || '';
-  select.value = current;
-  if (!select.dataset.bound) {
-    select.addEventListener('change', () => {
-      uiState.globalSettings.advisorName = select.value.trim();
-      persist();
-      renderWelcomeHero();
-      renderGlobalSettings();
-      renderClientManager();
-    });
-    select.dataset.bound = 'true';
-  }
+  select.innerHTML = `<option value="" disabled>${cleanAdvisor ? 'Asesor activo' : 'Define el asesor en Inicio'}</option>` +
+    suggestions.map(name => `<option value="${name}">${name}</option>`).join('');
+  select.value = cleanAdvisor || '';
+  select.disabled = true;
 }
 
 function renderQuickOverview() {

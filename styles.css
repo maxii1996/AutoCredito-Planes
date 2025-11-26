@@ -334,16 +334,23 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 
 .client-controls { display: flex; align-items: flex-end; justify-content: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .client-controls .toggles { gap: 8px; align-items: stretch; }
-.advisor-combo { display: grid; gap: 6px; flex: 1 1 320px; }
+.advisor-combo { display: grid; gap: 6px; flex: 0 1 30%; min-width: 260px; }
 .combo-head { font-size: 12px; letter-spacing: 0.3px; color: var(--muted); text-transform: uppercase; }
-.combo-shell { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; }
-.combo-shell select { background: transparent; border: none; color: var(--text); font-weight: 600; width: 100%; }
+.combo-shell { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, rgba(255, 183, 3, 0.08), rgba(15, 22, 37, 0.92)); box-shadow: 0 10px 28px rgba(0,0,0,0.35); }
+.combo-shell select { background: #0f1625; border: 1px solid rgba(255,255,255,0.08); color: var(--text); font-weight: 600; width: 100%; padding: 10px; border-radius: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); appearance: none; }
+.combo-shell select:disabled { opacity: 0.7; cursor: not-allowed; }
+.combo-shell select option { background: #111a2c; color: var(--text); font-weight: 600; }
 .combo-shell i { color: var(--muted); }
 .client-controls .search-field { flex: 0 1 220px; }
 .filter-toggle { padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; gap: 10px; color: var(--text); }
-.filter-toggle select { background: transparent; border: none; color: var(--text); padding: 6px 8px; min-width: 180px; }
+.filter-toggle select { background: #0f1625; border: 1px solid rgba(255,255,255,0.06); color: var(--text); padding: 10px 12px; min-width: 180px; border-radius: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+.filter-toggle select option { background: #0e1727; color: var(--text); }
 .filter-label { display: grid; gap: 2px; }
 .filter-label strong { font-size: 14px; }
+
+.search-row { margin: 6px 0 12px; }
+.search-field.expanded { width: 100%; max-width: none; display: flex; }
+.search-field.expanded input { width: 100%; }
 
 .status-contacted { border-color: var(--status-contacted-border); background: var(--status-contacted-bg); color: var(--status-contacted-text); }
 .status-no-number { border-color: var(--status-no-number-border); background: var(--status-no-number-bg); color: var(--status-no-number-text); }

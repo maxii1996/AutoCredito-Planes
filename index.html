@@ -307,12 +307,8 @@
               <div class="combo-head">Asesor activo</div>
               <div class="combo-shell">
                 <i class='bx bx-user-voice'></i>
-                <select id="advisorSelector"></select>
+                <select id="advisorSelector" disabled></select>
               </div>
-            </div>
-            <div class="search-field compact">
-              <i class='bx bx-search'></i>
-              <input id="clientManagerSearch" placeholder="Buscar por nombre, modelo o teléfono" />
             </div>
             <div class="toggles">
               <label class="toggle" title="Agrupar registros por modelo de vehículo">
@@ -335,19 +331,10 @@
               </div>
             </div>
           </div>
-          <div class="global-config" id="globalConfig">
-            <div class="card-head">
-              <div>
-                <p class="eyebrow">Configuraciones globales</p>
-                <h3>Asesor predeterminado</h3>
-                <p class="muted subtle">Se aplican a los mensajes y al gestor de clientes.</p>
-              </div>
-            </div>
-            <div class="grid two">
-              <div class="field">
-                <label for="globalAdvisor">Asesor</label>
-                <input id="globalAdvisor" placeholder="Nombre del asesor" />
-              </div>
+          <div class="search-row">
+            <div class="search-field expanded">
+              <i class='bx bx-search'></i>
+              <input id="clientManagerSearch" placeholder="Buscar por nombre, modelo o teléfono" />
             </div>
           </div>
           <div class="column-pills" id="columnToggles"></div>
