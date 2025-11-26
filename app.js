@@ -5,6 +5,7 @@ const defaultUiState = {
   selectedTemplateIndex: 0,
   variableValues: {},
   planDraft: {},
+  quoteSearch: '',
   toggles: { showReservations: true, showIntegration: true },
   globalSettings: {
     advisorName: 'Chevrolet Argentina',
@@ -500,6 +501,7 @@ let activeNoteClientId = null;
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
+uiState.quoteSearch = uiState.quoteSearch || '';
 uiState.profileSearch = uiState.profileSearch || '';
 uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
@@ -535,6 +537,8 @@ function init() {
     renderSnapshots();
     bindNoteModal();
     bindClientPicker();
+    bindQuoteModal();
+    bindResourceButtons();
     attachPlanListeners();
     attachTemplateActions();
     attachVehicleToggles();
@@ -1121,8 +1125,8 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
   }
   if (helper) {
     helper.textContent = vehicle?.planProfile?.label
-      ? `Plan sugerido: ${vehicle.planProfile.label}`
-      : 'Plan sugerido según el modelo.';
+      ? `Plan establecido: ${vehicle.planProfile.label}`
+      : 'Plan establecido según el modelo.';
   }
 }
 
@@ -1178,6 +1182,88 @@ function closeClientPicker() {
   if (!modal) return;
   modal.classList.remove('show');
   setTimeout(() => modal.classList.add('hidden'), 180);
+}
+
+function bindQuoteModal() {
+  const openers = [document.getElementById('openQuoteModal')].filter(Boolean);
+  openers.forEach(btn => {
+    if (!btn.dataset.bound) {
+      btn.addEventListener('click', openQuoteModal);
+      btn.dataset.bound = 'true';
+    }
+  });
+  const copyBtn = document.getElementById('copyQuote');
+  if (copyBtn && !copyBtn.dataset.bound) {
+    copyBtn.addEventListener('click', () => {
+      const quote = buildQuoteFromForm();
+      copyText(quote.summaryText, 'Cotización copiada');
+    });
+    copyBtn.dataset.bound = 'true';
+  }
+  ['quoteModalClose', 'quoteModalCancel'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', closeQuoteModal);
+      btn.dataset.bound = 'true';
+    }
+  });
+  const search = document.getElementById('quoteSearch');
+  if (search && !search.dataset.bound) {
+    search.value = uiState.quoteSearch || '';
+    search.addEventListener('input', () => {
+      uiState.quoteSearch = search.value;
+      persist();
+      renderClients();
+    });
+    search.dataset.bound = 'true';
+  }
+}
+
+function openQuoteModal() {
+  const modal = document.getElementById('quoteModal');
+  if (!modal) return;
+  renderClients();
+  modal.classList.add('show');
+  modal.classList.remove('hidden');
+}
+
+function closeQuoteModal() {
+  const modal = document.getElementById('quoteModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => modal.classList.add('hidden'), 180);
+}
+
+function bindResourceButtons() {
+  const resources = [
+    { viewId: 'viewInfoAuto', downloadId: 'downloadInfoAuto', path: 'img/Template/InfoAuto.jpg', name: 'InfoAuto.jpg' },
+    { viewId: 'viewClientReference', downloadId: 'downloadClientReference', path: 'img/Template/FotosReferenciaParaCliente.jpg', name: 'FotosReferenciaParaCliente.jpg' }
+  ];
+  resources.forEach(res => {
+    const viewBtn = document.getElementById(res.viewId);
+    const downloadBtn = document.getElementById(res.downloadId);
+    if (viewBtn && !viewBtn.dataset.bound) {
+      viewBtn.addEventListener('click', () => openResource(res.path));
+      viewBtn.dataset.bound = 'true';
+    }
+    if (downloadBtn && !downloadBtn.dataset.bound) {
+      downloadBtn.addEventListener('click', () => openResource(res.path, res.name, true));
+      downloadBtn.dataset.bound = 'true';
+    }
+  });
+}
+
+function openResource(path, name = '', download = false) {
+  const link = document.createElement('a');
+  link.href = path;
+  if (download) link.download = name || path.split('/').pop();
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  if (download) {
+    showToast('Descarga lista', 'success');
+  }
 }
 
 function renderClientPickerList() {
@@ -1333,7 +1419,7 @@ function updatePlanSummary() {
   const rows = [
     { label: 'Modelo', value: v.name },
     { label: 'Plan', value: planLabel(plan) },
-    { label: 'Perfil sugerido', value: v.planProfile?.label || 'Personalizar' },
+    { label: 'Plan establecido', value: v.planProfile?.label || 'Personalizar' },
     { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
     { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
     { label: 'Reserva 3 cuotas', value: currency.format(reserva3) },
@@ -1351,6 +1437,77 @@ function updatePlanSummary() {
     </div>
   `).join('');
   savePlanDraft();
+}
+
+function buildQuoteFromForm() {
+  const modelIdx = Number(document.getElementById('planModel').value || 0);
+  const plan = document.getElementById('planType').value;
+  const tradeIn = document.getElementById('tradeIn').checked;
+  const tradeInInput = document.getElementById('tradeInValue');
+  const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const notes = document.getElementById('notes').value.trim();
+  const v = vehicles[modelIdx] || vehicles[0];
+  const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
+  const reservation1 = getReservationValue('reservation1', v.reservations['1']);
+  const reservation3 = getReservationValue('reservation3', v.reservations['3']);
+  const reservation6 = getReservationValue('reservation6', v.reservations['6']);
+  const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
+  const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
+  const quote = {
+    id: baseQuote.id || `quote-${Date.now()}`,
+    name,
+    model: v.name,
+    plan,
+    cuota,
+    tradeIn,
+    tradeInValue,
+    notes,
+    reservation1,
+    reservation3,
+    reservation6,
+    integration: v.integration,
+    planProfileLabel: v.planProfile?.label || 'Personalizar',
+    timestamp: new Date().toISOString(),
+    selectedClientId: selectedPlanClientId,
+    summaryText: ''
+  };
+  quote.summaryText = buildQuoteSummaryText(quote);
+  return quote;
+}
+
+function buildQuoteSummaryText(quote) {
+  const parts = [
+    `Cotización para: ${quote.name}`,
+    `Modelo elegido: ${quote.model}`,
+    `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
+    `Cuota estimada: ${quote.cuota ? currency.format(quote.cuota) : 'Completar manual'}`,
+    `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} · 6 cuotas ${currency.format(quote.reservation6 || 0)}`,
+    `Integración objetivo: ${currency.format(quote.integration || 0)}`,
+    `Entrega llave por llave: ${quote.tradeIn ? `Sí (toma usado por ${currency.format(quote.tradeInValue || 0)})` : 'No'}`,
+    `Notas: ${quote.notes || 'Sin notas'}`,
+    `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
+  ];
+  return parts.join('\n');
+}
+
+function applyQuoteToForm(quote) {
+  if (!quote) return;
+  selectedPlanClientId = quote.selectedClientId || null;
+  document.getElementById('clientName').value = quote.name || '';
+  const modelIdx = vehicles.findIndex(v => (v.name || '').toLowerCase() === (quote.model || '').toLowerCase());
+  document.getElementById('planModel').value = modelIdx >= 0 ? modelIdx : 0;
+  applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { preserveExisting: false, resetManual: true });
+  applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  document.getElementById('planType').value = quote.plan || document.getElementById('planType').value;
+  document.getElementById('planType').dataset.manual = 'true';
+  document.getElementById('tradeIn').checked = !!quote.tradeIn;
+  setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
+  setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
+  setMoneyValue(document.getElementById('reservation3'), quote.reservation3 || '');
+  setMoneyValue(document.getElementById('reservation6'), quote.reservation6 || '');
+  document.getElementById('notes').value = quote.notes || '';
+  refreshClientSelectionHint();
+  updatePlanSummary();
 }
 
 function planLabel(key) {
@@ -1404,96 +1561,104 @@ function savePlanDraft() {
 
 function attachPlanListeners() {
   document.getElementById('saveClient').addEventListener('click', () => {
-    const name = document.getElementById('clientName').value.trim();
-    if (!name) return;
-    const modelIdx = Number(document.getElementById('planModel').value || 0);
-    const plan = document.getElementById('planType').value;
-    const tradeIn = document.getElementById('tradeIn').checked;
-    const tradeInValue = parseMoney(document.getElementById('tradeInValue').value || 0);
-    const notes = document.getElementById('notes').value.trim();
-    const v = vehicles[modelIdx];
-    const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
-
-    const client = { name, model: v.name, plan, tradeIn, tradeInValue, notes, cuota, timestamp: new Date().toISOString(), selectedClientId: selectedPlanClientId };
-    clients = clients.filter(c => c.name !== name);
-    clients.push(client);
-    persist();
-    renderClients();
-    renderStats();
-    showToast('Cliente guardado', 'success');
-  });
-
-  const clientSearch = document.getElementById('clientSearch');
-  if (clientSearch) {
-    clientSearch.value = uiState.clientSearch || '';
-    clientSearch.addEventListener('input', () => {
-      uiState.clientSearch = clientSearch.value;
-      persist();
-      renderClients();
+    const quote = buildQuoteFromForm();
+    confirmAction({
+      title: 'Guardar cotización',
+      message: `Se guardará la cotización de ${quote.name}.`,
+      confirmText: 'Guardar',
+      onConfirm: () => {
+        clients = clients.filter(c => c.id !== quote.id);
+        clients.unshift(quote);
+        persist();
+        renderClients();
+        renderStats();
+        showToast('Cotización guardada', 'success');
+      }
     });
-  }
+  });
 }
 
 function renderClients() {
-  const list = document.getElementById('clientList');
-  const searchInput = document.getElementById('clientSearch');
-  if (searchInput && searchInput.value !== uiState.clientSearch) {
-    searchInput.value = uiState.clientSearch || '';
+  const list = document.getElementById('quoteList');
+  if (!list) return;
+  const searchInput = document.getElementById('quoteSearch');
+  if (searchInput && searchInput.value !== uiState.quoteSearch) {
+    searchInput.value = uiState.quoteSearch || '';
   }
-  const search = (uiState.clientSearch || '').toLowerCase();
-  const filtered = clients.filter(c => c.name.toLowerCase().includes(search) || c.model.toLowerCase().includes(search));
+  const search = (uiState.quoteSearch || '').toLowerCase();
+  const normalized = clients.map((c) => {
+    const hydrated = { ...c };
+    hydrated.id = hydrated.id || `quote-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    hydrated.planProfileLabel = hydrated.planProfileLabel || 'Personalizar';
+    hydrated.summaryText = hydrated.summaryText || buildQuoteSummaryText(hydrated);
+    hydrated.timestamp = hydrated.timestamp || new Date().toISOString();
+    return hydrated;
+  });
+  clients = normalized;
+  const filtered = normalized.filter(c => {
+    const haystack = `${c.name} ${c.model} ${planLabel(c.plan)} ${c.summaryText || ''}`.toLowerCase();
+    return haystack.includes(search);
+  });
   if (!filtered.length) {
-    list.innerHTML = '<p class="muted">Sin clientes aún.</p>';
+    list.innerHTML = '<p class="muted">Sin cotizaciones guardadas.</p>';
     return;
   }
   list.innerHTML = filtered.map((c) => {
-    const idx = clients.indexOf(c);
+    const shortId = c.id.slice(-6);
+    const fecha = c.timestamp ? new Date(c.timestamp).toLocaleString('es-AR') : '';
     return `
-    <div class="client-card" data-idx="${idx}">
-      <button class="delete-btn" data-idx="${idx}" title="Eliminar"><i class='bx bx-x'></i></button>
-      <div class="row">
-        <h4>${c.name}</h4>
-        <span class="tag">${planLabel(c.plan)}</span>
+    <div class="quote-row" data-id="${c.id}">
+      <div class="quote-main">
+        <strong>${c.name}</strong>
+        <p class="muted tiny">${c.model} · ${planLabel(c.plan)} · ${currency.format(c.cuota || 0)}</p>
       </div>
-      <p>${c.model} · ${currency.format(c.cuota || 0)}</p>
-      <p class="muted">${c.tradeIn ? `Entrega usado: ${currency.format(c.tradeInValue || 0)}` : 'Sin entrega'} · ${new Date(c.timestamp).toLocaleString('es-AR')}</p>
+      <div class="quote-meta">
+        <span class="pill">ID ${shortId}</span>
+        ${fecha ? `<span class="pill">${fecha}</span>` : ''}
+      </div>
+      <div class="actions compact">
+        <button class="secondary-btn mini-btn" data-action="load"><i class='bx bx-upload'></i>Cargar</button>
+        <button class="ghost-btn mini-btn" data-action="copy"><i class='bx bx-copy'></i>Copiar</button>
+        <button class="ghost-btn mini-btn" data-action="delete"><i class='bx bx-trash'></i>Borrar</button>
+      </div>
     </div>
   `;
   }).join('');
 
-  list.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => {
+  list.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', (e) => {
+    const card = btn.closest('.quote-row');
+    const id = card?.dataset.id;
+    const quote = clients.find(c => c.id === id);
+    const action = btn.dataset.action;
+    if (!quote || !id) return;
     e.stopPropagation();
-    const idx = Number(btn.dataset.idx);
-    confirmAction({
-      title: 'Eliminar cliente',
-      message: 'Se quitará el registro seleccionado.',
-      confirmText: 'Eliminar',
-      onConfirm: () => {
-        clients.splice(idx, 1);
-        persist();
-        renderClients();
-        renderStats();
-        showToast('Cliente eliminado', 'success');
-      }
-    });
-  }));
-
-  list.querySelectorAll('.client-card').forEach(card => card.addEventListener('click', () => {
-    const c = clients[Number(card.dataset.idx)];
-    if (!c) return;
-    document.getElementById('clientName').value = c.name;
-    selectedPlanClientId = c.selectedClientId || null;
-    refreshClientSelectionHint();
-    const found = vehicles.findIndex(v => v.name === c.model);
-    document.getElementById('planModel').value = found >= 0 ? found : 0;
-    document.getElementById('planType').value = c.plan;
-    document.getElementById('planType').dataset.manual = 'true';
-    applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { preserveExisting: true });
-    applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
-    document.getElementById('tradeIn').checked = c.tradeIn;
-    setMoneyValue(document.getElementById('tradeInValue'), c.tradeInValue || '');
-    document.getElementById('notes').value = c.notes;
-    updatePlanSummary();
+    if (action === 'delete') {
+      confirmAction({
+        title: 'Eliminar cotización',
+        message: 'Se quitará la cotización seleccionada.',
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          clients = clients.filter(c => c.id !== id);
+          persist();
+          renderClients();
+          renderStats();
+          showToast('Cotización eliminada', 'success');
+        }
+      });
+    } else if (action === 'copy') {
+      copyText(quote.summaryText || buildQuoteSummaryText(quote), 'Cotización copiada');
+    } else if (action === 'load') {
+      confirmAction({
+        title: 'Cargar cotización',
+        message: 'Aplicaremos la información guardada al simulador.',
+        confirmText: 'Aplicar',
+        onConfirm: () => {
+          applyQuoteToForm(quote);
+          closeQuoteModal();
+          showToast('Cotización cargada', 'success');
+        }
+      });
+    }
   }));
 }
 
@@ -1935,9 +2100,9 @@ function updateStatusSetting(status, payload = {}) {
 }
 
 function formatCell(key, client) {
-  if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div></div>`;
-  if (key === 'model') return `<div><strong>${client.model}</strong><p class="muted tiny">${client.brand || 'Marca no indicada'}</p></div>`;
-  if (key === 'phone') return `<div class="tip"><i class='bx bx-help-circle helper-icon' title="Teléfono sanitizado"></i><span>${normalizePhone(client.phone)}</span></div>`;
+  if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong></div></div>`;
+  if (key === 'model') return `<div class="name-cell"><strong>${client.model}</strong></div>`;
+  if (key === 'phone') return `<div class="tip"><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
   if (key === 'type') return normalizeNotesValue(client.type).replace(/\n/g, '<br>');
   return client[key] || '-';

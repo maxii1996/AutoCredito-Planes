@@ -365,6 +365,18 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .search-field.expanded { width: 100%; max-width: none; display: flex; }
 .search-field.expanded input { width: 100%; }
 
+.resource-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 8px 0 14px; }
+.resource-card { border: 1px solid var(--border); border-radius: 14px; background: #0f1625; padding: 12px; display: grid; gap: 8px; grid-template-columns: auto 1fr; align-items: center; box-shadow: var(--shadow); }
+.resource-preview { width: 72px; height: 72px; border-radius: 12px; background-size: cover; background-position: center; border: 1px solid var(--border); }
+.resource-meta { display: grid; gap: 4px; }
+
+.quote-list { display: grid; gap: 10px; margin-top: 12px; max-height: 440px; overflow-y: auto; }
+.quote-row { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: #0f1625; display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 10px; align-items: center; }
+.quote-row .actions { justify-content: flex-end; }
+.quote-main { display: grid; gap: 4px; }
+.quote-meta { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-start; }
+.mini-btn { padding: 8px 10px; }
+
 .status-contacted { border-color: var(--status-contacted-border); background: var(--status-contacted-bg); color: var(--status-contacted-text); }
 .status-no-number { border-color: var(--status-no-number-border); background: var(--status-no-number-bg); color: var(--status-no-number-text); }
 .status-favorite { border-color: var(--status-favorite-border); background: var(--status-favorite-bg); color: var(--status-favorite-text); }
@@ -395,6 +407,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .client-card .delete-btn:hover { background: rgba(248,113,113,0.2); border-color: #f87171; }
 .client-card h4 { margin: 0 0 4px; }
 .client-card p { margin: 0; color: var(--muted); font-size: 13px; }
+.card-foot.note { margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border); }
 
 .toggles { display: flex; gap: 14px; flex-wrap: wrap; }
 

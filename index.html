@@ -27,7 +27,6 @@
         <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y valores</span></button>
         <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Planes y clientes</span></button>
         <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de clientes</span></button>
-        <button class="nav-link" data-target="profiles"><i class='bx bx-cloud'></i><span class="label"> Perfiles</span></button>
       </nav>
       <div class="sidebar-foot">
         <p class="mini">Datos locales, respaldo inmediato.</p>
@@ -195,7 +194,11 @@
             <h2>Armar plan para cliente</h2>
             <p class="muted subtle">Control total de cuotas y llave por llave.</p>
           </div>
-          <button id="saveClient" class="primary-btn"><i class='bx bx-user-check'></i>Guardar cliente</button>
+          <div class="actions">
+            <button id="saveClient" class="primary-btn"><i class='bx bx-save'></i>Guardar cotización</button>
+            <button id="copyQuote" class="secondary-btn" type="button"><i class='bx bx-copy'></i>Copiar cotización</button>
+            <button id="openQuoteModal" class="ghost-btn" type="button"><i class='bx bx-archive'></i>Ver cotizaciones guardadas</button>
+          </div>
         </div>
         <div class="grid two">
           <div class="card form">
@@ -278,54 +281,9 @@
               <h3>Resumen del plan</h3>
             </div>
             <div id="planSummary" class="summary"></div>
-            <div class="card-head">
-              <p class="eyebrow">Clientes guardados</p>
-              <div class="search-field compact">
-                <i class='bx bx-filter-alt'></i>
-                <input id="clientSearch" placeholder="Buscar cliente" />
-              </div>
+            <div class="card-foot note">
+              <p class="muted tiny">Las cotizaciones se gestionan ahora desde el pop up dedicado con carga, copia, descarga y confirmaciones.</p>
             </div>
-            <div id="clientList" class="client-list"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="profiles" class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Portabilidad</p>
-            <h2>Respaldos rápidos</h2>
-            <p class="muted subtle">Exporta, importa y conserva snapshots dentro del equipo.</p>
-          </div>
-        </div>
-        <div class="grid three">
-          <div class="card">
-            <p class="eyebrow">InfoAuto</p>
-            <h3>Base de cotización</h3>
-            <p class="muted">Usa la guía oficial para transparentar valores. Adjunta la imagen InfoAuto al cliente.</p>
-            <img src="img/Template/InfoAuto.jpg" alt="InfoAuto" class="preview">
-          </div>
-          <div class="card">
-            <p class="eyebrow">Lista Chevrolet</p>
-            <h3>Modelos compatibles</h3>
-            <ul class="muted">
-              <li>NUEVO ONIX 1.0 TURBO LT MT</li>
-              <li>NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT</li>
-              <li>LA NUEVA MONTANA LT 1.2 AT</li>
-              <li>LA NUEVA S10 CD 2.8 TD 4x2 WT</li>
-              <li>NUEVA TRACKER LT 1.2AT</li>
-              <li>NUEVA SPIN 1.8 LT 5AA MT</li>
-            </ul>
-            <p class="muted">Adaptable a colores, seguros bonificados y financiación sin interés.</p>
-          </div>
-          <div class="card">
-            <p class="eyebrow">Snapshots locales</p>
-            <h3>Perfiles listos</h3>
-            <div class="search-field compact">
-              <i class='bx bx-search'></i>
-              <input id="profileSearch" placeholder="Buscar snapshot" />
-            </div>
-            <div id="profileList" class="snapshot-list"></div>
           </div>
         </div>
       </section>
@@ -371,7 +329,31 @@
           <div class="search-row">
             <div class="search-field expanded">
               <i class='bx bx-search'></i>
-              <input id="clientManagerSearch" placeholder="Buscar por nombre, modelo o teléfono" />
+              <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+            </div>
+          </div>
+          <div class="resource-row">
+            <div class="resource-card">
+              <div class="resource-preview" style="background-image:url('img/Template/InfoAuto.jpg');"></div>
+              <div class="resource-meta">
+                <p class="eyebrow">Logo InfoAuto</p>
+                <p class="muted tiny">Úsalo como imagen de respaldo en envíos al cliente.</p>
+              </div>
+              <div class="actions compact">
+                <button id="viewInfoAuto" class="ghost-btn" type="button"><i class='bx bx-show'></i>Ver imagen</button>
+                <button id="downloadInfoAuto" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar</button>
+              </div>
+            </div>
+            <div class="resource-card">
+              <div class="resource-preview" style="background-image:url('img/Template/FotosReferenciaParaCliente.jpg');"></div>
+              <div class="resource-meta">
+                <p class="eyebrow">Imagen de referencia</p>
+                <p class="muted tiny">Descárgala para compartir junto a la cotización.</p>
+              </div>
+              <div class="actions compact">
+                <button id="viewClientReference" class="ghost-btn" type="button"><i class='bx bx-show'></i>Ver imagen</button>
+                <button id="downloadClientReference" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar imagen de Referencia para cliente</button>
+              </div>
             </div>
           </div>
           <div class="column-pills" id="columnToggles"></div>
@@ -456,7 +438,7 @@
       </div>
       <div class="search-field expanded">
         <i class='bx bx-search'></i>
-        <input id="clientPickerSearch" placeholder="Buscar por nombre, modelo o teléfono" />
+        <input id="clientPickerSearch" placeholder="Escribe cualquier contenido a buscar..." />
       </div>
       <div id="clientPickerList" class="picker-list"></div>
       <div class="modal-actions">
@@ -481,6 +463,26 @@
       <div class="modal-actions">
         <button id="clientNoteCancel" class="ghost-btn">Cerrar</button>
         <button id="clientNoteSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div id="quoteModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Cotizaciones previas</p>
+          <h3>Guardar, cargar o eliminar</h3>
+          <p class="muted">Gestiona historial con confirmaciones y copias rápidas.</p>
+        </div>
+        <button id="quoteModalClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="search-field expanded">
+        <i class='bx bx-search'></i>
+        <input id="quoteSearch" placeholder="Escribe cualquier contenido a buscar..." />
+      </div>
+      <div id="quoteList" class="quote-list"></div>
+      <div class="modal-actions">
+        <button id="quoteModalCancel" class="ghost-btn">Cerrar</button>
       </div>
     </div>
   </div>
