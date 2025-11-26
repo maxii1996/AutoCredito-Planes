@@ -7,7 +7,7 @@ const defaultUiState = {
   planDraft: {},
   toggles: { showReservations: true, showIntegration: true },
   globalSettings: {
-    advisorName: '',
+    advisorName: 'Chevrolet Argentina',
     clientType: '',
     statusPalette: {
       contacted: { color: '#34d399', opacity: 0.16 },
@@ -205,9 +205,6 @@ function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Acept
   };
   cancelBtn.onclick = cleanup;
   closeBtn.onclick = cleanup;
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) cleanup();
-  }, { once: true });
 }
 
 function bindMoneyInput(el, onChange) {
@@ -234,6 +231,7 @@ function applyProfileData(parsed) {
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
   clients = parsed.clients || [];
   managerClients = parsed.managerClients || [];
+  snapshots = parsed.snapshots || [];
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
   clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
@@ -624,13 +622,13 @@ function renderWelcomeHero() {
   const advisorRaw = settings.advisorName || '';
   const advisor = advisorRaw.trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
-  subtitle.textContent = advisor ? 'Personalización activa para tu jornada.' : 'Define quién atiende y ajusta tu jornada.';
+  subtitle.textContent = 'Define quién atiende y ajusta tu jornada.';
   updateSidebarAdvisor(advisor);
   renderAdvisorSelector(advisorRaw);
   if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
 
   const suggestions = Array.from(new Set([
-    'Equipo Chevrolet',
+    'Chevrolet Argentina',
     'Sofía Alvarez',
     'Martín Rivas',
     'Agustina Torres',
@@ -657,7 +655,7 @@ function renderWelcomeHero() {
 
 function updateSidebarAdvisor(advisor) {
   const sidebarLabel = document.getElementById('sidebarAdvisor');
-  if (sidebarLabel) sidebarLabel.textContent = advisor || 'Sin asesor';
+  if (sidebarLabel) sidebarLabel.textContent = advisor || 'Chevrolet Argentina';
 }
 
 function renderAdvisorSelector(advisor) {
@@ -665,7 +663,7 @@ function renderAdvisorSelector(advisor) {
   if (!select) return;
   const cleanAdvisor = (advisor || '').replace(/\s+/g, ' ').trim();
   const suggestions = Array.from(new Set([
-    'Equipo Chevrolet',
+    'Chevrolet Argentina',
     cleanAdvisor
   ].filter(Boolean)));
   select.innerHTML = `<option value="" disabled>${cleanAdvisor ? 'Asesor activo' : 'Define el asesor en Inicio'}</option>` +
@@ -1319,11 +1317,6 @@ function bindClientManager() {
   };
   if (openPalette) openPalette.addEventListener('click', () => togglePalette(true));
   if (closePalette) closePalette.addEventListener('click', () => togglePalette(false));
-  if (paletteOverlay) {
-    paletteOverlay.addEventListener('click', (e) => {
-      if (e.target === paletteOverlay) togglePalette(false);
-    });
-  }
   if (applyPalette) {
     applyPalette.addEventListener('click', () => {
       applyStatusPalette();
@@ -1408,9 +1401,6 @@ function bindNoteModal() {
     saveBtn.addEventListener('click', saveClientNotes);
     saveBtn.dataset.bound = 'true';
   }
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeClientNotes();
-  });
 }
 
 function normalizeCell(value) {
@@ -1780,7 +1770,7 @@ function bindProfileActions() {
       message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
       confirmText: 'Exportar',
       onConfirm: () => {
-        const payload = { version: 3, vehicles, templates, clients, managerClients, uiState, clientManagerState };
+        const payload = { version: 3, vehicles, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1840,11 +1830,19 @@ function bindProfileActions() {
           templates = ensureTemplateIds([...defaultTemplates]);
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
+          uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '', globalSettings: mergeGlobalSettings(defaultUiState.globalSettings) };
+          clientManagerState = { ...defaultClientManagerState };
           planDraftApplied = false;
           persist();
+          applyToggleState();
+          applyStatusPalette();
           renderVehicleTable();
           renderTemplates();
           renderPlanForm();
+          renderClientManager();
+          renderGlobalSettings();
+          renderWelcomeHero();
+          renderAdvisorNote();
           renderStats();
           showToast('Valores base restaurados', 'success');
         }
@@ -1911,7 +1909,7 @@ function load(key) {
 function clearStorage() {
   confirmAction({
     title: 'Limpiar datos locales',
-    message: 'Se eliminarán clientes, plantillas y valores personalizados.',
+    message: 'Esto eliminará los datos guardados, ten en cuenta que si no tienes una copia resguardada, la información se perderá.',
     confirmText: 'Limpiar',
     onConfirm: () => {
       localStorage.clear();
@@ -1920,7 +1918,7 @@ function clearStorage() {
       clients = [];
       managerClients = [];
       snapshots = [];
-      uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '' };
+      uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '', globalSettings: mergeGlobalSettings(defaultUiState.globalSettings) };
       clientManagerState = { ...defaultClientManagerState };
       selectedTemplateIndex = 0;
       selectedTemplateId = templates[0].id;
@@ -1932,6 +1930,9 @@ function clearStorage() {
       renderPlanForm();
       renderClients();
       renderClientManager();
+      renderWelcomeHero();
+      renderAdvisorNote();
+      renderGlobalSettings();
       renderSnapshots();
       renderStats();
       persist();
