@@ -1783,16 +1783,33 @@ function resolveTotalInstallments(planType, vehiclePlanProfileType) {
   return planTerms[planType] || planTerms[vehiclePlanProfileType] || 120;
 }
 
+function resolvePlanScheme(vehicle) {
+  const label = (vehicle?.planProfile?.label || '').toLowerCase();
+  const numericMatch = label.match(/(\d{2})\s*\/\s*(\d{2})/);
+  if (numericMatch) {
+    const financedPct = Number(numericMatch[1]) / 100;
+    const integrationPct = Number(numericMatch[2]) / 100;
+    if (financedPct + integrationPct === 1) {
+      return { financedPct, integrationPct, label: vehicle?.planProfile?.label || 'Plan personalizado' };
+    }
+  }
+  if (label.includes('100')) return { financedPct: 1, integrationPct: 0, label: vehicle?.planProfile?.label || '100% fábrica' };
+  if (label.includes('80')) return { financedPct: 0.8, integrationPct: 0.2, label: vehicle?.planProfile?.label || '80/20' };
+  if (label.includes('70')) return { financedPct: 0.7, integrationPct: 0.3, label: vehicle?.planProfile?.label || '70/30' };
+  if (label.includes('60')) return { financedPct: 0.6, integrationPct: 0.4, label: vehicle?.planProfile?.label || '60/40' };
+  return { financedPct: 1, integrationPct: 0, label: vehicle?.planProfile?.label || '100% fábrica' };
+}
+
 function resolveVehiclePrice(vehicle, customPrice) {
   if (customPrice > 0) return customPrice;
   if (vehicle?.basePrice) return vehicle.basePrice;
   return vehicle?.integration || 0;
 }
 
-function resolveCuotaPura(price, totalInstallments, vehicle, customPrice) {
+function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice) {
   if (!totalInstallments) return 0;
   if (!customPrice && vehicle?.cuotaPura) return vehicle.cuotaPura;
-  return price / totalInstallments;
+  return financedAmount / totalInstallments;
 }
 
 function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0) {
@@ -1847,36 +1864,45 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
 }
 
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = 'none', customPrice = 0 }) {
+  const scheme = resolvePlanScheme(vehicle);
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
   const price = resolveVehiclePrice(vehicle, customPrice);
-  const cuotaPura = resolveCuotaPura(price, totalInstallments, vehicle, customPrice);
+  const financedAmount = price * scheme.financedPct;
+  const integrationTarget = price * scheme.integrationPct;
+  const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice);
 
   const selectedReservation = appliedReservation && appliedReservation !== 'none' ? reservations[appliedReservation] || 0 : 0;
-  const contributions = [];
+  const reservationMeta = { total: selectedReservation, mode: appliedReservation };
 
-  if (selectedReservation > 0) {
-    contributions.push({ type: 'reservation', label: 'Reserva aplicada', amount: selectedReservation });
-  }
-  if (tradeInEnabled && tradeInValue > 0) {
-    contributions.push({ type: 'tradeIn', label: 'Toma de usado', amount: tradeInValue });
-  }
+  const tradeInAmount = tradeInEnabled ? Math.max(tradeInValue, 0) : 0;
+  const integrationCovered = Math.min(tradeInAmount, integrationTarget);
+  const contributionToPlan = Math.max(tradeInAmount - integrationCovered, 0);
 
-  const aporteInicial = contributions.reduce((sum, c) => sum + c.amount, 0);
-  const outstanding = Math.max(price - aporteInicial, 0);
+  const contributions = contributionToPlan > 0
+    ? [{ type: 'tradeIn', label: 'Toma de usado', amount: contributionToPlan }]
+    : [];
+
+  const outstanding = Math.max(financedAmount - contributionToPlan, 0);
   const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding);
 
   return {
     price,
     cuotaPura,
     totalInstallments,
+    financedAmount,
+    integrationTarget,
+    integrationCovered,
+    integrationRemaining: Math.max(integrationTarget - integrationCovered, 0),
     selectedReservation,
-    aporteInicial,
+    reservationMeta,
+    aporteInicial: contributionToPlan,
     outstanding,
     coveredInstallments: coverage.coveredInstallments,
     partialCover: coverage.partialCover,
     remainingInstallments: coverage.remainingInstallments,
     kickoffInstallment: coverage.kickoffInstallment,
-    coverageSegments: coverage.segments
+    coverageSegments: coverage.segments,
+    scheme
   };
 }
 
@@ -1917,26 +1943,27 @@ function updatePlanSummary() {
     : '';
   const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
   const reservationText = projection.selectedReservation
-    ? `${currency.format(projection.selectedReservation)} (costo de ingreso, aplicado de atrás hacia adelante)`
-    : 'No se aplicó reserva al saldo. Sigue siendo costo de ingreso al plan.';
+    ? `${currency.format(projection.selectedReservation)} · ${appliedReservation} cuota(s). Es un gasto adicional, no descuenta el plan.`
+    : 'Pendiente de definir. La reserva se paga aparte para asegurar el cupo.';
   const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
   const firstPayable = Math.max(projection.kickoffInstallment, 1);
+  const scheme = projection.scheme || { financedPct: 1, integrationPct: 0, label: 'Plan' };
 
   const rows = [
     { label: 'Modelo', value: v.name },
     { label: priceSource, value: currency.format(projection.price) },
-    { label: 'Plan', value: planLabel(plan) },
-    { label: 'Plan establecido', value: v.planProfile?.label || 'Personalizar' },
-    { label: 'Cuota pura automática', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
-    { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
-    { label: 'Reserva (costo de acceso)', value: reservationText },
-    { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
-    { label: 'Reserva 3 cuotas', value: `${currency.format(reserva3)} (3 cuotas de ${cuota3})` },
-    { label: 'Reserva 6 cuotas', value: `${currency.format(reserva6)} (6 cuotas de ${cuota6})` },
-    { label: 'Aporte inicial', value: currency.format(projection.aporteInicial) },
-    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
+    { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)}` },
+    { label: 'Plan seleccionado', value: planLabel(plan) },
+    { label: 'Plan recomendado', value: v.planProfile?.label || 'Personalizar' },
+    { label: 'Cuota pura del plan', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
+    { label: 'Cuota estimada del tramo', value: cuota ? currency.format(cuota) : 'Completar manual' },
+    { label: 'Reserva adicional', value: reservationText },
+    { label: 'Reservas sugeridas', value: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})` },
+    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No aplica' },
+    { label: 'Integración pendiente', value: `${currency.format(projection.integrationRemaining)} (cubierto ${currency.format(projection.integrationCovered)})` },
+    { label: 'Aporte al plan con usado', value: currency.format(projection.aporteInicial) },
     { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() },
-    { label: 'Saldo estimado', value: currency.format(projection.outstanding) },
+    { label: 'Saldo financiado pendiente', value: currency.format(projection.outstanding) },
     { label: 'Cuotas pendientes', value: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} arrancando en la cuota ${firstPayable}` },
     { label: 'Total de cuotas del plan', value: projection.totalInstallments }
   ];
@@ -1949,23 +1976,44 @@ function updatePlanSummary() {
     </div>
   `).join('');
 
+  const ribbon = document.getElementById('planTimelineRibbon');
+  if (ribbon) {
+    const ribbonSteps = [
+      {
+        title: 'Reserva adicional',
+        detail: reservationText,
+        chips: [currency.format(projection.selectedReservation || 0), appliedReservation !== 'none' ? `${appliedReservation} cuota(s)` : 'Sin definir'],
+        kind: 'reservation'
+      },
+      {
+        title: 'Integración objetivo',
+        detail: `${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}`,
+        chips: [projection.integrationCovered ? `Cubierto con usado: ${currency.format(projection.integrationCovered)}` : 'Cubrir con efectivo/usado'],
+        kind: 'pending'
+      },
+      {
+        title: `Financiación (${projection.totalInstallments} cuotas)`,
+        detail: `Saldo en plan ${currency.format(projection.outstanding)} · Cuota pura ${currency.format(projection.cuotaPura || 0)}`,
+        chips: [`Inicio en cuota ${firstPayable}`, coveredText],
+        kind: 'pending'
+      }
+    ];
+    ribbon.innerHTML = ribbonSteps.map(step => `
+      <div class="ribbon-step" data-kind="${step.kind}">
+        <div class="ribbon-label"><span class="dot"></span>${step.title}</div>
+        <p class="ribbon-body">${step.detail}</p>
+        <div class="ribbon-meta">${step.chips.filter(Boolean).map(c => `<span class="pill">${c}</span>`).join('')}</div>
+      </div>
+    `).join('');
+  }
+
   const timeline = document.getElementById('planTimeline');
-  const timelineSteps = [];
-  (projection.coverageSegments || []).forEach(segment => {
-    const range = segment.covered
-      ? `Cubre cuotas ${segment.from} a ${segment.to}`
-      : `Aporta de manera parcial en la cuota ${segment.from}`;
-    const suffix = segment.partial ? ` · ${currency.format(segment.partial)} adelantados` : '';
-    const title = segment.type === 'reservation' ? 'Reserva aplicada' : 'Usado tomado';
-    timelineSteps.push({
-      title,
-      detail: `${currency.format(segment.amount)} · ${range}${suffix}`
-    });
-  });
-  timelineSteps.push({
-    title: 'Saldo restante',
-    detail: `${currency.format(projection.outstanding)} a pagar en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} (primera cuota exigible: ${firstPayable}).`
-  });
+  const timelineSteps = [
+    { title: 'Reserva (gasto aparte)', detail: reservationText },
+    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}` },
+    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado' },
+    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}` }
+  ];
   timeline.innerHTML = timelineSteps.map(step => `
     <div class="timeline-row">
       <div class="timeline-dot"></div>
@@ -2040,6 +2088,13 @@ function buildQuoteFromForm() {
     remainingInstallments: projection.remainingInstallments,
     kickoffInstallment: projection.kickoffInstallment,
     aporteInicial: projection.aporteInicial,
+    financedAmount: projection.financedAmount,
+    integrationTarget: projection.integrationTarget,
+    integrationCovered: projection.integrationCovered,
+    integrationRemaining: projection.integrationRemaining,
+    schemeLabel: projection.scheme?.label || v.planProfile?.label || 'Plan',
+    selectedReservation: projection.selectedReservation,
+    reservationMode: appliedReservation,
     planProfileLabel: v.planProfile?.label || 'Personalizar',
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
@@ -2052,20 +2107,24 @@ function buildQuoteFromForm() {
 function buildQuoteSummaryText(quote) {
   const cuota3 = quote.reservation3 ? currency.format(quote.reservation3 / 3) : currency.format(0);
   const cuota6 = quote.reservation6 ? currency.format(quote.reservation6 / 6) : currency.format(0);
+  const reservaDetalle = quote.selectedReservation
+    ? `${currency.format(quote.selectedReservation)} en ${quote.reservationMode || '1'} cuota(s) (gasto adicional)`
+    : 'Reserva pendiente (gasto adicional)';
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
-    `Precio aplicado: ${currency.format(quote.customPrice || quote.integration || 0)}`,
+    `Precio aplicado: ${currency.format(quote.customPrice || quote.integrationTarget || 0)}`,
+    `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
     `Cuota pura estimada: ${quote.cuotaPura ? currency.format(quote.cuotaPura) : 'Completar manual'}`,
     `Cuota estimada: ${quote.cuota ? currency.format(quote.cuota) : 'Completar manual'}`,
     `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} (3 de ${cuota3}) · 6 cuotas ${currency.format(quote.reservation6 || 0)} (6 de ${cuota6})`,
-    `Integración objetivo: ${currency.format(quote.integration || 0)}`,
+    `Reserva informada: ${reservaDetalle}`,
+    `Integración objetivo: ${currency.format(quote.integrationTarget || 0)} (pendiente ${currency.format(quote.integrationRemaining || 0)})`,
     `Entrega llave por llave: ${quote.tradeIn ? `Sí (toma usado por ${currency.format(quote.tradeInValue || 0)})` : 'No'}`,
-    `Aporte inicial total: ${currency.format(quote.aporteInicial || 0)}`,
-    `Saldo estimado pendiente: ${currency.format(quote.outstanding || 0)}`,
+    `Aporte al plan con usado: ${currency.format(quote.aporteInicial || 0)}`,
+    `Saldo financiado pendiente: ${currency.format(quote.outstanding || 0)}`,
     `Cuotas restantes: ${quote.remainingInstallments || 0} (se reinicia en la cuota ${quote.kickoffInstallment || 1})`,
-    `Reserva aplicada: ${quote.appliedReservation && quote.appliedReservation !== 'none' ? `${quote.appliedReservation} cuota(s)` : 'Sin aplicar'}`,
     `Notas: ${quote.notes || 'Sin notas'}`,
     `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
   ];

@@ -301,28 +301,28 @@
                   </div>
                 </div>
               </div>
-              <div class="field">
-                <label for="appliedReservation">Reserva aplicada al plan</label>
-                <select id="appliedReservation">
-                  <option value="none">Sin aplicar reserva</option>
-                  <option value="1">Usar reserva en 1 cuota</option>
-                  <option value="3">Usar reserva en 3 cuotas</option>
-                  <option value="6">Usar reserva en 6 cuotas</option>
-                </select>
-                <p class="muted tiny">Los aportes se descuentan desde la última cuota hacia atrás.</p>
-              </div>
-            </div>
             <div class="field">
-              <label for="notes">Notas internas</label>
-              <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
+              <label for="appliedReservation">Reserva informativa (no descuenta del plan)</label>
+              <select id="appliedReservation">
+                <option value="none">Sin aplicar reserva</option>
+                <option value="1">Reserva en 1 cuota</option>
+                <option value="3">Reserva en 3 cuotas</option>
+                <option value="6">Reserva en 6 cuotas</option>
+              </select>
+              <p class="muted tiny">La reserva se paga aparte para asegurar el cupo y no descuenta el saldo del plan de ahorro.</p>
             </div>
           </div>
+          <div class="field">
+            <label for="notes">Notas internas</label>
+            <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
+          </div>
+        </div>
             <div class="card">
               <div class="card-head">
                 <p class="eyebrow">Resultado</p>
                 <h3>Resumen del plan</h3>
               </div>
-            <div id="planSummary" class="summary"></div>
+            <div id="planTimelineRibbon" class="timeline-ribbon"></div>
             <div class="timeline-visual">
               <div class="timeline-legend">
                 <span class="legend-chip reservation">Reserva</span>
@@ -331,6 +331,7 @@
               </div>
               <div id="planTimelineTrack" class="timeline-track"></div>
             </div>
+            <div id="planSummary" class="summary"></div>
             <div id="planTimeline" class="timeline"></div>
             <div class="card-foot note">
               <p class="muted tiny">Las cotizaciones se gestionan ahora desde el pop up dedicado con carga, copia, descarga y confirmaciones.</p>
