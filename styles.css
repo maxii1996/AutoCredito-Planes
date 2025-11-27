@@ -452,10 +452,22 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .option-stack { display: grid; gap: 10px; margin-top: 12px; }
+.option-stack.two-cols { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .option-card { display: grid; gap: 6px; grid-template-columns: auto 1fr; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease; }
 .option-card:hover { border-color: #2a3650; background: #111c2c; }
 .option-card input[type="radio"] { width: 18px; height: 18px; accent-color: var(--primary); }
 .option-card input[type="date"] { margin-top: 4px; }
+
+.export-options { display: grid; gap: 12px; margin-top: 12px; }
+.export-options-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.export-options-head h4 { margin: 4px 0; }
+.export-columns { display: grid; gap: 10px; max-height: 340px; overflow: auto; padding: 4px; }
+.export-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; }
+.export-drag { width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); }
+.export-body { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; cursor: pointer; }
+.export-body input { width: 18px; height: 18px; accent-color: var(--primary); }
+.export-move { display: flex; gap: 6px; }
+.export-item strong { color: var(--text); }
 
 .snapshot-list { display: grid; gap: 10px; max-height: 320px; overflow: auto; margin-top: 10px; }
 .snapshot-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #111724; display: grid; gap: 6px; }

@@ -105,13 +105,38 @@ const clientColumns = {
   type: { label: 'Notas', default: true }
 };
 
+const exportableColumns = {
+  ...clientColumns,
+  status: { label: 'Estado', default: true }
+};
+
+const presetExportHeaders = [
+  { key: 'cuit', label: 'CUIT0' },
+  { key: 'document', label: 'DOC' },
+  { key: 'birthDate', label: 'FECNAC' },
+  { key: 'name', label: 'NOMBRE' },
+  { key: 'city', label: 'OLOC' },
+  { key: 'province', label: 'OPCIA' },
+  { key: 'postalCode', label: 'CP' },
+  { key: 'phone', label: 'CELULAR12' },
+  { key: 'systemDate', label: 'FECHA1' },
+  { key: 'brand', label: 'MARCA' },
+  { key: 'model', label: 'MODELO' },
+  { key: 'type', label: 'TIPO' }
+];
+
 const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
   groupByModel: true,
   dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
-  selection: {}
+  selection: {},
+  exportOptions: {
+    mode: 'local',
+    columnOrder: Object.keys(exportableColumns),
+    selectedColumns: Object.keys(exportableColumns)
+  }
 };
 
 const clientColumnWidths = {
@@ -181,6 +206,20 @@ function parseMoney(raw) {
   const cleaned = String(raw).replace(/[^0-9.-]/g, '');
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
+}
+
+function normalizeExportOptions(options = {}) {
+  const available = Object.keys(exportableColumns);
+  const baseOrder = options.columnOrder || available;
+  const cleanedOrder = baseOrder.filter(k => available.includes(k));
+  const mergedOrder = [...cleanedOrder, ...available.filter(k => !cleanedOrder.includes(k))];
+  let selected = (options.selectedColumns || mergedOrder).filter(k => available.includes(k));
+  if (!selected.length) selected = [...mergedOrder];
+  return {
+    mode: options.mode === 'preset' ? 'preset' : 'local',
+    columnOrder: mergedOrder,
+    selectedColumns: selected
+  };
 }
 
 function showToast(message, type = 'info') {
@@ -295,6 +334,160 @@ function openImportDateModal() {
 
     toggleModal(modal, true);
   });
+}
+
+function moveExportColumn(key, direction) {
+  const options = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const order = [...options.columnOrder];
+  const index = order.indexOf(key);
+  if (index === -1) return;
+  const newIndex = direction === 'up' ? Math.max(0, index - 1) : Math.min(order.length - 1, index + 1);
+  if (newIndex === index) return;
+  [order[index], order[newIndex]] = [order[newIndex], order[index]];
+  clientManagerState.exportOptions = normalizeExportOptions({ ...options, columnOrder: order });
+  persist();
+  renderExportModal();
+}
+
+function updateExportSelection(key, checked) {
+  const options = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const selected = new Set(options.selectedColumns || []);
+  if (checked) {
+    selected.add(key);
+  } else {
+    selected.delete(key);
+    if (!selected.size) {
+      showToast('Debes dejar al menos una columna seleccionada.', 'error');
+      renderExportModal();
+      return;
+    }
+  }
+  clientManagerState.exportOptions = normalizeExportOptions({ ...options, selectedColumns: Array.from(selected) });
+  persist();
+  renderExportModal();
+}
+
+function renderExportColumnsList() {
+  const list = document.getElementById('exportColumnsList');
+  if (!list) return;
+  const options = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const locked = options.mode === 'preset';
+  const order = locked ? presetExportHeaders.map(h => h.key) : options.columnOrder;
+  const selectedSet = locked ? new Set(order) : new Set(options.selectedColumns || []);
+  list.innerHTML = order.map((key) => {
+    const column = exportableColumns[key];
+    if (!column) return '';
+    const checked = locked || selectedSet.has(key);
+    const disabled = locked ? 'disabled' : '';
+    const moveButtons = locked ? '' : `
+      <div class="export-move">
+        <button class="ghost-btn icon-only mini-btn" data-move="up" data-key="${key}" title="Subir"><i class='bx bx-chevron-up'></i></button>
+        <button class="ghost-btn icon-only mini-btn" data-move="down" data-key="${key}" title="Bajar"><i class='bx bx-chevron-down'></i></button>
+      </div>`;
+    return `
+      <div class="export-item" data-key="${key}">
+        <div class="export-drag"><i class='bx bx-dots-vertical-rounded'></i></div>
+        <label class="export-body">
+          <input type="checkbox" data-key="${key}" ${checked ? 'checked' : ''} ${disabled}>
+          <div>
+            <strong>${column.label}</strong>
+            <p class="muted tiny">Inclúyelo o quítalo de la exportación.</p>
+          </div>
+        </label>
+        ${moveButtons}
+      </div>`;
+  }).join('');
+
+  const selectAllBtn = document.getElementById('exportSelectAll');
+  if (selectAllBtn) {
+    if (locked) {
+      selectAllBtn.textContent = 'Cabezales fijos';
+      selectAllBtn.disabled = true;
+    } else {
+      const allSelected = selectedSet.size === Object.keys(exportableColumns).length;
+      selectAllBtn.textContent = allSelected ? 'Quitar selección' : 'Seleccionar todo';
+      selectAllBtn.disabled = false;
+    }
+  }
+}
+
+function renderExportModal() {
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const options = clientManagerState.exportOptions;
+  const modal = document.getElementById('exportModal');
+  if (!modal) return;
+  const helper = document.getElementById('exportHelperText');
+  if (helper) {
+    helper.textContent = options.mode === 'preset'
+      ? 'Se exportarán columnas fijas para igualar cabezales predeterminados en el orden requerido.'
+      : 'Usa los campos locales, activa solo lo necesario y acomoda el orden a tu gusto.';
+  }
+  const radios = Array.from(document.querySelectorAll('input[name="exportMode"]'));
+  radios.forEach(r => { r.checked = r.value === options.mode; });
+  renderExportColumnsList();
+}
+
+function openExportModal() {
+  const modal = document.getElementById('exportModal');
+  if (!modal) {
+    exportManagerClients();
+    return;
+  }
+  renderExportModal();
+  const confirmBtn = document.getElementById('exportConfirm');
+  const cancelBtn = document.getElementById('exportCancel');
+  const closeBtn = document.getElementById('exportClose');
+  const selectAllBtn = document.getElementById('exportSelectAll');
+  const modeRadios = Array.from(document.querySelectorAll('input[name="exportMode"]'));
+  const list = document.getElementById('exportColumnsList');
+
+  const close = () => toggleModal(modal, false);
+
+  if (confirmBtn) confirmBtn.onclick = () => { close(); exportManagerClients(); };
+  if (cancelBtn) cancelBtn.onclick = close;
+  if (closeBtn) closeBtn.onclick = close;
+
+  if (selectAllBtn) {
+    selectAllBtn.onclick = () => {
+      const allKeys = Object.keys(exportableColumns);
+      const current = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+      const allSelected = (current.selectedColumns || []).length === allKeys.length;
+      clientManagerState.exportOptions = normalizeExportOptions({
+        ...current,
+        selectedColumns: allSelected ? [] : allKeys
+      });
+      persist();
+      renderExportModal();
+    };
+  }
+
+  modeRadios.forEach(radio => {
+    radio.onchange = () => {
+      clientManagerState.exportOptions = normalizeExportOptions({
+        ...clientManagerState.exportOptions,
+        mode: radio.value
+      });
+      persist();
+      renderExportModal();
+    };
+  });
+
+  if (list) {
+    list.onchange = (e) => {
+      const target = e.target;
+      if (target.matches('input[type="checkbox"][data-key]')) {
+        updateExportSelection(target.dataset.key, target.checked);
+      }
+    };
+    list.onclick = (e) => {
+      const btn = e.target.closest('[data-move]');
+      if (btn) {
+        moveExportColumn(btn.dataset.key, btn.dataset.move);
+      }
+    };
+  }
+
+  toggleModal(modal, true);
 }
 
 function openDateFilterModal() {
@@ -1893,7 +2086,7 @@ function bindClientManager() {
 
   const exportBtn = document.getElementById('exportClients');
   if (exportBtn) {
-    exportBtn.addEventListener('click', exportManagerClients);
+    exportBtn.addEventListener('click', openExportModal);
   }
 
   const paletteOverlay = document.getElementById('paletteOverlay');
@@ -2359,12 +2552,50 @@ function hexToRgba(hex, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function exportValue(key, client) {
+  switch (key) {
+    case 'name': return client.name || '';
+    case 'model': return client.model || '';
+    case 'phone': return normalizePhone(client.phone);
+    case 'brand': return client.brand || '';
+    case 'city': return client.city || '';
+    case 'province': return client.province || '';
+    case 'document': return client.document || '';
+    case 'cuit': return client.cuit || '';
+    case 'birthDate': return client.birthDate || '';
+    case 'purchaseDate': return client.purchaseDate || '';
+    case 'systemDate': return formatDateForDisplay(client.systemDate);
+    case 'postalCode': return client.postalCode || '';
+    case 'type': return normalizeNotesValue(client.type);
+    case 'status': return clientStatus(client).label;
+    default: return client[key] || '';
+  }
+}
+
+function buildLocalExportData(rows, options) {
+  const selected = options.columnOrder.filter(key => options.selectedColumns.includes(key)).filter(key => exportableColumns[key]);
+  if (!selected.length) return null;
+  return rows.map(client => selected.reduce((acc, key) => {
+    acc[exportableColumns[key].label] = exportValue(key, client);
+    return acc;
+  }, {}));
+}
+
+function buildPresetExportData(rows) {
+  return rows.map(client => presetExportHeaders.reduce((acc, { key, label }) => {
+    acc[label] = exportValue(key, client);
+    return acc;
+  }, {}));
+}
+
 function exportManagerClients() {
   const rows = filteredManagerClients();
   if (!rows.length) {
     showToast('No hay clientes para exportar.', 'error');
     return;
   }
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const exportOptions = clientManagerState.exportOptions;
   const grouped = rows.reduce((acc, c) => {
     const key = formatDateISO(c.systemDate) || '';
     acc[key] = acc[key] || [];
@@ -2376,30 +2607,21 @@ function exportManagerClients() {
   const sortedKeys = Object.keys(grouped).sort((a, b) => {
     if (!a) return 1;
     if (!b) return -1;
-    return a.localeCompare(b);
+    return b.localeCompare(a);
   });
 
-  sortedKeys.forEach((isoKey) => {
+  for (const isoKey of sortedKeys) {
     const sheetLabel = isoKey ? formatDateLabel(isoKey) : 'Sin fecha asignada';
-    const data = grouped[isoKey].map(c => ({
-      Nombre: c.name,
-      Modelo: c.model,
-      Celular: normalizePhone(c.phone),
-      Marca: c.brand,
-      Localidad: c.city,
-      Provincia: c.province,
-      Documento: c.document,
-      CUIT: c.cuit,
-      Nacimiento: c.birthDate,
-      'Fecha compra': c.purchaseDate,
-      'Fecha de carga': formatDateForDisplay(c.systemDate),
-      CP: c.postalCode,
-      Tipo: normalizeNotesValue(c.type),
-      Estado: clientStatus(c).label
-    }));
+    const data = exportOptions.mode === 'preset'
+      ? buildPresetExportData(grouped[isoKey])
+      : buildLocalExportData(grouped[isoKey], exportOptions);
+    if (!data || !data.length) {
+      showToast('Selecciona al menos una columna para exportar.', 'error');
+      return;
+    }
     const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(sheetLabel));
-  });
+  }
 
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/octet-stream' });
@@ -2532,6 +2754,7 @@ function syncFromStorage() {
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   snapshots = load('snapshots') || snapshots;
   applyStatusPalette();
   renderStats();

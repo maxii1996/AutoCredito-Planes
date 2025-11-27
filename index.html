@@ -428,6 +428,49 @@
     </div>
   </div>
   <div id="toastContainer" class="toast-container"></div>
+  <div id="exportModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Exportar clientes</p>
+          <h3>Elige cómo quieres exportar</h3>
+          <p class="muted" id="exportHelperText">Configura el método y las columnas a incluir.</p>
+        </div>
+        <button id="exportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="option-stack two-cols">
+        <label class="option-card">
+          <input type="radio" name="exportMode" value="local" checked>
+          <div>
+            <strong>Excel - Datos Ordenados por este Sistema</strong>
+            <p class="muted tiny">Usa los campos locales y respeta el orden que definas abajo.</p>
+          </div>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="exportMode" value="preset">
+          <div>
+            <strong>Excel - Igualar Cabezales Predet.</strong>
+            <p class="muted tiny">Exporta con encabezados fijos: CUIT0, DOC, FECNAC, NOMBRE, OLOC, OPCIA, CP, CELULAR12, FECHA1, MARCA, MODELO, TIPO.</p>
+          </div>
+        </label>
+      </div>
+      <div class="export-options">
+        <div class="export-options-head">
+          <div>
+            <p class="eyebrow">Contenido a exportar</p>
+            <h4>Activa, desactiva y reordena columnas</h4>
+            <p class="muted tiny">Todo está seleccionado por defecto. Usa las flechas para mover cada columna.</p>
+          </div>
+          <button id="exportSelectAll" class="ghost-btn"><i class='bx bx-check-double'></i>Seleccionar todo</button>
+        </div>
+        <div id="exportColumnsList" class="export-columns"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="exportCancel" class="ghost-btn">Cancelar</button>
+        <button id="exportConfirm" class="primary-btn"><i class='bx bx-download'></i>Exportar ahora</button>
+      </div>
+    </div>
+  </div>
   <div id="clientPickerModal" class="modal hidden">
     <div class="modal-content wide">
       <div class="modal-head">
