@@ -348,6 +348,7 @@
                   <option value="pending">Pendientes</option>
                 </select>
               </div>
+              <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
             </div>
           </div>
           <div class="search-row">
@@ -356,6 +357,7 @@
               <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
             </div>
           </div>
+          <div id="dateFilterHelper" class="muted tiny"></div>
           <div class="column-pills" id="columnToggles"></div>
           <div class="table-wrapper dense">
             <div class="data-grid" id="clientManagerTable">
@@ -463,6 +465,70 @@
       <div class="modal-actions">
         <button id="clientNoteCancel" class="ghost-btn">Cerrar</button>
         <button id="clientNoteSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div id="importDateModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Fecha de carga</p>
+          <h3>Aplicar fecha a los clientes importados</h3>
+          <p class="muted">Esta marca es opcional y te permitirá filtrar o exportar por día.</p>
+        </div>
+        <button id="importDateClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="option-stack">
+        <label class="option-card">
+          <input type="radio" name="importDateOption" value="today" checked>
+          <div>
+            <strong>Usar la fecha de hoy</strong>
+            <p class="muted tiny" id="importDateTodayLabel"></p>
+          </div>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="importDateOption" value="custom">
+          <div>
+            <strong>Elegir una fecha</strong>
+            <p class="muted tiny">Selecciona manualmente la fecha de carga.</p>
+            <input type="date" id="importCustomDate">
+          </div>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="importDateOption" value="none">
+          <div>
+            <strong>No insertar fecha</strong>
+            <p class="muted tiny">Se conservará vacío para estos registros.</p>
+          </div>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="importDateCancel" class="ghost-btn">Cancelar</button>
+        <button id="importDateConfirm" class="primary-btn"><i class='bx bx-check-double'></i>Confirmar</button>
+      </div>
+    </div>
+  </div>
+  <div id="dateFilterModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Filtrar por fecha</p>
+          <h3>Rango de fechas de carga</h3>
+          <p class="muted">Aplica un rango opcional según la fecha de carga al sistema.</p>
+        </div>
+        <button id="dateFilterClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="field">
+        <label for="dateFilterFrom">Desde</label>
+        <input type="date" id="dateFilterFrom">
+      </div>
+      <div class="field">
+        <label for="dateFilterTo">Hasta</label>
+        <input type="date" id="dateFilterTo">
+      </div>
+      <div class="modal-actions">
+        <button id="clearDateFilter" class="ghost-btn">Limpiar filtro</button>
+        <button id="applyDateFilter" class="primary-btn"><i class='bx bx-filter-alt'></i>Aplicar filtro</button>
       </div>
     </div>
   </div>

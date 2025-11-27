@@ -100,6 +100,7 @@ const clientColumns = {
   cuit: { label: 'CUIT', default: false },
   birthDate: { label: 'Nacimiento', default: false },
   purchaseDate: { label: 'Fecha compra', default: false },
+  systemDate: { label: 'Fecha de carga', default: false },
   postalCode: { label: 'CP', default: false },
   type: { label: 'Notas', default: true }
 };
@@ -108,6 +109,7 @@ const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
   groupByModel: true,
+  dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
   selection: {}
 };
@@ -123,6 +125,7 @@ const clientColumnWidths = {
   cuit: '160px',
   birthDate: '170px',
   purchaseDate: '170px',
+  systemDate: '170px',
   postalCode: '120px',
   type: '170px',
   status: '180px',
@@ -225,6 +228,112 @@ function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Acept
   closeBtn.onclick = cleanup;
 }
 
+function toggleModal(modal, show) {
+  if (!modal) return;
+  if (show) {
+    modal.classList.add('show');
+    modal.classList.remove('hidden');
+  } else {
+    modal.classList.remove('show');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+  }
+}
+
+function openImportDateModal() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('importDateModal');
+    if (!modal) {
+      resolve(formatLocalISO());
+      return;
+    }
+    const todayLabel = document.getElementById('importDateTodayLabel');
+    if (todayLabel) todayLabel.textContent = `Se usará: ${formatDateLabel(formatLocalISO())}`;
+    const customInput = document.getElementById('importCustomDate');
+    if (customInput && !customInput.value) customInput.value = formatLocalISO();
+    if (customInput) {
+      customInput.onfocus = () => {
+        const customRadio = document.querySelector('input[name="importDateOption"][value="custom"]');
+        if (customRadio) customRadio.checked = true;
+      };
+    }
+
+    const confirmBtn = document.getElementById('importDateConfirm');
+    const cancelBtn = document.getElementById('importDateCancel');
+    const closeBtn = document.getElementById('importDateClose');
+    const radios = Array.from(document.querySelectorAll('input[name="importDateOption"]'));
+
+    const cleanup = (result) => {
+      toggleModal(modal, false);
+      if (confirmBtn) confirmBtn.onclick = null;
+      if (cancelBtn) cancelBtn.onclick = null;
+      if (closeBtn) closeBtn.onclick = null;
+      resolve(result);
+    };
+
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        const selected = radios.find(r => r.checked)?.value || 'today';
+        if (selected === 'none') {
+          cleanup('');
+          return;
+        }
+        if (selected === 'custom') {
+          const value = customInput?.value;
+          const iso = value ? formatDateISO(value) : '';
+          if (!iso) {
+            showToast('Selecciona una fecha válida.', 'error');
+            return;
+          }
+          cleanup(iso);
+          return;
+        }
+        cleanup(formatLocalISO());
+      };
+    }
+    if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
+    if (closeBtn) closeBtn.onclick = () => cleanup(null);
+
+    toggleModal(modal, true);
+  });
+}
+
+function openDateFilterModal() {
+  const modal = document.getElementById('dateFilterModal');
+  if (!modal) return;
+  const fromInput = document.getElementById('dateFilterFrom');
+  const toInput = document.getElementById('dateFilterTo');
+  if (fromInput) fromInput.value = clientManagerState.dateRange.from || '';
+  if (toInput) toInput.value = clientManagerState.dateRange.to || '';
+
+  const applyBtn = document.getElementById('applyDateFilter');
+  const clearBtn = document.getElementById('clearDateFilter');
+  const closeBtn = document.getElementById('dateFilterClose');
+
+  const cleanup = () => toggleModal(modal, false);
+
+  if (applyBtn) {
+    applyBtn.onclick = () => {
+      const from = fromInput?.value || '';
+      const to = toInput?.value || '';
+      clientManagerState.dateRange = { from, to };
+      persist();
+      renderClientManager();
+      cleanup();
+    };
+  }
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      clientManagerState.dateRange = { from: '', to: '' };
+      persist();
+      renderClientManager();
+      cleanup();
+    };
+  }
+  if (closeBtn) closeBtn.onclick = cleanup;
+
+  toggleModal(modal, true);
+}
+
 function bindMoneyInput(el, onChange) {
   if (!el) return;
   el.addEventListener('input', () => {
@@ -253,6 +362,7 @@ function applyProfileData(parsed) {
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
   clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+  clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
@@ -419,6 +529,33 @@ function formatDateForDisplay(value) {
   return `${d}/${m}/${y}`;
 }
 
+function formatLocalISO(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabel(value) {
+  const iso = formatDateISO(value);
+  if (!iso) return 'Sin fecha asignada';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function sanitizeSheetName(label) {
+  return (label || 'Sin fecha asignada').replace(/[\\/:?*\[\]]/g, '-').slice(0, 31) || 'Sin fecha asignada';
+}
+
+function isWithinDateRange(value, range = {}) {
+  if (!range.from && !range.to) return true;
+  const iso = formatDateISO(value);
+  if (!iso) return false;
+  const meetsFrom = range.from ? iso >= range.from : true;
+  const meetsTo = range.to ? iso <= range.to : true;
+  return meetsFrom && meetsTo;
+}
+
 function extractYear(value) {
   const iso = formatDateISO(value);
   if (iso) return iso.slice(0, 4);
@@ -509,6 +646,9 @@ let planDraftApplied = false;
 let snapshots = load('snapshots') || [];
 let activeNoteClientId = null;
 
+clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
+clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
 uiState.quoteSearch = uiState.quoteSearch || '';
@@ -520,7 +660,6 @@ uiState.variableValues = uiState.variableValues || {};
 uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
 uiState.planDraft = uiState.planDraft || {};
 let selectedPlanClientId = uiState.planDraft.selectedClientId || null;
-clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
 
 init();
 
@@ -1701,10 +1840,15 @@ function openPriceImage() {
 function bindClientManager() {
   const importInput = document.getElementById('clientExcel');
   if (importInput) {
-    importInput.addEventListener('change', (e) => {
+    importInput.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      handleClientImport(file);
+      const importDate = await openImportDateModal();
+      if (importDate === null) {
+        e.target.value = '';
+        return;
+      }
+      handleClientImport(file, importDate);
       e.target.value = '';
     });
   }
@@ -1741,6 +1885,11 @@ function bindClientManager() {
     });
   }
   renderStatusFilter();
+
+  const dateFilterBtn = document.getElementById('openDateFilter');
+  if (dateFilterBtn) {
+    dateFilterBtn.addEventListener('click', openDateFilterModal);
+  }
 
   const exportBtn = document.getElementById('exportClients');
   if (exportBtn) {
@@ -1866,7 +2015,7 @@ const headerMap = {
   'TIPO': 'type'
 };
 
-function mapRow(row, headers) {
+function mapRow(row, headers, systemDate = '') {
 
   const mapped = { flags: {}, selected: false };
   headers.forEach((h, idx) => {
@@ -1886,10 +2035,11 @@ function mapRow(row, headers) {
   mapped.model = mapped.model || 'Sin modelo';
   mapped.phone = normalizePhone(mapped.phone || '');
   mapped.type = normalizeNotesValue(mapped.type);
+  mapped.systemDate = systemDate;
   return mapped;
 }
 
-function handleClientImport(file) {
+function handleClientImport(file, importDate = '') {
   const reader = new FileReader();
   reader.onload = (ev) => {
     try {
@@ -1910,7 +2060,7 @@ function handleClientImport(file) {
         const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
         let imported = 0;
         dataRows.forEach(r => {
-          const mapped = mapRow(r, headersToUse);
+          const mapped = mapRow(r, headersToUse, importDate);
           const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
           if (existingKeys.has(key)) {
             return;
@@ -1978,18 +2128,41 @@ function renderStatusFilter() {
   if (label) label.textContent = `${current.label} (${current.count})`;
 }
 
+function renderDateFilterHelper() {
+  const helper = document.getElementById('dateFilterHelper');
+  if (!helper) return;
+  const { from, to } = clientManagerState.dateRange || {};
+  if (!from && !to) {
+    helper.textContent = 'Sin filtro por fecha de carga.';
+    helper.innerHTML = 'Sin filtro por fecha de carga.';
+    return;
+  }
+  const fromLabel = from ? formatDateLabel(from) : 'Inicio';
+  const toLabel = to ? formatDateLabel(to) : 'Actualidad';
+  helper.innerHTML = `<span class="date-filter-badge">Rango activo: <strong>${fromLabel} → ${toLabel}</strong><button class="ghost-btn mini-btn" id="clearDateFilterInline"><i class='bx bx-x'></i>Limpiar</button></span>`;
+  const clearInline = document.getElementById('clearDateFilterInline');
+  if (clearInline) {
+    clearInline.onclick = () => {
+      clientManagerState.dateRange = { from: '', to: '' };
+      persist();
+      renderClientManager();
+    };
+  }
+}
+
 function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
   return managerClients.filter(c => {
     const status = clientStatus(c).label;
     const matchesSearch = [c.name, c.model, c.phone, c.type].some(v => (v || '').toLowerCase().includes(search));
+    const matchesDate = isWithinDateRange(c.systemDate, clientManagerState.dateRange);
     const matchesStatus = clientManagerState.statusFilter === 'all'
       ? true
       : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
       : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
       : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
       : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite);
-    return matchesSearch && matchesStatus && status !== 'Oculto';
+    return matchesSearch && matchesStatus && matchesDate && status !== 'Oculto';
   });
 }
 
@@ -2001,6 +2174,7 @@ function renderClientManager() {
   const bodyContainer = grid.querySelector('.grid-body');
   if (!head || !bodyContainer) return;
   renderStatusFilter();
+  renderDateFilterHelper();
 
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
   const templateColumns = [
@@ -2112,6 +2286,7 @@ function formatCell(key, client) {
   if (key === 'model') return `<div class="name-cell"><strong>${client.model}</strong></div>`;
   if (key === 'phone') return `<div class="tip"><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
+  if (key === 'systemDate') return formatDateForDisplay(client.systemDate) || '-';
   if (key === 'type') return normalizeNotesValue(client.type).replace(/\n/g, '<br>');
   return client[key] || '-';
 }
@@ -2190,24 +2365,42 @@ function exportManagerClients() {
     showToast('No hay clientes para exportar.', 'error');
     return;
   }
-  const data = rows.map(c => ({
-    Nombre: c.name,
-    Modelo: c.model,
-    Celular: normalizePhone(c.phone),
-    Marca: c.brand,
-    Localidad: c.city,
-    Provincia: c.province,
-    Documento: c.document,
-    CUIT: c.cuit,
-    Nacimiento: c.birthDate,
-    'Fecha compra': c.purchaseDate,
-    CP: c.postalCode,
-    Tipo: normalizeNotesValue(c.type),
-    Estado: clientStatus(c).label
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
+  const grouped = rows.reduce((acc, c) => {
+    const key = formatDateISO(c.systemDate) || '';
+    acc[key] = acc[key] || [];
+    acc[key].push(c);
+    return acc;
+  }, {});
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+  const sortedKeys = Object.keys(grouped).sort((a, b) => {
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b);
+  });
+
+  sortedKeys.forEach((isoKey) => {
+    const sheetLabel = isoKey ? formatDateLabel(isoKey) : 'Sin fecha asignada';
+    const data = grouped[isoKey].map(c => ({
+      Nombre: c.name,
+      Modelo: c.model,
+      Celular: normalizePhone(c.phone),
+      Marca: c.brand,
+      Localidad: c.city,
+      Provincia: c.province,
+      Documento: c.document,
+      CUIT: c.cuit,
+      Nacimiento: c.birthDate,
+      'Fecha compra': c.purchaseDate,
+      'Fecha de carga': formatDateForDisplay(c.systemDate),
+      CP: c.postalCode,
+      Tipo: normalizeNotesValue(c.type),
+      Estado: clientStatus(c).label
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(sheetLabel));
+  });
+
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
@@ -2337,6 +2530,8 @@ function syncFromStorage() {
   managerClients = load('managerClients') || managerClients;
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
+  clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+  clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   snapshots = load('snapshots') || snapshots;
   applyStatusPalette();
   renderStats();
