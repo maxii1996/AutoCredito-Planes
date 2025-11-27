@@ -119,7 +119,7 @@ const presetExportHeaders = [
   { key: 'province', label: 'OPCIA' },
   { key: 'postalCode', label: 'CP' },
   { key: 'phone', label: 'CELULAR12' },
-  { key: 'systemDate', label: 'FECHA1' },
+  { key: 'purchaseDate', label: 'FECHA1' },
   { key: 'brand', label: 'MARCA' },
   { key: 'model', label: 'MODELO' },
   { key: 'type', label: 'TIPO' },
@@ -2574,7 +2574,7 @@ function exportValue(key, client) {
     case 'document': return client.document || '';
     case 'cuit': return client.cuit || '';
     case 'birthDate': return client.birthDate || '';
-    case 'purchaseDate': return client.purchaseDate || '';
+    case 'purchaseDate': return formatDateForDisplay(client.purchaseDate);
     case 'systemDate': return formatDateForDisplay(client.systemDate);
     case 'postalCode': return client.postalCode || '';
     case 'type': return normalizeNotesValue(client.type);
