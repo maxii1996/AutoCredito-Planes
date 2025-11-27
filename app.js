@@ -89,6 +89,14 @@ const variableSuggestions = [
   'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo', 'version'
 ];
 
+const planTerms = {
+  '2a12': 120,
+  '13a21': 120,
+  '22a84': 84,
+  '85a120': 120,
+  'ctapura': 120
+};
+
 const clientColumns = {
   name: { label: 'Nombre', default: true },
   model: { label: 'Modelo', default: true },
@@ -1500,6 +1508,18 @@ function applyReservationDefaultsForModel(modelIdx, { preserveExisting = false, 
   });
 }
 
+function applyCustomPriceDefaultForModel(modelIdx, { preserveExisting = false, resetManual = false } = {}) {
+  const vehicle = vehicles[modelIdx] || vehicles[0];
+  const input = document.getElementById('customPrice');
+  if (!input) return;
+  if (resetManual) input.dataset.manual = '';
+  const current = parseMoney(input.dataset.raw || input.value || 0);
+  const hasCustom = current > 0 && input.dataset.manual === 'true';
+  if (!preserveExisting || !hasCustom) {
+    setMoneyValue(input, vehicle?.basePrice || vehicle?.integration || 0);
+  }
+}
+
 function bindClientPicker() {
   const openBtn = document.getElementById('openClientPicker');
   if (openBtn && !openBtn.dataset.bound) {
@@ -1686,6 +1706,7 @@ function renderPlanForm() {
     select.addEventListener('change', () => {
       applyPlanDefaultsForModel(Number(select.value || 0), { resetManual: true });
       applyReservationDefaultsForModel(Number(select.value || 0), { resetManual: true });
+      applyCustomPriceDefaultForModel(Number(select.value || 0), { resetManual: true });
       updatePlanSummary();
     });
     const planTypeSelect = document.getElementById('planType');
@@ -1695,6 +1716,11 @@ function renderPlanForm() {
     });
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
     bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
+    const customPriceInput = document.getElementById('customPrice');
+    bindMoneyInput(customPriceInput, () => {
+      customPriceInput.dataset.manual = 'true';
+      updatePlanSummary();
+    });
     ['reservation1', 'reservation3', 'reservation6'].forEach(id => {
       const el = document.getElementById(id);
       bindMoneyInput(el, () => {
@@ -1712,6 +1738,8 @@ function renderPlanForm() {
       calc6.addEventListener('click', () => calculateReservationsFromBase(6));
       calc6.dataset.bound = 'true';
     }
+    const appliedReservation = document.getElementById('appliedReservation');
+    appliedReservation.addEventListener('change', updatePlanSummary);
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
@@ -1724,6 +1752,7 @@ function renderPlanForm() {
   const hasCustomReservations = ['reservation1', 'reservation3', 'reservation6'].some(key => parseMoney(draft[key]));
   applyPlanDefaultsForModel(Number(select.value || 0), { preserveExisting: !!draft.planType });
   applyReservationDefaultsForModel(Number(select.value || 0), { preserveExisting: hasCustomReservations });
+  applyCustomPriceDefaultForModel(Number(select.value || 0), { preserveExisting: !!parseMoney(draft.customPrice) });
   updatePlanSummary();
 }
 
@@ -1750,35 +1779,95 @@ function getReservationValue(id, fallback = 0) {
   return val || fallback;
 }
 
+function resolveTotalInstallments(planType, vehiclePlanProfileType) {
+  return planTerms[planType] || planTerms[vehiclePlanProfileType] || 120;
+}
+
+function resolveVehiclePrice(vehicle, customPrice) {
+  if (customPrice > 0) return customPrice;
+  if (vehicle?.basePrice) return vehicle.basePrice;
+  return vehicle?.integration || 0;
+}
+
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = 'none', customPrice = 0 }) {
+  const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
+  const price = resolveVehiclePrice(vehicle, customPrice);
+  const cuotaPura = totalInstallments ? price / totalInstallments : 0;
+  const selectedReservation = appliedReservation && appliedReservation !== 'none' ? reservations[appliedReservation] || 0 : 0;
+  const aporteInicial = (tradeInEnabled ? tradeInValue : 0) + selectedReservation;
+  const outstanding = Math.max(price - aporteInicial, 0);
+  const coveredInstallments = cuotaPura > 0 ? Math.floor(aporteInicial / cuotaPura) : 0;
+  const partialCover = cuotaPura > 0 ? Math.max(aporteInicial - (coveredInstallments * cuotaPura), 0) : 0;
+  const remainingInstallments = cuotaPura > 0 ? Math.ceil(outstanding / cuotaPura) : 0;
+  const startInstallment = Math.max(totalInstallments - coveredInstallments, 1);
+  const kickoffInstallment = Math.max(partialCover > 0 ? startInstallment - 1 : startInstallment, 1);
+
+  return {
+    price,
+    cuotaPura,
+    totalInstallments,
+    selectedReservation,
+    aporteInicial,
+    outstanding,
+    coveredInstallments,
+    partialCover,
+    remainingInstallments,
+    kickoffInstallment
+  };
+}
+
 function updatePlanSummary() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
   const plan = document.getElementById('planType').value;
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const customPriceInput = document.getElementById('customPrice');
+  const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const appliedReservation = document.getElementById('appliedReservation').value;
   const v = vehicles[modelIdx] || vehicles[0];
   if (!v) return;
-  const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
   const reserva1 = getReservationValue('reservation1', v.reservations['1']);
   const reserva3 = getReservationValue('reservation3', v.reservations['3']);
   const reserva6 = getReservationValue('reservation6', v.reservations['6']);
-  const total = v.integration;
-  const outstanding = Math.max(total - (tradeIn ? tradeInValue : 0), 0);
+  const reservations = { '1': reserva1, '3': reserva3, '6': reserva6 };
+  const projection = computePaymentProjection({
+    vehicle: v,
+    planType: plan,
+    tradeInValue,
+    tradeInEnabled: tradeIn,
+    reservations,
+    appliedReservation,
+    customPrice
+  });
+  const cuota = plan === 'ctapura' ? projection.cuotaPura : (v.shareByPlan[plan] ?? projection.cuotaPura);
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
   const cuota6 = reserva6 ? currency.format(reserva6 / 6) : currency.format(0);
+  const coveredText = projection.coveredInstallments
+    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde el final`
+    : 'Sin cuotas cubiertas aún';
+  const partialText = projection.partialCover > 0
+    ? `+ ${currency.format(projection.partialCover)} aplicado a la cuota ${projection.kickoffInstallment}`
+    : '';
+  const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
 
   const rows = [
     { label: 'Modelo', value: v.name },
+    { label: priceSource, value: currency.format(projection.price) },
     { label: 'Plan', value: planLabel(plan) },
     { label: 'Plan establecido', value: v.planProfile?.label || 'Personalizar' },
+    { label: 'Cuota pura estimada', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
     { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
     { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
     { label: 'Reserva 3 cuotas', value: `${currency.format(reserva3)} (3 cuotas de ${cuota3})` },
     { label: 'Reserva 6 cuotas', value: `${currency.format(reserva6)} (6 cuotas de ${cuota6})` },
-    { label: 'Integración', value: currency.format(total) },
+    { label: 'Aporte inicial', value: currency.format(projection.aporteInicial) },
     { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
-    { label: 'Saldo estimado', value: currency.format(outstanding) }
+    { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() },
+    { label: 'Saldo estimado', value: currency.format(projection.outstanding) },
+    { label: 'Cuotas pendientes', value: `${projection.remainingInstallments} cuotas desde la cuota ${projection.kickoffInstallment}` },
+    { label: 'Total de cuotas del plan', value: projection.totalInstallments }
   ];
 
   const summary = document.getElementById('planSummary');
@@ -1786,6 +1875,42 @@ function updatePlanSummary() {
     <div class="summary-row">
       <span>${r.label}</span>
       <strong>${r.value}</strong>
+    </div>
+  `).join('');
+
+  const timeline = document.getElementById('planTimeline');
+  const timelineSteps = [];
+  if (projection.selectedReservation > 0) {
+    const covered = projection.cuotaPura > 0 ? Math.floor((projection.selectedReservation || 0) / projection.cuotaPura) : 0;
+    const remainder = projection.cuotaPura > 0 ? (projection.selectedReservation || 0) - (covered * projection.cuotaPura) : 0;
+    const from = Math.max(projection.totalInstallments - covered + 1, 1);
+    const range = covered ? `Cubre cuotas ${from} a ${projection.totalInstallments}` : 'Aporta al final del plan';
+    const partialNote = remainder > 0 ? ` y deja ${currency.format(remainder)} adelantado en la cuota ${from - 1 || 1}` : '';
+    timelineSteps.push({
+      title: 'Reserva aplicada',
+      detail: `${currency.format(projection.selectedReservation)} · ${range}${partialNote}`
+    });
+  }
+  if (tradeIn && tradeInValue > 0) {
+    const covered = projection.cuotaPura > 0 ? Math.floor(tradeInValue / projection.cuotaPura) : 0;
+    const from = Math.max(projection.totalInstallments - covered + 1, 1);
+    const range = covered ? `Equivale a ${covered} cuota${covered !== 1 ? 's' : ''} (desde la ${from})` : 'Aplica como anticipo parcial';
+    timelineSteps.push({
+      title: 'Usado tomado',
+      detail: `${currency.format(tradeInValue)} · ${range}`
+    });
+  }
+  timelineSteps.push({
+    title: 'Saldo restante',
+    detail: `${currency.format(projection.outstanding)} a pagar en ${projection.remainingInstallments} cuota${projection.remainingInstallments !== 1 ? 's' : ''} (arranca en la cuota ${projection.kickoffInstallment}).`
+  });
+  timeline.innerHTML = timelineSteps.map(step => `
+    <div class="timeline-row">
+      <div class="timeline-dot"></div>
+      <div>
+        <h4>${step.title}</h4>
+        <p class="muted tiny">${step.detail}</p>
+      </div>
     </div>
   `).join('');
   savePlanDraft();
@@ -1797,12 +1922,25 @@ function buildQuoteFromForm() {
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const customPriceInput = document.getElementById('customPrice');
+  const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const appliedReservation = document.getElementById('appliedReservation').value;
   const notes = document.getElementById('notes').value.trim();
   const v = vehicles[modelIdx] || vehicles[0];
-  const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
   const reservation1 = getReservationValue('reservation1', v.reservations['1']);
   const reservation3 = getReservationValue('reservation3', v.reservations['3']);
   const reservation6 = getReservationValue('reservation6', v.reservations['6']);
+  const reservations = { '1': reservation1, '3': reservation3, '6': reservation6 };
+  const projection = computePaymentProjection({
+    vehicle: v,
+    planType: plan,
+    tradeInValue,
+    tradeInEnabled: tradeIn,
+    reservations,
+    appliedReservation,
+    customPrice
+  });
+  const cuota = plan === 'ctapura' ? projection.cuotaPura : (v.shareByPlan[plan] ?? projection.cuotaPura);
   const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
   const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
   const quote = {
@@ -1818,6 +1956,14 @@ function buildQuoteFromForm() {
     reservation3,
     reservation6,
     integration: v.integration,
+    customPrice: projection.price,
+    cuotaPura: projection.cuotaPura,
+    totalInstallments: projection.totalInstallments,
+    appliedReservation,
+    outstanding: projection.outstanding,
+    remainingInstallments: projection.remainingInstallments,
+    kickoffInstallment: projection.kickoffInstallment,
+    aporteInicial: projection.aporteInicial,
     planProfileLabel: v.planProfile?.label || 'Personalizar',
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
@@ -1833,11 +1979,17 @@ function buildQuoteSummaryText(quote) {
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
+    `Precio aplicado: ${currency.format(quote.customPrice || quote.integration || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
+    `Cuota pura estimada: ${quote.cuotaPura ? currency.format(quote.cuotaPura) : 'Completar manual'}`,
     `Cuota estimada: ${quote.cuota ? currency.format(quote.cuota) : 'Completar manual'}`,
     `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} (3 de ${cuota3}) · 6 cuotas ${currency.format(quote.reservation6 || 0)} (6 de ${cuota6})`,
     `Integración objetivo: ${currency.format(quote.integration || 0)}`,
     `Entrega llave por llave: ${quote.tradeIn ? `Sí (toma usado por ${currency.format(quote.tradeInValue || 0)})` : 'No'}`,
+    `Aporte inicial total: ${currency.format(quote.aporteInicial || 0)}`,
+    `Saldo estimado pendiente: ${currency.format(quote.outstanding || 0)}`,
+    `Cuotas restantes: ${quote.remainingInstallments || 0} (se reinicia en la cuota ${quote.kickoffInstallment || 1})`,
+    `Reserva aplicada: ${quote.appliedReservation && quote.appliedReservation !== 'none' ? `${quote.appliedReservation} cuota(s)` : 'Sin aplicar'}`,
     `Notas: ${quote.notes || 'Sin notas'}`,
     `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
   ];
@@ -1854,6 +2006,9 @@ function applyQuoteToForm(quote) {
   applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
   document.getElementById('planType').value = quote.plan || document.getElementById('planType').value;
   document.getElementById('planType').dataset.manual = 'true';
+  setMoneyValue(document.getElementById('customPrice'), quote.customPrice || '');
+  if (parseMoney(quote.customPrice)) document.getElementById('customPrice').dataset.manual = 'true';
+  document.getElementById('appliedReservation').value = quote.appliedReservation || 'none';
   document.getElementById('tradeIn').checked = !!quote.tradeIn;
   setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
   setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
@@ -1883,6 +2038,10 @@ function applyPlanDraft() {
     planTypeSelect.dataset.manual = 'true';
   }
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
+  const customPriceInput = document.getElementById('customPrice');
+  setMoneyValue(customPriceInput, draft.customPrice || '');
+  if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
+  document.getElementById('appliedReservation').value = draft.appliedReservation || 'none';
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
   document.getElementById('notes').value = draft.notes || '';
@@ -1902,6 +2061,8 @@ function savePlanDraft() {
     planModel: document.getElementById('planModel').value,
     planType: document.getElementById('planType').value,
     tradeIn: document.getElementById('tradeIn').checked,
+    customPrice: parseMoney(document.getElementById('customPrice').dataset.raw || document.getElementById('customPrice').value),
+    appliedReservation: document.getElementById('appliedReservation').value,
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
     clientName: document.getElementById('clientName').value,
     notes: document.getElementById('notes').value,

@@ -413,6 +413,11 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .summary { display: grid; gap: 10px; }
 .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #0f1625; border-radius: 10px; border: 1px solid var(--border); }
 .summary-row strong { color: var(--accent); }
+.timeline { margin-top: 10px; display: grid; gap: 10px; }
+.timeline-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: #0f1625; align-items: center; }
+.timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 6px rgba(87, 106, 255, 0.16); }
+.timeline-row h4 { margin: 0; }
+.timeline-row p { margin: 2px 0 0; }
 .client-list { display: grid; gap: 8px; }
 .client-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #111724; cursor: pointer; position: relative; overflow: hidden; transition: 0.2s; }
 .client-card:hover { border-color: var(--accent); transform: translateY(-1px); }
