@@ -63,7 +63,7 @@ const defaultVehicles = [
     integration: 11342670,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
     availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
-    shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 310714 },
+    shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 388584 },
     cuotaPura: 252059,
     reservations: { '1': 1211400, '3': 1574820, '6': 1817100 },
     benefits: {
@@ -1824,8 +1824,11 @@ function getReservationValue(id, fallback = 0) {
 }
 
 function resolveTotalInstallments(planType, vehiclePlanProfileType) {
-  return planTerms[planType] || planTerms[vehiclePlanProfileType] || 120;
+  const byVehicle = planTerms[vehiclePlanProfileType];
+  if (byVehicle) return byVehicle;
+  return planTerms[planType] || 120;
 }
+
 
 function resolvePlanScheme(vehicle) {
   const profile = vehicle?.planProfile || {};
