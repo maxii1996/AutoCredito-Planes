@@ -317,12 +317,20 @@
               <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
             </div>
           </div>
-          <div class="card">
-            <div class="card-head">
-              <p class="eyebrow">Resultado</p>
-              <h3>Resumen del plan</h3>
-            </div>
+            <div class="card">
+              <div class="card-head">
+                <p class="eyebrow">Resultado</p>
+                <h3>Resumen del plan</h3>
+              </div>
             <div id="planSummary" class="summary"></div>
+            <div class="timeline-visual">
+              <div class="timeline-legend">
+                <span class="legend-chip reservation">Reserva</span>
+                <span class="legend-chip tradeIn">Usado</span>
+                <span class="legend-chip pending">Saldo</span>
+              </div>
+              <div id="planTimelineTrack" class="timeline-track"></div>
+            </div>
             <div id="planTimeline" class="timeline"></div>
             <div class="card-foot note">
               <p class="muted tiny">Las cotizaciones se gestionan ahora desde el pop up dedicado con carga, copia, descarga y confirmaciones.</p>

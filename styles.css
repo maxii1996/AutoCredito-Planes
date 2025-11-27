@@ -418,6 +418,20 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 6px rgba(87, 106, 255, 0.16); }
 .timeline-row h4 { margin: 0; }
 .timeline-row p { margin: 2px 0 0; }
+
+.timeline-visual { margin: 14px 0; border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: #0f1625; }
+.timeline-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.legend-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+.legend-chip::before { content: ''; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend-chip.reservation::before { background: #ffb347; box-shadow: 0 0 0 6px rgba(255, 179, 71, 0.15); }
+.legend-chip.tradeIn::before { background: #4ade80; box-shadow: 0 0 0 6px rgba(74, 222, 128, 0.15); }
+.legend-chip.pending::before { background: var(--accent); box-shadow: 0 0 0 6px rgba(87, 106, 255, 0.15); }
+
+.timeline-track { display: flex; gap: 6px; width: 100%; min-height: 46px; border-radius: 10px; border: 1px dashed var(--border); overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); }
+.timeline-chunk { display: flex; align-items: center; justify-content: center; padding: 8px; font-size: 12px; font-weight: 700; color: #0f1625; border-radius: 8px; text-align: center; }
+.timeline-chunk[data-type="reservation"] { background: #ffb347; color: #1a1205; }
+.timeline-chunk[data-type="tradeIn"] { background: #4ade80; color: #08210f; }
+.timeline-chunk[data-type="outstanding"] { background: rgba(87, 106, 255, 0.18); color: #dfe2ff; border-left: 1px solid rgba(255,255,255,0.08); }
 .client-list { display: grid; gap: 8px; }
 .client-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #111724; cursor: pointer; position: relative; overflow: hidden; transition: 0.2s; }
 .client-card:hover { border-color: var(--accent); transform: translateY(-1px); }

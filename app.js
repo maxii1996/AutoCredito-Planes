@@ -1789,18 +1789,81 @@ function resolveVehiclePrice(vehicle, customPrice) {
   return vehicle?.integration || 0;
 }
 
+function resolveCuotaPura(price, totalInstallments, vehicle, customPrice) {
+  if (!totalInstallments) return 0;
+  if (!customPrice && vehicle?.cuotaPura) return vehicle.cuotaPura;
+  return price / totalInstallments;
+}
+
+function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0) {
+  if (!totalInstallments || !cuotaPura) {
+    return { segments: [], coveredInstallments: 0, partialCover: 0, kickoffInstallment: 1, remainingInstallments: totalInstallments };
+  }
+
+  let pointer = totalInstallments;
+  let coveredInstallments = 0;
+  let partialCover = 0;
+  const segments = [];
+
+  contributions.forEach(contrib => {
+    if (!contrib.amount) return;
+    const fullCovers = Math.floor(contrib.amount / cuotaPura);
+    const remainder = contrib.amount - (fullCovers * cuotaPura);
+
+    if (fullCovers > 0) {
+      const from = Math.max(pointer - fullCovers + 1, 1);
+      segments.push({
+        type: contrib.type,
+        label: contrib.label,
+        from,
+        to: pointer,
+        covered: fullCovers,
+        partial: 0,
+        amount: contrib.amount
+      });
+      coveredInstallments += fullCovers;
+      pointer = from - 1;
+    }
+
+    if (remainder > 0 && pointer >= 1) {
+      partialCover = Math.max(partialCover, remainder);
+      segments.push({
+        type: contrib.type,
+        label: `${contrib.label} (parcial)`,
+        from: pointer,
+        to: pointer,
+        covered: 0,
+        partial: remainder,
+        amount: remainder
+      });
+      pointer -= 1;
+    }
+  });
+
+  const remainingInstallments = Math.ceil(Math.max(outstanding, 0) / cuotaPura);
+  const kickoffInstallment = Math.max(totalInstallments - coveredInstallments, 1);
+
+  return { segments, coveredInstallments, partialCover, kickoffInstallment, remainingInstallments };
+}
+
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = 'none', customPrice = 0 }) {
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
   const price = resolveVehiclePrice(vehicle, customPrice);
-  const cuotaPura = totalInstallments ? price / totalInstallments : 0;
+  const cuotaPura = resolveCuotaPura(price, totalInstallments, vehicle, customPrice);
+
   const selectedReservation = appliedReservation && appliedReservation !== 'none' ? reservations[appliedReservation] || 0 : 0;
-  const aporteInicial = (tradeInEnabled ? tradeInValue : 0) + selectedReservation;
+  const contributions = [];
+
+  if (selectedReservation > 0) {
+    contributions.push({ type: 'reservation', label: 'Reserva aplicada', amount: selectedReservation });
+  }
+  if (tradeInEnabled && tradeInValue > 0) {
+    contributions.push({ type: 'tradeIn', label: 'Toma de usado', amount: tradeInValue });
+  }
+
+  const aporteInicial = contributions.reduce((sum, c) => sum + c.amount, 0);
   const outstanding = Math.max(price - aporteInicial, 0);
-  const coveredInstallments = cuotaPura > 0 ? Math.floor(aporteInicial / cuotaPura) : 0;
-  const partialCover = cuotaPura > 0 ? Math.max(aporteInicial - (coveredInstallments * cuotaPura), 0) : 0;
-  const remainingInstallments = cuotaPura > 0 ? Math.ceil(outstanding / cuotaPura) : 0;
-  const startInstallment = Math.max(totalInstallments - coveredInstallments, 1);
-  const kickoffInstallment = Math.max(partialCover > 0 ? startInstallment - 1 : startInstallment, 1);
+  const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding);
 
   return {
     price,
@@ -1809,10 +1872,11 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     selectedReservation,
     aporteInicial,
     outstanding,
-    coveredInstallments,
-    partialCover,
-    remainingInstallments,
-    kickoffInstallment
+    coveredInstallments: coverage.coveredInstallments,
+    partialCover: coverage.partialCover,
+    remainingInstallments: coverage.remainingInstallments,
+    kickoffInstallment: coverage.kickoffInstallment,
+    coverageSegments: coverage.segments
   };
 }
 
@@ -1844,21 +1908,28 @@ function updatePlanSummary() {
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
   const cuota6 = reserva6 ? currency.format(reserva6 / 6) : currency.format(0);
+  const partialSegment = (projection.coverageSegments || []).find(s => s.partial > 0);
   const coveredText = projection.coveredInstallments
-    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde el final`
+    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde la cuota ${Math.max(projection.totalInstallments - projection.coveredInstallments + 1, 1)} hacia atrás`
     : 'Sin cuotas cubiertas aún';
-  const partialText = projection.partialCover > 0
-    ? `+ ${currency.format(projection.partialCover)} aplicado a la cuota ${projection.kickoffInstallment}`
+  const partialText = partialSegment
+    ? `+ ${currency.format(partialSegment.partial)} adelantados en la cuota ${partialSegment.from}`
     : '';
   const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
+  const reservationText = projection.selectedReservation
+    ? `${currency.format(projection.selectedReservation)} (costo de ingreso, aplicado de atrás hacia adelante)`
+    : 'No se aplicó reserva al saldo. Sigue siendo costo de ingreso al plan.';
+  const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
+  const firstPayable = Math.max(projection.kickoffInstallment, 1);
 
   const rows = [
     { label: 'Modelo', value: v.name },
     { label: priceSource, value: currency.format(projection.price) },
     { label: 'Plan', value: planLabel(plan) },
     { label: 'Plan establecido', value: v.planProfile?.label || 'Personalizar' },
-    { label: 'Cuota pura estimada', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
+    { label: 'Cuota pura automática', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
     { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
+    { label: 'Reserva (costo de acceso)', value: reservationText },
     { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
     { label: 'Reserva 3 cuotas', value: `${currency.format(reserva3)} (3 cuotas de ${cuota3})` },
     { label: 'Reserva 6 cuotas', value: `${currency.format(reserva6)} (6 cuotas de ${cuota6})` },
@@ -1866,7 +1937,7 @@ function updatePlanSummary() {
     { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
     { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() },
     { label: 'Saldo estimado', value: currency.format(projection.outstanding) },
-    { label: 'Cuotas pendientes', value: `${projection.remainingInstallments} cuotas desde la cuota ${projection.kickoffInstallment}` },
+    { label: 'Cuotas pendientes', value: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} arrancando en la cuota ${firstPayable}` },
     { label: 'Total de cuotas del plan', value: projection.totalInstallments }
   ];
 
@@ -1880,29 +1951,20 @@ function updatePlanSummary() {
 
   const timeline = document.getElementById('planTimeline');
   const timelineSteps = [];
-  if (projection.selectedReservation > 0) {
-    const covered = projection.cuotaPura > 0 ? Math.floor((projection.selectedReservation || 0) / projection.cuotaPura) : 0;
-    const remainder = projection.cuotaPura > 0 ? (projection.selectedReservation || 0) - (covered * projection.cuotaPura) : 0;
-    const from = Math.max(projection.totalInstallments - covered + 1, 1);
-    const range = covered ? `Cubre cuotas ${from} a ${projection.totalInstallments}` : 'Aporta al final del plan';
-    const partialNote = remainder > 0 ? ` y deja ${currency.format(remainder)} adelantado en la cuota ${from - 1 || 1}` : '';
+  (projection.coverageSegments || []).forEach(segment => {
+    const range = segment.covered
+      ? `Cubre cuotas ${segment.from} a ${segment.to}`
+      : `Aporta de manera parcial en la cuota ${segment.from}`;
+    const suffix = segment.partial ? ` · ${currency.format(segment.partial)} adelantados` : '';
+    const title = segment.type === 'reservation' ? 'Reserva aplicada' : 'Usado tomado';
     timelineSteps.push({
-      title: 'Reserva aplicada',
-      detail: `${currency.format(projection.selectedReservation)} · ${range}${partialNote}`
+      title,
+      detail: `${currency.format(segment.amount)} · ${range}${suffix}`
     });
-  }
-  if (tradeIn && tradeInValue > 0) {
-    const covered = projection.cuotaPura > 0 ? Math.floor(tradeInValue / projection.cuotaPura) : 0;
-    const from = Math.max(projection.totalInstallments - covered + 1, 1);
-    const range = covered ? `Equivale a ${covered} cuota${covered !== 1 ? 's' : ''} (desde la ${from})` : 'Aplica como anticipo parcial';
-    timelineSteps.push({
-      title: 'Usado tomado',
-      detail: `${currency.format(tradeInValue)} · ${range}`
-    });
-  }
+  });
   timelineSteps.push({
     title: 'Saldo restante',
-    detail: `${currency.format(projection.outstanding)} a pagar en ${projection.remainingInstallments} cuota${projection.remainingInstallments !== 1 ? 's' : ''} (arranca en la cuota ${projection.kickoffInstallment}).`
+    detail: `${currency.format(projection.outstanding)} a pagar en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} (primera cuota exigible: ${firstPayable}).`
   });
   timeline.innerHTML = timelineSteps.map(step => `
     <div class="timeline-row">
@@ -1913,6 +1975,20 @@ function updatePlanSummary() {
       </div>
     </div>
   `).join('');
+
+  const timelineTrack = document.getElementById('planTimelineTrack');
+  if (timelineTrack) {
+    const total = projection.totalInstallments || 1;
+    const chunks = [];
+    (projection.coverageSegments || []).forEach(segment => {
+      const length = segment.covered || (segment.partial ? 1 : 0);
+      const width = Math.max((length / total) * 100, 2);
+      chunks.push(`<div class="timeline-chunk" data-type="${segment.type}" style="width:${width}%">${segment.label} (${segment.from}-${segment.to})</div>`);
+    });
+    const remainingWidth = Math.max((remainingInstallments / total) * 100, 2);
+    chunks.push(`<div class="timeline-chunk" data-type="outstanding" style="width:${remainingWidth}%">Saldo pendiente (${remainingInstallments} cuotas)</div>`);
+    timelineTrack.innerHTML = chunks.join('');
+  }
   savePlanDraft();
 }
 
