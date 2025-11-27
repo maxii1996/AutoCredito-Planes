@@ -46,7 +46,7 @@ const defaultVehicles = [
   {
     name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
     basePrice: 30430900,
-    integration: 30430900,
+    integration: 9129270,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
     availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
