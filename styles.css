@@ -109,6 +109,11 @@ body.menu-collapsed .sidebar-foot { display: none; }
 .muted { color: var(--muted); margin: 0; }
 .muted.subtle { opacity: 0.8; }
 
+.strike {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
 .top-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .client-file-actions { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .client-file-actions .upload-btn { cursor: pointer; }

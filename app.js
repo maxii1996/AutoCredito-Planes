@@ -1927,9 +1927,13 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
+  const basePrice = resolveVehiclePrice(vehicle, 0);
   const price = resolveVehiclePrice(vehicle, customPrice);
+  const priceRatio = basePrice ? price / basePrice : 1;
   const financedAmount = price * scheme.financedPct;
+  const baseFinancedAmount = basePrice * scheme.financedPct;
   const integrationTarget = price * scheme.integrationPct;
+  const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planType);
   const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType);
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
@@ -1948,8 +1952,12 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding);
 
   return {
+    basePrice,
     price,
+    priceRatio,
+    baseFinancedAmount,
     cuotaPura,
+    baseCuotaPura,
     totalInstallments,
     financedAmount,
     integrationTarget,
@@ -1996,10 +2004,19 @@ function updatePlanSummary() {
     appliedReservation,
     customPrice
   });
-  const cuota = plan === 'ctapura' ? projection.cuotaPura : (v.shareByPlan[plan] ?? projection.cuotaPura);
+  const cuotaBase = plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
+  const cuota = plan === 'ctapura'
+    ? projection.cuotaPura
+    : Math.round(cuotaBase * (projection.priceRatio || 1));
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
   const cuota6 = reserva6 ? currency.format(reserva6 / 6) : currency.format(0);
+  const formatAdjustedValue = (original, adjusted, showAdjust) => {
+    if (!showAdjust || original === adjusted) return currency.format(adjusted || original || 0);
+    const originalTag = `<span class="muted strike">${currency.format(original || 0)}</span>`;
+    return `${originalTag} ${currency.format(adjusted || 0)}`;
+  };
+  const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
   const partialSegment = (projection.coverageSegments || []).find(s => s.partial > 0);
   const coveredText = projection.coveredInstallments
     ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde la cuota ${Math.max(projection.totalInstallments - projection.coveredInstallments + 1, 1)} hacia atrás`
@@ -2058,11 +2075,11 @@ function updatePlanSummary() {
 
   const planRows = [
     { label: 'Modelo', value: v.name },
-    { label: priceSource, value: currency.format(projection.price) },
+    { label: priceSource, value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice) },
     { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
     { label: 'Plan seleccionado', value: planLabel(plan) },
-    { label: 'Cuota pura (catálogo)', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
-    { label: 'Cuota estimada del tramo', value: cuota ? currency.format(cuota) : 'Completar manual' }
+    { label: 'Cuota pura (catálogo)', value: formatAdjustedValue(projection.baseCuotaPura, projection.cuotaPura, showCustomPrice) },
+    { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCustomPrice) }
   ];
 
   const financingRows = [
@@ -2208,7 +2225,8 @@ function buildQuoteFromForm() {
     appliedReservation,
     customPrice
   });
-  const cuota = plan === 'ctapura' ? projection.cuotaPura : (v.shareByPlan[plan] ?? projection.cuotaPura);
+  const cuotaBase = plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
+  const cuota = plan === 'ctapura' ? projection.cuotaPura : Math.round(cuotaBase * (projection.priceRatio || 1));
   const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
   const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
   const quote = {
@@ -2240,6 +2258,12 @@ function buildQuoteFromForm() {
     selectedReservation: projection.selectedReservation,
     reservationMode: appliedReservation,
     planProfileLabel: v.planProfile?.label || 'Personalizar',
+    basePrice: projection.basePrice,
+    priceApplied: projection.price,
+    baseCuotaPura: projection.baseCuotaPura,
+    cuotaBase: plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura),
+    cuotaAjustada: plan === 'ctapura' ? projection.cuotaPura : Math.round((v.shareByPlan[plan] ?? projection.baseCuotaPura) * (projection.priceRatio || 1)),
+    priceRatio: projection.priceRatio,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
     summaryText: ''
@@ -2254,14 +2278,22 @@ function buildQuoteSummaryText(quote) {
   const reservaDetalle = quote.selectedReservation
     ? `${currency.format(quote.selectedReservation)} en ${quote.reservationMode || '1'} cuota(s) (gasto adicional)`
     : 'Reserva pendiente (gasto adicional)';
+  const hasCustomPrice = quote.priceApplied && quote.basePrice && quote.priceApplied !== quote.basePrice;
+  const cuotaPuraDetalle = hasCustomPrice
+    ? `${currency.format(quote.baseCuotaPura || 0)} → ${currency.format(quote.cuotaPura || 0)}`
+    : (quote.cuotaPura ? currency.format(quote.cuotaPura) : 'Completar manual');
+  const cuotaTramoDetalle = hasCustomPrice
+    ? `${currency.format(quote.cuotaBase || 0)} → ${currency.format(quote.cuotaAjustada || 0)}`
+    : (quote.cuota ? currency.format(quote.cuota) : 'Completar manual');
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
-    `Precio aplicado: ${currency.format(quote.customPrice || quote.integrationTarget || 0)}`,
+    `Precio base catálogo: ${currency.format(quote.basePrice || 0)}`,
+    hasCustomPrice ? `Precio aplicado: ${currency.format(quote.priceApplied || 0)} (ajustado)` : `Precio aplicado: ${currency.format(quote.priceApplied || 0)}`,
     `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
-    `Cuota pura estimada: ${quote.cuotaPura ? currency.format(quote.cuotaPura) : 'Completar manual'}`,
-    `Cuota estimada: ${quote.cuota ? currency.format(quote.cuota) : 'Completar manual'}`,
+    `Cuota pura estimada: ${cuotaPuraDetalle}`,
+    `Cuota estimada: ${cuotaTramoDetalle}`,
     `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} (3 de ${cuota3}) · 6 cuotas ${currency.format(quote.reservation6 || 0)} (6 de ${cuota6})`,
     `Reserva informada: ${reservaDetalle}`,
     `Integración objetivo: ${currency.format(quote.integrationTarget || 0)} (pendiente ${currency.format(quote.integrationRemaining || 0)})`,
