@@ -1865,8 +1865,9 @@ function resolveVehiclePrice(vehicle, customPrice) {
   return vehicle?.integration || 0;
 }
 
-function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice) {
+function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType) {
   if (!totalInstallments) return 0;
+  if (!customPrice && vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
   if (!customPrice && vehicle?.cuotaPura) return vehicle.cuotaPura;
   return financedAmount / totalInstallments;
 }
@@ -1928,7 +1929,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   const price = resolveVehiclePrice(vehicle, customPrice);
   const financedAmount = price * scheme.financedPct;
   const integrationTarget = price * scheme.integrationPct;
-  const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice);
+  const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType);
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
   const selectedReservation = reservations[normalizedReservation] || 0;
@@ -2023,12 +2024,6 @@ function updatePlanSummary() {
   if (flow) {
     const flowSteps = [
       {
-        title: 'Reserva',
-        amount: projection.selectedReservation ? currency.format(projection.selectedReservation) : 'Definir',
-        detail: `${appliedReservation} cuota(s)`,
-        tone: 'reservation'
-      },
-      {
         title: 'Integración objetivo',
         amount: currency.format(projection.integrationTarget),
         detail: `Pendiente ${currency.format(projection.integrationRemaining)}`,
@@ -2060,30 +2055,46 @@ function updatePlanSummary() {
     `).join('');
   }
 
-  const rows = [
+  const planRows = [
     { label: 'Modelo', value: v.name },
     { label: priceSource, value: currency.format(projection.price) },
     { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
     { label: 'Plan seleccionado', value: planLabel(plan) },
-    { label: 'Plan recomendado', value: v.planProfile?.label || 'Personalizar' },
-    { label: 'Cuota pura del plan', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
-    { label: 'Cuota estimada del tramo', value: cuota ? currency.format(cuota) : 'Completar manual' },
-    { label: 'Reserva adicional', value: reservationText },
-    { label: 'Reservas sugeridas', value: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})` },
-    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No aplica' },
+    { label: 'Cuota pura (catálogo)', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
+    { label: 'Cuota estimada del tramo', value: cuota ? currency.format(cuota) : 'Completar manual' }
+  ];
+
+  const financingRows = [
     { label: 'Integración pendiente', value: `${currency.format(projection.integrationRemaining)} (cubierto ${currency.format(projection.integrationCovered)})` },
-    { label: 'Aporte al plan con usado', value: currency.format(projection.aporteInicial) },
-    { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() },
+    { label: 'Aporte al plan con usado', value: tradeIn ? currency.format(projection.aporteInicial) : 'Sin usado aplicado' },
     { label: 'Saldo financiado pendiente', value: currency.format(projection.outstanding) },
     { label: 'Cuotas pendientes', value: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} arrancando en la cuota ${firstPayable}` },
-    { label: 'Total de cuotas del plan', value: projection.totalInstallments }
+    { label: 'Total de cuotas del plan', value: projection.totalInstallments },
+    { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() || 'Sin aportes al día' }
+  ];
+
+  const reservationRows = [
+    { label: 'Reserva informativa (gasto aparte)', value: reservationText },
+    { label: 'Valores vigentes del mes', value: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})` },
+    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No aplica' }
   ];
 
   const summary = document.getElementById('planSummary');
-  summary.innerHTML = rows.map(r => `
-    <div class="summary-row">
-      <span>${r.label}</span>
-      <strong>${r.value}</strong>
+  summary.innerHTML = [
+    { title: 'Datos del plan', rows: planRows },
+    { title: 'Financiación y cobertura', rows: financingRows },
+    { title: 'Reserva (no integra el plan)', rows: reservationRows }
+  ].map(section => `
+    <div class="pro-section">
+      <h4>${section.title}</h4>
+      <div class="pro-table">
+        ${section.rows.map(r => `
+          <div class="pro-row">
+            <span>${r.label}</span>
+            <strong>${r.value}</strong>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `).join('');
 
@@ -2091,16 +2102,16 @@ function updatePlanSummary() {
   if (ribbon) {
     const ribbonSteps = [
       {
-        title: 'Reserva adicional',
-        detail: reservationText,
-        chips: [currency.format(projection.selectedReservation || 0), `${appliedReservation} cuota(s)`],
-        kind: 'reservation'
-      },
-      {
         title: 'Integración objetivo',
         detail: `${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}`,
         chips: [projection.integrationCovered ? `Cubierto con usado: ${currency.format(projection.integrationCovered)}` : 'Cubrir con efectivo/usado'],
         kind: 'pending'
+      },
+      {
+        title: 'Aplicación del usado',
+        detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado',
+        chips: [tradeIn ? 'Aporta a integración/cuotas' : 'Puedes sumar usado luego'],
+        kind: 'tradeIn'
       },
       {
         title: `Financiación (${projection.totalInstallments} cuotas)`,
@@ -2120,7 +2131,6 @@ function updatePlanSummary() {
 
   const timeline = document.getElementById('planTimeline');
   const timelineSteps = [
-    { title: 'Reserva (gasto aparte)', detail: reservationText, ok: projection.selectedReservation > 0 },
     { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}`, ok: projection.integrationRemaining <= 0 },
     { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado', ok: tradeIn && tradeInValue > 0 },
     { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}`, ok: projection.outstanding > 0 }
@@ -2140,24 +2150,23 @@ function updatePlanSummary() {
   const perks = document.getElementById('planPerks');
   if (perks) {
     const perkItems = [
-      { title: 'Chevroplan pactada', detail: v.benefits?.pactada || 'Plan estándar', icon: '🔑' },
-      { title: 'Bonificación', detail: v.benefits?.bonificacion || 'Sin bonificación activa', icon: '🎁' },
-      { title: 'Reservas del mes', detail: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})`, icon: '🧾' },
-      { title: 'Integración objetivo', detail: `${currency.format(projection.integrationTarget)} · ${integrationPctLabel} del valor`, icon: '🧮' },
-      { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} · ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} desde la ${firstPayable}`, icon: '📈' }
-    ];
-    perks.innerHTML = perkItems.map(p => `
-      <div class="perk-card">
-        <div class="perk-chip">${p.icon}<span>${p.title}</span></div>
-        <p class="muted tiny">${p.detail}</p>
+      v.benefits?.pactada && `Chevroplan pactada: ${v.benefits.pactada}`,
+      v.benefits?.bonificacion && `Bonificación: ${v.benefits.bonificacion}`,
+      `Integración objetivo: ${currency.format(projection.integrationTarget)} (${integrationPctLabel} del valor)`
+    ].filter(Boolean);
+    perks.innerHTML = `
+      <div class="pro-section">
+        <h4>Beneficios adicionales</h4>
+        <ul class="pro-bullets">
+          ${perkItems.map(p => `<li>${p}</li>`).join('') || '<li>Sin beneficios destacados</li>'}
+        </ul>
       </div>
-    `).join('');
+    `;
   }
 
   const timelineTrack = document.getElementById('planTimelineTrack');
   if (timelineTrack) {
     const segments = [
-      { type: 'reservation', label: 'Reserva', amount: projection.selectedReservation || 0, detail: `${appliedReservation} cuota(s)` },
       { type: 'tradeIn', label: 'Usado', amount: projection.aporteInicial || 0, detail: tradeIn ? 'Aplicado al plan' : 'Sin usado' },
       { type: 'integration', label: 'Integración', amount: Math.max(projection.integrationTarget - projection.integrationCovered, 0), detail: `Objetivo ${currency.format(projection.integrationTarget)}` },
       { type: 'outstanding', label: 'Saldo', amount: projection.outstanding || 0, detail: `${remainingInstallments} cuota(s)` }

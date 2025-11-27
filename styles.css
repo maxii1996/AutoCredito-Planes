@@ -451,6 +451,16 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .summary.compact .summary-row { flex-direction: column; align-items: flex-start; background: rgba(255,255,255,0.02); border-style: dashed; }
 .summary-row strong { color: var(--accent); text-align: right; }
 
+.pro-section { border: 1px solid var(--border); border-radius: 12px; background: #0f1625; padding: 12px 14px; box-shadow: var(--shadow); }
+.pro-section + .pro-section { margin-top: 10px; }
+.pro-section h4 { margin: 0 0 8px; color: var(--muted); letter-spacing: 0.02em; text-transform: uppercase; font-size: 12px; }
+.pro-table { display: grid; gap: 6px; }
+.pro-row { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--border); align-items: center; }
+.pro-row:last-child { border-bottom: none; }
+.pro-row strong { text-align: right; color: var(--accent); }
+.pro-bullets { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--muted); }
+.pro-bullets li { line-height: 1.4; }
+
 .perks-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 8px 0; }
 .perk-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #101828; box-shadow: var(--shadow); display: grid; gap: 6px; }
 .perk-card p { margin: 0; }
