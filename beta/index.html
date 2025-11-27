@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chevrolet Plan Manager 2025</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🚗</div>
+        <div>
+          <p class="brand-title">Asesor:</p>
+          <p class="brand-subtitle" id="sidebarAdvisor">Chevrolet Argentina</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
+        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
+        <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
+        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
+        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
+      </nav>
+      <div class="sidebar-foot">
+        <p class="mini">Datos locales, respaldo inmediato.</p>
+      </div>
+    </aside>
+    <main class="content">
+      <header class="topbar">
+        <div class="title-area">
+          <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú"><i class='bx bx-menu-alt-left'></i></button>
+          <div>
+            <h1 id="sectionTitle">Inicio</h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <div class="client-file-actions">
+            <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
+            <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+          </div>
+          <div class="action-menu" id="actionMenu">
+            <button class="primary-btn" id="actionMenuToggle"><i class='bx bx-collection'></i> Opciones</button>
+            <div class="menu-panel" id="actionMenuPanel">
+              <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
+              <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+              <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+              <div class="menu-sub">
+                <p class="menu-subtitle"><i class='bx bx-palette'></i> Colores de estado</p>
+                <button class="menu-item" id="openPaletteFromMenu"><i class='bx bx-adjust'></i> Ajustar colores</button>
+              </div>
+            </div>
+          </div>
+          <div class="icon-menu" id="settingsMenu">
+            <button class="ghost-btn icon-only" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i></button>
+            <div class="menu-panel" id="settingsPanel">
+              <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
+              <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="dashboard" class="panel active">
+        <div class="dashboard-hero" id="welcomeHero">
+          <div class="hero-main modern">
+            <div class="eyebrow">Inicio</div>
+            <h2 id="dashboardHeading">Control principal</h2>
+            <p class="muted" id="dashboardSubtitle">Define quién atiende y ajusta tu jornada.</p>
+            <div class="advisor-card">
+              <div class="field">
+                <label for="advisorInput">Nombre del vendedor</label>
+                <div class="advisor-input">
+                  <input id="advisorInput" list="advisorSuggestions" placeholder="Ej: Sofía Alvarez" />
+                  <datalist id="advisorSuggestions"></datalist>
+                </div>
+              </div>
+              <p class="muted tiny" id="advisorHelper">Personaliza el inicio, se guarda en tiempo real.</p>
+            </div>
+            <div class="hero-actions tight">
+              <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i>Gestor de clientes</button>
+              <button class="secondary-btn" data-jump="plans"><i class='bx bx-notepad'></i>Crear plan</button>
+              <button class="ghost-btn" data-jump="templates"><i class='bx bx-message-dots'></i>Plantillas</button>
+            </div>
+          </div>
+          <div class="hero-side metrics">
+            <div class="stat-tiles">
+              <div class="tile" data-tone="blue">
+                <div class="tile-icon">💬</div>
+                <div>
+                  <p class="label">Plantillas</p>
+                  <p class="value" id="templateCount">0</p>
+                </div>
+              </div>
+              <div class="tile" data-tone="green">
+                <div class="tile-icon">👥</div>
+                <div>
+                  <p class="label">Registros de clientes</p>
+                  <p class="value" id="clientCount">0</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <section id="templates" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Mensajes</p>
+            <h2>Plantillas con variables</h2>
+            <p class="muted subtle">Gestión completa con previsualización y búsqueda.</p>
+          </div>
+          <div class="actions">
+            <div class="search-field">
+              <i class='bx bx-search'></i>
+              <input id="templateSearch" placeholder="Buscar plantillas" />
+            </div>
+            <button id="addTemplate" class="ghost-btn"><i class='bx bx-plus'></i>Nueva plantilla</button>
+          </div>
+        </div>
+        <div class="templates-layout">
+          <aside class="template-list" id="templateList"></aside>
+          <div class="template-editor">
+            <div class="preview-stack">
+              <div class="preview-box">
+                <p class="eyebrow">Previsualización</p>
+                <pre id="templatePreview"></pre>
+              </div>
+              <div class="actions compact">
+                <div class="autosave-hint">Guardado en tiempo real</div>
+                <button id="copyTemplate" class="secondary-btn"><i class='bx bx-copy'></i>Copiar esta plantilla</button>
+                <span id="copyStatus" class="muted"></span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="templateTitle">Título</label>
+              <input id="templateTitle" placeholder="Ej: Mensaje de inicio" />
+            </div>
+            <div class="field textarea-field">
+              <label for="templateBody">Contenido</label>
+              <div class="textarea-shell">
+                <textarea id="templateBody" rows="10" placeholder="Escribe el mensaje con variables"></textarea>
+                <div class="chips inline" id="variableChips"></div>
+              </div>
+            </div>
+            <div class="variables-head">
+              <p class="eyebrow">Variables activas</p>
+              <p class="muted tiny">Solo las que están en el mensaje.</p>
+            </div>
+            <div class="variable-grid" id="variableInputs"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="vehicles" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Valores oficiales</p>
+            <h2>Tabla Chevrolet Noviembre 2025</h2>
+            <p class="muted">Basada en la lista oficial: Onix, Onix Plus, Montana, S10, Tracker y Spin. Ajusta los importes a conveniencia.</p>
+          </div>
+          <div class="toggles">
+            <button id="viewPriceImage" class="ghost-btn" type="button"><i class='bx bx-image'></i>Ver imagen online</button>
+            <label class="toggle">
+              <input type="checkbox" id="showReservations" checked>
+              <span>Ver reservas (1, 3 y 6 cuotas)</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="showIntegration" checked>
+              <span>Ver integración</span>
+            </label>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table id="vehicleTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="plans" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Simulador</p>
+            <h2>Armar plan para cliente</h2>
+            <p class="muted subtle">Control total de cuotas y llave por llave.</p>
+          </div>
+          <div class="actions">
+            <button id="saveClient" class="primary-btn"><i class='bx bx-save'></i>Guardar cotización</button>
+            <button id="copyQuote" class="secondary-btn" type="button"><i class='bx bx-copy'></i>Copiar cotización</button>
+            <button id="openQuoteModal" class="ghost-btn" type="button"><i class='bx bx-archive'></i>Ver cotizaciones guardadas</button>
+          </div>
+        </div>
+        <div class="resource-row">
+          <div class="resource-card">
+            <div class="resource-preview" style="background-image:url('img/Template/InfoAuto.jpg');"></div>
+            <div class="resource-meta">
+              <p class="eyebrow">Logo InfoAuto</p>
+              <p class="muted tiny">Úsalo como imagen de respaldo en envíos al cliente.</p>
+            </div>
+            <div class="actions compact">
+              <button id="viewInfoAuto" class="ghost-btn" type="button"><i class='bx bx-show'></i>Ver imagen</button>
+              <button id="downloadInfoAuto" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar</button>
+            </div>
+          </div>
+          <div class="resource-card">
+            <div class="resource-preview" style="background-image:url('img/Template/FotosReferenciaParaCliente.jpg');"></div>
+            <div class="resource-meta">
+              <p class="eyebrow">Imagen de referencia</p>
+              <p class="muted tiny">Descárgala para compartir junto a la cotización.</p>
+            </div>
+            <div class="actions compact">
+              <button id="viewClientReference" class="ghost-btn" type="button"><i class='bx bx-show'></i>Ver imagen</button>
+              <button id="downloadClientReference" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar imagen de Referencia para cliente</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid two">
+          <div class="card form">
+            <div class="field">
+              <label for="clientName">Cliente</label>
+              <div class="picker-row">
+                <input id="clientName" placeholder="Nombre y apellido" />
+                <button id="openClientPicker" class="secondary-btn" type="button"><i class='bx bx-user-voice'></i>Seleccionar...</button>
+              </div>
+              <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
+            </div>
+            <div class="field">
+              <label for="planModel">Modelo</label>
+              <select id="planModel"></select>
+            </div>
+            <div class="field">
+              <label for="planType">Plan</label>
+              <select id="planType">
+                <option value="2a12">2 a 12</option>
+                <option value="13a21">13 a 21</option>
+                <option value="22a84">22 a 84</option>
+                <option value="85a120">85 a 120</option>
+                <option value="ctapura">Cuota pura</option>
+              </select>
+              <p class="muted tiny" id="planProfileHelper">Plan sugerido según el modelo.</p>
+            </div>
+            <div class="field inline">
+              <label class="toggle">
+                <input type="checkbox" id="tradeIn" checked>
+                <span>Entrega llave por llave</span>
+              </label>
+              <div class="money-field">
+                <span class="prefix">$</span>
+                <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+              </div>
+            </div>
+            <div class="field-group">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Reservas editables</p>
+                  <p class="muted tiny">Usa los valores sugeridos por modelo o ajusta para tentar al cliente.</p>
+                </div>
+                <div class="reservation-actions">
+                  <button id="calcReservation3" class="ghost-btn" type="button"><i class='bx bx-calculator'></i>Calcular 3 cuotas sin interés</button>
+                  <button id="calcReservation6" class="ghost-btn" type="button"><i class='bx bx-math'></i>Calcular 6 cuotas</button>
+                </div>
+              </div>
+              <div class="reservation-grid">
+                <div class="field">
+                  <label for="reservation1">Precio en 1 cuota</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="reservation1" class="money" type="text" inputmode="numeric" placeholder="Valor de reserva en 1 cuota" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="reservation3">Precio en 3 cuotas</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 3" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="reservation6">Precio en 6 cuotas</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 6" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="notes">Notas internas</label>
+              <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <p class="eyebrow">Resultado</p>
+              <h3>Resumen del plan</h3>
+            </div>
+            <div id="planSummary" class="summary"></div>
+            <div class="card-foot note">
+              <p class="muted tiny">Las cotizaciones se gestionan ahora desde el pop up dedicado con carga, copia, descarga y confirmaciones.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="clientManager" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Clientes importados</p>
+            <h2>Gestor de Clientes</h2>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="client-controls">
+            <div class="advisor-combo">
+              <div class="combo-head">Asesor activo</div>
+              <div class="combo-shell">
+                <i class='bx bx-user-voice'></i>
+                <select id="advisorSelector" disabled></select>
+              </div>
+            </div>
+            <div class="toggles">
+              <label class="toggle" title="Agrupar registros por modelo de vehículo">
+                <input type="checkbox" id="groupByModel" checked>
+                <span>Agrupar por modelo</span>
+              </label>
+              <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+                <i class='bx bx-filter-alt'></i>
+                <div class="filter-label">
+                  <span class="muted tiny">Mostrar:</span>
+                  <strong id="statusFilterLabel">Todos</strong>
+                </div>
+                <select id="statusFilter">
+                  <option value="all">Todos</option>
+                  <option value="contacted">Contactado</option>
+                  <option value="no_number">Número no disponible</option>
+                  <option value="favorite">Favoritos</option>
+                  <option value="pending">Pendientes</option>
+                </select>
+              </div>
+              <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+            </div>
+          </div>
+          <div class="search-row">
+            <div class="search-field expanded">
+              <i class='bx bx-search'></i>
+              <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+            </div>
+          </div>
+          <div id="dateFilterHelper" class="muted tiny"></div>
+          <div class="column-pills" id="columnToggles"></div>
+          <div class="table-wrapper dense">
+            <div class="data-grid" id="clientManagerTable">
+              <div class="grid-head"></div>
+              <div class="grid-body"></div>
+            </div>
+          </div>
+          <p id="clientManagerHelper" class="muted tiny"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="popover-overlay" id="paletteOverlay">
+    <div class="popover" id="palettePopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Colores de estados</p>
+          <h3>Personaliza los resaltados de filas</h3>
+          <p class="muted subtle">Se aplican a toda la fila, columna de estado y etiquetas.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closePalette"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="palette-grid">
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Cliente contactado</p>
+            <input type="color" data-status-color="contacted" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="contacted" />
+          </div>
+        </div>
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Número no disponible</p>
+            <input type="color" data-status-color="noNumber" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="noNumber" />
+          </div>
+        </div>
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Favorito</p>
+            <input type="color" data-status-color="favorite" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="favorite" />
+          </div>
+        </div>
+        <div class="palette-row">
+          <div>
+            <p class="muted tiny">Pendiente</p>
+            <input type="color" data-status-color="pending" />
+          </div>
+          <div class="slider-group">
+            <label>Opacidad</label>
+            <input type="range" min="5" max="80" data-status-opacity="pending" />
+          </div>
+        </div>
+      </div>
+      <div class="actions compact end">
+        <button class="primary-btn" id="applyPalette"><i class='bx bx-check-double'></i> Guardar colores</button>
+      </div>
+    </div>
+  </div>
+  <div id="toastContainer" class="toast-container"></div>
+  <div id="exportModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Exportar clientes</p>
+          <h3>Elige cómo quieres exportar</h3>
+          <p class="muted" id="exportHelperText">Configura el método y las columnas a incluir.</p>
+        </div>
+        <button id="exportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="option-stack two-cols">
+        <label class="option-card">
+          <input type="radio" name="exportMode" value="local" checked>
+          <div>
+            <strong>Excel - Datos Ordenados por este Sistema</strong>
+            <p class="muted tiny">Usa los campos locales y respeta el orden que definas abajo.</p>
+          </div>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="exportMode" value="preset">
+          <div>
+            <strong>Excel - Igualar Cabezales Predet.</strong>
+            <p class="muted tiny">Exporta con encabezados fijos: CUIT0, DOC, FECNAC, NOMBRE, OLOC, OPCIA, CP, CELULAR12, FECHA1, MARCA, MODELO, TIPO.</p>
+          </div>
+        </label>
+      </div>
+      <div class="export-options">
+        <div class="export-options-head">
+          <div>
+            <p class="eyebrow">Contenido a exportar</p>
+            <h4>Activa, desactiva y reordena columnas</h4>
+            <p class="muted tiny">Todo está seleccionado por defecto. Usa las flechas para mover cada columna.</p>
+          </div>
+          <button id="exportSelectAll" class="ghost-btn"><i class='bx bx-check-double'></i>Seleccionar todo</button>
+        </div>
+        <div id="exportColumnsList" class="export-columns"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="exportCancel" class="ghost-btn">Cancelar</button>
+        <button id="exportConfirm" class="primary-btn"><i class='bx bx-download'></i>Exportar ahora</button>
+      </div>
+    </div>
+  </div>
+  <div id="clientPickerModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Seleccionar cliente</p>
+          <h3>Contactos importados</h3>
+          <p class="muted">Busca en la lista de clientes importados y aplica sus datos al plan.</p>
+        </div>
+        <button id="clientPickerClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="search-field expanded">
+        <i class='bx bx-search'></i>
+        <input id="clientPickerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+      </div>
+      <div id="clientPickerList" class="picker-list"></div>
+      <div class="modal-actions">
+        <button id="clientPickerCancel" class="ghost-btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="clientNoteModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Notas</p>
+          <h3 id="clientNoteTitle"></h3>
+          <p class="muted" id="clientNoteSubtitle"></p>
+        </div>
+        <button id="clientNoteClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="field textarea-field">
+        <label for="clientNoteText">Notas del cliente</label>
+        <textarea id="clientNoteText" rows="6" placeholder="Agrega recordatorios, acuerdos o detalles relevantes"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="clientNoteCancel" class="ghost-btn">Cerrar</button>
+        <button id="clientNoteSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div id="importDateModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Fecha de carga</p>
+          <h3>Aplicar fecha a los clientes importados</h3>
+          <p class="muted">Esta marca es opcional y te permitirá filtrar o exportar por día.</p>
+        </div>
+        <button id="importDateClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="option-stack">
+        <label class="option-card">
+          <input type="radio" name="importDateOption" value="today" checked>
+          <div>
+            <strong>Usar la fecha de hoy</strong>
+            <p class="muted tiny" id="importDateTodayLabel"></p>
+          </div>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="importDateOption" value="custom">
+          <div>
+            <strong>Elegir una fecha</strong>
+            <p class="muted tiny">Selecciona manualmente la fecha de carga.</p>
+            <input type="date" id="importCustomDate">
+          </div>
+        </label>
+        <label class="option-card">
+          <input type="radio" name="importDateOption" value="none">
+          <div>
+            <strong>No insertar fecha</strong>
+            <p class="muted tiny">Se conservará vacío para estos registros.</p>
+          </div>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="importDateCancel" class="ghost-btn">Cancelar</button>
+        <button id="importDateConfirm" class="primary-btn"><i class='bx bx-check-double'></i>Confirmar</button>
+      </div>
+    </div>
+  </div>
+  <div id="dateFilterModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Filtrar por fecha</p>
+          <h3>Rango de fechas de carga</h3>
+          <p class="muted">Aplica un rango opcional según la fecha de carga al sistema.</p>
+        </div>
+        <button id="dateFilterClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="field">
+        <label for="dateFilterFrom">Desde</label>
+        <input type="date" id="dateFilterFrom">
+      </div>
+      <div class="field">
+        <label for="dateFilterTo">Hasta</label>
+        <input type="date" id="dateFilterTo">
+      </div>
+      <div class="modal-actions">
+        <button id="clearDateFilter" class="ghost-btn">Limpiar filtro</button>
+        <button id="applyDateFilter" class="primary-btn"><i class='bx bx-filter-alt'></i>Aplicar filtro</button>
+      </div>
+    </div>
+  </div>
+  <div id="quoteModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Cotizaciones previas</p>
+          <h3>Guardar, cargar o eliminar</h3>
+          <p class="muted">Gestiona historial con confirmaciones y copias rápidas.</p>
+        </div>
+        <button id="quoteModalClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="search-field expanded">
+        <i class='bx bx-search'></i>
+        <input id="quoteSearch" placeholder="Escribe cualquier contenido a buscar..." />
+      </div>
+      <div id="quoteList" class="quote-list"></div>
+      <div class="modal-actions">
+        <button id="quoteModalCancel" class="ghost-btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="modalEyebrow">Confirmación</p>
+          <h3 id="modalTitle"></h3>
+          <p class="muted" id="modalMessage"></p>
+        </div>
+        <button id="modalClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions">
+        <button id="modalCancel" class="ghost-btn">Cancelar</button>
+        <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
