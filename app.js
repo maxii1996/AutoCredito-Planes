@@ -1867,10 +1867,11 @@ function resolveVehiclePrice(vehicle, customPrice) {
 
 function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType) {
   if (!totalInstallments) return 0;
-  if (!customPrice && vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
   if (!customPrice && vehicle?.cuotaPura) return vehicle.cuotaPura;
+  if (!customPrice && vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
   return financedAmount / totalInstallments;
 }
+
 
 function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0) {
   if (!totalInstallments || !cuotaPura) {
