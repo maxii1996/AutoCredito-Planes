@@ -34,54 +34,84 @@ const defaultVehicles = [
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: { '2a12': 320051, '13a21': 313692, '22a84': 312912, '85a120': 311352 },
     cuotaPura: 202873,
-    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 }
+    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
-    shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369046, '85a120': 368971 },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
     cuotaPura: 253591,
-    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 }
+    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'LA NUEVA MONTANA LT 1.2 AT',
     basePrice: 37808900,
     integration: 11342670,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 310714 },
     cuotaPura: 252059,
-    reservations: { '1': 1211400, '3': 1574820, '6': 1817100 }
+    reservations: { '1': 1211400, '3': 1574820, '6': 1817100 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'LA NUEVA S10 CD 2.8 TD 4x2 WT',
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
+    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
-    reservations: { '1': 1825000, '3': 2372500, '6': 2737500 }
+    reservations: { '1': 1825000, '3': 2372500, '6': 2737500 },
+    benefits: {
+      pactada: 'Acepta llave x llave',
+      bonificacion: 'Débito automático obligatorio con TC'
+    }
   },
   {
     name: 'NUEVA TRACKER LT 1.2AT',
     basePrice: 37823900,
     integration: 11347170,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156 },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156, '85a120': 310714 },
     cuotaPura: 252159,
-    reservations: { '1': 1211710, '3': 1575223, '6': 1817565 }
+    reservations: { '1': 1211710, '3': 1575223, '6': 1817565 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'NUEVA SPIN 1.8 LT 5AA MT',
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
+    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914 },
     cuotaPura: 292641,
-    reservations: { '1': 1177600, '3': 1530880, '6': 1766400 }
+    reservations: { '1': 1177600, '3': 1530880, '6': 1766400 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   }
 ];
 
@@ -194,7 +224,9 @@ function cloneVehicles(list) {
     ...v,
     shareByPlan: { ...v.shareByPlan },
     reservations: { ...v.reservations },
-    planProfile: { ...(v.planProfile || {}) }
+    planProfile: { ...(v.planProfile || {}) },
+    benefits: { ...(v.benefits || {}) },
+    availablePlans: v.availablePlans ? [...v.availablePlans] : undefined
   }));
 }
 
@@ -1476,16 +1508,26 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
   const planSelect = document.getElementById('planType');
   const helper = document.getElementById('planProfileHelper');
   const vehicle = vehicles[modelIdx] || vehicles[0];
+  const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
+  if (planSelect) {
+    Array.from(planSelect.options || []).forEach(opt => {
+      const allowed = available.includes(opt.value);
+      opt.disabled = !allowed;
+      opt.hidden = !allowed;
+    });
+  }
   if (resetManual && planSelect) planSelect.dataset.manual = '';
   if (vehicle?.planProfile?.planType && planSelect) {
     if (!preserveExisting || planSelect.dataset.manual !== 'true') {
-      planSelect.value = vehicle.planProfile.planType;
+      planSelect.value = available.includes(vehicle.planProfile.planType) ? vehicle.planProfile.planType : available[0];
     }
+    if (!available.includes(planSelect.value)) planSelect.value = available[0];
   }
   if (helper) {
-    helper.textContent = vehicle?.planProfile?.label
-      ? `Plan establecido: ${vehicle.planProfile.label}`
-      : 'Plan establecido según el modelo.';
+    const planLabel = vehicle?.planProfile?.label ? `Plan establecido: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
+    const benefit = vehicle?.benefits?.bonificacion || '';
+    const pactada = vehicle?.benefits?.pactada || '';
+    helper.textContent = [planLabel, benefit, pactada].filter(Boolean).join(' • ');
   }
 }
 
@@ -1784,20 +1826,35 @@ function resolveTotalInstallments(planType, vehiclePlanProfileType) {
 }
 
 function resolvePlanScheme(vehicle) {
-  const label = (vehicle?.planProfile?.label || '').toLowerCase();
+  const profile = vehicle?.planProfile || {};
+  if (Number.isFinite(profile.financedPct) || Number.isFinite(profile.integrationPct)) {
+    const financedPct = Number.isFinite(profile.financedPct) ? profile.financedPct : Math.max(0, 1 - (profile.integrationPct || 0));
+    const integrationPct = Number.isFinite(profile.integrationPct) ? profile.integrationPct : Math.max(0, 1 - financedPct);
+    return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+  }
+
+  const basePrice = Number(vehicle?.basePrice || 0);
+  const integrationValue = Number(vehicle?.integration || 0);
+  if (basePrice > 0 && integrationValue > 0) {
+    const integrationPct = Math.min(Math.max(integrationValue / basePrice, 0), 1);
+    const financedPct = Math.max(1 - integrationPct, 0);
+    return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+  }
+
+  const label = (profile.label || '').toLowerCase();
   const numericMatch = label.match(/(\d{2})\s*\/\s*(\d{2})/);
   if (numericMatch) {
     const financedPct = Number(numericMatch[1]) / 100;
     const integrationPct = Number(numericMatch[2]) / 100;
     if (financedPct + integrationPct === 1) {
-      return { financedPct, integrationPct, label: vehicle?.planProfile?.label || 'Plan personalizado' };
+      return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
     }
   }
-  if (label.includes('100')) return { financedPct: 1, integrationPct: 0, label: vehicle?.planProfile?.label || '100% fábrica' };
-  if (label.includes('80')) return { financedPct: 0.8, integrationPct: 0.2, label: vehicle?.planProfile?.label || '80/20' };
-  if (label.includes('70')) return { financedPct: 0.7, integrationPct: 0.3, label: vehicle?.planProfile?.label || '70/30' };
-  if (label.includes('60')) return { financedPct: 0.6, integrationPct: 0.4, label: vehicle?.planProfile?.label || '60/40' };
-  return { financedPct: 1, integrationPct: 0, label: vehicle?.planProfile?.label || '100% fábrica' };
+  if (label.includes('100')) return { financedPct: 1, integrationPct: 0, label: profile.label || '100% fábrica' };
+  if (label.includes('80')) return { financedPct: 0.8, integrationPct: 0.2, label: profile.label || '80/20' };
+  if (label.includes('70')) return { financedPct: 0.7, integrationPct: 0.3, label: profile.label || '70/30' };
+  if (label.includes('60')) return { financedPct: 0.6, integrationPct: 0.4, label: profile.label || '60/40' };
+  return { financedPct: 1, integrationPct: 0, label: profile.label || '100% fábrica' };
 }
 
 function resolveVehiclePrice(vehicle, customPrice) {
@@ -1948,11 +2005,17 @@ function updatePlanSummary() {
   const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
   const firstPayable = Math.max(projection.kickoffInstallment, 1);
   const scheme = projection.scheme || { financedPct: 1, integrationPct: 0, label: 'Plan' };
+  const integrationPctLabel = `${Math.round((scheme.integrationPct || 0) * 100)}%`;
+
+  const planProfileTag = document.getElementById('planProfileTag');
+  if (planProfileTag) {
+    planProfileTag.textContent = v.planProfile?.label || 'Plan personalizado';
+  }
 
   const rows = [
     { label: 'Modelo', value: v.name },
     { label: priceSource, value: currency.format(projection.price) },
-    { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)}` },
+    { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
     { label: 'Plan seleccionado', value: planLabel(plan) },
     { label: 'Plan recomendado', value: v.planProfile?.label || 'Personalizar' },
     { label: 'Cuota pura del plan', value: projection.cuotaPura ? currency.format(projection.cuotaPura) : 'Completar manual' },
@@ -2023,6 +2086,23 @@ function updatePlanSummary() {
       </div>
     </div>
   `).join('');
+
+  const perks = document.getElementById('planPerks');
+  if (perks) {
+    const perkItems = [
+      { title: 'Chevroplan pactada', detail: v.benefits?.pactada || 'Plan estándar', icon: '🔑' },
+      { title: 'Bonificación', detail: v.benefits?.bonificacion || 'Sin bonificación activa', icon: '🎁' },
+      { title: 'Reservas del mes', detail: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})`, icon: '🧾' },
+      { title: 'Integración objetivo', detail: `${currency.format(projection.integrationTarget)} · ${integrationPctLabel} del valor`, icon: '🧮' },
+      { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} · ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} desde la ${firstPayable}`, icon: '📈' }
+    ];
+    perks.innerHTML = perkItems.map(p => `
+      <div class="perk-card">
+        <div class="perk-chip">${p.icon}<span>${p.title}</span></div>
+        <p class="muted tiny">${p.detail}</p>
+      </div>
+    `).join('');
+  }
 
   const timelineTrack = document.getElementById('planTimelineTrack');
   if (timelineTrack) {
