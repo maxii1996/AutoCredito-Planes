@@ -122,7 +122,8 @@ const presetExportHeaders = [
   { key: 'systemDate', label: 'FECHA1' },
   { key: 'brand', label: 'MARCA' },
   { key: 'model', label: 'MODELO' },
-  { key: 'type', label: 'TIPO' }
+  { key: 'type', label: 'TIPO' },
+  { key: 'status', label: 'ESTADO' }
 ];
 
 const defaultClientManagerState = {
@@ -776,6 +777,16 @@ function clientStatus(client = {}) {
   if (flags.favorite) return { label: 'Favorito', className: 'status-favorite' };
   if (flags.contacted) return { label: 'Contactado', className: 'status-contacted' };
   return { label: 'Pendiente', className: 'status-pending' };
+}
+
+function statusLabelFromType(value) {
+  const text = (value || '').toString().trim().toLowerCase();
+  if (!text) return '';
+  if (text.includes('no') && text.includes('dispon')) return 'Número no disponible';
+  if (text.includes('favor')) return 'Favorito';
+  if (text.includes('contact')) return 'Contactado';
+  if (text.includes('pend')) return 'Pendiente';
+  return '';
 }
 
 function initialTemplate() {
@@ -2567,7 +2578,7 @@ function exportValue(key, client) {
     case 'systemDate': return formatDateForDisplay(client.systemDate);
     case 'postalCode': return client.postalCode || '';
     case 'type': return normalizeNotesValue(client.type);
-    case 'status': return clientStatus(client).label;
+    case 'status': return client.statusOverride || clientStatus(client).label;
     default: return client[key] || '';
   }
 }
@@ -2582,10 +2593,14 @@ function buildLocalExportData(rows, options) {
 }
 
 function buildPresetExportData(rows) {
-  return rows.map(client => presetExportHeaders.reduce((acc, { key, label }) => {
-    acc[label] = exportValue(key, client);
-    return acc;
-  }, {}));
+  return rows.map(client => {
+    const statusFromType = statusLabelFromType(client.type);
+    const exportClient = statusFromType ? { ...client, statusOverride: statusFromType } : client;
+    return presetExportHeaders.reduce((acc, { key, label }) => {
+      acc[label] = exportValue(key, exportClient);
+      return acc;
+    }, {});
+  });
 }
 
 function exportManagerClients() {

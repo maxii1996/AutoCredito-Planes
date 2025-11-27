@@ -92,6 +92,15 @@ body.menu-collapsed .sidebar-foot { display: none; }
 .mini { color: var(--muted); font-size: 12px; margin: 0; }
 
 .content { padding: 32px 36px 40px; }
+.app-footer {
+  grid-column: 1 / -1;
+  padding: 12px 24px 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  background: #0b0f19;
+}
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .title-area { display: flex; align-items: center; gap: 12px; }
 .menu-toggle { border-radius: 50%; border: 1px solid var(--border); background: #11172a; box-shadow: var(--shadow); }
