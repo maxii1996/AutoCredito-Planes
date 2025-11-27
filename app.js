@@ -2114,22 +2114,20 @@ function updatePlanSummary() {
 
   const timeline = document.getElementById('planTimeline');
   const timelineSteps = [
-    { title: 'Reserva (gasto aparte)', detail: reservationText, icon: '🏁', tone: 'amber' },
-    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}`, icon: '🧭', tone: 'teal' },
-    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado', icon: '🚗', tone: 'indigo' },
-    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}`, icon: '💳', tone: 'blue' }
+    { title: 'Reserva (gasto aparte)', detail: reservationText },
+    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}` },
+    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado' },
+    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}` }
   ];
-  if (timeline) {
-    timeline.innerHTML = timelineSteps.map(step => `
-      <div class="timeline-row" data-tone="${step.tone}">
-        <div class="timeline-dot">${step.icon}</div>
-        <div>
-          <h4>${step.title}</h4>
-          <p class="muted tiny">${step.detail}</p>
-        </div>
+  timeline.innerHTML = timelineSteps.map(step => `
+    <div class="timeline-row">
+      <div class="timeline-dot"></div>
+      <div>
+        <h4>${step.title}</h4>
+        <p class="muted tiny">${step.detail}</p>
       </div>
-    `).join('');
-  }
+    </div>
+  `).join('');
 
   const perks = document.getElementById('planPerks');
   if (perks) {
@@ -2148,83 +2146,18 @@ function updatePlanSummary() {
     `).join('');
   }
 
-  const timelineProgress = document.getElementById('planTimelineProgress');
-  const timelineMilestones = document.getElementById('planTimelineMilestones');
-  if (timelineProgress) {
+  const timelineTrack = document.getElementById('planTimelineTrack');
+  if (timelineTrack) {
     const total = projection.totalInstallments || 1;
-    const segmentsData = [];
-
-    if (projection.selectedReservation) {
-      const reservationLength = Math.max(Number(appliedReservation) || 1, 1);
-      const basis = Math.max((reservationLength / total) * 100, 6);
-      segmentsData.push({
-        type: 'reservation',
-        title: 'Reserva aplicada',
-        range: appliedReservation !== 'none' ? `${appliedReservation} pago(s)` : 'Reserva manual',
-        body: reservationText,
-        pills: [currency.format(projection.selectedReservation), appliedReservation !== 'none' ? `${appliedReservation} cuotas` : 'Pendiente de usar'],
-        flex: reservationLength,
-        basis,
-        icon: '🧾'
-      });
-    }
-
+    const chunks = [];
     (projection.coverageSegments || []).forEach(segment => {
-      const length = segment.covered || (segment.partial ? 1 : 0) || 1;
-      const basis = Math.max((length / total) * 100, 6);
-      const range = segment.covered > 1 ? `Cuotas ${segment.from}-${segment.to}` : `Cuota ${segment.from}`;
-      const pills = [
-        segment.amount ? currency.format(segment.amount) : '',
-        segment.partial ? `${currency.format(segment.partial)} parcial` : `${length} cuota(s) cubiertas`
-      ].filter(Boolean);
-      segmentsData.push({
-        type: segment.type,
-        title: segment.label,
-        range,
-        body: segment.partial ? 'Cobertura parcial aplicada' : 'Cuotas ya bonificadas con aportes',
-        pills,
-        flex: length,
-        basis,
-        icon: '💰'
-      });
+      const length = segment.covered || (segment.partial ? 1 : 0);
+      const width = Math.max((length / total) * 100, 2);
+      chunks.push(`<div class="timeline-chunk" data-type="${segment.type}" style="width:${width}%">${segment.label} (${segment.from}-${segment.to})</div>`);
     });
-
-    const outstandingBasis = Math.max((remainingInstallments / total) * 100, 8);
-    segmentsData.push({
-      type: 'outstanding',
-      title: 'Saldo pendiente',
-      range: `Desde cuota ${firstPayable} hasta ${projection.totalInstallments}`,
-      body: `${currency.format(projection.outstanding)} · Cuota pura ${currency.format(projection.cuotaPura || 0)}`,
-      pills: [`${remainingInstallments} cuota(s) restantes`, `Inicio ${firstPayable}`],
-      flex: remainingInstallments || 1,
-      basis: outstandingBasis,
-      icon: '📈'
-    });
-
-    timelineProgress.innerHTML = segmentsData.map(segment => `
-      <div class="timeline-segment" data-type="${segment.type}" style="flex:${segment.flex} 0 clamp(160px, ${segment.basis}%, 420px);">
-        <p class="segment-title">${segment.icon}<span>${segment.title}</span></p>
-        <p class="segment-range">${segment.range}</p>
-        <p class="segment-body">${segment.body}</p>
-        <div class="segment-meta">${segment.pills.map(p => `<span class="pill">${p}</span>`).join('')}</div>
-      </div>
-    `).join('');
-  }
-
-  if (timelineMilestones) {
-    const milestoneItems = [
-      { label: 'Integración objetivo', value: currency.format(projection.integrationTarget), pill: `Resta ${currency.format(projection.integrationRemaining)}` },
-      { label: 'Aporte inicial', value: currency.format(projection.aporteInicial || 0), pill: tradeIn ? 'Con toma de usado' : 'Sin usado aplicado' },
-      { label: 'Cuotas cubiertas', value: coveredText, pill: partialText || 'Aún sin parcial' },
-      { label: 'Saldo en plan', value: currency.format(projection.outstanding), pill: `${remainingInstallments} cuota(s) pendientes` }
-    ];
-    timelineMilestones.innerHTML = milestoneItems.map(item => `
-      <div class="milestone-card">
-        <p class="label">${item.label}</p>
-        <p class="value">${item.value}</p>
-        <span class="pill">${item.pill}</span>
-      </div>
-    `).join('');
+    const remainingWidth = Math.max((remainingInstallments / total) * 100, 2);
+    chunks.push(`<div class="timeline-chunk" data-type="outstanding" style="width:${remainingWidth}%">Saldo pendiente (${remainingInstallments} cuotas)</div>`);
+    timelineTrack.innerHTML = chunks.join('');
   }
   savePlanDraft();
 }
