@@ -239,7 +239,7 @@
               </div>
               <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
             </div>
-            <div class="mini-grid two">
+            <div class="form-grid three">
               <div class="field">
                 <label for="planModel">Auto a cotizar</label>
                 <select id="planModel"></select>
@@ -255,16 +255,6 @@
                 </select>
                 <p class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</p>
               </div>
-            </div>
-            <div class="mini-grid two">
-              <div class="field">
-                <label for="customPrice">Precio personalizado</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Ej: 32.500.000" />
-                </div>
-                <p class="muted tiny">Solo cambia la cuota pura y el saldo.</p>
-              </div>
               <div class="field">
                 <label class="toggle compact">
                   <input type="checkbox" id="tradeIn" checked>
@@ -274,6 +264,25 @@
                   <span class="prefix">$</span>
                   <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
                 </div>
+              </div>
+            </div>
+            <div class="form-grid two">
+              <div class="field">
+                <label for="customPrice">Precio personalizado</label>
+                <div class="money-field">
+                  <span class="prefix">$</span>
+                  <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Ej: 32.500.000" />
+                </div>
+                <p class="muted tiny">Solo cambia la cuota pura y el saldo.</p>
+              </div>
+              <div class="field">
+                <label for="appliedReservation">Reserva informativa</label>
+                <select id="appliedReservation">
+                  <option value="1">Reserva en 1 cuota</option>
+                  <option value="3">Reserva en 3 cuotas</option>
+                  <option value="6">Reserva en 6 cuotas</option>
+                </select>
+                <p class="muted tiny">La reserva se paga aparte: asegura el cupo sin afectar el saldo.</p>
               </div>
             </div>
             <div class="field-group compact">
@@ -310,16 +319,6 @@
                   </div>
                 </div>
               </div>
-              <div class="field">
-                <label for="appliedReservation">Reserva informativa</label>
-                <select id="appliedReservation">
-                  <option value="none">Sin aplicar reserva</option>
-                  <option value="1">Reserva en 1 cuota</option>
-                  <option value="3">Reserva en 3 cuotas</option>
-                  <option value="6">Reserva en 6 cuotas</option>
-                </select>
-                <p class="muted tiny">La reserva se paga aparte: asegura el cupo sin afectar el saldo.</p>
-              </div>
             </div>
             <div class="field">
               <label for="notes">Notas internas</label>
@@ -354,6 +353,7 @@
                   <div class="timeline-legend">
                     <span class="legend-chip reservation">Reserva</span>
                     <span class="legend-chip tradeIn">Usado</span>
+                    <span class="legend-chip integration">Integración</span>
                     <span class="legend-chip pending">Saldo</span>
                   </div>
                   <div id="planTimelineTrack" class="timeline-track"></div>

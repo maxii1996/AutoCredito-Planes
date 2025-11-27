@@ -1782,6 +1782,7 @@ function renderPlanForm() {
       calc6.dataset.bound = 'true';
     }
     const appliedReservation = document.getElementById('appliedReservation');
+    if (!['1', '3', '6'].includes(appliedReservation.value)) appliedReservation.value = '1';
     appliedReservation.addEventListener('change', updatePlanSummary);
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
@@ -1921,7 +1922,7 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
   return { segments, coveredInstallments, partialCover, kickoffInstallment, remainingInstallments };
 }
 
-function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = 'none', customPrice = 0 }) {
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
   const price = resolveVehiclePrice(vehicle, customPrice);
@@ -1929,8 +1930,9 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   const integrationTarget = price * scheme.integrationPct;
   const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice);
 
-  const selectedReservation = appliedReservation && appliedReservation !== 'none' ? reservations[appliedReservation] || 0 : 0;
-  const reservationMeta = { total: selectedReservation, mode: appliedReservation };
+  const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
+  const selectedReservation = reservations[normalizedReservation] || 0;
+  const reservationMeta = { total: selectedReservation, mode: normalizedReservation };
 
   const tradeInAmount = tradeInEnabled ? Math.max(tradeInValue, 0) : 0;
   const integrationCovered = Math.min(tradeInAmount, integrationTarget);
@@ -1972,7 +1974,11 @@ function updatePlanSummary() {
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
-  const appliedReservation = document.getElementById('appliedReservation').value;
+  const appliedReservationRaw = document.getElementById('appliedReservation').value;
+  const appliedReservation = ['1', '3', '6'].includes(appliedReservationRaw) ? appliedReservationRaw : '1';
+  if (appliedReservationRaw !== appliedReservation) {
+    document.getElementById('appliedReservation').value = appliedReservation;
+  }
   const v = vehicles[modelIdx] || vehicles[0];
   if (!v) return;
   const reserva1 = getReservationValue('reservation1', v.reservations['1']);
@@ -2002,7 +2008,7 @@ function updatePlanSummary() {
   const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
   const reservationText = projection.selectedReservation
     ? `${currency.format(projection.selectedReservation)} · ${appliedReservation} cuota(s). Es un gasto adicional, no descuenta el plan.`
-    : 'Pendiente de definir. La reserva se paga aparte para asegurar el cupo.';
+    : 'Completa el valor de la reserva para continuar.';
   const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
   const firstPayable = Math.max(projection.kickoffInstallment, 1);
   const scheme = projection.scheme || { financedPct: 1, integrationPct: 0, label: 'Plan' };
@@ -2019,7 +2025,7 @@ function updatePlanSummary() {
       {
         title: 'Reserva',
         amount: projection.selectedReservation ? currency.format(projection.selectedReservation) : 'Definir',
-        detail: appliedReservation !== 'none' ? `${appliedReservation} cuota(s)` : 'Solo informativa',
+        detail: `${appliedReservation} cuota(s)`,
         tone: 'reservation'
       },
       {
@@ -2087,7 +2093,7 @@ function updatePlanSummary() {
       {
         title: 'Reserva adicional',
         detail: reservationText,
-        chips: [currency.format(projection.selectedReservation || 0), appliedReservation !== 'none' ? `${appliedReservation} cuota(s)` : 'Sin definir'],
+        chips: [currency.format(projection.selectedReservation || 0), `${appliedReservation} cuota(s)`],
         kind: 'reservation'
       },
       {
@@ -2114,20 +2120,22 @@ function updatePlanSummary() {
 
   const timeline = document.getElementById('planTimeline');
   const timelineSteps = [
-    { title: 'Reserva (gasto aparte)', detail: reservationText },
-    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}` },
-    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado' },
-    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}` }
+    { title: 'Reserva (gasto aparte)', detail: reservationText, ok: projection.selectedReservation > 0 },
+    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}`, ok: projection.integrationRemaining <= 0 },
+    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado', ok: tradeIn && tradeInValue > 0 },
+    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}`, ok: projection.outstanding > 0 }
   ];
-  timeline.innerHTML = timelineSteps.map(step => `
+  timeline.innerHTML = timelineSteps.map(step => {
+    const statusClass = step.ok ? 'success' : 'warning';
+    return `
     <div class="timeline-row">
-      <div class="timeline-dot"></div>
+      <div class="timeline-dot ${statusClass}"><div class="inner"></div></div>
       <div>
         <h4>${step.title}</h4>
         <p class="muted tiny">${step.detail}</p>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
 
   const perks = document.getElementById('planPerks');
   if (perks) {
@@ -2148,15 +2156,19 @@ function updatePlanSummary() {
 
   const timelineTrack = document.getElementById('planTimelineTrack');
   if (timelineTrack) {
-    const total = projection.totalInstallments || 1;
-    const chunks = [];
-    (projection.coverageSegments || []).forEach(segment => {
-      const length = segment.covered || (segment.partial ? 1 : 0);
-      const width = Math.max((length / total) * 100, 2);
-      chunks.push(`<div class="timeline-chunk" data-type="${segment.type}" style="width:${width}%">${segment.label} (${segment.from}-${segment.to})</div>`);
+    const segments = [
+      { type: 'reservation', label: 'Reserva', amount: projection.selectedReservation || 0, detail: `${appliedReservation} cuota(s)` },
+      { type: 'tradeIn', label: 'Usado', amount: projection.aporteInicial || 0, detail: tradeIn ? 'Aplicado al plan' : 'Sin usado' },
+      { type: 'integration', label: 'Integración', amount: Math.max(projection.integrationTarget - projection.integrationCovered, 0), detail: `Objetivo ${currency.format(projection.integrationTarget)}` },
+      { type: 'outstanding', label: 'Saldo', amount: projection.outstanding || 0, detail: `${remainingInstallments} cuota(s)` }
+    ];
+
+    const totalAmount = segments.reduce((acc, seg) => acc + Math.max(seg.amount, 0), 0) || 1;
+    const chunks = segments.map(seg => {
+      const width = Math.max((Math.max(seg.amount, 0) / totalAmount) * 100, 8);
+      const amountLabel = currency.format(seg.amount || 0);
+      return `<div class="timeline-chunk" data-type="${seg.type}" data-label="${seg.label}" style="width:${width}%"><span>${amountLabel}</span><span>${seg.detail}</span></div>`;
     });
-    const remainingWidth = Math.max((remainingInstallments / total) * 100, 2);
-    chunks.push(`<div class="timeline-chunk" data-type="outstanding" style="width:${remainingWidth}%">Saldo pendiente (${remainingInstallments} cuotas)</div>`);
     timelineTrack.innerHTML = chunks.join('');
   }
   savePlanDraft();
@@ -2265,7 +2277,7 @@ function applyQuoteToForm(quote) {
   document.getElementById('planType').dataset.manual = 'true';
   setMoneyValue(document.getElementById('customPrice'), quote.customPrice || '');
   if (parseMoney(quote.customPrice)) document.getElementById('customPrice').dataset.manual = 'true';
-  document.getElementById('appliedReservation').value = quote.appliedReservation || 'none';
+  document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(quote.appliedReservation) ? quote.appliedReservation : '1';
   document.getElementById('tradeIn').checked = !!quote.tradeIn;
   setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
   setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
@@ -2298,7 +2310,7 @@ function applyPlanDraft() {
   const customPriceInput = document.getElementById('customPrice');
   setMoneyValue(customPriceInput, draft.customPrice || '');
   if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
-  document.getElementById('appliedReservation').value = draft.appliedReservation || 'none';
+  document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(draft.appliedReservation) ? draft.appliedReservation : '1';
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
   document.getElementById('notes').value = draft.notes || '';
