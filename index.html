@@ -224,113 +224,133 @@
             </div>
           </div>
         </div>
-        <div class="grid two">
-          <div class="card form">
+        <div class="quote-layout">
+          <aside class="card form quote-form">
+            <div class="card-head compact">
+              <p class="eyebrow">Carga rápida</p>
+              <h3>Datos de cotización</h3>
+              <p class="muted tiny">Solo ocupamos el 20% de la pantalla para ingresar datos.</p>
+            </div>
             <div class="field">
               <label for="clientName">Cliente</label>
-              <div class="picker-row">
+              <div class="picker-row dense">
                 <input id="clientName" placeholder="Nombre y apellido" />
-                <button id="openClientPicker" class="secondary-btn" type="button"><i class='bx bx-user-voice'></i>Seleccionar...</button>
+                <button id="openClientPicker" class="secondary-btn mini" type="button"><i class='bx bx-user-voice'></i>Cliente</button>
               </div>
               <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
             </div>
-            <div class="field">
-              <label for="planModel">Modelo</label>
-              <select id="planModel"></select>
-            </div>
-            <div class="field">
-              <label for="planType">Plan</label>
-              <select id="planType">
-                <option value="2a12">2 a 12</option>
-                <option value="13a21">13 a 21</option>
-                <option value="22a84">22 a 84</option>
-                <option value="85a120">85 a 120</option>
-                <option value="ctapura">Cuota pura</option>
-              </select>
-              <p class="muted tiny" id="planProfileHelper">Plan sugerido según el modelo.</p>
-            </div>
-            <div class="field">
-              <label for="customPrice">Establecer precio del coche personalizado</label>
-              <div class="money-field">
-                <span class="prefix">$</span>
-                <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Ej: 32.500.000" />
+            <div class="mini-grid two">
+              <div class="field">
+                <label for="planModel">Auto a cotizar</label>
+                <select id="planModel"></select>
               </div>
-              <p class="muted tiny">Si se completa, este valor se usará para calcular cuota pura, saldo y cuotas restantes.</p>
-            </div>
-            <div class="field inline">
-              <label class="toggle">
-                <input type="checkbox" id="tradeIn" checked>
-                <span>Entrega llave por llave</span>
-              </label>
-              <div class="money-field">
-                <span class="prefix">$</span>
-                <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+              <div class="field">
+                <label for="planType">Plan asignado</label>
+                <select id="planType">
+                  <option value="2a12">2 a 12</option>
+                  <option value="13a21">13 a 21</option>
+                  <option value="22a84">22 a 84</option>
+                  <option value="85a120">85 a 120</option>
+                  <option value="ctapura">Cuota pura</option>
+                </select>
+                <p class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</p>
               </div>
             </div>
-            <div class="field-group">
+            <div class="mini-grid two">
+              <div class="field">
+                <label for="customPrice">Precio personalizado</label>
+                <div class="money-field">
+                  <span class="prefix">$</span>
+                  <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Ej: 32.500.000" />
+                </div>
+                <p class="muted tiny">Solo cambia la cuota pura y el saldo.</p>
+              </div>
+              <div class="field">
+                <label class="toggle compact">
+                  <input type="checkbox" id="tradeIn" checked>
+                  <span>Entrega llave x llave</span>
+                </label>
+                <div class="money-field">
+                  <span class="prefix">$</span>
+                  <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+                </div>
+              </div>
+            </div>
+            <div class="field-group compact">
               <div class="field-head">
                 <div>
                   <p class="eyebrow">Reservas editables</p>
-                  <p class="muted tiny">Usa los valores sugeridos por modelo o ajusta para tentar al cliente.</p>
+                  <p class="muted tiny">Valores del mes traducidos de la lista oficial.</p>
                 </div>
                 <div class="reservation-actions">
-                  <button id="calcReservation3" class="ghost-btn" type="button"><i class='bx bx-calculator'></i>Calcular 3 cuotas sin interés</button>
-                  <button id="calcReservation6" class="ghost-btn" type="button"><i class='bx bx-math'></i>Calcular 6 cuotas</button>
+                  <button id="calcReservation3" class="ghost-btn mini" type="button"><i class='bx bx-calculator'></i>3 cuotas</button>
+                  <button id="calcReservation6" class="ghost-btn mini" type="button"><i class='bx bx-math'></i>6 cuotas</button>
                 </div>
               </div>
-              <div class="reservation-grid">
+              <div class="reservation-grid compact">
                 <div class="field">
-                  <label for="reservation1">Precio en 1 cuota</label>
+                  <label for="reservation1">1 cuota</label>
                   <div class="money-field">
                     <span class="prefix">$</span>
-                    <input id="reservation1" class="money" type="text" inputmode="numeric" placeholder="Valor de reserva en 1 cuota" />
+                    <input id="reservation1" class="money" type="text" inputmode="numeric" placeholder="Reserva única" />
                   </div>
                 </div>
                 <div class="field">
-                  <label for="reservation3">Precio en 3 cuotas</label>
+                  <label for="reservation3">3 cuotas</label>
                   <div class="money-field">
                     <span class="prefix">$</span>
-                    <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 3" />
+                    <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva 3 pagos" />
                   </div>
                 </div>
                 <div class="field">
-                  <label for="reservation6">Precio en 6 cuotas</label>
+                  <label for="reservation6">6 cuotas</label>
                   <div class="money-field">
                     <span class="prefix">$</span>
-                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 6" />
+                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva 6 pagos" />
                   </div>
                 </div>
               </div>
-            <div class="field">
-              <label for="appliedReservation">Reserva informativa (no descuenta del plan)</label>
-              <select id="appliedReservation">
-                <option value="none">Sin aplicar reserva</option>
-                <option value="1">Reserva en 1 cuota</option>
-                <option value="3">Reserva en 3 cuotas</option>
-                <option value="6">Reserva en 6 cuotas</option>
-              </select>
-              <p class="muted tiny">La reserva se paga aparte para asegurar el cupo y no descuenta el saldo del plan de ahorro.</p>
+              <div class="field">
+                <label for="appliedReservation">Reserva informativa</label>
+                <select id="appliedReservation">
+                  <option value="none">Sin aplicar reserva</option>
+                  <option value="1">Reserva en 1 cuota</option>
+                  <option value="3">Reserva en 3 cuotas</option>
+                  <option value="6">Reserva en 6 cuotas</option>
+                </select>
+                <p class="muted tiny">La reserva se paga aparte: asegura el cupo sin afectar el saldo.</p>
+              </div>
             </div>
-          </div>
-          <div class="field">
-            <label for="notes">Notas internas</label>
-            <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
-          </div>
-        </div>
+            <div class="field">
+              <label for="notes">Notas internas</label>
+              <textarea id="notes" rows="3" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
+            </div>
+          </aside>
+
+          <div class="quote-details">
+            <div class="card flow-card">
+              <div class="card-head compact">
+                <p class="eyebrow">Línea de tiempo</p>
+                <h3>Diagrama del plan</h3>
+                <p class="muted tiny">Flechas superiores con los hitos clave. Texto fuera de la línea para que siempre se lea.</p>
+              </div>
+              <div id="planFlow" class="flow-rail"></div>
+              <div class="flow-foot">
+                <span class="chip muted" id="planProfileTag"></span>
+                <span class="chip muted">Sorteo y licitación desde cuota 2</span>
+              </div>
+            </div>
+
             <div class="card">
               <div class="card-head">
                 <p class="eyebrow">Resultado</p>
                 <h3>Resumen del plan</h3>
               </div>
-              <div class="timeline-board">
+              <div class="timeline-board compact">
                 <div class="timeline-top">
                   <div id="planTimelineRibbon" class="timeline-ribbon"></div>
-                  <div class="timeline-note">
-                    <span class="chip muted">Sorteo y licitación desde cuota 2</span>
-                    <span class="chip muted" id="planProfileTag"></span>
-                  </div>
                 </div>
-                <div class="timeline-visual">
+                <div class="timeline-visual wide">
                   <div class="timeline-legend">
                     <span class="legend-chip reservation">Reserva</span>
                     <span class="legend-chip tradeIn">Usado</span>
@@ -340,15 +360,14 @@
                 </div>
               </div>
               <div class="perks-grid" id="planPerks"></div>
-              <div id="planSummary" class="summary compact"></div>
-              <div id="planTimeline" class="timeline slim"></div>
+              <div class="summary compact two-cols" id="planSummary"></div>
+              <div class="timeline slim" id="planTimeline"></div>
               <div class="card-foot note">
-                <p class="muted tiny">Las cotizaciones se gestionan ahora desde el pop up dedicado con carga, copia, descarga y confirmaciones.</p>
+                <p class="muted tiny">Detalle compacto arriba y listado completo debajo para compartir o revisar rápido.</p>
               </div>
             </div>
+          </div>
         </div>
-      </section>
-
       <section id="clientManager" class="panel">
         <div class="panel-head">
           <div>

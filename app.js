@@ -46,7 +46,7 @@ const defaultVehicles = [
   {
     name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
     basePrice: 30430900,
-    integration: 9129270,
+    integration: 30430900,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
     availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
@@ -1515,6 +1515,7 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
       opt.disabled = !allowed;
       opt.hidden = !allowed;
     });
+    planSelect.disabled = true;
   }
   if (resetManual && planSelect) planSelect.dataset.manual = '';
   if (vehicle?.planProfile?.planType && planSelect) {
@@ -1524,7 +1525,7 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
     if (!available.includes(planSelect.value)) planSelect.value = available[0];
   }
   if (helper) {
-    const planLabel = vehicle?.planProfile?.label ? `Plan establecido: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
+    const planLabel = vehicle?.planProfile?.label ? `Plan asignado automáticamente: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
     const benefit = vehicle?.benefits?.bonificacion || '';
     const pactada = vehicle?.benefits?.pactada || '';
     helper.textContent = [planLabel, benefit, pactada].filter(Boolean).join(' • ');
@@ -2010,6 +2011,47 @@ function updatePlanSummary() {
   const planProfileTag = document.getElementById('planProfileTag');
   if (planProfileTag) {
     planProfileTag.textContent = v.planProfile?.label || 'Plan personalizado';
+  }
+
+  const flow = document.getElementById('planFlow');
+  if (flow) {
+    const flowSteps = [
+      {
+        title: 'Reserva',
+        amount: projection.selectedReservation ? currency.format(projection.selectedReservation) : 'Definir',
+        detail: appliedReservation !== 'none' ? `${appliedReservation} cuota(s)` : 'Solo informativa',
+        tone: 'reservation'
+      },
+      {
+        title: 'Integración objetivo',
+        amount: currency.format(projection.integrationTarget),
+        detail: `Pendiente ${currency.format(projection.integrationRemaining)}`,
+        tone: 'integration'
+      },
+      {
+        title: 'Entrega llave x llave',
+        amount: tradeIn ? currency.format(tradeInValue) : 'Sin usado',
+        detail: tradeIn ? `Aporta ${currency.format(projection.aporteInicial)}` : 'Puedes sumarlo luego',
+        tone: 'trade'
+      },
+      {
+        title: 'Saldo financiado',
+        amount: currency.format(projection.outstanding),
+        detail: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} desde la ${firstPayable}`,
+        tone: 'pending'
+      }
+    ];
+    flow.innerHTML = flowSteps.map((step, idx) => `
+      <div class="flow-node" data-tone="${step.tone}">
+        <div class="flow-dot"></div>
+        <div class="flow-body">
+          <p class="eyebrow">${step.title}</p>
+          <strong>${step.amount}</strong>
+          <span class="muted tiny">${step.detail}</span>
+        </div>
+        ${idx < flowSteps.length - 1 ? '<div class="flow-arrow"></div>' : ''}
+      </div>
+    `).join('');
   }
 
   const rows = [
