@@ -131,6 +131,7 @@ const clientColumns = {
   name: { label: 'Nombre', default: true },
   model: { label: 'Modelo', default: true },
   phone: { label: 'Celular', default: true },
+  contactDate: { label: 'Fecha/Hora de Contacto', default: true },
   brand: { label: 'Marca', default: false },
   city: { label: 'Localidad', default: false },
   province: { label: 'Provincia', default: false },
@@ -157,6 +158,7 @@ const presetExportHeaders = [
   { key: 'province', label: 'OPCIA' },
   { key: 'postalCode', label: 'CP' },
   { key: 'phone', label: 'CELULAR12' },
+  { key: 'contactDate', label: 'FECHA/HORA DE CONTACTO' },
   { key: 'purchaseDate', label: 'FECHA1' },
   { key: 'brand', label: 'MARCA' },
   { key: 'model', label: 'MODELO' },
@@ -175,13 +177,15 @@ const defaultClientManagerState = {
     mode: 'local',
     columnOrder: Object.keys(exportableColumns),
     selectedColumns: Object.keys(exportableColumns)
-  }
+  },
+  contactLogSearch: ''
 };
 
 const clientColumnWidths = {
   name: '240px',
   model: '190px',
   phone: '170px',
+  contactDate: '200px',
   brand: '160px',
   city: '160px',
   province: '160px',
@@ -775,6 +779,40 @@ function formatDateLabel(value) {
   if (!iso) return 'Sin fecha asignada';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+function formatDateTimeForDisplay(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  const datePart = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const timePart = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${datePart} - ${timePart}`;
+}
+
+function normalizeDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+}
+
+function timeAgo(isoValue) {
+  if (!isoValue) return '';
+  const now = Date.now();
+  const target = new Date(isoValue).getTime();
+  if (Number.isNaN(target)) return '';
+  const diffMs = Math.max(0, now - target);
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (minutes < 1) return 'Hace instantes';
+  if (minutes === 1) return 'Hace 1 minuto';
+  if (minutes < 60) return `Hace ${minutes} minutos`;
+  if (hours === 1) return 'Hace 1 hora';
+  if (hours < 24) return `Hace ${hours} horas`;
+  if (days === 1) return 'Hace 1 día';
+  return `Hace ${days} días`;
 }
 
 function sanitizeSheetName(label) {
@@ -2570,6 +2608,28 @@ function bindClientManager() {
     dateFilterBtn.addEventListener('click', openDateFilterModal);
   }
 
+  const contactLogBtn = document.getElementById('openContactLog');
+  if (contactLogBtn) {
+    contactLogBtn.addEventListener('click', () => toggleContactLog(true));
+  }
+
+  const contactLogClose = document.getElementById('contactLogClose');
+  const contactLogOverlay = document.getElementById('contactLogOverlay');
+  if (contactLogClose) contactLogClose.addEventListener('click', () => toggleContactLog(false));
+  if (contactLogOverlay) contactLogOverlay.addEventListener('click', (e) => {
+    if (e.target === contactLogOverlay) toggleContactLog(false);
+  });
+
+  const contactLogSearch = document.getElementById('contactLogSearch');
+  if (contactLogSearch) {
+    contactLogSearch.value = clientManagerState.contactLogSearch || '';
+    contactLogSearch.addEventListener('input', () => {
+      clientManagerState.contactLogSearch = contactLogSearch.value;
+      renderContactLog();
+      persist();
+    });
+  }
+
   const exportBtn = document.getElementById('exportClients');
   if (exportBtn) {
     exportBtn.addEventListener('click', openExportModal);
@@ -2689,6 +2749,9 @@ const headerMap = {
   'DOC': 'document',
   'CUIT0': 'cuit',
   'FECNAC': 'birthDate',
+  'FECHA/HORA DE CONTACTO': 'contactDate',
+  'CONTACTO': 'contactDate',
+  'CONTACT_DATE': 'contactDate',
   'FECHA1': 'purchaseDate',
   'CP': 'postalCode',
   'TIPO': 'type'
@@ -2704,6 +2767,8 @@ function mapRow(row, headers, systemDate = '') {
       const rawValue = row[idx];
       if (key === 'purchaseDate' || key === 'birthDate') {
         mapped[key] = formatDateISO(rawValue) || normalizeCell(rawValue);
+      } else if (key === 'contactDate') {
+        mapped[key] = normalizeDateTime(rawValue);
       } else {
         mapped[key] = normalizeCell(rawValue);
       }
@@ -2845,6 +2910,27 @@ function filteredManagerClients() {
   });
 }
 
+function contactLogEntries() {
+  const search = (clientManagerState.contactLogSearch || '').toLowerCase();
+  return managerClients
+    .map(c => {
+      const status = clientStatus(c);
+      return {
+        id: c.id,
+        name: c.name || 'Sin nombre',
+        phone: normalizePhone(c.phone || ''),
+        status,
+        contactDate: c.contactDate || '',
+        fallbackDate: c.systemDate || ''
+      };
+    })
+    .filter(item => item.status.className !== 'status-pending')
+    .map(item => ({ ...item, effectiveDate: item.contactDate || normalizeDateTime(item.fallbackDate) }))
+    .filter(item => !!item.effectiveDate)
+    .filter(item => [item.name, item.phone, item.status.label].some(val => val.toLowerCase().includes(search)))
+    .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
+}
+
 function renderClientManager() {
   const grid = document.getElementById('clientManagerTable');
   const helper = document.getElementById('clientManagerHelper');
@@ -2908,6 +2994,81 @@ function renderClientManager() {
   bodyContainer.innerHTML = body;
   bindClientTableActions();
   if (helper) helper.textContent = `${rows.length} clientes visibles · columnas activas: ${visibleColumns.length}`;
+  renderContactLog();
+}
+
+function renderContactLog() {
+  const overlay = document.getElementById('contactLogOverlay');
+  const list = document.getElementById('contactLogList');
+  const search = document.getElementById('contactLogSearch');
+  const empty = document.getElementById('contactLogEmpty');
+  if (!overlay || !list || !search || !empty) return;
+
+  if (search.value !== (clientManagerState.contactLogSearch || '')) {
+    search.value = clientManagerState.contactLogSearch || '';
+  }
+
+  const entries = contactLogEntries();
+  if (!entries.length) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.innerHTML = entries.map(entry => `
+    <div class="contact-log-item" data-id="${entry.id}" data-status="${entry.status.className}">
+      <div class="contact-log-main">
+        <div class="contact-log-icon"><i class='bx bx-time-five'></i></div>
+        <div>
+          <p class="contact-log-name">${entry.name}</p>
+          <p class="contact-log-phone">${entry.phone}</p>
+          <div class="contact-log-tags">
+            <span class="status-pill ${entry.status.className}">${entry.status.label}</span>
+            <span class="time-pill">${timeAgo(entry.effectiveDate)}</span>
+            <span class="time-stamp">${formatDateTimeForDisplay(entry.effectiveDate)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="contact-log-actions">
+        <button class="secondary-btn mini" data-action="goto">Ir al contacto</button>
+        <button class="ghost-btn mini" data-action="copy">Copiar número</button>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action="goto"]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.closest('.contact-log-item')?.dataset.id;
+    if (!id) return;
+    focusClientRow(id);
+    toggleContactLog(false);
+  }));
+
+  list.querySelectorAll('[data-action="copy"]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.closest('.contact-log-item')?.dataset.id;
+    const client = managerClients.find(c => c.id === id);
+    if (!client) return;
+    copyText(normalizePhone(client.phone || ''), 'Número copiado');
+  }));
+}
+
+function toggleContactLog(show) {
+  const overlay = document.getElementById('contactLogOverlay');
+  if (!overlay) return;
+  overlay.classList[show ? 'add' : 'remove']('show');
+  if (show) {
+    const search = document.getElementById('contactLogSearch');
+    setTimeout(() => search?.focus(), 120);
+  }
+}
+
+function focusClientRow(id) {
+  activatePanel('clientManager');
+  const row = document.querySelector(`#clientManagerTable .client-row[data-id="${id}"]`);
+  if (row) {
+    row.classList.add('is-selected');
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => row.classList.remove('is-selected'), 1400);
+  }
 }
 
 function renderGlobalSettings() {
@@ -2966,6 +3127,7 @@ function formatCell(key, client) {
   if (key === 'phone') return `<div class="tip"><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
   if (key === 'systemDate') return formatDateForDisplay(client.systemDate) || '-';
+  if (key === 'contactDate') return formatDateTimeForDisplay(client.contactDate);
   if (key === 'type') return normalizeNotesValue(client.type).replace(/\n/g, '<br>');
   return client[key] || '-';
 }
@@ -2995,6 +3157,17 @@ function bindClientTableActions() {
   }));
 }
 
+function updateContactMeta(client) {
+  const status = clientStatus(client);
+  const now = new Date().toISOString();
+  client.lastContactStatus = status.label;
+  if (status.className !== 'status-pending') {
+    client.contactDate = now;
+  } else if (!client.contactDate) {
+    client.contactDate = '';
+  }
+}
+
 function updateClientFlag(id, flag) {
   const client = managerClients.find(c => c.id === id);
   if (!client) return;
@@ -3008,6 +3181,7 @@ function updateClientFlag(id, flag) {
     client.flags.contacted = !client.flags.contacted;
     if (client.flags.contacted) client.flags.noNumber = false;
   }
+  updateContactMeta(client);
   persist();
   renderClientManager();
 }
@@ -3051,6 +3225,7 @@ function exportValue(key, client) {
     case 'birthDate': return client.birthDate || '';
     case 'purchaseDate': return formatDateForDisplay(client.purchaseDate);
     case 'systemDate': return formatDateForDisplay(client.systemDate);
+    case 'contactDate': return formatDateTimeForDisplay(client.contactDate);
     case 'postalCode': return client.postalCode || '';
     case 'type': return normalizeNotesValue(client.type);
     case 'status': return client.statusOverride || clientStatus(client).label;
@@ -3133,7 +3308,7 @@ function bindProfileActions() {
       message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
       confirmText: 'Exportar',
       onConfirm: () => {
-        const payload = { version: 3, vehicles, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 4, vehicles, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

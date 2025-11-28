@@ -391,7 +391,23 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .popover-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 25; padding: 14px; }
 .popover-overlay.show { display: flex; }
 .popover { background: #0f1625; border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 16px; max-width: 720px; width: min(720px, 100%); display: grid; gap: 12px; }
+.popover.wide { max-width: 960px; width: min(960px, 100%); }
 .popover-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.contact-log-body { display: grid; gap: 10px; max-height: min(70vh, 560px); overflow: auto; padding: 4px; }
+.contact-log-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: #0d1524; transition: border-color 0.2s, transform 0.2s; }
+.contact-log-item:hover { border-color: var(--accent); transform: translateY(-1px); }
+.contact-log-main { display: flex; gap: 12px; align-items: center; }
+.contact-log-icon { width: 42px; height: 42px; border-radius: 12px; background: #111c2f; display: grid; place-items: center; color: var(--accent); font-size: 22px; }
+.contact-log-name { margin: 0; font-weight: 600; }
+.contact-log-phone { margin: 0; color: var(--muted); font-size: 13px; }
+.contact-log-tags { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.contact-log-tags .status-pill { border-color: transparent; }
+.contact-log-tags .time-pill { padding: 4px 8px; background: #122037; border-radius: 10px; font-size: 12px; color: var(--muted); }
+.contact-log-tags .time-stamp { font-size: 12px; color: var(--muted); }
+.contact-log-actions { display: flex; gap: 8px; }
+.empty-state { border: 1px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; background: #0d1420; display: grid; gap: 6px; color: var(--muted); }
+.empty-state i { font-size: 28px; color: var(--muted); }
+.empty-state.hidden { display: none; }
 .actions.end { justify-content: flex-end; }
 
 .client-controls { display: flex; align-items: flex-end; justify-content: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }

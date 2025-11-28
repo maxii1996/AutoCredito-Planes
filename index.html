@@ -388,24 +388,25 @@
               </label>
               <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                 <i class='bx bx-filter-alt'></i>
-                <div class="filter-label">
-                  <span class="muted tiny">Mostrar:</span>
-                  <strong id="statusFilterLabel">Todos</strong>
-                </div>
-                <select id="statusFilter">
-                  <option value="all">Todos</option>
-                  <option value="contacted">Contactado</option>
-                  <option value="no_number">Número no disponible</option>
-                  <option value="favorite">Favoritos</option>
-                  <option value="pending">Pendientes</option>
-                </select>
+              <div class="filter-label">
+                <span class="muted tiny">Mostrar:</span>
+                <strong id="statusFilterLabel">Todos</strong>
               </div>
-              <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+              <select id="statusFilter">
+                <option value="all">Todos</option>
+                <option value="contacted">Contactado</option>
+                <option value="no_number">Número no disponible</option>
+                <option value="favorite">Favoritos</option>
+                <option value="pending">Pendientes</option>
+              </select>
             </div>
+            <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+            <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
           </div>
-          <div class="search-row">
-            <div class="search-field expanded">
-              <i class='bx bx-search'></i>
+        </div>
+        <div class="search-row">
+          <div class="search-field expanded">
+            <i class='bx bx-search'></i>
               <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
             </div>
           </div>
@@ -479,6 +480,27 @@
       </div>
       <div class="actions compact end">
         <button class="primary-btn" id="applyPalette"><i class='bx bx-check-double'></i> Guardar colores</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay" id="contactLogOverlay">
+    <div class="popover wide" id="contactLogPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Registro de Contactados</p>
+          <h3>Seguimiento en tiempo real</h3>
+          <p class="muted subtle">Últimas acciones marcadas: contactado, número no disponible o favoritos.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="contactLogClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="search-field">
+        <i class='bx bx-search'></i>
+        <input id="contactLogSearch" placeholder="Buscar por nombre, estado o teléfono" />
+      </div>
+      <div class="contact-log-body" id="contactLogList"></div>
+      <div id="contactLogEmpty" class="empty-state hidden">
+        <i class='bx bx-time-five'></i>
+        <p class="muted">Aún no hay registros de contacto. Marca clientes como contactados, número no disponible o favoritos para verlos aquí.</p>
       </div>
     </div>
   </div>
