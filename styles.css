@@ -390,6 +390,12 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 
 .popover-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 25; padding: 14px; }
 .popover-overlay.show { display: flex; }
+.popover-overlay#clientActionOverlay { display: flex; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.28s ease, visibility 0.28s ease; }
+.popover-overlay#clientActionOverlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.popover-overlay#clientActionOverlay.closing, .popover-overlay#clientActionOverlay.show.closing { opacity: 0; visibility: hidden; pointer-events: none; }
+.popover-overlay#clientActionOverlay .popover { transform: translateY(18px); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
+.popover-overlay#clientActionOverlay.show .popover { transform: translateY(0); opacity: 1; }
+.popover-overlay#clientActionOverlay.closing .popover, .popover-overlay#clientActionOverlay.show.closing .popover { transform: translateY(22px); opacity: 0; }
 .popover { background: #0f1625; border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 16px; max-width: 720px; width: min(720px, 100%); display: grid; gap: 12px; }
 .popover.wide { max-width: 960px; width: min(960px, 100%); }
 .popover-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }

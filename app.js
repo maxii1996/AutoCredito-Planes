@@ -3124,29 +3124,6 @@ function clientActionOptions(client) {
       }, client.id)
     },
     {
-      key: 'done',
-      icon: 'bx-check-shield',
-      tone: 'success',
-      label: 'Listo',
-      description: 'Marca el contacto como gestionado y listo.',
-      currentValue: (c) => clientStatus(c).label,
-      buttonText: 'Listo',
-      highlight: true,
-      handler: () => {
-        const target = managerClients.find(c => c.id === client.id);
-        if (!target) return;
-        target.flags = target.flags || {};
-        target.flags.contacted = true;
-        target.flags.noNumber = false;
-        updateContactMeta(target);
-        persist();
-        renderClientManager();
-        renderContactLog();
-        showToast('Contacto marcado como listo', 'success');
-        openClientActionMenu(client.id);
-      }
-    },
-    {
       key: 'model',
       icon: 'bx-car',
       tone: 'info',
@@ -3351,6 +3328,19 @@ function clientActionOptions(client) {
           closeClientActionMenu();
         }
       })
+    },
+    {
+      key: 'done',
+      icon: 'bx-check-shield',
+      tone: 'success',
+      label: 'Listo',
+      description: 'Cierra este menú de acciones.',
+      currentValue: () => 'Acciones finalizadas',
+      buttonText: 'Listo',
+      primary: true,
+      handler: () => {
+        closeClientActionMenu();
+      }
     }
   ];
 }
@@ -3376,7 +3366,7 @@ function openClientActionMenu(id) {
           ${opt.currentValue ? `<p class="muted tiny current-value">[${opt.currentValue(client)}]</p>` : ''}
         </div>
       </div>
-      <button class="${opt.danger ? 'ghost-btn action-btn danger' : opt.highlight ? 'success-btn action-btn' : 'secondary-btn action-btn'}" data-action="${opt.key}"><span>${opt.danger ? 'Borrar' : (opt.buttonText || 'Seleccionar')}</span><i class='bx bx-chevron-right'></i></button>
+      <button class="${opt.danger ? 'ghost-btn action-btn danger' : opt.primary ? 'primary-btn action-btn' : opt.highlight ? 'success-btn action-btn' : 'secondary-btn action-btn'}" data-action="${opt.key}"><span>${opt.danger ? 'Borrar' : (opt.buttonText || 'Seleccionar')}</span><i class='bx bx-chevron-right'></i></button>
     </div>
   `).join('');
   list.querySelectorAll('[data-action]').forEach(btn => {
@@ -3386,12 +3376,23 @@ function openClientActionMenu(id) {
       if (opt?.handler) opt.handler();
     };
   });
+  if (overlay._closeTimer) clearTimeout(overlay._closeTimer);
+  overlay.classList.remove('closing');
   overlay.classList.add('show');
 }
 
 function closeClientActionMenu() {
   const overlay = document.getElementById('clientActionOverlay');
-  if (overlay) overlay.classList.remove('show');
+  if (overlay) {
+    overlay.classList.add('closing');
+    const duration = 300;
+    if (overlay._closeTimer) clearTimeout(overlay._closeTimer);
+    overlay._closeTimer = setTimeout(() => {
+      overlay.classList.remove('show');
+      overlay.classList.remove('closing');
+      overlay._closeTimer = null;
+    }, duration);
+  }
   activeActionClientId = null;
 }
 
