@@ -34,60 +34,98 @@ const defaultVehicles = [
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: { '2a12': 320051, '13a21': 313692, '22a84': 312912, '85a120': 311352 },
     cuotaPura: 202873,
-    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 }
+    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
-    shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369046, '85a120': 368971 },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
     cuotaPura: 253591,
-    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 }
+    reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'LA NUEVA MONTANA LT 1.2 AT',
     basePrice: 37808900,
     integration: 11342670,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 310714 },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 388584 },
     cuotaPura: 252059,
-    reservations: { '1': 1211400, '3': 1574820, '6': 1817100 }
+    reservations: { '1': 1211400, '3': 1574820, '6': 1817100 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'LA NUEVA S10 CD 2.8 TD 4x2 WT',
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
+    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
-    reservations: { '1': 1825000, '3': 2372500, '6': 2737500 }
+    reservations: { '1': 1825000, '3': 2372500, '6': 2737500 },
+    benefits: {
+      pactada: 'Acepta llave x llave',
+      bonificacion: 'Débito automático obligatorio con TC'
+    }
   },
   {
     name: 'NUEVA TRACKER LT 1.2AT',
     basePrice: 37823900,
     integration: 11347170,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156 },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156, '85a120': 310714 },
     cuotaPura: 252159,
-    reservations: { '1': 1211710, '3': 1575223, '6': 1817565 }
+    reservations: { '1': 1211710, '3': 1575223, '6': 1817565 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   },
   {
     name: 'NUEVA SPIN 1.8 LT 5AA MT',
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
+    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914 },
     cuotaPura: 292641,
-    reservations: { '1': 1177600, '3': 1530880, '6': 1766400 }
+    reservations: { '1': 1177600, '3': 1530880, '6': 1766400 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
   }
 ];
 
 const variableSuggestions = [
   'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo', 'version'
 ];
+
+const planTerms = {
+  '2a12': 120,
+  '13a21': 120,
+  '22a84': 84,
+  '85a120': 120,
+  'ctapura': 120
+};
 
 const clientColumns = {
   name: { label: 'Nombre', default: true },
@@ -100,16 +138,44 @@ const clientColumns = {
   cuit: { label: 'CUIT', default: false },
   birthDate: { label: 'Nacimiento', default: false },
   purchaseDate: { label: 'Fecha compra', default: false },
+  systemDate: { label: 'Fecha de carga', default: false },
   postalCode: { label: 'CP', default: false },
   type: { label: 'Notas', default: true }
 };
+
+const exportableColumns = {
+  ...clientColumns,
+  status: { label: 'Estado', default: true }
+};
+
+const presetExportHeaders = [
+  { key: 'cuit', label: 'CUIT0' },
+  { key: 'document', label: 'DOC' },
+  { key: 'birthDate', label: 'FECNAC' },
+  { key: 'name', label: 'NOMBRE' },
+  { key: 'city', label: 'OLOC' },
+  { key: 'province', label: 'OPCIA' },
+  { key: 'postalCode', label: 'CP' },
+  { key: 'phone', label: 'CELULAR12' },
+  { key: 'purchaseDate', label: 'FECHA1' },
+  { key: 'brand', label: 'MARCA' },
+  { key: 'model', label: 'MODELO' },
+  { key: 'type', label: 'TIPO' },
+  { key: 'status', label: 'ESTADO' }
+];
 
 const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
   groupByModel: true,
+  dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
-  selection: {}
+  selection: {},
+  exportOptions: {
+    mode: 'local',
+    columnOrder: Object.keys(exportableColumns),
+    selectedColumns: Object.keys(exportableColumns)
+  }
 };
 
 const clientColumnWidths = {
@@ -123,6 +189,7 @@ const clientColumnWidths = {
   cuit: '160px',
   birthDate: '170px',
   purchaseDate: '170px',
+  systemDate: '170px',
   postalCode: '120px',
   type: '170px',
   status: '180px',
@@ -157,7 +224,9 @@ function cloneVehicles(list) {
     ...v,
     shareByPlan: { ...v.shareByPlan },
     reservations: { ...v.reservations },
-    planProfile: { ...(v.planProfile || {}) }
+    planProfile: { ...(v.planProfile || {}) },
+    benefits: { ...(v.benefits || {}) },
+    availablePlans: v.availablePlans ? [...v.availablePlans] : undefined
   }));
 }
 
@@ -178,6 +247,20 @@ function parseMoney(raw) {
   const cleaned = String(raw).replace(/[^0-9.-]/g, '');
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
+}
+
+function normalizeExportOptions(options = {}) {
+  const available = Object.keys(exportableColumns);
+  const baseOrder = options.columnOrder || available;
+  const cleanedOrder = baseOrder.filter(k => available.includes(k));
+  const mergedOrder = [...cleanedOrder, ...available.filter(k => !cleanedOrder.includes(k))];
+  let selected = (options.selectedColumns || mergedOrder).filter(k => available.includes(k));
+  if (!selected.length) selected = [...mergedOrder];
+  return {
+    mode: options.mode === 'preset' ? 'preset' : 'local',
+    columnOrder: mergedOrder,
+    selectedColumns: selected
+  };
 }
 
 function showToast(message, type = 'info') {
@@ -225,6 +308,266 @@ function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Acept
   closeBtn.onclick = cleanup;
 }
 
+function toggleModal(modal, show) {
+  if (!modal) return;
+  if (show) {
+    modal.classList.add('show');
+    modal.classList.remove('hidden');
+  } else {
+    modal.classList.remove('show');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+  }
+}
+
+function openImportDateModal() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('importDateModal');
+    if (!modal) {
+      resolve(formatLocalISO());
+      return;
+    }
+    const todayLabel = document.getElementById('importDateTodayLabel');
+    if (todayLabel) todayLabel.textContent = `Se usará: ${formatDateLabel(formatLocalISO())}`;
+    const customInput = document.getElementById('importCustomDate');
+    if (customInput && !customInput.value) customInput.value = formatLocalISO();
+    if (customInput) {
+      customInput.onfocus = () => {
+        const customRadio = document.querySelector('input[name="importDateOption"][value="custom"]');
+        if (customRadio) customRadio.checked = true;
+      };
+    }
+
+    const confirmBtn = document.getElementById('importDateConfirm');
+    const cancelBtn = document.getElementById('importDateCancel');
+    const closeBtn = document.getElementById('importDateClose');
+    const radios = Array.from(document.querySelectorAll('input[name="importDateOption"]'));
+
+    const cleanup = (result) => {
+      toggleModal(modal, false);
+      if (confirmBtn) confirmBtn.onclick = null;
+      if (cancelBtn) cancelBtn.onclick = null;
+      if (closeBtn) closeBtn.onclick = null;
+      resolve(result);
+    };
+
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        const selected = radios.find(r => r.checked)?.value || 'today';
+        if (selected === 'none') {
+          cleanup('');
+          return;
+        }
+        if (selected === 'custom') {
+          const value = customInput?.value;
+          const iso = value ? formatDateISO(value) : '';
+          if (!iso) {
+            showToast('Selecciona una fecha válida.', 'error');
+            return;
+          }
+          cleanup(iso);
+          return;
+        }
+        cleanup(formatLocalISO());
+      };
+    }
+    if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
+    if (closeBtn) closeBtn.onclick = () => cleanup(null);
+
+    toggleModal(modal, true);
+  });
+}
+
+function moveExportColumn(key, direction) {
+  const options = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const order = [...options.columnOrder];
+  const index = order.indexOf(key);
+  if (index === -1) return;
+  const newIndex = direction === 'up' ? Math.max(0, index - 1) : Math.min(order.length - 1, index + 1);
+  if (newIndex === index) return;
+  [order[index], order[newIndex]] = [order[newIndex], order[index]];
+  clientManagerState.exportOptions = normalizeExportOptions({ ...options, columnOrder: order });
+  persist();
+  renderExportModal();
+}
+
+function updateExportSelection(key, checked) {
+  const options = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const selected = new Set(options.selectedColumns || []);
+  if (checked) {
+    selected.add(key);
+  } else {
+    selected.delete(key);
+    if (!selected.size) {
+      showToast('Debes dejar al menos una columna seleccionada.', 'error');
+      renderExportModal();
+      return;
+    }
+  }
+  clientManagerState.exportOptions = normalizeExportOptions({ ...options, selectedColumns: Array.from(selected) });
+  persist();
+  renderExportModal();
+}
+
+function renderExportColumnsList() {
+  const list = document.getElementById('exportColumnsList');
+  if (!list) return;
+  const options = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const locked = options.mode === 'preset';
+  const order = locked ? presetExportHeaders.map(h => h.key) : options.columnOrder;
+  const selectedSet = locked ? new Set(order) : new Set(options.selectedColumns || []);
+  list.innerHTML = order.map((key) => {
+    const column = exportableColumns[key];
+    if (!column) return '';
+    const checked = locked || selectedSet.has(key);
+    const disabled = locked ? 'disabled' : '';
+    const moveButtons = locked ? '' : `
+      <div class="export-move">
+        <button class="ghost-btn icon-only mini-btn" data-move="up" data-key="${key}" title="Subir"><i class='bx bx-chevron-up'></i></button>
+        <button class="ghost-btn icon-only mini-btn" data-move="down" data-key="${key}" title="Bajar"><i class='bx bx-chevron-down'></i></button>
+      </div>`;
+    return `
+      <div class="export-item" data-key="${key}">
+        <div class="export-drag"><i class='bx bx-dots-vertical-rounded'></i></div>
+        <label class="export-body">
+          <input type="checkbox" data-key="${key}" ${checked ? 'checked' : ''} ${disabled}>
+          <div>
+            <strong>${column.label}</strong>
+            <p class="muted tiny">Inclúyelo o quítalo de la exportación.</p>
+          </div>
+        </label>
+        ${moveButtons}
+      </div>`;
+  }).join('');
+
+  const selectAllBtn = document.getElementById('exportSelectAll');
+  if (selectAllBtn) {
+    if (locked) {
+      selectAllBtn.textContent = 'Cabezales fijos';
+      selectAllBtn.disabled = true;
+    } else {
+      const allSelected = selectedSet.size === Object.keys(exportableColumns).length;
+      selectAllBtn.textContent = allSelected ? 'Quitar selección' : 'Seleccionar todo';
+      selectAllBtn.disabled = false;
+    }
+  }
+}
+
+function renderExportModal() {
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const options = clientManagerState.exportOptions;
+  const modal = document.getElementById('exportModal');
+  if (!modal) return;
+  const helper = document.getElementById('exportHelperText');
+  if (helper) {
+    helper.textContent = options.mode === 'preset'
+      ? 'Se exportarán columnas fijas para igualar cabezales predeterminados en el orden requerido.'
+      : 'Usa los campos locales, activa solo lo necesario y acomoda el orden a tu gusto.';
+  }
+  const radios = Array.from(document.querySelectorAll('input[name="exportMode"]'));
+  radios.forEach(r => { r.checked = r.value === options.mode; });
+  renderExportColumnsList();
+}
+
+function openExportModal() {
+  const modal = document.getElementById('exportModal');
+  if (!modal) {
+    exportManagerClients();
+    return;
+  }
+  renderExportModal();
+  const confirmBtn = document.getElementById('exportConfirm');
+  const cancelBtn = document.getElementById('exportCancel');
+  const closeBtn = document.getElementById('exportClose');
+  const selectAllBtn = document.getElementById('exportSelectAll');
+  const modeRadios = Array.from(document.querySelectorAll('input[name="exportMode"]'));
+  const list = document.getElementById('exportColumnsList');
+
+  const close = () => toggleModal(modal, false);
+
+  if (confirmBtn) confirmBtn.onclick = () => { close(); exportManagerClients(); };
+  if (cancelBtn) cancelBtn.onclick = close;
+  if (closeBtn) closeBtn.onclick = close;
+
+  if (selectAllBtn) {
+    selectAllBtn.onclick = () => {
+      const allKeys = Object.keys(exportableColumns);
+      const current = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+      const allSelected = (current.selectedColumns || []).length === allKeys.length;
+      clientManagerState.exportOptions = normalizeExportOptions({
+        ...current,
+        selectedColumns: allSelected ? [] : allKeys
+      });
+      persist();
+      renderExportModal();
+    };
+  }
+
+  modeRadios.forEach(radio => {
+    radio.onchange = () => {
+      clientManagerState.exportOptions = normalizeExportOptions({
+        ...clientManagerState.exportOptions,
+        mode: radio.value
+      });
+      persist();
+      renderExportModal();
+    };
+  });
+
+  if (list) {
+    list.onchange = (e) => {
+      const target = e.target;
+      if (target.matches('input[type="checkbox"][data-key]')) {
+        updateExportSelection(target.dataset.key, target.checked);
+      }
+    };
+    list.onclick = (e) => {
+      const btn = e.target.closest('[data-move]');
+      if (btn) {
+        moveExportColumn(btn.dataset.key, btn.dataset.move);
+      }
+    };
+  }
+
+  toggleModal(modal, true);
+}
+
+function openDateFilterModal() {
+  const modal = document.getElementById('dateFilterModal');
+  if (!modal) return;
+  const fromInput = document.getElementById('dateFilterFrom');
+  const toInput = document.getElementById('dateFilterTo');
+  if (fromInput) fromInput.value = clientManagerState.dateRange.from || '';
+  if (toInput) toInput.value = clientManagerState.dateRange.to || '';
+
+  const applyBtn = document.getElementById('applyDateFilter');
+  const clearBtn = document.getElementById('clearDateFilter');
+  const closeBtn = document.getElementById('dateFilterClose');
+
+  const cleanup = () => toggleModal(modal, false);
+
+  if (applyBtn) {
+    applyBtn.onclick = () => {
+      const from = fromInput?.value || '';
+      const to = toInput?.value || '';
+      clientManagerState.dateRange = { from, to };
+      persist();
+      renderClientManager();
+      cleanup();
+    };
+  }
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      clientManagerState.dateRange = { from: '', to: '' };
+      persist();
+      renderClientManager();
+      cleanup();
+    };
+  }
+  if (closeBtn) closeBtn.onclick = cleanup;
+
+  toggleModal(modal, true);
+}
+
 function bindMoneyInput(el, onChange) {
   if (!el) return;
   el.addEventListener('input', () => {
@@ -253,6 +596,7 @@ function applyProfileData(parsed) {
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
   clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+  clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
@@ -419,6 +763,33 @@ function formatDateForDisplay(value) {
   return `${d}/${m}/${y}`;
 }
 
+function formatLocalISO(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabel(value) {
+  const iso = formatDateISO(value);
+  if (!iso) return 'Sin fecha asignada';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function sanitizeSheetName(label) {
+  return (label || 'Sin fecha asignada').replace(/[\\/:?*\[\]]/g, '-').slice(0, 31) || 'Sin fecha asignada';
+}
+
+function isWithinDateRange(value, range = {}) {
+  if (!range.from && !range.to) return true;
+  const iso = formatDateISO(value);
+  if (!iso) return false;
+  const meetsFrom = range.from ? iso >= range.from : true;
+  const meetsTo = range.to ? iso <= range.to : true;
+  return meetsFrom && meetsTo;
+}
+
 function extractYear(value) {
   const iso = formatDateISO(value);
   if (iso) return iso.slice(0, 4);
@@ -446,6 +817,16 @@ function clientStatus(client = {}) {
   if (flags.favorite) return { label: 'Favorito', className: 'status-favorite' };
   if (flags.contacted) return { label: 'Contactado', className: 'status-contacted' };
   return { label: 'Pendiente', className: 'status-pending' };
+}
+
+function statusLabelFromType(value) {
+  const text = (value || '').toString().trim().toLowerCase();
+  if (!text) return '';
+  if (text.includes('no') && text.includes('dispon')) return 'Número no disponible';
+  if (text.includes('favor')) return 'Favorito';
+  if (text.includes('contact')) return 'Contactado';
+  if (text.includes('pend')) return 'Pendiente';
+  return '';
 }
 
 function initialTemplate() {
@@ -509,6 +890,9 @@ let planDraftApplied = false;
 let snapshots = load('snapshots') || [];
 let activeNoteClientId = null;
 
+clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
+clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
 uiState.quoteSearch = uiState.quoteSearch || '';
@@ -520,7 +904,6 @@ uiState.variableValues = uiState.variableValues || {};
 uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
 uiState.planDraft = uiState.planDraft || {};
 let selectedPlanClientId = uiState.planDraft.selectedClientId || null;
-clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
 
 init();
 
@@ -1125,16 +1508,27 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
   const planSelect = document.getElementById('planType');
   const helper = document.getElementById('planProfileHelper');
   const vehicle = vehicles[modelIdx] || vehicles[0];
+  const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
+  if (planSelect) {
+    Array.from(planSelect.options || []).forEach(opt => {
+      const allowed = available.includes(opt.value);
+      opt.disabled = !allowed;
+      opt.hidden = !allowed;
+    });
+    planSelect.disabled = true;
+  }
   if (resetManual && planSelect) planSelect.dataset.manual = '';
   if (vehicle?.planProfile?.planType && planSelect) {
     if (!preserveExisting || planSelect.dataset.manual !== 'true') {
-      planSelect.value = vehicle.planProfile.planType;
+      planSelect.value = available.includes(vehicle.planProfile.planType) ? vehicle.planProfile.planType : available[0];
     }
+    if (!available.includes(planSelect.value)) planSelect.value = available[0];
   }
   if (helper) {
-    helper.textContent = vehicle?.planProfile?.label
-      ? `Plan establecido: ${vehicle.planProfile.label}`
-      : 'Plan establecido según el modelo.';
+    const planLabel = vehicle?.planProfile?.label ? `Plan asignado automáticamente: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
+    const benefit = vehicle?.benefits?.bonificacion || '';
+    const pactada = vehicle?.benefits?.pactada || '';
+    helper.textContent = [planLabel, benefit, pactada].filter(Boolean).join(' • ');
   }
 }
 
@@ -1155,6 +1549,18 @@ function applyReservationDefaultsForModel(modelIdx, { preserveExisting = false, 
       setMoneyValue(input, vehicle?.reservations?.[key] || 0);
     }
   });
+}
+
+function applyCustomPriceDefaultForModel(modelIdx, { preserveExisting = false, resetManual = false } = {}) {
+  const vehicle = vehicles[modelIdx] || vehicles[0];
+  const input = document.getElementById('customPrice');
+  if (!input) return;
+  if (resetManual) input.dataset.manual = '';
+  const current = parseMoney(input.dataset.raw || input.value || 0);
+  const hasCustom = current > 0 && input.dataset.manual === 'true';
+  if (!preserveExisting || !hasCustom) {
+    setMoneyValue(input, vehicle?.basePrice || vehicle?.integration || 0);
+  }
 }
 
 function bindClientPicker() {
@@ -1343,6 +1749,7 @@ function renderPlanForm() {
     select.addEventListener('change', () => {
       applyPlanDefaultsForModel(Number(select.value || 0), { resetManual: true });
       applyReservationDefaultsForModel(Number(select.value || 0), { resetManual: true });
+      applyCustomPriceDefaultForModel(Number(select.value || 0), { resetManual: true });
       updatePlanSummary();
     });
     const planTypeSelect = document.getElementById('planType');
@@ -1352,6 +1759,11 @@ function renderPlanForm() {
     });
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
     bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
+    const customPriceInput = document.getElementById('customPrice');
+    bindMoneyInput(customPriceInput, () => {
+      customPriceInput.dataset.manual = 'true';
+      updatePlanSummary();
+    });
     ['reservation1', 'reservation3', 'reservation6'].forEach(id => {
       const el = document.getElementById(id);
       bindMoneyInput(el, () => {
@@ -1369,6 +1781,9 @@ function renderPlanForm() {
       calc6.addEventListener('click', () => calculateReservationsFromBase(6));
       calc6.dataset.bound = 'true';
     }
+    const appliedReservation = document.getElementById('appliedReservation');
+    if (!['1', '3', '6'].includes(appliedReservation.value)) appliedReservation.value = '1';
+    appliedReservation.addEventListener('change', updatePlanSummary);
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
@@ -1381,6 +1796,7 @@ function renderPlanForm() {
   const hasCustomReservations = ['reservation1', 'reservation3', 'reservation6'].some(key => parseMoney(draft[key]));
   applyPlanDefaultsForModel(Number(select.value || 0), { preserveExisting: !!draft.planType });
   applyReservationDefaultsForModel(Number(select.value || 0), { preserveExisting: hasCustomReservations });
+  applyCustomPriceDefaultForModel(Number(select.value || 0), { preserveExisting: !!parseMoney(draft.customPrice) });
   updatePlanSummary();
 }
 
@@ -1407,44 +1823,384 @@ function getReservationValue(id, fallback = 0) {
   return val || fallback;
 }
 
+function resolveTotalInstallments(planType, vehiclePlanProfileType) {
+  const byVehicle = planTerms[vehiclePlanProfileType];
+  if (byVehicle) return byVehicle;
+  return planTerms[planType] || 120;
+}
+
+
+function resolvePlanScheme(vehicle) {
+  const profile = vehicle?.planProfile || {};
+  if (Number.isFinite(profile.financedPct) || Number.isFinite(profile.integrationPct)) {
+    const financedPct = Number.isFinite(profile.financedPct) ? profile.financedPct : Math.max(0, 1 - (profile.integrationPct || 0));
+    const integrationPct = Number.isFinite(profile.integrationPct) ? profile.integrationPct : Math.max(0, 1 - financedPct);
+    return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+  }
+
+  const basePrice = Number(vehicle?.basePrice || 0);
+  const integrationValue = Number(vehicle?.integration || 0);
+  if (basePrice > 0 && integrationValue > 0) {
+    const integrationPct = Math.min(Math.max(integrationValue / basePrice, 0), 1);
+    const financedPct = Math.max(1 - integrationPct, 0);
+    return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+  }
+
+  const label = (profile.label || '').toLowerCase();
+  const numericMatch = label.match(/(\d{2})\s*\/\s*(\d{2})/);
+  if (numericMatch) {
+    const financedPct = Number(numericMatch[1]) / 100;
+    const integrationPct = Number(numericMatch[2]) / 100;
+    if (financedPct + integrationPct === 1) {
+      return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+    }
+  }
+  if (label.includes('100')) return { financedPct: 1, integrationPct: 0, label: profile.label || '100% fábrica' };
+  if (label.includes('80')) return { financedPct: 0.8, integrationPct: 0.2, label: profile.label || '80/20' };
+  if (label.includes('70')) return { financedPct: 0.7, integrationPct: 0.3, label: profile.label || '70/30' };
+  if (label.includes('60')) return { financedPct: 0.6, integrationPct: 0.4, label: profile.label || '60/40' };
+  return { financedPct: 1, integrationPct: 0, label: profile.label || '100% fábrica' };
+}
+
+function resolveVehiclePrice(vehicle, customPrice) {
+  if (customPrice > 0) return customPrice;
+  if (vehicle?.basePrice) return vehicle.basePrice;
+  return vehicle?.integration || 0;
+}
+
+function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType) {
+  if (!totalInstallments) return 0;
+  if (!customPrice && vehicle?.cuotaPura) return vehicle.cuotaPura;
+  if (!customPrice && vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
+  return financedAmount / totalInstallments;
+}
+
+
+function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0) {
+  if (!totalInstallments || !cuotaPura) {
+    return { segments: [], coveredInstallments: 0, partialCover: 0, kickoffInstallment: 1, remainingInstallments: totalInstallments };
+  }
+
+  let pointer = totalInstallments;
+  let coveredInstallments = 0;
+  let partialCover = 0;
+  const segments = [];
+
+  contributions.forEach(contrib => {
+    if (!contrib.amount) return;
+    const fullCovers = Math.floor(contrib.amount / cuotaPura);
+    const remainder = contrib.amount - (fullCovers * cuotaPura);
+
+    if (fullCovers > 0) {
+      const from = Math.max(pointer - fullCovers + 1, 1);
+      segments.push({
+        type: contrib.type,
+        label: contrib.label,
+        from,
+        to: pointer,
+        covered: fullCovers,
+        partial: 0,
+        amount: contrib.amount
+      });
+      coveredInstallments += fullCovers;
+      pointer = from - 1;
+    }
+
+    if (remainder > 0 && pointer >= 1) {
+      partialCover = Math.max(partialCover, remainder);
+      segments.push({
+        type: contrib.type,
+        label: `${contrib.label} (parcial)`,
+        from: pointer,
+        to: pointer,
+        covered: 0,
+        partial: remainder,
+        amount: remainder
+      });
+      pointer -= 1;
+    }
+  });
+
+  const remainingInstallments = Math.ceil(Math.max(outstanding, 0) / cuotaPura);
+  const kickoffInstallment = Math.max(totalInstallments - coveredInstallments, 1);
+
+  return { segments, coveredInstallments, partialCover, kickoffInstallment, remainingInstallments };
+}
+
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0 }) {
+  const scheme = resolvePlanScheme(vehicle);
+  const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
+  const basePrice = resolveVehiclePrice(vehicle, 0);
+  const price = resolveVehiclePrice(vehicle, customPrice);
+  const priceRatio = basePrice ? price / basePrice : 1;
+  const financedAmount = price * scheme.financedPct;
+  const baseFinancedAmount = basePrice * scheme.financedPct;
+  const integrationTarget = price * scheme.integrationPct;
+  const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planType);
+  const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType);
+
+  const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
+  const selectedReservation = reservations[normalizedReservation] || 0;
+  const reservationMeta = { total: selectedReservation, mode: normalizedReservation };
+
+  const tradeInAmount = tradeInEnabled ? Math.max(tradeInValue, 0) : 0;
+  const integrationCovered = Math.min(tradeInAmount, integrationTarget);
+  const contributionToPlan = Math.max(tradeInAmount - integrationCovered, 0);
+
+  const contributions = contributionToPlan > 0
+    ? [{ type: 'tradeIn', label: 'Toma de usado', amount: contributionToPlan }]
+    : [];
+
+  const outstanding = Math.max(financedAmount - contributionToPlan, 0);
+  const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding);
+
+  return {
+    basePrice,
+    price,
+    priceRatio,
+    baseFinancedAmount,
+    cuotaPura,
+    baseCuotaPura,
+    totalInstallments,
+    financedAmount,
+    integrationTarget,
+    integrationCovered,
+    integrationRemaining: Math.max(integrationTarget - integrationCovered, 0),
+    selectedReservation,
+    reservationMeta,
+    aporteInicial: contributionToPlan,
+    outstanding,
+    coveredInstallments: coverage.coveredInstallments,
+    partialCover: coverage.partialCover,
+    remainingInstallments: coverage.remainingInstallments,
+    kickoffInstallment: coverage.kickoffInstallment,
+    coverageSegments: coverage.segments,
+    scheme
+  };
+}
+
 function updatePlanSummary() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
   const plan = document.getElementById('planType').value;
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const customPriceInput = document.getElementById('customPrice');
+  const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const appliedReservationRaw = document.getElementById('appliedReservation').value;
+  const appliedReservation = ['1', '3', '6'].includes(appliedReservationRaw) ? appliedReservationRaw : '1';
+  if (appliedReservationRaw !== appliedReservation) {
+    document.getElementById('appliedReservation').value = appliedReservation;
+  }
   const v = vehicles[modelIdx] || vehicles[0];
   if (!v) return;
-  const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
   const reserva1 = getReservationValue('reservation1', v.reservations['1']);
   const reserva3 = getReservationValue('reservation3', v.reservations['3']);
   const reserva6 = getReservationValue('reservation6', v.reservations['6']);
-  const total = v.integration;
-  const outstanding = Math.max(total - (tradeIn ? tradeInValue : 0), 0);
+  const reservations = { '1': reserva1, '3': reserva3, '6': reserva6 };
+  const projection = computePaymentProjection({
+    vehicle: v,
+    planType: plan,
+    tradeInValue,
+    tradeInEnabled: tradeIn,
+    reservations,
+    appliedReservation,
+    customPrice
+  });
+  const cuotaBase = plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
+  const cuota = plan === 'ctapura'
+    ? projection.cuotaPura
+    : Math.round(cuotaBase * (projection.priceRatio || 1));
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
   const cuota6 = reserva6 ? currency.format(reserva6 / 6) : currency.format(0);
+  const formatAdjustedValue = (original, adjusted, showAdjust) => {
+    if (!showAdjust || original === adjusted) return currency.format(adjusted || original || 0);
+    const originalTag = `<span class="muted strike">${currency.format(original || 0)}</span>`;
+    return `${originalTag} ${currency.format(adjusted || 0)}`;
+  };
+  const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
+  const partialSegment = (projection.coverageSegments || []).find(s => s.partial > 0);
+  const coveredText = projection.coveredInstallments
+    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde la cuota ${Math.max(projection.totalInstallments - projection.coveredInstallments + 1, 1)} hacia atrás`
+    : 'Sin cuotas cubiertas aún';
+  const partialText = partialSegment
+    ? `+ ${currency.format(partialSegment.partial)} adelantados en la cuota ${partialSegment.from}`
+    : '';
+  const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
+  const reservationText = projection.selectedReservation
+    ? `${currency.format(projection.selectedReservation)} · ${appliedReservation} cuota(s). Es un gasto adicional, no descuenta el plan.`
+    : 'Completa el valor de la reserva para continuar.';
+  const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
+  const firstPayable = Math.max(projection.kickoffInstallment, 1);
+  const scheme = projection.scheme || { financedPct: 1, integrationPct: 0, label: 'Plan' };
+  const integrationPctLabel = `${Math.round((scheme.integrationPct || 0) * 100)}%`;
 
-  const rows = [
+  const planProfileTag = document.getElementById('planProfileTag');
+  if (planProfileTag) {
+    planProfileTag.textContent = v.planProfile?.label || 'Plan personalizado';
+  }
+
+  const flow = document.getElementById('planFlow');
+  if (flow) {
+    const flowSteps = [
+      {
+        title: 'Integración objetivo',
+        amount: currency.format(projection.integrationTarget),
+        detail: `Pendiente ${currency.format(projection.integrationRemaining)}`,
+        tone: 'integration'
+      },
+      {
+        title: 'Entrega llave x llave',
+        amount: tradeIn ? currency.format(tradeInValue) : 'Sin usado',
+        detail: tradeIn ? `Aporta ${currency.format(projection.aporteInicial)}` : 'Puedes sumarlo luego',
+        tone: 'trade'
+      },
+      {
+        title: 'Saldo financiado',
+        amount: currency.format(projection.outstanding),
+        detail: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} desde la ${firstPayable}`,
+        tone: 'pending'
+      }
+    ];
+    flow.innerHTML = flowSteps.map((step, idx) => `
+      <div class="flow-node" data-tone="${step.tone}">
+        <div class="flow-dot"></div>
+        <div class="flow-body">
+          <p class="eyebrow">${step.title}</p>
+          <strong>${step.amount}</strong>
+          <span class="muted tiny">${step.detail}</span>
+        </div>
+        ${idx < flowSteps.length - 1 ? '<div class="flow-arrow"></div>' : ''}
+      </div>
+    `).join('');
+  }
+
+  const planRows = [
     { label: 'Modelo', value: v.name },
-    { label: 'Plan', value: planLabel(plan) },
-    { label: 'Plan establecido', value: v.planProfile?.label || 'Personalizar' },
-    { label: 'Cuota estimada', value: cuota ? currency.format(cuota) : 'Completar manual' },
-    { label: 'Reserva 1 cuota', value: currency.format(reserva1) },
-    { label: 'Reserva 3 cuotas', value: `${currency.format(reserva3)} (3 cuotas de ${cuota3})` },
-    { label: 'Reserva 6 cuotas', value: `${currency.format(reserva6)} (6 cuotas de ${cuota6})` },
-    { label: 'Integración', value: currency.format(total) },
-    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No' },
-    { label: 'Saldo estimado', value: currency.format(outstanding) }
+    { label: priceSource, value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice) },
+    { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
+    { label: 'Plan seleccionado', value: planLabel(plan) },
+    { label: 'Cuota pura (catálogo)', value: formatAdjustedValue(projection.baseCuotaPura, projection.cuotaPura, showCustomPrice) },
+    { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCustomPrice) }
+  ];
+
+  const financingRows = [
+    { label: 'Integración pendiente', value: `${currency.format(projection.integrationRemaining)} (cubierto ${currency.format(projection.integrationCovered)})` },
+    { label: 'Aporte al plan con usado', value: tradeIn ? currency.format(projection.aporteInicial) : 'Sin usado aplicado' },
+    { label: 'Saldo financiado pendiente', value: currency.format(projection.outstanding) },
+    { label: 'Cuotas pendientes', value: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} arrancando en la cuota ${firstPayable}` },
+    { label: 'Total de cuotas del plan', value: projection.totalInstallments },
+    { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() || 'Sin aportes al día' }
+  ];
+
+  const reservationRows = [
+    { label: 'Reserva informativa (gasto aparte)', value: reservationText },
+    { label: 'Valores vigentes del mes', value: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})` },
+    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No aplica' }
   ];
 
   const summary = document.getElementById('planSummary');
-  summary.innerHTML = rows.map(r => `
-    <div class="summary-row">
-      <span>${r.label}</span>
-      <strong>${r.value}</strong>
+  summary.innerHTML = [
+    { title: 'Datos del plan', rows: planRows },
+    { title: 'Financiación y cobertura', rows: financingRows },
+    { title: 'Reserva (no integra el plan)', rows: reservationRows }
+  ].map(section => `
+    <div class="pro-section">
+      <h4>${section.title}</h4>
+      <div class="pro-table">
+        ${section.rows.map(r => `
+          <div class="pro-row">
+            <span>${r.label}</span>
+            <strong>${r.value}</strong>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `).join('');
+
+  const ribbon = document.getElementById('planTimelineRibbon');
+  if (ribbon) {
+    const ribbonSteps = [
+      {
+        title: 'Integración objetivo',
+        detail: `${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}`,
+        chips: [projection.integrationCovered ? `Cubierto con usado: ${currency.format(projection.integrationCovered)}` : 'Cubrir con efectivo/usado'],
+        kind: 'pending'
+      },
+      {
+        title: 'Aplicación del usado',
+        detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado',
+        chips: [tradeIn ? 'Aporta a integración/cuotas' : 'Puedes sumar usado luego'],
+        kind: 'tradeIn'
+      },
+      {
+        title: `Financiación (${projection.totalInstallments} cuotas)`,
+        detail: `Saldo en plan ${currency.format(projection.outstanding)} · Cuota pura ${currency.format(projection.cuotaPura || 0)}`,
+        chips: [`Inicio en cuota ${firstPayable}`, coveredText],
+        kind: 'pending'
+      }
+    ];
+    ribbon.innerHTML = ribbonSteps.map(step => `
+      <div class="ribbon-step" data-kind="${step.kind}">
+        <div class="ribbon-label"><span class="dot"></span>${step.title}</div>
+        <p class="ribbon-body">${step.detail}</p>
+        <div class="ribbon-meta">${step.chips.filter(Boolean).map(c => `<span class="pill">${c}</span>`).join('')}</div>
+      </div>
+    `).join('');
+  }
+
+  const timeline = document.getElementById('planTimeline');
+  const timelineSteps = [
+    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}`, ok: projection.integrationRemaining <= 0 },
+    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado', ok: tradeIn && tradeInValue > 0 },
+    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}`, ok: projection.outstanding > 0 }
+  ];
+  timeline.innerHTML = timelineSteps.map(step => {
+    const statusClass = step.ok ? 'success' : 'warning';
+    return `
+    <div class="timeline-row">
+      <div class="timeline-dot ${statusClass}"><div class="inner"></div></div>
+      <div>
+        <h4>${step.title}</h4>
+        <p class="muted tiny">${step.detail}</p>
+      </div>
+    </div>
+  `;}).join('');
+
+  const perks = document.getElementById('planPerks');
+  if (perks) {
+    const perkItems = [
+      v.benefits?.pactada && `Chevroplan pactada: ${v.benefits.pactada}`,
+      v.benefits?.bonificacion && `Bonificación: ${v.benefits.bonificacion}`,
+      `Integración objetivo: ${currency.format(projection.integrationTarget)} (${integrationPctLabel} del valor)`
+    ].filter(Boolean);
+    perks.innerHTML = `
+      <div class="pro-section">
+        <h4>Beneficios adicionales</h4>
+        <ul class="pro-bullets">
+          ${perkItems.map(p => `<li>${p}</li>`).join('') || '<li>Sin beneficios destacados</li>'}
+        </ul>
+      </div>
+    `;
+  }
+
+  const timelineTrack = document.getElementById('planTimelineTrack');
+  if (timelineTrack) {
+    const segments = [
+      { type: 'tradeIn', label: 'Usado', amount: projection.aporteInicial || 0, detail: tradeIn ? 'Aplicado al plan' : 'Sin usado' },
+      { type: 'integration', label: 'Integración', amount: Math.max(projection.integrationTarget - projection.integrationCovered, 0), detail: `Objetivo ${currency.format(projection.integrationTarget)}` },
+      { type: 'outstanding', label: 'Saldo', amount: projection.outstanding || 0, detail: `${remainingInstallments} cuota(s)` }
+    ];
+
+    const totalAmount = segments.reduce((acc, seg) => acc + Math.max(seg.amount, 0), 0) || 1;
+    const chunks = segments.map(seg => {
+      const width = Math.max((Math.max(seg.amount, 0) / totalAmount) * 100, 8);
+      const amountLabel = currency.format(seg.amount || 0);
+      return `<div class="timeline-chunk" data-type="${seg.type}" data-label="${seg.label}" style="width:${width}%"><span>${amountLabel}</span><span>${seg.detail}</span></div>`;
+    });
+    timelineTrack.innerHTML = chunks.join('');
+  }
   savePlanDraft();
 }
 
@@ -1454,12 +2210,26 @@ function buildQuoteFromForm() {
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const customPriceInput = document.getElementById('customPrice');
+  const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const appliedReservation = document.getElementById('appliedReservation').value;
   const notes = document.getElementById('notes').value.trim();
   const v = vehicles[modelIdx] || vehicles[0];
-  const cuota = v.shareByPlan[plan] ?? v.cuotaPura;
   const reservation1 = getReservationValue('reservation1', v.reservations['1']);
   const reservation3 = getReservationValue('reservation3', v.reservations['3']);
   const reservation6 = getReservationValue('reservation6', v.reservations['6']);
+  const reservations = { '1': reservation1, '3': reservation3, '6': reservation6 };
+  const projection = computePaymentProjection({
+    vehicle: v,
+    planType: plan,
+    tradeInValue,
+    tradeInEnabled: tradeIn,
+    reservations,
+    appliedReservation,
+    customPrice
+  });
+  const cuotaBase = plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
+  const cuota = plan === 'ctapura' ? projection.cuotaPura : Math.round(cuotaBase * (projection.priceRatio || 1));
   const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
   const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
   const quote = {
@@ -1475,7 +2245,28 @@ function buildQuoteFromForm() {
     reservation3,
     reservation6,
     integration: v.integration,
+    customPrice: projection.price,
+    cuotaPura: projection.cuotaPura,
+    totalInstallments: projection.totalInstallments,
+    appliedReservation,
+    outstanding: projection.outstanding,
+    remainingInstallments: projection.remainingInstallments,
+    kickoffInstallment: projection.kickoffInstallment,
+    aporteInicial: projection.aporteInicial,
+    financedAmount: projection.financedAmount,
+    integrationTarget: projection.integrationTarget,
+    integrationCovered: projection.integrationCovered,
+    integrationRemaining: projection.integrationRemaining,
+    schemeLabel: projection.scheme?.label || v.planProfile?.label || 'Plan',
+    selectedReservation: projection.selectedReservation,
+    reservationMode: appliedReservation,
     planProfileLabel: v.planProfile?.label || 'Personalizar',
+    basePrice: projection.basePrice,
+    priceApplied: projection.price,
+    baseCuotaPura: projection.baseCuotaPura,
+    cuotaBase: plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura),
+    cuotaAjustada: plan === 'ctapura' ? projection.cuotaPura : Math.round((v.shareByPlan[plan] ?? projection.baseCuotaPura) * (projection.priceRatio || 1)),
+    priceRatio: projection.priceRatio,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
     summaryText: ''
@@ -1487,14 +2278,32 @@ function buildQuoteFromForm() {
 function buildQuoteSummaryText(quote) {
   const cuota3 = quote.reservation3 ? currency.format(quote.reservation3 / 3) : currency.format(0);
   const cuota6 = quote.reservation6 ? currency.format(quote.reservation6 / 6) : currency.format(0);
+  const reservaDetalle = quote.selectedReservation
+    ? `${currency.format(quote.selectedReservation)} en ${quote.reservationMode || '1'} cuota(s) (gasto adicional)`
+    : 'Reserva pendiente (gasto adicional)';
+  const hasCustomPrice = quote.priceApplied && quote.basePrice && quote.priceApplied !== quote.basePrice;
+  const cuotaPuraDetalle = hasCustomPrice
+    ? `${currency.format(quote.baseCuotaPura || 0)} → ${currency.format(quote.cuotaPura || 0)}`
+    : (quote.cuotaPura ? currency.format(quote.cuotaPura) : 'Completar manual');
+  const cuotaTramoDetalle = hasCustomPrice
+    ? `${currency.format(quote.cuotaBase || 0)} → ${currency.format(quote.cuotaAjustada || 0)}`
+    : (quote.cuota ? currency.format(quote.cuota) : 'Completar manual');
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
+    `Precio base catálogo: ${currency.format(quote.basePrice || 0)}`,
+    hasCustomPrice ? `Precio aplicado: ${currency.format(quote.priceApplied || 0)} (ajustado)` : `Precio aplicado: ${currency.format(quote.priceApplied || 0)}`,
+    `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
-    `Cuota estimada: ${quote.cuota ? currency.format(quote.cuota) : 'Completar manual'}`,
+    `Cuota pura estimada: ${cuotaPuraDetalle}`,
+    `Cuota estimada: ${cuotaTramoDetalle}`,
     `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} (3 de ${cuota3}) · 6 cuotas ${currency.format(quote.reservation6 || 0)} (6 de ${cuota6})`,
-    `Integración objetivo: ${currency.format(quote.integration || 0)}`,
+    `Reserva informada: ${reservaDetalle}`,
+    `Integración objetivo: ${currency.format(quote.integrationTarget || 0)} (pendiente ${currency.format(quote.integrationRemaining || 0)})`,
     `Entrega llave por llave: ${quote.tradeIn ? `Sí (toma usado por ${currency.format(quote.tradeInValue || 0)})` : 'No'}`,
+    `Aporte al plan con usado: ${currency.format(quote.aporteInicial || 0)}`,
+    `Saldo financiado pendiente: ${currency.format(quote.outstanding || 0)}`,
+    `Cuotas restantes: ${quote.remainingInstallments || 0} (se reinicia en la cuota ${quote.kickoffInstallment || 1})`,
     `Notas: ${quote.notes || 'Sin notas'}`,
     `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
   ];
@@ -1511,6 +2320,9 @@ function applyQuoteToForm(quote) {
   applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
   document.getElementById('planType').value = quote.plan || document.getElementById('planType').value;
   document.getElementById('planType').dataset.manual = 'true';
+  setMoneyValue(document.getElementById('customPrice'), quote.customPrice || '');
+  if (parseMoney(quote.customPrice)) document.getElementById('customPrice').dataset.manual = 'true';
+  document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(quote.appliedReservation) ? quote.appliedReservation : '1';
   document.getElementById('tradeIn').checked = !!quote.tradeIn;
   setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
   setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
@@ -1540,6 +2352,10 @@ function applyPlanDraft() {
     planTypeSelect.dataset.manual = 'true';
   }
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
+  const customPriceInput = document.getElementById('customPrice');
+  setMoneyValue(customPriceInput, draft.customPrice || '');
+  if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
+  document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(draft.appliedReservation) ? draft.appliedReservation : '1';
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
   document.getElementById('notes').value = draft.notes || '';
@@ -1559,6 +2375,8 @@ function savePlanDraft() {
     planModel: document.getElementById('planModel').value,
     planType: document.getElementById('planType').value,
     tradeIn: document.getElementById('tradeIn').checked,
+    customPrice: parseMoney(document.getElementById('customPrice').dataset.raw || document.getElementById('customPrice').value),
+    appliedReservation: document.getElementById('appliedReservation').value,
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
     clientName: document.getElementById('clientName').value,
     notes: document.getElementById('notes').value,
@@ -1701,10 +2519,15 @@ function openPriceImage() {
 function bindClientManager() {
   const importInput = document.getElementById('clientExcel');
   if (importInput) {
-    importInput.addEventListener('change', (e) => {
+    importInput.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      handleClientImport(file);
+      const importDate = await openImportDateModal();
+      if (importDate === null) {
+        e.target.value = '';
+        return;
+      }
+      handleClientImport(file, importDate);
       e.target.value = '';
     });
   }
@@ -1742,9 +2565,14 @@ function bindClientManager() {
   }
   renderStatusFilter();
 
+  const dateFilterBtn = document.getElementById('openDateFilter');
+  if (dateFilterBtn) {
+    dateFilterBtn.addEventListener('click', openDateFilterModal);
+  }
+
   const exportBtn = document.getElementById('exportClients');
   if (exportBtn) {
-    exportBtn.addEventListener('click', exportManagerClients);
+    exportBtn.addEventListener('click', openExportModal);
   }
 
   const paletteOverlay = document.getElementById('paletteOverlay');
@@ -1866,7 +2694,7 @@ const headerMap = {
   'TIPO': 'type'
 };
 
-function mapRow(row, headers) {
+function mapRow(row, headers, systemDate = '') {
 
   const mapped = { flags: {}, selected: false };
   headers.forEach((h, idx) => {
@@ -1886,10 +2714,11 @@ function mapRow(row, headers) {
   mapped.model = mapped.model || 'Sin modelo';
   mapped.phone = normalizePhone(mapped.phone || '');
   mapped.type = normalizeNotesValue(mapped.type);
+  mapped.systemDate = systemDate;
   return mapped;
 }
 
-function handleClientImport(file) {
+function handleClientImport(file, importDate = '') {
   const reader = new FileReader();
   reader.onload = (ev) => {
     try {
@@ -1910,7 +2739,7 @@ function handleClientImport(file) {
         const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
         let imported = 0;
         dataRows.forEach(r => {
-          const mapped = mapRow(r, headersToUse);
+          const mapped = mapRow(r, headersToUse, importDate);
           const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
           if (existingKeys.has(key)) {
             return;
@@ -1978,18 +2807,41 @@ function renderStatusFilter() {
   if (label) label.textContent = `${current.label} (${current.count})`;
 }
 
+function renderDateFilterHelper() {
+  const helper = document.getElementById('dateFilterHelper');
+  if (!helper) return;
+  const { from, to } = clientManagerState.dateRange || {};
+  if (!from && !to) {
+    helper.textContent = 'Sin filtro por fecha de carga.';
+    helper.innerHTML = 'Sin filtro por fecha de carga.';
+    return;
+  }
+  const fromLabel = from ? formatDateLabel(from) : 'Inicio';
+  const toLabel = to ? formatDateLabel(to) : 'Actualidad';
+  helper.innerHTML = `<span class="date-filter-badge">Rango activo: <strong>${fromLabel} → ${toLabel}</strong><button class="ghost-btn mini-btn" id="clearDateFilterInline"><i class='bx bx-x'></i>Limpiar</button></span>`;
+  const clearInline = document.getElementById('clearDateFilterInline');
+  if (clearInline) {
+    clearInline.onclick = () => {
+      clientManagerState.dateRange = { from: '', to: '' };
+      persist();
+      renderClientManager();
+    };
+  }
+}
+
 function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
   return managerClients.filter(c => {
     const status = clientStatus(c).label;
     const matchesSearch = [c.name, c.model, c.phone, c.type].some(v => (v || '').toLowerCase().includes(search));
+    const matchesDate = isWithinDateRange(c.systemDate, clientManagerState.dateRange);
     const matchesStatus = clientManagerState.statusFilter === 'all'
       ? true
       : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
       : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
       : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
       : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite);
-    return matchesSearch && matchesStatus && status !== 'Oculto';
+    return matchesSearch && matchesStatus && matchesDate && status !== 'Oculto';
   });
 }
 
@@ -2001,6 +2853,7 @@ function renderClientManager() {
   const bodyContainer = grid.querySelector('.grid-body');
   if (!head || !bodyContainer) return;
   renderStatusFilter();
+  renderDateFilterHelper();
 
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
   const templateColumns = [
@@ -2112,6 +2965,7 @@ function formatCell(key, client) {
   if (key === 'model') return `<div class="name-cell"><strong>${client.model}</strong></div>`;
   if (key === 'phone') return `<div class="tip"><span>${normalizePhone(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
+  if (key === 'systemDate') return formatDateForDisplay(client.systemDate) || '-';
   if (key === 'type') return normalizeNotesValue(client.type).replace(/\n/g, '<br>');
   return client[key] || '-';
 }
@@ -2184,30 +3038,81 @@ function hexToRgba(hex, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function exportValue(key, client) {
+  switch (key) {
+    case 'name': return client.name || '';
+    case 'model': return client.model || '';
+    case 'phone': return normalizePhone(client.phone);
+    case 'brand': return client.brand || '';
+    case 'city': return client.city || '';
+    case 'province': return client.province || '';
+    case 'document': return client.document || '';
+    case 'cuit': return client.cuit || '';
+    case 'birthDate': return client.birthDate || '';
+    case 'purchaseDate': return formatDateForDisplay(client.purchaseDate);
+    case 'systemDate': return formatDateForDisplay(client.systemDate);
+    case 'postalCode': return client.postalCode || '';
+    case 'type': return normalizeNotesValue(client.type);
+    case 'status': return client.statusOverride || clientStatus(client).label;
+    default: return client[key] || '';
+  }
+}
+
+function buildLocalExportData(rows, options) {
+  const selected = options.columnOrder.filter(key => options.selectedColumns.includes(key)).filter(key => exportableColumns[key]);
+  if (!selected.length) return null;
+  return rows.map(client => selected.reduce((acc, key) => {
+    acc[exportableColumns[key].label] = exportValue(key, client);
+    return acc;
+  }, {}));
+}
+
+function buildPresetExportData(rows) {
+  return rows.map(client => {
+    const statusFromType = statusLabelFromType(client.type);
+    const exportClient = statusFromType ? { ...client, statusOverride: statusFromType } : client;
+    return presetExportHeaders.reduce((acc, { key, label }) => {
+      acc[label] = exportValue(key, exportClient);
+      return acc;
+    }, {});
+  });
+}
+
 function exportManagerClients() {
   const rows = filteredManagerClients();
   if (!rows.length) {
     showToast('No hay clientes para exportar.', 'error');
     return;
   }
-  const data = rows.map(c => ({
-    Nombre: c.name,
-    Modelo: c.model,
-    Celular: normalizePhone(c.phone),
-    Marca: c.brand,
-    Localidad: c.city,
-    Provincia: c.province,
-    Documento: c.document,
-    CUIT: c.cuit,
-    Nacimiento: c.birthDate,
-    'Fecha compra': c.purchaseDate,
-    CP: c.postalCode,
-    Tipo: normalizeNotesValue(c.type),
-    Estado: clientStatus(c).label
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  const exportOptions = clientManagerState.exportOptions;
+  const grouped = rows.reduce((acc, c) => {
+    const key = formatDateISO(c.systemDate) || '';
+    acc[key] = acc[key] || [];
+    acc[key].push(c);
+    return acc;
+  }, {});
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+  const sortedKeys = Object.keys(grouped).sort((a, b) => {
+    if (!a) return 1;
+    if (!b) return -1;
+    return b.localeCompare(a);
+  });
+
+  for (const isoKey of sortedKeys) {
+    const sheetLabel = isoKey ? formatDateLabel(isoKey) : 'Sin fecha asignada';
+    const data = exportOptions.mode === 'preset'
+      ? buildPresetExportData(grouped[isoKey])
+      : buildLocalExportData(grouped[isoKey], exportOptions);
+    if (!data || !data.length) {
+      showToast('Selecciona al menos una columna para exportar.', 'error');
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(sheetLabel));
+  }
+
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
@@ -2337,6 +3242,9 @@ function syncFromStorage() {
   managerClients = load('managerClients') || managerClients;
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
+  clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+  clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   snapshots = load('snapshots') || snapshots;
   applyStatusPalette();
   renderStats();
