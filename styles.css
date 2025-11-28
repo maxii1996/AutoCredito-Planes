@@ -605,12 +605,20 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 
 .client-controls #toggleEditMode.active { background: #0f2138; border-color: var(--accent); color: var(--accent); box-shadow: 0 10px 28px rgba(0,0,0,0.35); }
 .action-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.action-card { border: 1px solid var(--border); border-radius: 12px; background: #0f1727; padding: 12px; display: grid; gap: 6px; box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
-.action-card .label { font-weight: 600; }
+.action-card { border: 1px solid var(--border); border-radius: 12px; background: #0f1727; padding: 12px; display: grid; gap: 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
+.action-card-head { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.action-card .label { font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .action-card .muted { margin: 0; }
+.action-card .current-value { color: var(--text); font-weight: 600; }
 .action-card .action-btn { justify-content: space-between; width: 100%; }
 .action-card .danger { border-color: rgba(248, 113, 113, 0.4); color: #f87171; }
 .action-card .danger:hover { border-color: #f87171; color: #f87171; }
+.action-icon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #132138; color: #9dd7ff; font-size: 22px; box-shadow: inset 0 0 0 1px rgba(56,189,248,0.16); }
+.action-icon[data-tone="warning"] { background: rgba(250,204,21,0.12); color: #facc15; box-shadow: inset 0 0 0 1px rgba(250,204,21,0.3); }
+.action-icon[data-tone="danger"] { background: rgba(248,113,113,0.12); color: #f87171; box-shadow: inset 0 0 0 1px rgba(248,113,113,0.3); }
+.action-icon[data-tone="success"] { background: rgba(52,211,153,0.14); color: #34d399; box-shadow: inset 0 0 0 1px rgba(52,211,153,0.3); }
+.success-btn { background: rgba(52,211,153,0.14); border-color: rgba(52,211,153,0.45); color: #34d399; }
+.success-btn:hover { border-color: #34d399; color: #a7f3d0; }
 .actions-col .action-menu-btn { width: 100%; justify-content: center; }
 .actions-col .action-menu-btn i { margin-right: 6px; }
 .actions-col .action-menu-btn.compact { padding: 10px; }

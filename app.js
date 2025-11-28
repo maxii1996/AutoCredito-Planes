@@ -2619,11 +2619,7 @@ function bindClientManager() {
   }
 
   const contactLogClose = document.getElementById('contactLogClose');
-  const contactLogOverlay = document.getElementById('contactLogOverlay');
   if (contactLogClose) contactLogClose.addEventListener('click', () => toggleContactLog(false));
-  if (contactLogOverlay) contactLogOverlay.addEventListener('click', (e) => {
-    if (e.target === contactLogOverlay) toggleContactLog(false);
-  });
 
   const contactLogSearch = document.getElementById('contactLogSearch');
   if (contactLogSearch) {
@@ -3093,15 +3089,9 @@ function bindClientEditHandlers() {
     closeAction.addEventListener('click', closeClientActionMenu);
     closeAction.dataset.bound = 'true';
   }
-  if (actionOverlay && !actionOverlay.dataset.bound) {
-    actionOverlay.addEventListener('click', (e) => {
-      if (e.target === actionOverlay) closeClientActionMenu();
-    });
-    actionOverlay.dataset.bound = 'true';
-  }
   [cancelEdit, closeEdit].forEach(btn => {
     if (btn && !btn.dataset.bound) {
-      btn.addEventListener('click', closeClientEditModal);
+      btn.addEventListener('click', () => closeClientEditModal(true));
       btn.dataset.bound = 'true';
     }
   });
@@ -3109,21 +3099,19 @@ function bindClientEditHandlers() {
     saveEdit.addEventListener('click', applyClientEdit);
     saveEdit.dataset.bound = 'true';
   }
-  if (editModal && !editModal.dataset.bound) {
-    editModal.addEventListener('click', (e) => {
-      if (e.target === editModal) closeClientEditModal();
-    });
-    editModal.dataset.bound = 'true';
-  }
 }
 
 function clientActionOptions(client) {
   const vehicleOptions = [...new Set([...(vehicles || []).map(v => v.name), client.model].filter(Boolean))];
+  const formatDateValue = (value) => formatDateForDisplay(value) || 'Sin datos';
   return [
     {
       key: 'rename',
+      icon: 'bxs-user-detail',
+      tone: 'info',
       label: 'Renombrar Contacto',
       description: 'Actualiza el nombre principal del cliente.',
+      currentValue: (c) => c.name || 'Sin nombre',
       handler: () => openClientEditModal({
         key: 'rename',
         field: 'name',
@@ -3136,9 +3124,35 @@ function clientActionOptions(client) {
       }, client.id)
     },
     {
+      key: 'done',
+      icon: 'bx-check-shield',
+      tone: 'success',
+      label: 'Listo',
+      description: 'Marca el contacto como gestionado y listo.',
+      currentValue: (c) => clientStatus(c).label,
+      buttonText: 'Listo',
+      highlight: true,
+      handler: () => {
+        const target = managerClients.find(c => c.id === client.id);
+        if (!target) return;
+        target.flags = target.flags || {};
+        target.flags.contacted = true;
+        target.flags.noNumber = false;
+        updateContactMeta(target);
+        persist();
+        renderClientManager();
+        renderContactLog();
+        showToast('Contacto marcado como listo', 'success');
+        openClientActionMenu(client.id);
+      }
+    },
+    {
       key: 'model',
+      icon: 'bx-car',
+      tone: 'info',
       label: 'Cambiar el modelo del coche',
       description: 'Selecciona un nuevo modelo desde el catálogo.',
+      currentValue: (c) => c.model || 'Sin modelo',
       handler: () => openClientEditModal({
         key: 'model',
         field: 'model',
@@ -3152,8 +3166,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'phone',
+      icon: 'bx-phone-call',
+      tone: 'info',
       label: 'Actualizar Teléfono',
       description: 'Corrige o reemplaza el número guardado.',
+      currentValue: (c) => normalizePhone(c.phone) || 'Sin número',
       handler: () => openClientEditModal({
         key: 'phone',
         field: 'phone',
@@ -3167,8 +3184,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'city',
+      icon: 'bx-map-pin',
+      tone: 'info',
       label: 'Actualizar Localidad',
       description: 'Edita la ciudad o localidad del cliente.',
+      currentValue: (c) => c.city || 'Sin localidad',
       handler: () => openClientEditModal({
         key: 'city',
         field: 'city',
@@ -3181,8 +3201,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'province',
+      icon: 'bx-map',
+      tone: 'info',
       label: 'Actualizar Provincia',
       description: 'Actualiza la provincia almacenada.',
+      currentValue: (c) => c.province || 'Sin provincia',
       handler: () => openClientEditModal({
         key: 'province',
         field: 'province',
@@ -3195,8 +3218,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'document',
+      icon: 'bx-id-card',
+      tone: 'info',
       label: 'Actualizar Documento',
       description: 'Modifica el documento asociado.',
+      currentValue: (c) => c.document || 'Sin datos',
       handler: () => openClientEditModal({
         key: 'document',
         field: 'document',
@@ -3209,8 +3235,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'cuit',
+      icon: 'bx-briefcase-alt',
+      tone: 'info',
       label: 'Actualizar CUIT',
       description: 'Reemplaza el CUIT o CUIL.',
+      currentValue: (c) => c.cuit || 'Sin datos',
       handler: () => openClientEditModal({
         key: 'cuit',
         field: 'cuit',
@@ -3223,8 +3252,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'birthDate',
+      icon: 'bx-cake',
+      tone: 'info',
       label: 'Actualizar fecha de nacimiento',
       description: 'Define una nueva fecha de nacimiento.',
+      currentValue: (c) => formatDateValue(c.birthDate),
       handler: () => openClientEditModal({
         key: 'birthDate',
         field: 'birthDate',
@@ -3237,8 +3269,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'purchaseDate',
+      icon: 'bx-calendar-event',
+      tone: 'warning',
       label: 'Actualizar fecha de compra',
       description: 'Ajusta la fecha de compra cargada.',
+      currentValue: (c) => formatDateValue(c.purchaseDate),
       handler: () => openClientEditModal({
         key: 'purchaseDate',
         field: 'purchaseDate',
@@ -3251,8 +3286,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'systemDate',
+      icon: 'bx-calendar-week',
+      tone: 'warning',
       label: 'Actualizar fecha de carga',
       description: 'Modifica la fecha de carga del registro.',
+      currentValue: (c) => formatDateValue(c.systemDate),
       handler: () => openClientEditModal({
         key: 'systemDate',
         field: 'systemDate',
@@ -3265,8 +3303,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'postalCode',
+      icon: 'bx-navigation',
+      tone: 'info',
       label: 'Actualizar código postal',
       description: 'Corrige el código postal registrado.',
+      currentValue: (c) => c.postalCode || 'Sin datos',
       handler: () => openClientEditModal({
         key: 'postalCode',
         field: 'postalCode',
@@ -3279,8 +3320,11 @@ function clientActionOptions(client) {
     },
     {
       key: 'type',
+      icon: 'bx-note',
+      tone: 'info',
       label: 'Actualizar notas',
       description: 'Edita las notas o comentarios del cliente.',
+      currentValue: (c) => normalizeNotesValue(c.type),
       handler: () => openClientEditModal({
         key: 'type',
         field: 'type',
@@ -3293,6 +3337,8 @@ function clientActionOptions(client) {
     },
     {
       key: 'delete',
+      icon: 'bx-trash',
+      tone: 'danger',
       label: 'Borrar Contacto',
       description: 'Eliminará el contacto de la base local.',
       danger: true,
@@ -3322,9 +3368,15 @@ function openClientActionMenu(id) {
   const options = clientActionOptions(client);
   list.innerHTML = options.map(opt => `
     <div class="action-card" data-key="${opt.key}">
-      <span class="label">${opt.label}</span>
-      <p class="muted tiny">${opt.description}</p>
-      <button class="${opt.danger ? 'ghost-btn action-btn danger' : 'secondary-btn action-btn'}" data-action="${opt.key}"><span>${opt.danger ? 'Borrar' : 'Seleccionar'}</span><i class='bx bx-chevron-right'></i></button>
+      <div class="action-card-head">
+        <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''}><i class='bx ${opt.icon || 'bx-dots-vertical-rounded'}'></i></span>
+        <div>
+          <span class="label">${opt.label}</span>
+          <p class="muted tiny">${opt.description}</p>
+          ${opt.currentValue ? `<p class="muted tiny current-value">[${opt.currentValue(client)}]</p>` : ''}
+        </div>
+      </div>
+      <button class="${opt.danger ? 'ghost-btn action-btn danger' : opt.highlight ? 'success-btn action-btn' : 'secondary-btn action-btn'}" data-action="${opt.key}"><span>${opt.danger ? 'Borrar' : (opt.buttonText || 'Seleccionar')}</span><i class='bx bx-chevron-right'></i></button>
     </div>
   `).join('');
   list.querySelectorAll('[data-action]').forEach(btn => {
@@ -3378,22 +3430,26 @@ function openClientEditModal(config, clientId = activeActionClientId) {
   closeClientActionMenu();
 }
 
-function closeClientEditModal() {
+function closeClientEditModal(returnToMenu = false) {
   const modal = document.getElementById('clientEditModal');
+  const reopenId = returnToMenu ? (activeEditAction?.clientId || activeActionClientId) : null;
   if (!modal) return;
   modal.classList.remove('show');
   setTimeout(() => modal.classList.add('hidden'), 200);
   activeEditAction = null;
+  if (returnToMenu && reopenId) {
+    setTimeout(() => openClientActionMenu(reopenId), 220);
+  }
 }
 
 function applyClientEdit() {
   if (!activeEditAction) {
-    closeClientEditModal();
+    closeClientEditModal(true);
     return;
   }
   const client = managerClients.find(c => c.id === activeEditAction.clientId);
   if (!client) {
-    closeClientEditModal();
+    closeClientEditModal(true);
     return;
   }
   const input = document.getElementById('clientEditInput');
@@ -3412,7 +3468,7 @@ function applyClientEdit() {
   renderClientManager();
   renderContactLog();
   showToast(activeEditAction.successMessage || 'Datos actualizados', 'success');
-  closeClientEditModal();
+  closeClientEditModal(true);
 }
 
 function deleteClientById(id) {
