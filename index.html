@@ -382,11 +382,11 @@
               </div>
             </div>
             <div class="toggles">
-              <label class="toggle" title="Agrupar registros por modelo de vehículo">
-                <input type="checkbox" id="groupByModel" checked>
-                <span>Agrupar por modelo</span>
-              </label>
-              <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+            <label class="toggle" title="Agrupar registros por modelo de vehículo">
+              <input type="checkbox" id="groupByModel" checked>
+              <span>Agrupar por modelo</span>
+            </label>
+            <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                 <i class='bx bx-filter-alt'></i>
               <div class="filter-label">
                 <span class="muted tiny">Mostrar:</span>
@@ -401,6 +401,7 @@
               </select>
             </div>
             <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+            <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
             <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
           </div>
         </div>
@@ -480,6 +481,41 @@
       </div>
       <div class="actions compact end">
         <button class="primary-btn" id="applyPalette"><i class='bx bx-check-double'></i> Guardar colores</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay" id="clientActionOverlay">
+    <div class="popover wide" id="clientActionMenu">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Menú de acciones</p>
+          <h3 id="clientActionTitle">Editar contacto</h3>
+          <p class="muted subtle" id="clientActionSubtitle"></p>
+        </div>
+        <button class="ghost-btn icon-only" id="clientActionClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="action-grid" id="clientActionList"></div>
+    </div>
+  </div>
+  <div class="modal hidden" id="clientEditModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="clientEditEyebrow">Edición</p>
+          <h3 id="clientEditTitle"></h3>
+          <p class="muted" id="clientEditSubtitle"></p>
+        </div>
+        <button id="clientEditClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="field" id="clientEditCurrent"></div>
+      <div class="field" id="clientEditField"></div>
+      <label class="toggle" id="uppercaseToggle" style="display:none;">
+        <input type="checkbox" id="clientUppercase">
+        <span>Forzar mayúsculas</span>
+      </label>
+      <div class="modal-actions">
+        <button id="clientEditCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientEditSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
       </div>
     </div>
   </div>

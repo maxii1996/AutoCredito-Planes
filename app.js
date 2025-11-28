@@ -178,7 +178,8 @@ const defaultClientManagerState = {
     columnOrder: Object.keys(exportableColumns),
     selectedColumns: Object.keys(exportableColumns)
   },
-  contactLogSearch: ''
+  contactLogSearch: '',
+  editingMode: false
 };
 
 const clientColumnWidths = {
@@ -927,6 +928,9 @@ let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templat
 let planDraftApplied = false;
 let snapshots = load('snapshots') || [];
 let activeNoteClientId = null;
+let activeActionClientId = null;
+let activeEditAction = null;
+let contactLogInterval = null;
 
 clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
@@ -974,6 +978,7 @@ function init() {
     attachTemplateActions();
     attachVehicleToggles();
     bindClientManager();
+    startContactLogTicker();
     startRealtimePersistence();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
   } catch (err) {
@@ -2630,6 +2635,17 @@ function bindClientManager() {
     });
   }
 
+  const editModeToggle = document.getElementById('toggleEditMode');
+  if (editModeToggle) {
+    updateEditModeButton(editModeToggle);
+    editModeToggle.addEventListener('click', () => {
+      clientManagerState.editingMode = !clientManagerState.editingMode;
+      persist();
+      updateEditModeButton(editModeToggle);
+      renderClientManager();
+    });
+  }
+
   const exportBtn = document.getElementById('exportClients');
   if (exportBtn) {
     exportBtn.addEventListener('click', openExportModal);
@@ -2654,6 +2670,7 @@ function bindClientManager() {
     });
   }
 
+  bindClientEditHandlers();
   renderColumnToggles();
 }
 
@@ -2910,6 +2927,13 @@ function filteredManagerClients() {
   });
 }
 
+function updateEditModeButton(button) {
+  if (!button) return;
+  const active = !!clientManagerState.editingMode;
+  button.classList.toggle('active', active);
+  button.innerHTML = `${active ? "<i class='bx bx-lock-open'></i>Desactivar Modo Edición" : "<i class='bx bx-edit-alt'></i>Activar Modo Edición"}`;
+}
+
 function contactLogEntries() {
   const search = (clientManagerState.contactLogSearch || '').toLowerCase();
   return managerClients
@@ -2928,7 +2952,7 @@ function contactLogEntries() {
     .map(item => ({ ...item, effectiveDate: item.contactDate || normalizeDateTime(item.fallbackDate) }))
     .filter(item => !!item.effectiveDate)
     .filter(item => [item.name, item.phone, item.status.label].some(val => val.toLowerCase().includes(search)))
-    .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
+    .sort((a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime());
 }
 
 function renderClientManager() {
@@ -2974,18 +2998,20 @@ function renderClientManager() {
       const notesClass = notesActive ? ' has-notes' : '';
       const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
       const cells = visibleColumns.map(([key, col]) => `<div class="grid-cell" data-label="${col.label}">${formatCell(key, c)}</div>`).join('');
-      return `
-        <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
-          ${cells}
-          <div class="grid-cell status-col" data-label="Estado"><span class="status-pill ${status.className}">${status.label}</span></div>
-          <div class="grid-cell actions-col" data-label="Acciones">
+      const actionsContent = clientManagerState.editingMode
+        ? `<button class="secondary-btn mini action-menu-btn compact" data-action="open_menu"><i class='bx bx-dots-vertical'></i>Menú de acciones</button>`
+        : `
             <button class="icon-btn" data-action="contacted" title="Marcar como contactado"><i class='bx bx-check-circle'></i></button>
             <button class="icon-btn" data-action="no_number" title="Número no disponible"><i class='bx bx-block'></i></button>
             <button class="icon-btn" data-action="favorite" title="Agregar a favoritos"><i class='bx bx-star'></i></button>
             <button class="icon-btn${notesClass}" data-action="open_notes" title="${notesTitle}"><i class='bx bx-note'></i></button>
             <button class="icon-btn" data-action="copy_message" title="Copiar mensaje inicial"><i class='bx bx-message-square-dots'></i></button>
-            <button class="icon-btn" data-action="copy_phone" title="Copiar número"><i class='bx bx-phone'></i></button>
-          </div>
+            <button class="icon-btn" data-action="copy_phone" title="Copiar número"><i class='bx bx-phone'></i></button>`;
+      return `
+        <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
+          ${cells}
+          <div class="grid-cell status-col" data-label="Estado"><span class="status-pill ${status.className}">${status.label}</span></div>
+          <div class="grid-cell actions-col" data-label="Acciones">${actionsContent}</div>
         </div>`;
     }).join('');
     return `${groupTitle}${content}`;
@@ -3051,6 +3077,355 @@ function renderContactLog() {
   }));
 }
 
+function startContactLogTicker() {
+  if (contactLogInterval) clearInterval(contactLogInterval);
+  contactLogInterval = setInterval(() => renderContactLog(), 60000);
+}
+
+function bindClientEditHandlers() {
+  const actionOverlay = document.getElementById('clientActionOverlay');
+  const closeAction = document.getElementById('clientActionClose');
+  const editModal = document.getElementById('clientEditModal');
+  const cancelEdit = document.getElementById('clientEditCancel');
+  const closeEdit = document.getElementById('clientEditClose');
+  const saveEdit = document.getElementById('clientEditSave');
+  if (closeAction && !closeAction.dataset.bound) {
+    closeAction.addEventListener('click', closeClientActionMenu);
+    closeAction.dataset.bound = 'true';
+  }
+  if (actionOverlay && !actionOverlay.dataset.bound) {
+    actionOverlay.addEventListener('click', (e) => {
+      if (e.target === actionOverlay) closeClientActionMenu();
+    });
+    actionOverlay.dataset.bound = 'true';
+  }
+  [cancelEdit, closeEdit].forEach(btn => {
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', closeClientEditModal);
+      btn.dataset.bound = 'true';
+    }
+  });
+  if (saveEdit && !saveEdit.dataset.bound) {
+    saveEdit.addEventListener('click', applyClientEdit);
+    saveEdit.dataset.bound = 'true';
+  }
+  if (editModal && !editModal.dataset.bound) {
+    editModal.addEventListener('click', (e) => {
+      if (e.target === editModal) closeClientEditModal();
+    });
+    editModal.dataset.bound = 'true';
+  }
+}
+
+function clientActionOptions(client) {
+  const vehicleOptions = [...new Set([...(vehicles || []).map(v => v.name), client.model].filter(Boolean))];
+  return [
+    {
+      key: 'rename',
+      label: 'Renombrar Contacto',
+      description: 'Actualiza el nombre principal del cliente.',
+      handler: () => openClientEditModal({
+        key: 'rename',
+        field: 'name',
+        label: 'Renombrar Contacto',
+        currentLabel: 'Nombre anterior',
+        newLabel: 'Nuevo nombre',
+        type: 'text',
+        uppercase: true,
+        successMessage: 'Nombre actualizado'
+      }, client.id)
+    },
+    {
+      key: 'model',
+      label: 'Cambiar el modelo del coche',
+      description: 'Selecciona un nuevo modelo desde el catálogo.',
+      handler: () => openClientEditModal({
+        key: 'model',
+        field: 'model',
+        label: 'Cambiar el modelo del coche',
+        currentLabel: 'Coche anterior',
+        newLabel: 'Coche nuevo',
+        type: 'select',
+        options: vehicleOptions,
+        successMessage: 'Modelo actualizado'
+      }, client.id)
+    },
+    {
+      key: 'phone',
+      label: 'Actualizar Teléfono',
+      description: 'Corrige o reemplaza el número guardado.',
+      handler: () => openClientEditModal({
+        key: 'phone',
+        field: 'phone',
+        label: 'Actualizar Teléfono',
+        currentLabel: 'Teléfono viejo',
+        newLabel: 'Teléfono nuevo',
+        type: 'tel',
+        normalizePhone: true,
+        successMessage: 'Teléfono actualizado'
+      }, client.id)
+    },
+    {
+      key: 'city',
+      label: 'Actualizar Localidad',
+      description: 'Edita la ciudad o localidad del cliente.',
+      handler: () => openClientEditModal({
+        key: 'city',
+        field: 'city',
+        label: 'Actualizar Localidad',
+        currentLabel: 'Localidad actual',
+        newLabel: 'Nueva localidad',
+        type: 'text',
+        successMessage: 'Localidad actualizada'
+      }, client.id)
+    },
+    {
+      key: 'province',
+      label: 'Actualizar Provincia',
+      description: 'Actualiza la provincia almacenada.',
+      handler: () => openClientEditModal({
+        key: 'province',
+        field: 'province',
+        label: 'Actualizar Provincia',
+        currentLabel: 'Provincia actual',
+        newLabel: 'Nueva provincia',
+        type: 'text',
+        successMessage: 'Provincia actualizada'
+      }, client.id)
+    },
+    {
+      key: 'document',
+      label: 'Actualizar Documento',
+      description: 'Modifica el documento asociado.',
+      handler: () => openClientEditModal({
+        key: 'document',
+        field: 'document',
+        label: 'Actualizar Documento',
+        currentLabel: 'Documento actual',
+        newLabel: 'Nuevo documento',
+        type: 'text',
+        successMessage: 'Documento actualizado'
+      }, client.id)
+    },
+    {
+      key: 'cuit',
+      label: 'Actualizar CUIT',
+      description: 'Reemplaza el CUIT o CUIL.',
+      handler: () => openClientEditModal({
+        key: 'cuit',
+        field: 'cuit',
+        label: 'Actualizar CUIT',
+        currentLabel: 'CUIT actual',
+        newLabel: 'Nuevo CUIT',
+        type: 'text',
+        successMessage: 'CUIT actualizado'
+      }, client.id)
+    },
+    {
+      key: 'birthDate',
+      label: 'Actualizar fecha de nacimiento',
+      description: 'Define una nueva fecha de nacimiento.',
+      handler: () => openClientEditModal({
+        key: 'birthDate',
+        field: 'birthDate',
+        label: 'Actualizar fecha de nacimiento',
+        currentLabel: 'Fecha actual',
+        newLabel: 'Nueva fecha',
+        type: 'date',
+        successMessage: 'Fecha de nacimiento actualizada'
+      }, client.id)
+    },
+    {
+      key: 'purchaseDate',
+      label: 'Actualizar fecha de compra',
+      description: 'Ajusta la fecha de compra cargada.',
+      handler: () => openClientEditModal({
+        key: 'purchaseDate',
+        field: 'purchaseDate',
+        label: 'Actualizar fecha de compra',
+        currentLabel: 'Fecha cargada',
+        newLabel: 'Nueva fecha',
+        type: 'date',
+        successMessage: 'Fecha de compra actualizada'
+      }, client.id)
+    },
+    {
+      key: 'systemDate',
+      label: 'Actualizar fecha de carga',
+      description: 'Modifica la fecha de carga del registro.',
+      handler: () => openClientEditModal({
+        key: 'systemDate',
+        field: 'systemDate',
+        label: 'Actualizar fecha de carga',
+        currentLabel: 'Fecha actual',
+        newLabel: 'Nueva fecha',
+        type: 'date',
+        successMessage: 'Fecha de carga actualizada'
+      }, client.id)
+    },
+    {
+      key: 'postalCode',
+      label: 'Actualizar código postal',
+      description: 'Corrige el código postal registrado.',
+      handler: () => openClientEditModal({
+        key: 'postalCode',
+        field: 'postalCode',
+        label: 'Actualizar código postal',
+        currentLabel: 'Código postal actual',
+        newLabel: 'Nuevo código postal',
+        type: 'text',
+        successMessage: 'Código postal actualizado'
+      }, client.id)
+    },
+    {
+      key: 'type',
+      label: 'Actualizar notas',
+      description: 'Edita las notas o comentarios del cliente.',
+      handler: () => openClientEditModal({
+        key: 'type',
+        field: 'type',
+        label: 'Actualizar notas',
+        currentLabel: 'Notas actuales',
+        newLabel: 'Nuevas notas',
+        type: 'textarea',
+        successMessage: 'Notas actualizadas'
+      }, client.id)
+    },
+    {
+      key: 'delete',
+      label: 'Borrar Contacto',
+      description: 'Eliminará el contacto de la base local.',
+      danger: true,
+      handler: () => confirmAction({
+        title: 'Borrar Contacto',
+        message: '¿De verdad quieres eliminar este contacto de la base de datos local? Esta acción no se puede deshacer.',
+        confirmText: 'Sí, borrar',
+        onConfirm: () => {
+          deleteClientById(client.id);
+          closeClientActionMenu();
+        }
+      })
+    }
+  ];
+}
+
+function openClientActionMenu(id) {
+  const overlay = document.getElementById('clientActionOverlay');
+  const list = document.getElementById('clientActionList');
+  const title = document.getElementById('clientActionTitle');
+  const subtitle = document.getElementById('clientActionSubtitle');
+  const client = managerClients.find(c => c.id === id);
+  if (!overlay || !list || !client) return;
+  activeActionClientId = id;
+  if (title) title.textContent = client.name || 'Contacto';
+  if (subtitle) subtitle.textContent = client.model ? `Modelo: ${client.model}` : 'Elige una acción para este contacto';
+  const options = clientActionOptions(client);
+  list.innerHTML = options.map(opt => `
+    <div class="action-card" data-key="${opt.key}">
+      <span class="label">${opt.label}</span>
+      <p class="muted tiny">${opt.description}</p>
+      <button class="${opt.danger ? 'ghost-btn action-btn danger' : 'secondary-btn action-btn'}" data-action="${opt.key}"><span>${opt.danger ? 'Borrar' : 'Seleccionar'}</span><i class='bx bx-chevron-right'></i></button>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-action]').forEach(btn => {
+    const key = btn.dataset.action;
+    const opt = options.find(o => o.key === key);
+    btn.onclick = () => {
+      if (opt?.handler) opt.handler();
+    };
+  });
+  overlay.classList.add('show');
+}
+
+function closeClientActionMenu() {
+  const overlay = document.getElementById('clientActionOverlay');
+  if (overlay) overlay.classList.remove('show');
+  activeActionClientId = null;
+}
+
+function openClientEditModal(config, clientId = activeActionClientId) {
+  const modal = document.getElementById('clientEditModal');
+  const title = document.getElementById('clientEditTitle');
+  const subtitle = document.getElementById('clientEditSubtitle');
+  const eyebrow = document.getElementById('clientEditEyebrow');
+  const fieldContainer = document.getElementById('clientEditField');
+  const currentContainer = document.getElementById('clientEditCurrent');
+  const uppercaseToggle = document.getElementById('uppercaseToggle');
+  const uppercaseInput = document.getElementById('clientUppercase');
+  const client = managerClients.find(c => c.id === clientId);
+  if (!modal || !client || !fieldContainer || !currentContainer) return;
+  activeEditAction = { ...config, clientId };
+  if (title) title.textContent = config.label || 'Editar contacto';
+  if (subtitle) subtitle.textContent = config.description || '';
+  if (eyebrow) eyebrow.textContent = 'Modo edición';
+  const currentValue = client[config.field] || '';
+  currentContainer.innerHTML = `<label>${config.currentLabel || 'Valor actual'}</label><div class="muted">${currentValue ? currentValue : 'Sin datos'}</div>`;
+  let control = '';
+  const safeValue = config.type === 'date' ? formatDateISO(currentValue) : currentValue;
+  if (config.type === 'select') {
+    const options = (config.options || []).map(opt => `<option value="${opt}" ${opt === currentValue ? 'selected' : ''}>${opt}</option>`).join('');
+    control = `<label>${config.newLabel || 'Nuevo valor'}<select id="clientEditSelect">${options}</select></label>`;
+  } else if (config.type === 'textarea') {
+    control = `<label>${config.newLabel || 'Nuevo valor'}<textarea id="clientEditArea" rows="4">${safeValue || ''}</textarea></label>`;
+  } else {
+    control = `<label>${config.newLabel || 'Nuevo valor'}<input id="clientEditInput" type="${config.type || 'text'}" value="${safeValue || ''}" /></label>`;
+  }
+  fieldContainer.innerHTML = control;
+  if (uppercaseToggle) uppercaseToggle.style.display = config.uppercase ? 'flex' : 'none';
+  if (uppercaseInput) uppercaseInput.checked = !!config.uppercase;
+  modal.classList.remove('hidden');
+  requestAnimationFrame(() => modal.classList.add('show'));
+  closeClientActionMenu();
+}
+
+function closeClientEditModal() {
+  const modal = document.getElementById('clientEditModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+  activeEditAction = null;
+}
+
+function applyClientEdit() {
+  if (!activeEditAction) {
+    closeClientEditModal();
+    return;
+  }
+  const client = managerClients.find(c => c.id === activeEditAction.clientId);
+  if (!client) {
+    closeClientEditModal();
+    return;
+  }
+  const input = document.getElementById('clientEditInput');
+  const select = document.getElementById('clientEditSelect');
+  const area = document.getElementById('clientEditArea');
+  const uppercaseInput = document.getElementById('clientUppercase');
+  let newValue = '';
+  if (select) newValue = select.value;
+  else if (area) newValue = area.value;
+  else if (input) newValue = input.value;
+  if (activeEditAction.type === 'date') newValue = formatDateISO(newValue);
+  if (activeEditAction.normalizePhone) newValue = normalizePhone(newValue);
+  if (activeEditAction.uppercase && uppercaseInput?.checked) newValue = (newValue || '').toUpperCase();
+  client[activeEditAction.field] = newValue || '';
+  persist();
+  renderClientManager();
+  renderContactLog();
+  showToast(activeEditAction.successMessage || 'Datos actualizados', 'success');
+  closeClientEditModal();
+}
+
+function deleteClientById(id) {
+  const index = managerClients.findIndex(c => c.id === id);
+  if (index === -1) return;
+  managerClients.splice(index, 1);
+  persist();
+  renderClientManager();
+  renderContactLog();
+  renderStats();
+  showToast('Contacto eliminado', 'success');
+}
+
 function toggleContactLog(show) {
   const overlay = document.getElementById('contactLogOverlay');
   if (!overlay) return;
@@ -3065,9 +3440,9 @@ function focusClientRow(id) {
   activatePanel('clientManager');
   const row = document.querySelector(`#clientManagerTable .client-row[data-id="${id}"]`);
   if (row) {
-    row.classList.add('is-selected');
+    row.classList.add('jump-highlight');
     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => row.classList.remove('is-selected'), 1400);
+    setTimeout(() => row.classList.remove('jump-highlight'), 2000);
   }
 }
 
@@ -3148,6 +3523,11 @@ function bindClientTableActions() {
     const id = row?.dataset.id;
     if (!id) return;
     e.stopPropagation();
+    if (action === 'open_menu') {
+      openClientActionMenu(id);
+      return;
+    }
+    if (clientManagerState.editingMode) return;
     if (action === 'contacted') updateClientFlag(id, 'contacted');
     if (action === 'no_number') updateClientFlag(id, 'noNumber');
     if (action === 'favorite') updateClientFlag(id, 'favorite');
@@ -3432,6 +3812,7 @@ function syncFromStorage() {
   renderClientManager();
   renderGlobalSettings();
   renderSnapshots();
+  startContactLogTicker();
 }
 
 function save(key, value) {
