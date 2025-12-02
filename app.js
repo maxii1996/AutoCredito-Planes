@@ -28,7 +28,7 @@ const defaultUiState = {
   advisorNote: ''
 };
 
-const defaultVehicles = [
+const novemberVehicles = [
   {
     name: 'NUEVO ONIX 1.0 TURBO LT MT',
     basePrice: 30430900,
@@ -114,6 +114,95 @@ const defaultVehicles = [
     }
   }
 ];
+
+const decemberVehicles = [
+  {
+    name: 'NUEVO ONIX 1.0 TURBO LT MT',
+    basePrice: 30887900,
+    integration: 9266370,
+    planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 324858, '13a21': 318403, '22a84': 317611, '85a120': 316027 },
+    cuotaPura: 205919,
+    reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
+    }
+  },
+  {
+    name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
+    basePrice: 30887900,
+    integration: 9266370,
+    planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 331665, '13a21': 376492, '22a84': 375502, '85a120': 374512 },
+    cuotaPura: 257399,
+    reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
+  },
+  {
+    name: 'LA NUEVA MONTANA LT 1.2 AT',
+    basePrice: 38489900,
+    integration: 11546970,
+    planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 404810, '13a21': 396767, '22a84': 395583, '85a120': 395583 },
+    cuotaPura: 256599,
+    reservations: { '1': 1246142, '3': 1619985, '6': 1869213 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6, llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
+  },
+  {
+    name: 'LA NUEVA S10 CD 2.8 TD 4x2 WT',
+    basePrice: 48596900,
+    integration: 19438760,
+    planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
+    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
+    shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
+    cuotaPura: 347121,
+    reservations: { '1': 1900250, '3': 2470325, '6': 2850375 },
+    benefits: {
+      pactada: 'Acepta llave x llave',
+      bonificacion: 'Débito automático obligatorio con TC'
+    }
+  },
+  {
+    name: 'NUEVA TRACKER LT 1.2AT',
+    basePrice: 38391900,
+    integration: 11517570,
+    planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
+    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: { '2a12': 403780, '13a21': 395757, '22a84': 394576, '85a120': 393985 },
+    cuotaPura: 255946,
+    reservations: { '1': 1246450, '3': 1620385, '6': 1869675 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
+  },
+  {
+    name: 'NUEVA SPIN 1.8 LT 5AA MT',
+    basePrice: 35116900,
+    integration: 10535070,
+    planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
+    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
+    shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914, '85a120': 426914 },
+    cuotaPura: 292641,
+    reservations: { '1': 1210710, '3': 1573923, '6': 1816065 },
+    benefits: {
+      pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
+      bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
+    }
+  }
+];
+
+const defaultVehicles = decemberVehicles;
 
 const variableSuggestions = [
   'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo', 'version'
@@ -233,6 +322,89 @@ function cloneVehicles(list) {
     benefits: { ...(v.benefits || {}) },
     availablePlans: v.availablePlans ? [...v.availablePlans] : undefined
   }));
+}
+
+function clonePriceTabs(list) {
+  return (list || []).map(tab => ({
+    ...tab,
+    files: (tab.files || []).map(f => ({ ...f })),
+    vehicles: cloneVehicles(tab.vehicles || defaultVehicles)
+  }));
+}
+
+function createDefaultPriceTabs() {
+  return clonePriceTabs([
+    {
+      id: 'dic-2025',
+      label: 'Diciembre 2025',
+      month: 'Diciembre',
+      year: 2025,
+      locked: true,
+      folder: 'img/Diciembre 2025',
+      primaryFile: 'img/Diciembre 2025/LISTA DE CHEVROLET DICIEMBRE 2025.pdf',
+      files: [
+        { name: 'LISTA DE CHEVROLET DICIEMBRE 2025.pdf', path: 'img/Diciembre 2025/LISTA DE CHEVROLET DICIEMBRE 2025.pdf' },
+        { name: 'Lista de precios Chevroplan POSITIVE Diciembre.pdf', path: 'img/Diciembre 2025/Lista de precios Chevroplan POSITIVE Diciembre.pdf' }
+      ],
+      vehicles: decemberVehicles
+    },
+    {
+      id: 'nov-2025',
+      label: 'Noviembre 2025',
+      month: 'Noviembre',
+      year: 2025,
+      locked: true,
+      folder: 'img/Noviembre 2025',
+      primaryFile: 'img/Noviembre 2025/precios.png',
+      files: [
+        { name: 'precios.png', path: 'img/Noviembre 2025/precios.png' },
+        { name: 'LISTA CHEVROLET NOV. 2025.png', path: 'img/Noviembre 2025/LISTA CHEVROLET NOV. 2025.png' }
+      ],
+      vehicles: novemberVehicles
+    }
+  ]);
+}
+
+function ensurePriceTabsIntegrity() {
+  if (!priceTabs || !priceTabs.length) {
+    priceTabs = createDefaultPriceTabs();
+  }
+  if (!priceTabs.some(t => t.id === activePriceTabId)) {
+    activePriceTabId = priceTabs[0]?.id || '';
+  }
+}
+
+function getActivePriceTab() {
+  ensurePriceTabsIntegrity();
+  return priceTabs.find(t => t.id === activePriceTabId) || priceTabs[0] || null;
+}
+
+function syncActiveVehiclesToTab() {
+  ensurePriceTabsIntegrity();
+  const idx = priceTabs.findIndex(t => t.id === activePriceTabId);
+  if (idx >= 0) {
+    priceTabs[idx].vehicles = cloneVehicles(vehicles);
+  }
+}
+
+function syncVehiclesFromActiveTab() {
+  const active = getActivePriceTab();
+  vehicles = cloneVehicles(active?.vehicles || defaultVehicles);
+}
+
+function setActivePriceTab(tabId) {
+  ensurePriceTabsIntegrity();
+  const tab = priceTabs.find(t => t.id === tabId);
+  if (!tab || tab.id === activePriceTabId) return;
+  syncActiveVehiclesToTab();
+  activePriceTabId = tab.id;
+  syncVehiclesFromActiveTab();
+  persist();
+  renderPriceTabs();
+  renderVehicleTable();
+  renderPlanForm();
+  renderClients();
+  renderClientManager();
 }
 
 function ensureTemplateIds(list) {
@@ -593,7 +765,15 @@ function bindMoneyInput(el, onChange) {
 }
 
 function applyProfileData(parsed) {
-  vehicles = cloneVehicles(parsed.vehicles || defaultVehicles);
+  priceTabs = clonePriceTabs(parsed.priceTabs || priceTabs || createDefaultPriceTabs());
+  activePriceTabId = parsed.activePriceTabId || activePriceTabId || priceTabs[0]?.id || '';
+  if (parsed.priceTabs) {
+    syncVehiclesFromActiveTab();
+  } else {
+    vehicles = cloneVehicles(parsed.vehicles || defaultVehicles);
+    const activeTab = getActivePriceTab();
+    if (activeTab) activeTab.vehicles = cloneVehicles(vehicles);
+  }
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
   clients = parsed.clients || [];
   managerClients = parsed.managerClients || [];
@@ -626,6 +806,8 @@ function saveSnapshot() {
   const title = `Snapshot ${new Date().toLocaleString('es-AR')}`;
   const data = {
     vehicles: cloneVehicles(vehicles),
+    priceTabs: clonePriceTabs(priceTabs),
+    activePriceTabId,
     templates: ensureTemplateIds(JSON.parse(JSON.stringify(templates))),
     clients: JSON.parse(JSON.stringify(clients)),
     managerClients: JSON.parse(JSON.stringify(managerClients)),
@@ -918,7 +1100,9 @@ function copyText(text, label = 'Contenido copiado') {
   }
 }
 
-let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
+let priceTabs = clonePriceTabs(load('priceTabs') || createDefaultPriceTabs());
+let activePriceTabId = load('activePriceTabId') || (priceTabs[0]?.id || '');
+let vehicles = cloneVehicles((priceTabs.find(t => t.id === activePriceTabId) || priceTabs[0] || {}).vehicles || load('vehicles') || defaultVehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
@@ -931,6 +1115,22 @@ let activeNoteClientId = null;
 let activeActionClientId = null;
 let activeEditAction = null;
 let contactLogInterval = null;
+
+function upgradePriceTabsFromLegacy() {
+  const storedTabs = load('priceTabs');
+  if (!storedTabs) {
+    const legacyVehicles = cloneVehicles(load('vehicles') || vehicles || defaultVehicles);
+    priceTabs = createDefaultPriceTabs();
+    if (priceTabs[0]) {
+      priceTabs[0].vehicles = legacyVehicles;
+      activePriceTabId = priceTabs[0].id;
+    }
+  }
+  ensurePriceTabsIntegrity();
+  syncVehiclesFromActiveTab();
+}
+
+upgradePriceTabsFromLegacy();
 
 clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
@@ -964,6 +1164,7 @@ function init() {
     renderQuickOverview();
     renderHomeShortcuts();
     renderTemplates();
+    renderPriceTabs();
     renderVehicleTable();
     renderPlanForm();
     renderClients();
@@ -976,6 +1177,7 @@ function init() {
     bindResourceButtons();
     attachPlanListeners();
     attachTemplateActions();
+    bindPriceTabControls();
     attachVehicleToggles();
     bindClientManager();
     startContactLogTicker();
@@ -1420,6 +1622,177 @@ function attachTemplateActions() {
   });
 }
 
+function renderPriceTabs() {
+  ensurePriceTabsIntegrity();
+  const list = document.getElementById('priceTabList');
+  const label = document.getElementById('vehicleUpdateTag');
+  const subtitle = document.getElementById('priceTabSubtitle');
+  const renameBtn = document.getElementById('renamePriceTab');
+  const deleteBtn = document.getElementById('deletePriceTab');
+  const active = getActivePriceTab();
+  if (label) label.textContent = `Última actualización: ${active?.label || 'Sin definir'}`;
+  if (subtitle) subtitle.textContent = active?.locked ? 'Pestaña original' : 'Pestaña personalizada';
+  if (renameBtn) renameBtn.disabled = !active || active.locked;
+  if (deleteBtn) deleteBtn.disabled = !active || active.locked || priceTabs.length <= 1;
+  if (!list) return;
+  list.innerHTML = priceTabs.map(tab => `
+    <button class="tab-chip ${tab.id === activePriceTabId ? 'active' : ''}" data-tab="${tab.id}">
+      <span>${tab.label}</span>
+      ${tab.locked ? '<span class="pill mini">Original</span>' : ''}
+    </button>
+  `).join('');
+  list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => setActivePriceTab(btn.dataset.tab)));
+}
+
+function getPrimaryFileForTab(tab) {
+  if (tab?.primaryFile) return tab.primaryFile;
+  if (tab?.files?.length) return tab.files[0].path;
+  return '';
+}
+
+function openPriceTabModal(mode = 'create') {
+  const modal = document.getElementById('priceTabModal');
+  if (!modal) return;
+  const title = document.getElementById('priceTabModalTitle');
+  const submit = document.getElementById('priceTabSubmit');
+  const cancel = document.getElementById('priceTabCancel');
+  const close = document.getElementById('priceTabClose');
+  const monthSelect = document.getElementById('priceTabMonth');
+  const yearInput = document.getElementById('priceTabYear');
+  const baseSelect = document.getElementById('priceTabBase');
+  const nameInput = document.getElementById('priceTabCustomName');
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  if (monthSelect && !monthSelect.dataset.loaded) {
+    monthSelect.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+    monthSelect.dataset.loaded = 'true';
+  }
+  if (baseSelect) {
+    baseSelect.innerHTML = priceTabs.map(tab => `<option value="${tab.id}">${tab.label}${tab.locked ? ' (Original)' : ''}</option>`).join('');
+    baseSelect.value = activePriceTabId;
+  }
+  const active = getActivePriceTab();
+  if (monthSelect) monthSelect.value = active?.month || months[new Date().getMonth()];
+  if (yearInput) yearInput.value = active?.year || new Date().getFullYear();
+  if (nameInput) nameInput.value = mode === 'rename' ? (active?.label || '') : '';
+  if (title) title.textContent = mode === 'rename' ? 'Renombrar pestaña' : 'Nueva pestaña de precios';
+  if (submit) submit.textContent = mode === 'rename' ? 'Guardar nombre' : 'Crear pestaña';
+
+  const cleanup = () => {
+    if (submit) submit.onclick = null;
+    if (cancel) cancel.onclick = null;
+    if (close) close.onclick = null;
+    toggleModal(modal, false);
+  };
+
+  if (cancel) cancel.onclick = cleanup;
+  if (close) close.onclick = cleanup;
+
+  if (submit) {
+    submit.onclick = () => {
+      const month = monthSelect?.value || '';
+      const year = Number(yearInput?.value) || new Date().getFullYear();
+      const custom = nameInput?.value?.trim();
+      if (mode === 'rename') {
+        if (!active || active.locked) return;
+        active.month = month;
+        active.year = year;
+        active.label = custom || `${month} ${year}`;
+        persist();
+        renderPriceTabs();
+        showToast('Pestaña renombrada', 'success');
+        cleanup();
+        return;
+      }
+      const baseId = baseSelect?.value || activePriceTabId;
+      const base = priceTabs.find(t => t.id === baseId) || active;
+      const id = `${(month || 'mes').toLowerCase()}-${year}-${Date.now()}`;
+      const label = custom || `${month} ${year}`;
+      priceTabs.push({
+        id,
+        label,
+        month,
+        year,
+        locked: false,
+        folder: base?.folder || '',
+        primaryFile: base?.primaryFile || getPrimaryFileForTab(base),
+        files: (base?.files || []).map(f => ({ ...f })),
+        vehicles: cloneVehicles(base?.vehicles || defaultVehicles)
+      });
+      setActivePriceTab(id);
+      renderPriceTabs();
+      showToast('Nueva pestaña creada', 'success');
+      cleanup();
+    };
+  }
+
+  toggleModal(modal, true);
+}
+
+function openPriceFilesModal() {
+  const modal = document.getElementById('priceFilesModal');
+  const list = document.getElementById('priceFilesList');
+  const close = document.getElementById('priceFilesClose');
+  const active = getActivePriceTab();
+  if (!modal || !list) return;
+  if (!active?.files?.length) {
+    list.innerHTML = '<p class="muted">No hay archivos registrados para este mes.</p>';
+  } else {
+    list.innerHTML = active.files.map(file => `
+      <a class="file-link" href="${file.path}" target="_blank" rel="noopener noreferrer">
+        <i class='bx bx-file'></i> ${file.name}
+      </a>
+    `).join('');
+  }
+  if (close) close.onclick = () => toggleModal(modal, false);
+  toggleModal(modal, true);
+}
+
+function bindPriceTabControls() {
+  const addBtn = document.getElementById('addPriceTab');
+  const renameBtn = document.getElementById('renamePriceTab');
+  const deleteBtn = document.getElementById('deletePriceTab');
+  const filesBtn = document.getElementById('viewMonthFiles');
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.addEventListener('click', () => openPriceTabModal('create'));
+    addBtn.dataset.bound = 'true';
+  }
+  if (renameBtn && !renameBtn.dataset.bound) {
+    renameBtn.addEventListener('click', () => openPriceTabModal('rename'));
+    renameBtn.dataset.bound = 'true';
+  }
+  if (deleteBtn && !deleteBtn.dataset.bound) {
+    deleteBtn.addEventListener('click', () => {
+      const active = getActivePriceTab();
+      if (!active || active.locked) return;
+      confirmAction({
+        title: 'Eliminar pestaña',
+        message: `Se eliminará la pestaña "${active.label}".`,
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          const idx = priceTabs.findIndex(t => t.id === active.id);
+          if (idx >= 0) {
+            priceTabs.splice(idx, 1);
+            activePriceTabId = priceTabs[0]?.id || '';
+            syncVehiclesFromActiveTab();
+            persist();
+            renderPriceTabs();
+            renderVehicleTable();
+            renderPlanForm();
+            renderClients();
+            renderClientManager();
+            showToast('Pestaña eliminada', 'success');
+          }
+        }
+      });
+    });
+    deleteBtn.dataset.bound = 'true';
+  }
+  if (filesBtn && !filesBtn.dataset.bound) {
+    filesBtn.addEventListener('click', openPriceFilesModal);
+    filesBtn.dataset.bound = 'true';
+  }
+}
+
 function renderVehicleTable() {
   const resToggle = document.getElementById('showReservations');
   const intToggle = document.getElementById('showIntegration');
@@ -1427,6 +1800,7 @@ function renderVehicleTable() {
   const showInt = intToggle ? intToggle.checked : true;
   uiState.toggles = { showReservations: showRes, showIntegration: showInt };
   persist();
+  renderPriceTabs();
   const table = document.getElementById('vehicleTable');
   if (!table) return;
   const plans = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
@@ -2555,8 +2929,13 @@ function attachVehicleToggles() {
 }
 
 function openPriceImage() {
-  const path = 'img/Noviembre 2025/precios.png';
-  window.open(path, '_blank');
+  const active = getActivePriceTab();
+  const file = getPrimaryFileForTab(active);
+  if (file) {
+    window.open(file, '_blank');
+  } else {
+    showToast('No hay archivo principal configurado para esta pestaña.', 'error');
+  }
 }
 
 function bindClientManager() {
@@ -3740,12 +4119,12 @@ function bindProfileActions() {
   document.getElementById('quickSnapshot').addEventListener('click', saveSnapshot);
 
   document.getElementById('exportProfile').addEventListener('click', () => {
-    confirmAction({
-      title: 'Exportar perfil',
-      message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
-      confirmText: 'Exportar',
-      onConfirm: () => {
-        const payload = { version: 4, vehicles, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+      confirmAction({
+        title: 'Exportar perfil',
+        message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
+        confirmText: 'Exportar',
+        onConfirm: () => {
+        const payload = { version: 5, vehicles, priceTabs, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -3801,7 +4180,9 @@ function bindProfileActions() {
         message: 'Se repondrán vehículos y plantillas originales, manteniendo los clientes.',
         confirmText: 'Restaurar',
         onConfirm: () => {
-          vehicles = cloneVehicles(defaultVehicles);
+          priceTabs = createDefaultPriceTabs();
+          activePriceTabId = priceTabs[0]?.id || '';
+          vehicles = cloneVehicles(getActivePriceTab()?.vehicles || defaultVehicles);
           templates = ensureTemplateIds([...defaultTemplates]);
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
@@ -3827,6 +4208,9 @@ function bindProfileActions() {
 }
 
 function persist() {
+  syncActiveVehiclesToTab();
+  save('priceTabs', priceTabs);
+  save('activePriceTabId', activePriceTabId);
   save('vehicles', vehicles);
   save('templates', templates);
   save('clients', clients);
@@ -3841,13 +4225,16 @@ function startRealtimePersistence() {
   ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
   setInterval(persistNow, 15000);
   window.addEventListener('storage', (e) => {
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots'].includes(e.key)) {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'priceTabs', 'activePriceTabId'].includes(e.key)) {
       syncFromStorage();
     }
   });
 }
 
 function syncFromStorage() {
+  priceTabs = clonePriceTabs(load('priceTabs') || priceTabs || createDefaultPriceTabs());
+  activePriceTabId = load('activePriceTabId') || activePriceTabId || priceTabs[0]?.id || '';
+  syncVehiclesFromActiveTab();
   vehicles = cloneVehicles(load('vehicles') || vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
   clients = load('clients') || clients;
@@ -3892,7 +4279,9 @@ function clearStorage() {
     confirmText: 'Limpiar',
     onConfirm: () => {
       localStorage.clear();
-      vehicles = defaultVehicles.map(v => ({ ...v, shareByPlan: { ...v.shareByPlan }, reservations: { ...v.reservations } }));
+      priceTabs = createDefaultPriceTabs();
+      activePriceTabId = priceTabs[0]?.id || '';
+      vehicles = cloneVehicles(getActivePriceTab()?.vehicles || defaultVehicles);
       templates = ensureTemplateIds([...defaultTemplates]);
       clients = [];
       managerClients = [];
