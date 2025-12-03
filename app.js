@@ -2866,6 +2866,8 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     planType
   });
   const cuotaAjustada = schedule.nextInstallmentAmount || cuotaPura;
+  const remainingInstallments = coverage.remainingInstallments || schedule.remainingInstallments;
+  const kickoffInstallment = coverage.kickoffInstallment ?? schedule.kickoffInstallment;
 
   return {
     basePrice,
@@ -2884,12 +2886,12 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     selectedReservation,
     reservationMeta,
     aporteInicial: contributionToPlan,
-    outstanding: schedule.outstanding,
+    outstanding,
     outstandingBeforeAdvance,
     coveredInstallments: coverage.coveredInstallments,
     partialCover: coverage.partialCover,
-    remainingInstallments: schedule.remainingInstallments,
-    kickoffInstallment: schedule.kickoffInstallment,
+    remainingInstallments,
+    kickoffInstallment,
     startInstallment: coverage.startInstallment,
     coverageSegments: coverage.segments,
     installmentSchedule: schedule.entries,
