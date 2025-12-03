@@ -263,16 +263,13 @@
                 </div>
                 <select id="planModel"></select>
               </div>
-              <div class="field">
-                <label for="planType">Plan asignado</label>
-                <select id="planType">
-                  <option value="2a12">2 a 12</option>
-                  <option value="13a21">13 a 21</option>
-                  <option value="22a84">22 a 84</option>
-                  <option value="85a120">85 a 120</option>
-                  <option value="ctapura">Cuota pura</option>
-                </select>
-                <p class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</p>
+              <div class="field readonly">
+                <label>Plan asignado automáticamente</label>
+                <div class="plan-profile-cell readonly">
+                  <span class="chip muted" id="planProfileChip"></span>
+                  <small class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</small>
+                </div>
+                <input type="hidden" id="planType" value="85a120" />
               </div>
               <div class="field">
                 <label class="toggle compact">
@@ -293,13 +290,14 @@
                   <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Ej: 32.500.000" />
                 </div>
               </div>
-              <div class="field">
-                <label for="appliedReservation">Reserva informativa</label>
-                <select id="appliedReservation">
-                  <option value="1">Reserva en 1 cuota</option>
-                  <option value="3">Reserva en 3 cuotas</option>
-                  <option value="6">Reserva en 6 cuotas</option>
-                </select>
+              <div class="field readonly">
+                <label>Integración posible</label>
+                <div class="integration-details" id="integrationDetails">
+                  <p id="integration1">1 cuota promocionada: $0</p>
+                  <p id="integration3">3 cuotas "sin interés" de: $0 cada una</p>
+                  <p id="integration6">6 cuotas "sin interés" de: $0 cada una</p>
+                </div>
+                <input type="hidden" id="appliedReservation" value="1" />
               </div>
             </div>
             <div class="field-group compact">

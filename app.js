@@ -216,6 +216,13 @@ const planTerms = {
   'ctapura': 120
 };
 
+function getPlanTypeForVehicle(vehicle) {
+  const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
+  const preferred = vehicle?.planProfile?.planType;
+  if (preferred && available.includes(preferred)) return preferred;
+  return available[0];
+}
+
 const clientColumns = {
   name: { label: 'Nombre', default: true },
   model: { label: 'Modelo', default: true },
@@ -2201,26 +2208,21 @@ function updatePlanProfile(idx, payload = {}) {
 function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetManual = false } = {}) {
   const planSelect = document.getElementById('planType');
   const helper = document.getElementById('planProfileHelper');
+  const chip = document.getElementById('planProfileChip');
   const vehicle = vehicles[modelIdx] || vehicles[0];
-  const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
+  const planType = getPlanTypeForVehicle(vehicle);
   if (planSelect) {
-    Array.from(planSelect.options || []).forEach(opt => {
-      const allowed = available.includes(opt.value);
-      opt.disabled = !allowed;
-      opt.hidden = !allowed;
-    });
-    planSelect.disabled = true;
+    planSelect.value = planType;
+    if (resetManual) planSelect.dataset.manual = '';
   }
-  if (resetManual && planSelect) planSelect.dataset.manual = '';
-  if (vehicle?.planProfile?.planType && planSelect) {
-    planSelect.value = available.includes(vehicle.planProfile.planType) ? vehicle.planProfile.planType : available[0];
-    if (!available.includes(planSelect.value)) planSelect.value = available[0];
+  if (chip) {
+    chip.textContent = vehicle?.planProfile?.label || planLabel(planType);
   }
   if (helper) {
-    const planLabel = vehicle?.planProfile?.label ? `Plan asignado automáticamente: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
+    const planLabelText = vehicle?.planProfile?.label ? `Plan asignado automáticamente: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
     const benefit = vehicle?.benefits?.bonificacion || '';
     const pactada = vehicle?.benefits?.pactada || '';
-    helper.textContent = [planLabel, 'Esquema fijo por modelo.', benefit, pactada].filter(Boolean).join(' • ');
+    helper.textContent = [planLabelText, 'Esquema fijo por modelo.', benefit, pactada].filter(Boolean).join(' • ');
   }
 }
 
@@ -2447,6 +2449,7 @@ function resolveClientVehicleSelection(client) {
     applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
     applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
     applyCustomPriceDefaultForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+    updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
     updatePlanSummary();
     return;
   }
@@ -2478,6 +2481,7 @@ function applyClientVehicleSelection() {
   applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
   applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
   applyCustomPriceDefaultForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
   updatePlanSummary();
   closeClientVehicleModal();
 }
@@ -2519,11 +2523,7 @@ function renderPlanForm() {
       applyPlanDefaultsForModel(Number(select.value || 0), { resetManual: true });
       applyReservationDefaultsForModel(Number(select.value || 0), { resetManual: true });
       applyCustomPriceDefaultForModel(Number(select.value || 0), { resetManual: true });
-      updatePlanSummary();
-    });
-    const planTypeSelect = document.getElementById('planType');
-    planTypeSelect.addEventListener('change', () => {
-      planTypeSelect.dataset.manual = 'true';
+      updateIntegrationDetails(Number(select.value || 0));
       updatePlanSummary();
     });
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
@@ -2537,6 +2537,7 @@ function renderPlanForm() {
       const el = document.getElementById(id);
       bindMoneyInput(el, () => {
         el.dataset.manual = 'true';
+        updateIntegrationDetails(Number(select.value || 0));
         updatePlanSummary();
       });
     });
@@ -2550,9 +2551,6 @@ function renderPlanForm() {
       calc6.addEventListener('click', () => calculateReservationsFromBase(6));
       calc6.dataset.bound = 'true';
     }
-    const appliedReservation = document.getElementById('appliedReservation');
-    if (!['1', '3', '6'].includes(appliedReservation.value)) appliedReservation.value = '1';
-    appliedReservation.addEventListener('change', updatePlanSummary);
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
@@ -2566,6 +2564,7 @@ function renderPlanForm() {
   applyPlanDefaultsForModel(Number(select.value || 0), { preserveExisting: !!draft.planType });
   applyReservationDefaultsForModel(Number(select.value || 0), { preserveExisting: hasCustomReservations });
   applyCustomPriceDefaultForModel(Number(select.value || 0), { preserveExisting: !!parseMoney(draft.customPrice) });
+  updateIntegrationDetails(Number(select.value || 0));
   updatePlanSummary();
 }
 
@@ -2582,6 +2581,7 @@ function calculateReservationsFromBase(multiplier) {
   if (!target) return;
   setMoneyValue(target, base);
   target.dataset.manual = 'true';
+  updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
   updatePlanSummary();
 }
 
@@ -2590,6 +2590,22 @@ function getReservationValue(id, fallback = 0) {
   if (!el) return fallback;
   const val = parseMoney(el.dataset.raw || el.value || 0);
   return val || fallback;
+}
+
+function updateIntegrationDetails(modelIdx) {
+  const vehicle = vehicles[modelIdx] || vehicles[0];
+  const nodes = {
+    one: document.getElementById('integration1'),
+    three: document.getElementById('integration3'),
+    six: document.getElementById('integration6')
+  };
+  if (!vehicle) return;
+  const reserva1 = getReservationValue('reservation1', vehicle.reservations['1']);
+  const reserva3 = getReservationValue('reservation3', vehicle.reservations['3']);
+  const reserva6 = getReservationValue('reservation6', vehicle.reservations['6']);
+  if (nodes.one) nodes.one.textContent = `1 cuota promocionada: ${currency.format(reserva1 || 0)}`;
+  if (nodes.three) nodes.three.textContent = `3 cuotas "sin interés" de: ${currency.format((reserva3 || 0) / 3 || 0)} cada una`;
+  if (nodes.six) nodes.six.textContent = `6 cuotas "sin interés" de: ${currency.format((reserva6 || 0) / 6 || 0)} cada una`;
 }
 
 function resolveTotalInstallments(planType, vehiclePlanProfileType) {
@@ -2707,9 +2723,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   const integrationTarget = price * scheme.integrationPct;
   const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planType);
   const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType);
-  const baseCatalogCuota = planType === 'ctapura'
-    ? (vehicle?.cuotaPura || baseCuotaPura)
-    : (vehicle?.shareByPlan?.[planType] ?? baseCuotaPura);
+  const baseCatalogCuota = vehicle?.cuotaPura || baseCuotaPura;
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
   const selectedReservation = reservations[normalizedReservation] || 0;
@@ -2756,18 +2770,18 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
 
 function updatePlanSummary() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
-  const plan = document.getElementById('planType').value;
+  const v = vehicles[modelIdx] || vehicles[0];
+  const plan = getPlanTypeForVehicle(v);
+  const planInput = document.getElementById('planType');
+  if (planInput) planInput.value = plan;
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
-  const appliedReservationRaw = document.getElementById('appliedReservation').value;
-  const appliedReservation = ['1', '3', '6'].includes(appliedReservationRaw) ? appliedReservationRaw : '1';
-  if (appliedReservationRaw !== appliedReservation) {
-    document.getElementById('appliedReservation').value = appliedReservation;
-  }
-  const v = vehicles[modelIdx] || vehicles[0];
+  const appliedReservation = '1';
+  const appliedReservationInput = document.getElementById('appliedReservation');
+  if (appliedReservationInput) appliedReservationInput.value = appliedReservation;
   if (!v) return;
   const reserva1 = getReservationValue('reservation1', v.reservations['1']);
   const reserva3 = getReservationValue('reservation3', v.reservations['3']);
@@ -2983,15 +2997,15 @@ function updatePlanSummary() {
 
 function buildQuoteFromForm() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
-  const plan = document.getElementById('planType').value;
+  const v = vehicles[modelIdx] || vehicles[0];
+  const plan = getPlanTypeForVehicle(v);
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
-  const appliedReservation = document.getElementById('appliedReservation').value;
+  const appliedReservation = '1';
   const notes = document.getElementById('notes').value.trim();
-  const v = vehicles[modelIdx] || vehicles[0];
   const reservation1 = getReservationValue('reservation1', v.reservations['1']);
   const reservation3 = getReservationValue('reservation3', v.reservations['3']);
   const reservation6 = getReservationValue('reservation6', v.reservations['6']);
@@ -3097,11 +3111,9 @@ function applyQuoteToForm(quote) {
   document.getElementById('planModel').value = modelIdx >= 0 ? modelIdx : 0;
   applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { preserveExisting: false, resetManual: true });
   applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
-  document.getElementById('planType').value = quote.plan || document.getElementById('planType').value;
-  document.getElementById('planType').dataset.manual = 'true';
   setMoneyValue(document.getElementById('customPrice'), quote.customPrice || '');
   if (parseMoney(quote.customPrice)) document.getElementById('customPrice').dataset.manual = 'true';
-  document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(quote.appliedReservation) ? quote.appliedReservation : '1';
+  document.getElementById('appliedReservation').value = '1';
   document.getElementById('tradeIn').checked = !!quote.tradeIn;
   setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
   setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
@@ -3109,6 +3121,7 @@ function applyQuoteToForm(quote) {
   setMoneyValue(document.getElementById('reservation6'), quote.reservation6 || '');
   document.getElementById('notes').value = quote.notes || '';
   refreshClientSelectionHint();
+  updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
   updatePlanSummary();
 }
 
@@ -3126,10 +3139,7 @@ function applyPlanDraft() {
   const draft = uiState.planDraft || {};
   if (draft.planModel !== undefined) document.getElementById('planModel').value = draft.planModel;
   const planTypeSelect = document.getElementById('planType');
-  if (draft.planType) {
-    planTypeSelect.value = draft.planType;
-    planTypeSelect.dataset.manual = 'true';
-  }
+  if (planTypeSelect) planTypeSelect.value = getPlanTypeForVehicle(vehicles[Number(document.getElementById('planModel').value) || 0]);
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
   const customPriceInput = document.getElementById('customPrice');
   setMoneyValue(customPriceInput, draft.customPrice || '');
