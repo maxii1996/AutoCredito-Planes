@@ -3024,20 +3024,29 @@ function renderInstallmentBreakdown() {
   const cards = [];
   for (let i = total; i >= PLAN_START_INSTALLMENT; i--) {
     const seg = map[i];
-    const title = `Cuota ${i}`;
-    let note = 'Pendiente.';
+    let title = `Cuota ${i}`;
+    let note = 'Pendiente de pago.';
     let chip = 'pendiente';
+    let chipLabel = 'Pendiente';
     if (seg) {
-      chip = seg.type;
+      chip = seg.type || 'pendiente';
+      chipLabel = seg.label || 'Cobertura aplicada';
       if (seg.partial) {
-        note = `Parcialmente cubierta con "${seg.label}"`;
+        note = `Parcialmente cubierta con "${seg.label}" (${currency.format(seg.partial)})`;
       } else {
-        note = `Cubierta con "${seg.label}"`;
+        note = `Pagada con "${seg.label}"`;
       }
     }
+    if (chip === 'advance') {
+      title += ` (Pagado con cuota pura: ${currency.format(cuotaPura)})`;
+      note = `Pagada con adelanto usando cuota pura de ${currency.format(cuotaPura)}.`;
+    }
+    if (chip === 'tradeIn') {
+      note = `Pagada con llave x llave a cuota pura de ${currency.format(cuotaPura)}.`;
+    }
     cards.push(`
-      <div class="coverage-card">
-        <div class="coverage-chip" data-type="${chip}">${seg?.label || 'Cuota pura'}</div>
+      <div class="coverage-card" data-state="${chip}">
+        <div class="coverage-chip" data-type="${chip}">${chipLabel}</div>
         <h5>${title}</h5>
         <p class="muted tiny">${note}</p>
         <strong>${currency.format(cuotaPura)}</strong>
@@ -3045,7 +3054,7 @@ function renderInstallmentBreakdown() {
     `);
   }
   cards.push(`
-    <div class="coverage-card">
+    <div class="coverage-card" data-state="reservation">
       <div class="coverage-chip" data-type="reservation">Reserva</div>
       <h5>Cuota 1</h5>
       <p class="muted tiny">OBLIGATORIA · Usa reserva elegida por cliente</p>
