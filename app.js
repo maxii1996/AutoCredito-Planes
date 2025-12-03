@@ -2912,11 +2912,11 @@ function updatePlanSummary() {
 
   const integrationSummary = document.getElementById('planIntegrationSummary');
   renderRows(integrationSummary, [
-    { label: 'Cuota 1 (Integración)', value: currency.format(projection.selectedReservation || 0), helper: 'Gasto adicional, no integra el plan.' },
+    { label: 'Cuota 1 (Reserva)', value: currency.format(projection.selectedReservation || 0), helper: 'Cuota Obligatoria para acceder al plan. Cubre la Cuota 1' },
     { label: 'En 1 pago', value: currency.format(reserva1 || 0), helper: 'Pago único de integración.' },
     { label: 'En 3 pagos sin interés', value: `${cuota3} c/u`, helper: `Total: ${currency.format(reserva3 || 0)}` },
     { label: 'En 6 pagos sin interés', value: `${cuota6} c/u`, helper: `Total: ${currency.format(reserva6 || 0)}` },
-    { label: 'Aporte llave x llave', value: tradeIn ? currency.format(projection.integrationCovered || 0) : 'No aplica', helper: tradeIn ? `Integra ${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}` : 'Sin usado aplicado' }
+    { label: 'Aporte llave x llave', value: tradeIn ? currency.format(projection.integrationCovered || 0) : 'No aplica', helper: tradeIn ? `Req. para integración al plan ${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}` : 'Sin usado aplicado' }
   ]);
 
   const balanceSummary = document.getElementById('planBalanceSummary');
