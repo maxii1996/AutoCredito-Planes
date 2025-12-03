@@ -396,6 +396,43 @@ function syncVehiclesFromActiveTab() {
   vehicles = cloneVehicles(active?.vehicles || defaultVehicles);
 }
 
+const MONTH_ORDER = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function getMonthIndex(monthName = '') {
+  const normalized = String(monthName).trim().toLowerCase();
+  return MONTH_ORDER.indexOf(normalized);
+}
+
+function getMostRecentPriceTab() {
+  ensurePriceTabsIntegrity();
+  return priceTabs.reduce((latest, tab) => {
+    if (!latest) return tab;
+    const yearDiff = (tab.year || 0) - (latest.year || 0);
+    if (yearDiff !== 0) return yearDiff > 0 ? tab : latest;
+    const monthDiff = getMonthIndex(tab.month) - getMonthIndex(latest.month);
+    if (monthDiff !== 0) return monthDiff > 0 ? tab : latest;
+    return latest;
+  }, null);
+}
+
+function enforceLatestPriceTab({ silent = true } = {}) {
+  const latest = getMostRecentPriceTab();
+  if (latest && latest.id !== activePriceTabId) {
+    syncActiveVehiclesToTab();
+    activePriceTabId = latest.id;
+    syncVehiclesFromActiveTab();
+    persist();
+    renderPriceTabs();
+    renderVehicleTable();
+    renderPlanForm();
+    renderClients();
+    renderClientManager();
+    loadPricesFromServer({ silent });
+  }
+  updatePriceContextTag();
+  return latest || getActivePriceTab();
+}
+
 function setActivePriceTab(tabId) {
   ensurePriceTabsIntegrity();
   const tab = priceTabs.find(t => t.id === tabId);
@@ -410,6 +447,7 @@ function setActivePriceTab(tabId) {
   renderClients();
   renderClientManager();
   loadPricesFromServer({ silent: true });
+  updatePriceContextTag();
 }
 
 function ensureTemplateIds(list) {
@@ -1137,6 +1175,7 @@ function upgradePriceTabsFromLegacy() {
 }
 
 upgradePriceTabsFromLegacy();
+enforceLatestPriceTab({ silent: true });
 
 clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
@@ -1210,6 +1249,10 @@ function activatePanel(targetId) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
   const targetPanel = document.getElementById(targetId);
   updateSectionTitle(targetId);
+  if (targetId === 'plans') {
+    enforceLatestPriceTab({ silent: true });
+    updatePlanSummary();
+  }
 }
 
 function updateSectionTitle(targetId) {
@@ -1649,6 +1692,7 @@ function renderPriceTabs() {
     </button>
   `).join('');
   list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => setActivePriceTab(btn.dataset.tab)));
+  updatePriceContextTag();
 }
 
 function getPriceFilePath(tab = getActivePriceTab()) {
@@ -1682,7 +1726,20 @@ function clearPriceAlerts() {
   if (stack) stack.innerHTML = '';
 }
 
-function applyImportedVehicles(data, source = 'archivo') {
+function updatePriceContextTag() {
+  const tag = document.getElementById('priceContextTag');
+  if (!tag) return;
+  const active = getActivePriceTab();
+  if (active) {
+    const month = active.month || active.label || 'Mes sin definir';
+    const year = active.year ? ` ${active.year}` : '';
+    tag.textContent = `Utilizando precios de: ${month}${year}`;
+  } else {
+    tag.textContent = 'Utilizando precios locales';
+  }
+}
+
+function applyImportedVehicles(data, source = 'archivo', { silentToast = false } = {}) {
   const parsedVehicles = cloneVehicles(data?.vehicles || data || []);
   if (!parsedVehicles.length) {
     showToast('El archivo de precios no tiene modelos válidos.', 'error');
@@ -1699,7 +1756,10 @@ function applyImportedVehicles(data, source = 'archivo') {
   renderPlanForm();
   renderClients();
   renderClientManager();
-  showToast(`Precios aplicados desde ${source === 'servidor' ? 'el servidor' : 'un archivo'}.`, 'success');
+  if (!silentToast) {
+    showToast(`Precios aplicados desde ${source === 'servidor' ? 'el servidor' : 'un archivo'}.`, 'success');
+  }
+  updatePriceContextTag();
   return true;
 }
 
@@ -1715,7 +1775,7 @@ async function loadPricesFromServer({ silent = false } = {}) {
     const response = await fetch(path, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    applyImportedVehicles(data, 'servidor');
+    applyImportedVehicles(data, 'servidor', { silentToast: silent });
     renderPriceAlerts(`Precios importados desde ${path}`, 'success');
     updatePriceImportStatuses({ server: `Cargado desde ${path}` });
     return data;
@@ -2395,7 +2455,8 @@ function renderPlanForm() {
   const select = document.getElementById('planModel');
   const currentValue = select.value;
   select.innerHTML = vehicles.map((v, idx) => `<option value="${idx}">${v.name}</option>`).join('');
-  select.value = uiState.planDraft?.planModel ?? currentValue ?? 0;
+  const desiredValue = uiState.planDraft?.planModel ?? currentValue ?? 0;
+  select.value = vehicles[desiredValue] ? desiredValue : 0;
   if (!select.dataset.bound) {
     select.addEventListener('change', () => {
       applyPlanDefaultsForModel(Number(select.value || 0), { resetManual: true });

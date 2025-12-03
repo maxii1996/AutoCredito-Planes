@@ -190,6 +190,7 @@
               <p class="eyebrow">Histórico de listas</p>
               <p class="muted tiny" id="priceTabSubtitle">Precios en modo local</p>
             </div>
+            <div id="priceAlerts" class="alert-stack compact"></div>
             <div class="actions compact">
               <button class="ghost-btn" id="addPriceTab"><i class='bx bx-duplicate'></i>Nueva pestaña</button>
               <button class="ghost-btn" id="renamePriceTab"><i class='bx bx-edit-alt'></i>Renombrar</button>
@@ -199,7 +200,6 @@
           <div class="tab-list" id="priceTabList"></div>
         </div>
         <div class="table-wrapper">
-          <div id="priceAlerts" class="alert-stack"></div>
           <table id="vehicleTable">
             <thead></thead>
             <tbody></tbody>
@@ -259,7 +259,10 @@
             </div>
             <div class="form-grid three">
               <div class="field">
-                <label for="planModel">Auto a cotizar</label>
+                <div class="label-row">
+                  <label for="planModel">Auto a cotizar</label>
+                  <span class="muted tiny micro-tag" id="priceContextTag">Utilizando precios de: Diciembre 2025</span>
+                </div>
                 <select id="planModel"></select>
               </div>
               <div class="field">

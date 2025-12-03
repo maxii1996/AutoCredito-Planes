@@ -330,11 +330,16 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 #vehicleTable input { width: 100%; }
 .price-tabs { margin: 14px 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); display: grid; gap: 12px; }
 .alert-stack { display: grid; gap: 10px; margin-bottom: 12px; }
+.alert-stack.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
 .alert-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(255, 199, 0, 0.12), rgba(255, 149, 0, 0.18)); border: 1px solid rgba(255, 149, 0, 0.3); color: #b45309; font-weight: 600; }
+.alert-stack.compact .alert-card { padding: 8px 10px; font-size: 12px; gap: 8px; border-radius: 10px; box-shadow: none; }
 .alert-card .icon { font-size: 22px; }
+.alert-stack.compact .alert-card .icon { font-size: 15px; }
 .alert-card.success { background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(52, 211, 153, 0.16)); border-color: rgba(16, 185, 129, 0.35); color: #047857; }
 .alert-card.error { background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(248, 113, 113, 0.2)); border-color: rgba(239, 68, 68, 0.35); color: #b91c1c; }
 .tab-manager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.micro-tag { padding: 4px 8px; border-radius: 10px; border: 1px solid var(--border); background: #0f1625; }
 .tab-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .tab-chip { border: 1px solid var(--border); background: #0f1625; color: var(--text); padding: 10px 12px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; }
 .tab-chip .pill.mini { font-size: 11px; padding: 2px 8px; }
