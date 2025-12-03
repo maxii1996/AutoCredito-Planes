@@ -245,7 +245,6 @@
             <div class="card-head compact">
               <p class="eyebrow">Carga rápida</p>
               <h3>Datos de cotización</h3>
-              <p class="muted tiny">Solo ocupamos el 20% de la pantalla para ingresar datos.</p>
             </div>
             <div class="field">
               <label for="clientName">Cliente</label>
@@ -354,7 +353,11 @@
                     <input type="checkbox" id="advancePayments">
                     <span>¿El cliente quiere adelantar cuotas?</span>
                   </label>
-                  <p class="muted tiny">Si adelanta, se descuentan las últimas cuotas primero.</p>
+                  <div class="money-field compact" id="advanceAmountField">
+                    <span class="prefix">$</span>
+                    <input id="advanceAmount" class="money" type="text" inputmode="numeric" placeholder="Monto a adelantar" />
+                  </div>
+                  <p class="muted tiny">Si adelanta, se descuentan las últimas cuotas primero usando la cuota pura.</p>
                 </div>
               </div>
               <div class="folio-body">
@@ -379,6 +382,9 @@
               </div>
               <div class="folio-section wide">
                 <h4>Estado de cuotas</h4>
+                <div class="actions compact end">
+                  <button id="openInstallmentBreakdown" class="ghost-btn mini" type="button"><i class='bx bx-list-ol'></i>Ver desglose completo</button>
+                </div>
                 <div id="planCoverageList" class="coverage-grid"></div>
               </div>
             </section>
@@ -781,6 +787,23 @@
       <div class="modal-actions">
         <button id="priceTabCancel" class="ghost-btn">Cancelar</button>
         <button id="priceTabSubmit" class="primary-btn">Crear pestaña</button>
+      </div>
+    </div>
+  </div>
+  <div id="installmentModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Detalle de cuotas</p>
+          <h3>Calendario y adelantos</h3>
+          <p class="muted">Usa la cuota pura vigente para mostrar adelantos y coberturas.</p>
+        </div>
+        <button id="installmentClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div id="installmentSummary" class="folio-list"></div>
+      <div id="installmentList" class="coverage-grid"></div>
+      <div class="modal-actions">
+        <button id="installmentCancel" class="ghost-btn">Cerrar</button>
       </div>
     </div>
   </div>

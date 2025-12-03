@@ -461,7 +461,9 @@ function setActivePriceTab(tabId) {
   persist();
   renderPriceTabs();
   renderVehicleTable();
-  renderPlanForm();
+  if (document.getElementById('plans')?.classList.contains('active')) {
+    renderPlanForm();
+  }
   renderClients();
   renderClientManager();
   loadPricesFromServer({ silent: true });
@@ -1171,6 +1173,7 @@ let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
+let lastPlanProjection = null;
 let snapshots = load('snapshots') || [];
 let activeNoteClientId = null;
 let activeActionClientId = null;
@@ -1722,8 +1725,8 @@ function getPriceFilePath(tab = getActivePriceTab()) {
 function getActivePriceStatus() {
   const active = getActivePriceTab();
   if (!active) return 'Precios en modo local';
-  if (active.source === 'servidor') return 'Precios importados desde precios.json del mes';
-  if (active.source === 'archivo') return 'Precios importados manualmente';
+  if (active.source === 'servidor') return 'Precios cargados desde archivo del mes';
+  if (active.source === 'archivo') return 'Precios cargados manualmente';
   return 'Precios en modo local';
 }
 
@@ -1747,10 +1750,10 @@ function clearPriceAlerts() {
 function updatePriceContextTag() {
   const tag = document.getElementById('priceContextTag');
   if (!tag) return;
-  const active = getActivePriceTab();
-  if (active) {
-    const month = active.month || active.label || 'Mes sin definir';
-    const year = active.year ? ` ${active.year}` : '';
+  const latest = getMostRecentPriceTab() || getActivePriceTab();
+  if (latest) {
+    const month = latest.month || latest.label || 'Mes sin definir';
+    const year = latest.year ? ` ${latest.year}` : '';
     tag.textContent = `Utilizando precios de: ${month}${year}`;
   } else {
     tag.textContent = 'Utilizando precios locales';
@@ -1794,7 +1797,7 @@ async function loadPricesFromServer({ silent = false } = {}) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     applyImportedVehicles(data, 'servidor', { silentToast: silent });
-    renderPriceAlerts(`Precios importados desde ${path}`, 'success');
+    renderPriceAlerts(`Precios cargados desde ${path}`, 'success');
     updatePriceImportStatuses({ server: `Cargado desde ${path}` });
     return data;
   } catch (err) {
@@ -2107,7 +2110,7 @@ function renderVehicleTable() {
   const active = getActivePriceTab();
   clearPriceAlerts();
   if (active?.source === 'servidor') {
-    renderPriceAlerts('Precios importados desde precios.json del mes.', 'success');
+    renderPriceAlerts('Precios cargados desde el archivo del mes.', 'success');
   } else if (active?.source === 'archivo') {
     renderPriceAlerts('Precios cargados manualmente desde un archivo.', 'success');
   } else {
@@ -2538,8 +2541,12 @@ function renderPlanForm() {
       updatePlanSummary();
     });
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
-    document.getElementById('advancePayments').addEventListener('change', updatePlanSummary);
+    document.getElementById('advancePayments').addEventListener('change', () => {
+      toggleAdvanceAmountField();
+      updatePlanSummary();
+    });
     bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
+    bindMoneyInput(document.getElementById('advanceAmount'), updatePlanSummary);
     const customPriceInput = document.getElementById('customPrice');
     bindMoneyInput(customPriceInput, () => {
       customPriceInput.dataset.manual = 'true';
@@ -2563,6 +2570,18 @@ function renderPlanForm() {
       calc6.addEventListener('click', () => calculateReservationsFromBase(6));
       calc6.dataset.bound = 'true';
     }
+    const breakdownBtn = document.getElementById('openInstallmentBreakdown');
+    if (breakdownBtn && !breakdownBtn.dataset.bound) {
+      breakdownBtn.addEventListener('click', renderInstallmentBreakdown);
+      breakdownBtn.dataset.bound = 'true';
+    }
+    ['installmentClose', 'installmentCancel'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn && !btn.dataset.bound) {
+        btn.addEventListener('click', closeInstallmentModal);
+        btn.dataset.bound = 'true';
+      }
+    });
     document.getElementById('clientName').addEventListener('input', updatePlanSummary);
     document.getElementById('notes').addEventListener('input', updatePlanSummary);
     select.dataset.bound = 'true';
@@ -2576,6 +2595,7 @@ function renderPlanForm() {
   applyPlanDefaultsForModel(Number(select.value || 0), { preserveExisting: !!draft.planType });
   applyReservationDefaultsForModel(Number(select.value || 0), { preserveExisting: hasCustomReservations });
   applyCustomPriceDefaultForModel(Number(select.value || 0), { preserveExisting: !!parseMoney(draft.customPrice) });
+  toggleAdvanceAmountField();
   updateIntegrationDetails(Number(select.value || 0));
   updatePlanSummary();
 }
@@ -2602,6 +2622,12 @@ function getReservationValue(id, fallback = 0) {
   if (!el) return fallback;
   const val = parseMoney(el.dataset.raw || el.value || 0);
   return val || fallback;
+}
+
+function toggleAdvanceAmountField() {
+  const field = document.getElementById('advanceAmountField');
+  const checked = document.getElementById('advancePayments')?.checked;
+  if (field) field.style.display = checked ? '' : 'none';
 }
 
 function updateIntegrationDetails(modelIdx) {
@@ -2740,7 +2766,7 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
   return { segments, coveredInstallments, partialCover, kickoffInstallment, startInstallment: PLAN_START_INSTALLMENT, remainingInstallments };
 }
 
-function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false }) {
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
   const basePrice = resolveVehiclePrice(vehicle, 0);
@@ -2765,7 +2791,13 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     ? [{ type: 'tradeIn', label: 'Toma de usado', amount: contributionToPlan }]
     : [];
 
-  const outstanding = Math.max(financedAmount - contributionToPlan, 0);
+  const outstandingBeforeAdvance = Math.max(financedAmount - contributionToPlan, 0);
+  const additionalAdvance = advancePayments ? Math.max(advanceAmount, 0) : 0;
+  if (additionalAdvance > 0) {
+    contributions.push({ type: 'advance', label: 'Adelanto de cuotas', amount: additionalAdvance });
+  }
+
+  const outstanding = Math.max(outstandingBeforeAdvance - additionalAdvance, 0);
   const cuotaAjustada = totalInstallments ? Math.round(outstanding / totalInstallments) : cuotaPura;
   const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding, { advancePayments });
 
@@ -2787,6 +2819,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     reservationMeta,
     aporteInicial: contributionToPlan,
     outstanding,
+    outstandingBeforeAdvance,
     coveredInstallments: coverage.coveredInstallments,
     partialCover: coverage.partialCover,
     remainingInstallments: coverage.remainingInstallments,
@@ -2794,7 +2827,8 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     startInstallment: coverage.startInstallment,
     coverageSegments: coverage.segments,
     scheme,
-    advancePayments
+    advancePayments,
+    advanceAmountApplied: additionalAdvance
   };
 }
 
@@ -2809,6 +2843,8 @@ function updatePlanSummary() {
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
   const advancePayments = document.getElementById('advancePayments')?.checked;
+  const advanceAmountInput = document.getElementById('advanceAmount');
+  const advanceAmount = advancePayments ? parseMoney(advanceAmountInput?.dataset.raw || advanceAmountInput?.value || 0) : 0;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
   const appliedReservation = '1';
@@ -2827,11 +2863,12 @@ function updatePlanSummary() {
     reservations,
     appliedReservation,
     customPrice,
-    advancePayments
+    advancePayments,
+    advanceAmount
   });
   const cuotaBase = plan === 'ctapura'
-    ? (v.cuotaPura || projection.baseCuotaPura)
-    : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
+    ? (v.cuotaPura || projection.baseCatalogCuota)
+    : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
@@ -2870,7 +2907,7 @@ function updatePlanSummary() {
     { label: 'Cantidad de cuotas totales del plan', value: projection.totalInstallments || 0 },
     { label: '¿Utiliza llave x llave?', value: tradeIn ? 'Sí' : 'No' },
     { label: 'Valor cotizado por llave x llave', value: tradeIn ? tradeInFormatted : 'Sin usado aplicado' },
-    { label: 'Cuota pura del catálogo', value: formatAdjustedValue(projection.baseCuotaPura, projection.cuotaPura, showCuotaAdjustment) }
+    { label: 'Cuota pura del catálogo', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaPura, showCuotaAdjustment) }
   ]);
 
   const integrationSummary = document.getElementById('planIntegrationSummary');
@@ -2889,7 +2926,8 @@ function updatePlanSummary() {
     { label: 'Cuota estimada del plan', value: formatAdjustedValue(cuotaBase, cuota, showCuotaAdjustment), helper: 'Valor mensual considerando precio y usado aplicado.' },
     { label: 'Cuotas restantes a pagar', value: `${remainingInstallments} cuotas`, helper: advancePayments ? 'Se descuentan desde las últimas cuotas' : `Se pagan desde la cuota ${projection.kickoffInstallment || PLAN_START_INSTALLMENT}` },
     { label: 'Adelantamiento de cuotas', value: advancePayments ? 'Sí, cancela desde el final' : 'No, cronología normal' },
-    { label: 'Aporte al plan con usado', value: tradeIn ? currency.format(projection.aporteInicial) : 'Sin usado aplicado', helper: tradeIn ? 'Se resta del saldo del plan.' : 'Aplicar cuando tengas el valor del usado.' }
+    { label: 'Aporte al plan con usado', value: tradeIn ? currency.format(projection.aporteInicial) : 'Sin usado aplicado', helper: tradeIn ? 'Se resta del saldo del plan.' : 'Aplicar cuando tengas el valor del usado.' },
+    { label: 'Monto para adelantar cuotas', value: advancePayments && advanceAmount ? currency.format(advanceAmount) : 'Sin adelantos cargados', helper: advancePayments ? 'Se usa la cuota pura para descontar las últimas cuotas.' : 'Activa adelantos para usar un monto adicional.' }
   ]);
 
   const rangeLimits = {
@@ -2959,7 +2997,94 @@ function updatePlanSummary() {
     `);
     coverageList.innerHTML = cards.join('');
   }
+  lastPlanProjection = { ...projection, vehicleName: v.name, monthLabel: getMostRecentPriceTab()?.label || getMostRecentPriceTab()?.month || 'Mes activo' };
   savePlanDraft();
+}
+
+function renderInstallmentBreakdown() {
+  const modal = document.getElementById('installmentModal');
+  const list = document.getElementById('installmentList');
+  const summary = document.getElementById('installmentSummary');
+  if (!modal || !list || !summary) return;
+  if (!lastPlanProjection) {
+    showToast('Primero genera la cotización con los valores actuales.', 'error');
+    return;
+  }
+  const projection = lastPlanProjection;
+  const cuotaPura = projection.baseCatalogCuota || projection.cuotaPura || 0;
+  const total = projection.totalInstallments || 0;
+  const coverageSegments = projection.coverageSegments || [];
+  const map = {};
+  coverageSegments.forEach(seg => {
+    for (let i = seg.from; i <= seg.to; i++) {
+      map[i] = seg;
+    }
+    if (seg.partial && !map[seg.from]) map[seg.from] = seg;
+  });
+  const cards = [];
+  cards.push(`
+    <div class="coverage-card">
+      <div class="coverage-chip" data-type="reservation">Reserva</div>
+      <h5>Cuota 1</h5>
+      <p class="muted tiny">OBLIGATORIA · Usa reserva elegida por cliente</p>
+      <strong>${currency.format(projection.selectedReservation || projection.reservationMeta?.total || 0)}</strong>
+    </div>
+  `);
+  for (let i = PLAN_START_INSTALLMENT; i <= total; i++) {
+    const seg = map[i];
+    const title = `Cuota ${i}`;
+    let note = 'Pendiente.';
+    let chip = 'pendiente';
+    if (seg) {
+      chip = seg.type;
+      if (seg.partial) {
+        note = `Parcialmente cubierta con "${seg.label}"`;
+      } else {
+        note = `Cubierta con "${seg.label}"`;
+      }
+    }
+    cards.push(`
+      <div class="coverage-card">
+        <div class="coverage-chip" data-type="${chip}">${seg?.label || 'Cuota pura'}</div>
+        <h5>${title}</h5>
+        <p class="muted tiny">${note}</p>
+        <strong>${currency.format(cuotaPura)}</strong>
+      </div>
+    `);
+  }
+  summary.innerHTML = `
+    <div class="folio-row">
+      <div>
+        <span>Desglose de cuotas</span>
+        <em>${projection.vehicleName || 'Modelo'} · ${projection.monthLabel || 'Mes vigente'}</em>
+      </div>
+      <strong>${projection.remainingInstallments || 0} cuotas restantes</strong>
+    </div>
+    <div class="folio-row">
+      <div>
+        <span>Cuota pura aplicada</span>
+        <em>Se usa para adelantos y coberturas</em>
+      </div>
+      <strong>${currency.format(cuotaPura)}</strong>
+    </div>
+    <div class="folio-row">
+      <div>
+        <span>Adelantos informados</span>
+        <em>Se descuenta desde las últimas cuotas</em>
+      </div>
+      <strong>${projection.advancePayments && projection.advanceAmountApplied ? currency.format(projection.advanceAmountApplied) : 'Sin adelantos'}</strong>
+    </div>
+  `;
+  list.innerHTML = cards.join('');
+  modal.classList.remove('hidden');
+  requestAnimationFrame(() => modal.classList.add('show'));
+}
+
+function closeInstallmentModal() {
+  const modal = document.getElementById('installmentModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => modal.classList.add('hidden'), 180);
 }
 
 function buildQuoteFromForm() {
@@ -2970,6 +3095,8 @@ function buildQuoteFromForm() {
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
   const advancePayments = document.getElementById('advancePayments')?.checked;
+  const advanceAmountInput = document.getElementById('advanceAmount');
+  const advanceAmount = advancePayments ? parseMoney(advanceAmountInput?.dataset.raw || advanceAmountInput?.value || 0) : 0;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
   const appliedReservation = '1';
@@ -2986,7 +3113,8 @@ function buildQuoteFromForm() {
     reservations,
     appliedReservation,
     customPrice,
-    advancePayments
+    advancePayments,
+    advanceAmount
   });
   const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
@@ -3029,6 +3157,7 @@ function buildQuoteFromForm() {
     priceRatio: projection.priceRatio,
     startInstallment: projection.startInstallment,
     advancePayments,
+    advanceAmount,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
     summaryText: ''
@@ -3069,6 +3198,7 @@ function buildQuoteSummaryText(quote) {
     `Saldo financiado pendiente: ${currency.format(quote.outstanding || 0)}`,
     `Cuotas restantes: ${quote.remainingInstallments || 0} (se pagan desde la cuota ${quote.startInstallment || quote.kickoffInstallment || PLAN_START_INSTALLMENT})`,
     `Adelanta cuotas: ${quote.advancePayments ? 'Sí, cancelando desde las últimas' : 'No, sigue el calendario estándar'}`,
+    quote.advancePayments ? `Monto adelantado: ${currency.format(quote.advanceAmount || 0)} (usa cuota pura de ${currency.format(quote.baseCuotaPura || 0)})` : 'Monto adelantado: Sin aplicar',
     `Notas: ${quote.notes || 'Sin notas'}`,
     `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
   ];
@@ -3089,12 +3219,14 @@ function applyQuoteToForm(quote) {
   document.getElementById('tradeIn').checked = !!quote.tradeIn;
   const advanceToggle = document.getElementById('advancePayments');
   if (advanceToggle) advanceToggle.checked = !!quote.advancePayments;
+  setMoneyValue(document.getElementById('advanceAmount'), quote.advanceAmount || '');
   setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
   setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
   setMoneyValue(document.getElementById('reservation3'), quote.reservation3 || '');
   setMoneyValue(document.getElementById('reservation6'), quote.reservation6 || '');
   document.getElementById('notes').value = quote.notes || '';
   refreshClientSelectionHint();
+  toggleAdvanceAmountField();
   updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
   updatePlanSummary();
 }
@@ -3117,6 +3249,8 @@ function applyPlanDraft() {
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
   const advanceToggle = document.getElementById('advancePayments');
   if (advanceToggle) advanceToggle.checked = draft.advancePayments || false;
+  const advanceAmountInput = document.getElementById('advanceAmount');
+  setMoneyValue(advanceAmountInput, draft.advanceAmount || '');
   const customPriceInput = document.getElementById('customPrice');
   setMoneyValue(customPriceInput, draft.customPrice || '');
   if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
@@ -3141,6 +3275,7 @@ function savePlanDraft() {
     planType: document.getElementById('planType').value,
     tradeIn: document.getElementById('tradeIn').checked,
     advancePayments: document.getElementById('advancePayments').checked,
+    advanceAmount: parseMoney(document.getElementById('advanceAmount').dataset.raw || document.getElementById('advanceAmount').value),
     customPrice: parseMoney(document.getElementById('customPrice').dataset.raw || document.getElementById('customPrice').value),
     appliedReservation: document.getElementById('appliedReservation').value,
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
