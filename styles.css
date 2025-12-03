@@ -639,6 +639,9 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .modal-actions.top { position: sticky; top: 0; z-index: 3; padding: 10px 0; margin-top: 0; margin-bottom: 10px; background: #0f1625; border-bottom: 1px solid var(--border); }
+#installmentModal .modal-content { width: min(900px, 100%); max-height: 90vh; display: flex; flex-direction: column; }
+#installmentModal #installmentSummary { max-height: 180px; overflow-y: auto; padding-right: 6px; }
+#installmentModal #installmentList { flex: 1; overflow-y: auto; padding-right: 6px; margin-top: 12px; }
 .option-stack { display: grid; gap: 10px; margin-top: 12px; }
 .option-stack.two-cols { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .option-card { display: grid; gap: 6px; grid-template-columns: auto 1fr; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease; }

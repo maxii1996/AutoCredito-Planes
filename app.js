@@ -2714,7 +2714,7 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
     };
   }
 
-  const reverseMode = !!advancePayments;
+  const reverseMode = !!advancePayments || contributions.some(contrib => contrib.type === 'tradeIn');
   let pointer = reverseMode ? totalInstallments : PLAN_START_INSTALLMENT;
   let coveredInstallments = 0;
   let partialCover = 0;
@@ -3022,15 +3022,7 @@ function renderInstallmentBreakdown() {
     if (seg.partial && !map[seg.from]) map[seg.from] = seg;
   });
   const cards = [];
-  cards.push(`
-    <div class="coverage-card">
-      <div class="coverage-chip" data-type="reservation">Reserva</div>
-      <h5>Cuota 1</h5>
-      <p class="muted tiny">OBLIGATORIA · Usa reserva elegida por cliente</p>
-      <strong>${currency.format(projection.selectedReservation || projection.reservationMeta?.total || 0)}</strong>
-    </div>
-  `);
-  for (let i = PLAN_START_INSTALLMENT; i <= total; i++) {
+  for (let i = total; i >= PLAN_START_INSTALLMENT; i--) {
     const seg = map[i];
     const title = `Cuota ${i}`;
     let note = 'Pendiente.';
@@ -3052,11 +3044,19 @@ function renderInstallmentBreakdown() {
       </div>
     `);
   }
+  cards.push(`
+    <div class="coverage-card">
+      <div class="coverage-chip" data-type="reservation">Reserva</div>
+      <h5>Cuota 1</h5>
+      <p class="muted tiny">OBLIGATORIA · Usa reserva elegida por cliente</p>
+      <strong>${currency.format(projection.selectedReservation || projection.reservationMeta?.total || 0)}</strong>
+    </div>
+  `);
   summary.innerHTML = `
     <div class="folio-row">
       <div>
         <span>Desglose de cuotas</span>
-        <em>${projection.vehicleName || 'Modelo'} · ${projection.monthLabel || 'Mes vigente'}</em>
+        <em>${projection.vehicleName || 'Modelo'} · ${projection.monthLabel || 'Mes vigente'} · Ordenado desde la última cuota</em>
       </div>
       <strong>${projection.remainingInstallments || 0} cuotas restantes</strong>
     </div>
