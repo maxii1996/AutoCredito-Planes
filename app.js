@@ -2538,6 +2538,7 @@ function renderPlanForm() {
       updatePlanSummary();
     });
     document.getElementById('tradeIn').addEventListener('change', updatePlanSummary);
+    document.getElementById('advancePayments').addEventListener('change', updatePlanSummary);
     bindMoneyInput(document.getElementById('tradeInValue'), updatePlanSummary);
     const customPriceInput = document.getElementById('customPrice');
     bindMoneyInput(customPriceInput, () => {
@@ -2675,7 +2676,7 @@ function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPric
 }
 
 
-function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0) {
+function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0, { advancePayments = false } = {}) {
   if (!totalInstallments || !cuotaPura) {
     return {
       segments: [],
@@ -2687,7 +2688,8 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
     };
   }
 
-  let pointer = PLAN_START_INSTALLMENT;
+  const reverseMode = !!advancePayments;
+  let pointer = reverseMode ? totalInstallments : PLAN_START_INSTALLMENT;
   let coveredInstallments = 0;
   let partialCover = 0;
   const segments = [];
@@ -2698,42 +2700,47 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
     const remainder = contrib.amount - (fullCovers * cuotaPura);
 
     if (fullCovers > 0) {
-      const from = Math.max(pointer, PLAN_START_INSTALLMENT);
+      const from = reverseMode
+        ? Math.max(PLAN_START_INSTALLMENT, pointer - fullCovers + 1)
+        : Math.max(pointer, PLAN_START_INSTALLMENT);
       segments.push({
         type: contrib.type,
         label: contrib.label,
         from,
-        to: from + fullCovers - 1,
+        to: reverseMode ? Math.max(PLAN_START_INSTALLMENT, pointer) : from + fullCovers - 1,
         covered: fullCovers,
         partial: 0,
         amount: contrib.amount
       });
       coveredInstallments += fullCovers;
-      pointer = from + fullCovers;
+      pointer = reverseMode ? from - 1 : from + fullCovers;
     }
 
     if (remainder > 0) {
       partialCover = Math.max(partialCover, remainder);
+      const partialSlot = reverseMode ? Math.max(pointer, PLAN_START_INSTALLMENT) : Math.max(pointer, PLAN_START_INSTALLMENT);
       segments.push({
         type: contrib.type,
         label: `${contrib.label} (parcial)`,
-        from: Math.max(pointer, PLAN_START_INSTALLMENT),
-        to: Math.max(pointer, PLAN_START_INSTALLMENT),
+        from: partialSlot,
+        to: partialSlot,
         covered: 0,
         partial: remainder,
         amount: remainder
       });
-      pointer += 1;
+      pointer = reverseMode ? partialSlot - 1 : partialSlot + 1;
     }
   });
 
   const remainingInstallments = Math.ceil(Math.max(outstanding, 0) / cuotaPura);
-  const kickoffInstallment = Math.max(pointer, PLAN_START_INSTALLMENT);
+  const kickoffInstallment = reverseMode
+    ? PLAN_START_INSTALLMENT
+    : Math.max(pointer, PLAN_START_INSTALLMENT);
 
   return { segments, coveredInstallments, partialCover, kickoffInstallment, startInstallment: PLAN_START_INSTALLMENT, remainingInstallments };
 }
 
-function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0 }) {
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false }) {
   const scheme = resolvePlanScheme(vehicle);
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
   const basePrice = resolveVehiclePrice(vehicle, 0);
@@ -2760,7 +2767,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
 
   const outstanding = Math.max(financedAmount - contributionToPlan, 0);
   const cuotaAjustada = totalInstallments ? Math.round(outstanding / totalInstallments) : cuotaPura;
-  const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding);
+  const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding, { advancePayments });
 
   return {
     basePrice,
@@ -2786,7 +2793,8 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     kickoffInstallment: coverage.kickoffInstallment,
     startInstallment: coverage.startInstallment,
     coverageSegments: coverage.segments,
-    scheme
+    scheme,
+    advancePayments
   };
 }
 
@@ -2800,6 +2808,7 @@ function updatePlanSummary() {
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const advancePayments = document.getElementById('advancePayments')?.checked;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
   const appliedReservation = '1';
@@ -2817,7 +2826,8 @@ function updatePlanSummary() {
     tradeInEnabled: tradeIn,
     reservations,
     appliedReservation,
-    customPrice
+    customPrice,
+    advancePayments
   });
   const cuotaBase = plan === 'ctapura'
     ? (v.cuotaPura || projection.baseCuotaPura)
@@ -2833,188 +2843,121 @@ function updatePlanSummary() {
   };
   const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
   const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1);
-  const startInstallment = projection.startInstallment || PLAN_START_INSTALLMENT;
-  const coveredText = projection.coveredInstallments
-    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas (cuotas ${startInstallment} a ${startInstallment + projection.coveredInstallments - 1}) antes de pagar.`
-    : 'Sin cuotas cubiertas aún';
-  const partialText = projection.partialCover
-    ? `+ ${currency.format(projection.partialCover)} adelantados en la cuota ${startInstallment + projection.coveredInstallments}`
-    : '';
-  const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
-  const reservationText = projection.selectedReservation
-    ? `${currency.format(projection.selectedReservation)} · cuota 1 (reserva informativa / integración). Es un gasto adicional, no descuenta el plan.`
-    : 'Completa el valor de la reserva informativa para continuar.';
-  const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
-  const firstPayable = Math.max(projection.kickoffInstallment, startInstallment);
-  const scheme = projection.scheme || { financedPct: 1, integrationPct: 0, label: 'Plan' };
-  const integrationPctLabel = `${Math.round((scheme.integrationPct || 0) * 100)}%`;
-
-  const planProfileTag = document.getElementById('planProfileTag');
-  if (planProfileTag) {
-    planProfileTag.textContent = v.planProfile?.label || 'Plan personalizado';
-  }
-
-  const flow = document.getElementById('planFlow');
-  if (flow) {
-    const flowSteps = [
-      {
-        title: 'Integración objetivo',
-        amount: currency.format(projection.integrationTarget),
-        detail: `Pendiente ${currency.format(projection.integrationRemaining)}`,
-        tone: 'integration'
-      },
-      {
-        title: 'Entrega llave x llave',
-        amount: tradeIn ? currency.format(tradeInValue) : 'Sin usado',
-        detail: tradeIn ? `Aporta ${currency.format(projection.aporteInicial)}` : 'Puedes sumarlo luego',
-        tone: 'trade'
-      },
-      {
-        title: 'Saldo financiado',
-        amount: currency.format(projection.outstanding),
-        detail: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} desde la ${firstPayable}`,
-        tone: 'pending'
-      }
-    ];
-    flow.innerHTML = flowSteps.map((step, idx) => `
-      <div class="flow-node" data-tone="${step.tone}">
-        <div class="flow-dot"></div>
-        <div class="flow-body">
-          <p class="eyebrow">${step.title}</p>
-          <strong>${step.amount}</strong>
-          <span class="muted tiny">${step.detail}</span>
+  const scheme = projection.scheme || v.planProfile || {};
+  const coverageSegments = (projection.coverageSegments || []).map(seg => ({
+    ...seg,
+    from: Math.min(seg.from, seg.to),
+    to: Math.max(seg.from, seg.to)
+  })).sort((a, b) => a.from - b.from);
+  const renderRows = (el, rows) => {
+    if (!el) return;
+    el.innerHTML = rows.map(r => `
+      <div class="folio-row">
+        <div>
+          <span>${r.label}</span>
+          ${r.helper ? `<em>${r.helper}</em>` : ''}
         </div>
-        ${idx < flowSteps.length - 1 ? '<div class="flow-arrow"></div>' : ''}
+        <strong>${r.value}</strong>
       </div>
     `).join('');
-  }
+  };
 
-  const planRows = [
-    { label: 'Modelo', value: v.name },
-    { label: priceSource, value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice) },
-    { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
-    { label: 'Plan seleccionado', value: v.planProfile?.label ? `${v.planProfile.label} (${planLabel(plan)})` : planLabel(plan) },
-    { label: 'Cuota pura del catálogo (original)', value: currency.format(projection.baseCatalogCuota) },
-    { label: 'Cuota pura recalculada con llave x llave', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaAjustada, showCuotaAdjustment || projection.cuotaAjustada !== projection.baseCatalogCuota) },
-    { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCuotaAdjustment) }
-  ];
+  const basics = document.getElementById('planBasicsList');
+  renderRows(basics, [
+    { label: '0Km a adquirir', value: v.name || 'Seleccionar modelo' },
+    { label: 'Precio nominal del coche', value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice), helper: showCustomPrice ? 'Precio ajustado para la cotización' : 'Valor de catálogo' },
+    { label: 'Tipo de plan', value: v.planProfile?.label ? `${v.planProfile.label} · ${planLabel(plan)}` : planLabel(plan), helper: scheme.label },
+    { label: 'Cantidad de cuotas totales del plan', value: projection.totalInstallments || 0 },
+    { label: '¿Utiliza llave x llave?', value: tradeIn ? 'Sí' : 'No' },
+    { label: 'Valor cotizado por llave x llave', value: tradeIn ? tradeInFormatted : 'Sin usado aplicado' },
+    { label: 'Cuota pura del catálogo', value: formatAdjustedValue(projection.baseCuotaPura, projection.cuotaPura, showCuotaAdjustment) }
+  ]);
 
-  const financingRows = [
-    { label: 'Integración pendiente', value: `${currency.format(projection.integrationRemaining)} (cubierto ${currency.format(projection.integrationCovered)})` },
-    { label: 'Aporte al plan con usado', value: tradeIn ? currency.format(projection.aporteInicial) : 'Sin usado aplicado' },
-    { label: 'Saldo financiado pendiente', value: currency.format(projection.outstanding) },
-    { label: 'Cuotas pendientes', value: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} arrancando en la cuota ${firstPayable}` },
-    { label: 'Total de cuotas del plan', value: projection.totalInstallments },
-    { label: 'Inicio de pagos', value: `Las cuotas financiadas arrancan en la cuota ${startInstallment}; la cuota 1 es la reserva informativa / integración.` },
-    { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() || 'Sin aportes al día' }
-  ];
+  const integrationSummary = document.getElementById('planIntegrationSummary');
+  renderRows(integrationSummary, [
+    { label: 'Cuota 1 (Integración)', value: currency.format(projection.selectedReservation || 0), helper: 'Gasto adicional, no integra el plan.' },
+    { label: 'En 1 pago', value: currency.format(reserva1 || 0), helper: 'Pago único de integración.' },
+    { label: 'En 3 pagos sin interés', value: `${cuota3} c/u`, helper: `Total: ${currency.format(reserva3 || 0)}` },
+    { label: 'En 6 pagos sin interés', value: `${cuota6} c/u`, helper: `Total: ${currency.format(reserva6 || 0)}` },
+    { label: 'Aporte llave x llave', value: tradeIn ? currency.format(projection.integrationCovered || 0) : 'No aplica', helper: tradeIn ? `Integra ${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}` : 'Sin usado aplicado' }
+  ]);
 
-  const reservationRows = [
-    { label: 'Reserva informativa (cuota 1, gasto aparte)', value: reservationText },
-    { label: 'Valores vigentes del mes', value: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})` },
-    { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No aplica' }
-  ];
+  const balanceSummary = document.getElementById('planBalanceSummary');
+  const remainingInstallments = Math.max(projection.remainingInstallments, 0);
+  renderRows(balanceSummary, [
+    { label: 'Saldo restante a abonar', value: currency.format(projection.outstanding || 0) },
+    { label: 'Cuota estimada del plan', value: formatAdjustedValue(cuotaBase, cuota, showCuotaAdjustment), helper: 'Valor mensual considerando precio y usado aplicado.' },
+    { label: 'Cuotas restantes a pagar', value: `${remainingInstallments} cuotas`, helper: advancePayments ? 'Se descuentan desde las últimas cuotas' : `Se pagan desde la cuota ${projection.kickoffInstallment || PLAN_START_INSTALLMENT}` },
+    { label: 'Adelantamiento de cuotas', value: advancePayments ? 'Sí, cancela desde el final' : 'No, cronología normal' },
+    { label: 'Aporte al plan con usado', value: tradeIn ? currency.format(projection.aporteInicial) : 'Sin usado aplicado', helper: tradeIn ? 'Se resta del saldo del plan.' : 'Aplicar cuando tengas el valor del usado.' }
+  ]);
 
-  const summary = document.getElementById('planSummary');
-  summary.innerHTML = [
-    { title: 'Datos del plan', rows: planRows },
-    { title: 'Financiación y cobertura', rows: financingRows },
-    { title: 'Reserva (no integra el plan)', rows: reservationRows }
-  ].map(section => `
-    <div class="pro-section">
-      <h4>${section.title}</h4>
-      <div class="pro-table">
-        ${section.rows.map(r => `
-          <div class="pro-row">
-            <span>${r.label}</span>
-            <strong>${r.value}</strong>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
-
-  const ribbon = document.getElementById('planTimelineRibbon');
-  if (ribbon) {
-    const ribbonSteps = [
-      {
-        title: 'Integración objetivo',
-        detail: `${currency.format(projection.integrationTarget)} · Restan ${currency.format(projection.integrationRemaining)}`,
-        chips: [projection.integrationCovered ? `Cubierto con usado: ${currency.format(projection.integrationCovered)}` : 'Cubrir con efectivo/usado'],
-        kind: 'pending'
-      },
-      {
-        title: 'Aplicación del usado',
-        detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado',
-        chips: [tradeIn ? 'Aporta a integración/cuotas' : 'Puedes sumar usado luego'],
-        kind: 'tradeIn'
-      },
-      {
-        title: `Financiación (${projection.totalInstallments} cuotas)`,
-        detail: `Saldo en plan ${currency.format(projection.outstanding)} · Cuota pura ${currency.format(projection.cuotaPura || 0)}`,
-        chips: [`Inicio en cuota ${firstPayable}`, coveredText],
-        kind: 'pending'
-      }
-    ];
-    ribbon.innerHTML = ribbonSteps.map(step => `
-      <div class="ribbon-step" data-kind="${step.kind}">
-        <div class="ribbon-label"><span class="dot"></span>${step.title}</div>
-        <p class="ribbon-body">${step.detail}</p>
-        <div class="ribbon-meta">${step.chips.filter(Boolean).map(c => `<span class="pill">${c}</span>`).join('')}</div>
-      </div>
-    `).join('');
-  }
-
-  const timeline = document.getElementById('planTimeline');
-  const timelineSteps = [
-    { title: 'Integración', detail: `${currency.format(projection.integrationTarget)} · Pendiente ${currency.format(projection.integrationRemaining)}`, ok: projection.integrationRemaining <= 0 },
-    { title: 'Toma de usado', detail: tradeIn ? `Valor ${tradeInFormatted} · Aporte al plan ${currency.format(projection.aporteInicial)}` : 'Sin usado aplicado', ok: tradeIn && tradeInValue > 0 },
-    { title: 'Saldo financiado', detail: `${currency.format(projection.outstanding)} en ${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''}. Primera cuota: ${firstPayable}`, ok: projection.outstanding > 0 }
-  ];
-  timeline.innerHTML = timelineSteps.map(step => {
-    const statusClass = step.ok ? 'success' : 'warning';
-    return `
-    <div class="timeline-row">
-      <div class="timeline-dot ${statusClass}"><div class="inner"></div></div>
-      <div>
-        <h4>${step.title}</h4>
-        <p class="muted tiny">${step.detail}</p>
-      </div>
-    </div>
-  `;}).join('');
-
-  const perks = document.getElementById('planPerks');
-  if (perks) {
-    const perkItems = [
-      v.benefits?.pactada && `Chevroplan pactada: ${v.benefits.pactada}`,
-      v.benefits?.bonificacion && `Bonificación: ${v.benefits.bonificacion}`,
-      `Integración objetivo: ${currency.format(projection.integrationTarget)} (${integrationPctLabel} del valor)`
-    ].filter(Boolean);
-    perks.innerHTML = `
-      <div class="pro-section">
-        <h4>Beneficios adicionales</h4>
-        <ul class="pro-bullets">
-          ${perkItems.map(p => `<li>${p}</li>`).join('') || '<li>Sin beneficios destacados</li>'}
-        </ul>
-      </div>
-    `;
-  }
-
-  const timelineTrack = document.getElementById('planTimelineTrack');
-  if (timelineTrack) {
-    const segments = [
-      { type: 'tradeIn', label: 'Usado', amount: projection.aporteInicial || 0, detail: tradeIn ? 'Aplicado al plan' : 'Sin usado' },
-      { type: 'integration', label: 'Integración', amount: Math.max(projection.integrationTarget - projection.integrationCovered, 0), detail: `Objetivo ${currency.format(projection.integrationTarget)}` },
-      { type: 'outstanding', label: 'Saldo', amount: projection.outstanding || 0, detail: `${remainingInstallments} cuota(s)` }
-    ];
-
-    const totalAmount = segments.reduce((acc, seg) => acc + Math.max(seg.amount, 0), 0) || 1;
-    const chunks = segments.map(seg => {
-      const width = Math.max((Math.max(seg.amount, 0) / totalAmount) * 100, 8);
-      const amountLabel = currency.format(seg.amount || 0);
-      return `<div class="timeline-chunk" data-type="${seg.type}" data-label="${seg.label}" style="width:${width}%"><span>${amountLabel}</span><span>${seg.detail}</span></div>`;
+  const rangeLimits = {
+    '2a12': { from: 2, to: 12 },
+    '13a21': { from: 13, to: 21 },
+    '22a84': { from: 22, to: 84 },
+    '85a120': { from: 85, to: 120 },
+    'ctapura': { from: PLAN_START_INSTALLMENT, to: projection.totalInstallments || 120 }
+  };
+  const rangeOrder = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
+  const describeCoverage = (from, to) => {
+    const notes = coverageSegments.filter(seg => {
+      const overlapFrom = Math.max(from, seg.from);
+      const overlapTo = Math.min(to, seg.to);
+      return overlapFrom <= overlapTo;
+    }).map(seg => {
+      const overlapFrom = Math.max(from, seg.from);
+      const overlapTo = Math.min(to, seg.to);
+      const span = overlapFrom === overlapTo ? `cuota ${overlapFrom}` : `cuotas ${overlapFrom}-${overlapTo}`;
+      return `${seg.label} • ${span}`;
     });
-    timelineTrack.innerHTML = chunks.join('');
+    if (notes.length) return notes.join(' • ');
+    return advancePayments ? 'Pendiente (se descuenta desde el final)' : 'Pendiente de pago';
+  };
+  const rangeList = document.getElementById('planRangeList');
+  if (rangeList) {
+    rangeList.innerHTML = rangeOrder.filter(key => v.shareByPlan?.[key] || key === plan || key === 'ctapura').map(key => {
+      const limits = rangeLimits[key];
+      const label = planLabel(key);
+      const baseAmount = key === 'ctapura'
+        ? (v.shareByPlan?.ctapura || projection.baseCatalogCuota)
+        : (v.shareByPlan?.[key] ?? cuotaBase);
+      const amount = key === plan ? projection.cuotaAjustada || baseAmount : baseAmount;
+      const status = limits ? describeCoverage(limits.from, limits.to) : 'Pendiente de pago';
+      return `
+        <div class="range-card" data-active="${plan === key}">
+          <h5>${label}</h5>
+          <div class="amount">${currency.format(amount || 0)}</div>
+          <div class="status">${status}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const coverageList = document.getElementById('planCoverageList');
+  if (coverageList) {
+    const cards = coverageSegments.map(seg => {
+      const title = seg.from === seg.to ? `Cuota ${seg.from}` : `Cuotas ${seg.from}-${seg.to}`;
+      const coverageLabel = seg.covered ? `${seg.covered} cuotas cubiertas` : 'Cobertura parcial';
+      const partialLabel = seg.partial ? ` · Parcial: ${currency.format(seg.partial)}` : '';
+      return `
+        <div class="coverage-card">
+          <div class="coverage-chip" data-type="${seg.type}">${seg.label}</div>
+          <h5>${title}</h5>
+          <p class="muted tiny">${coverageLabel}${partialLabel}</p>
+          <strong>${currency.format(seg.amount || 0)}</strong>
+        </div>
+      `;
+    });
+    cards.push(`
+      <div class="coverage-card">
+        <div class="coverage-chip" data-type="outstanding">Saldo pendiente</div>
+        <h5>Finalización del plan</h5>
+        <p class="muted tiny">${remainingInstallments} cuotas restantes · ${advancePayments ? 'Se cancelan desde la última hacia atrás' : 'Se pagan desde la primera cuota pendiente'}</p>
+        <strong>${currency.format(projection.outstanding || 0)}</strong>
+      </div>
+    `);
+    coverageList.innerHTML = cards.join('');
   }
   savePlanDraft();
 }
@@ -3026,6 +2969,7 @@ function buildQuoteFromForm() {
   const tradeIn = document.getElementById('tradeIn').checked;
   const tradeInInput = document.getElementById('tradeInValue');
   const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const advancePayments = document.getElementById('advancePayments')?.checked;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
   const appliedReservation = '1';
@@ -3041,7 +2985,8 @@ function buildQuoteFromForm() {
     tradeInEnabled: tradeIn,
     reservations,
     appliedReservation,
-    customPrice
+    customPrice,
+    advancePayments
   });
   const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
@@ -3083,6 +3028,7 @@ function buildQuoteFromForm() {
     cuotaAjustada: projection.cuotaAjustada,
     priceRatio: projection.priceRatio,
     startInstallment: projection.startInstallment,
+    advancePayments,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
     summaryText: ''
@@ -3122,6 +3068,7 @@ function buildQuoteSummaryText(quote) {
     `Aporte al plan con usado: ${currency.format(quote.aporteInicial || 0)}`,
     `Saldo financiado pendiente: ${currency.format(quote.outstanding || 0)}`,
     `Cuotas restantes: ${quote.remainingInstallments || 0} (se pagan desde la cuota ${quote.startInstallment || quote.kickoffInstallment || PLAN_START_INSTALLMENT})`,
+    `Adelanta cuotas: ${quote.advancePayments ? 'Sí, cancelando desde las últimas' : 'No, sigue el calendario estándar'}`,
     `Notas: ${quote.notes || 'Sin notas'}`,
     `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
   ];
@@ -3140,6 +3087,8 @@ function applyQuoteToForm(quote) {
   if (parseMoney(quote.customPrice)) document.getElementById('customPrice').dataset.manual = 'true';
   document.getElementById('appliedReservation').value = '1';
   document.getElementById('tradeIn').checked = !!quote.tradeIn;
+  const advanceToggle = document.getElementById('advancePayments');
+  if (advanceToggle) advanceToggle.checked = !!quote.advancePayments;
   setMoneyValue(document.getElementById('tradeInValue'), quote.tradeInValue || '');
   setMoneyValue(document.getElementById('reservation1'), quote.reservation1 || '');
   setMoneyValue(document.getElementById('reservation3'), quote.reservation3 || '');
@@ -3166,6 +3115,8 @@ function applyPlanDraft() {
   const planTypeSelect = document.getElementById('planType');
   if (planTypeSelect) planTypeSelect.value = getPlanTypeForVehicle(vehicles[Number(document.getElementById('planModel').value) || 0]);
   document.getElementById('tradeIn').checked = draft.tradeIn !== undefined ? draft.tradeIn : true;
+  const advanceToggle = document.getElementById('advancePayments');
+  if (advanceToggle) advanceToggle.checked = draft.advancePayments || false;
   const customPriceInput = document.getElementById('customPrice');
   setMoneyValue(customPriceInput, draft.customPrice || '');
   if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
@@ -3189,6 +3140,7 @@ function savePlanDraft() {
     planModel: document.getElementById('planModel').value,
     planType: document.getElementById('planType').value,
     tradeIn: document.getElementById('tradeIn').checked,
+    advancePayments: document.getElementById('advancePayments').checked,
     customPrice: parseMoney(document.getElementById('customPrice').dataset.raw || document.getElementById('customPrice').value),
     appliedReservation: document.getElementById('appliedReservation').value,
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),

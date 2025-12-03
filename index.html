@@ -342,42 +342,46 @@
           </aside>
 
           <div class="quote-details">
-            <div class="card flow-card">
-              <div class="card-head compact">
-                <p class="eyebrow">Línea de tiempo</p>
-                <h3>Diagrama del plan</h3>
-              </div>
-              <div id="planFlow" class="flow-rail"></div>
-              <div class="flow-foot">
-                <span class="chip muted" id="planProfileTag"></span>
-                <span class="chip muted">Sorteo y licitación desde cuota 2</span>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-head">
-                <p class="eyebrow">Resultado</p>
-                <h3>Resumen del plan</h3>
-              </div>
-              <div class="timeline-board compact">
-                <div class="timeline-top">
-                  <div id="planTimelineRibbon" class="timeline-ribbon"></div>
+            <section class="plan-folio">
+              <div class="folio-head">
+                <div>
+                  <p class="eyebrow">Detalle simplificado</p>
+                  <h3>Folleto del plan</h3>
+                  <p class="muted tiny">Vista clara sin tarjetas para explicar al cliente.</p>
                 </div>
-                <div class="timeline-visual wide">
-                  <div class="timeline-legend">
-                    <span class="legend-chip tradeIn">Usado</span>
-                    <span class="legend-chip integration">Integración</span>
-                    <span class="legend-chip pending">Saldo</span>
-                  </div>
-                  <div id="planTimelineTrack" class="timeline-track"></div>
+                <div class="folio-switch">
+                  <label class="toggle">
+                    <input type="checkbox" id="advancePayments">
+                    <span>¿El cliente quiere adelantar cuotas?</span>
+                  </label>
+                  <p class="muted tiny">Si adelanta, se descuentan las últimas cuotas primero.</p>
                 </div>
               </div>
-              <div class="perks-grid" id="planPerks"></div>
-              <div class="summary compact two-cols" id="planSummary"></div>
-              <div class="timeline slim" id="planTimeline"></div>
-              <div class="card-foot note">
+              <div class="folio-body">
+                <div class="folio-section">
+                  <h4>Datos principales</h4>
+                  <div id="planBasicsList" class="folio-list"></div>
+                </div>
+                <div class="folio-section">
+                  <h4>Integración y cuota 1</h4>
+                  <div id="planIntegrationSummary" class="folio-list"></div>
+                </div>
               </div>
-            </div>
+              <div class="folio-body">
+                <div class="folio-section">
+                  <h4>Saldo y aportes</h4>
+                  <div id="planBalanceSummary" class="folio-list"></div>
+                </div>
+                <div class="folio-section">
+                  <h4>Cuotas por tramo</h4>
+                  <div id="planRangeList" class="range-grid"></div>
+                </div>
+              </div>
+              <div class="folio-section wide">
+                <h4>Estado de cuotas</h4>
+                <div id="planCoverageList" class="coverage-grid"></div>
+              </div>
+            </section>
           </div>
         </div>
       </section>
