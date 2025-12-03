@@ -34,7 +34,7 @@ const novemberVehicles = [
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 320051, '13a21': 313692, '22a84': 312912, '85a120': 311352 },
     cuotaPura: 202873,
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
@@ -48,7 +48,7 @@ const novemberVehicles = [
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
     cuotaPura: 253591,
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
@@ -62,7 +62,7 @@ const novemberVehicles = [
     basePrice: 37808900,
     integration: 11342670,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 388584 },
     cuotaPura: 252059,
     reservations: { '1': 1211400, '3': 1574820, '6': 1817100 },
@@ -76,7 +76,7 @@ const novemberVehicles = [
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
-    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
+    availablePlans: ['22a84'],
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
     reservations: { '1': 1825000, '3': 2372500, '6': 2737500 },
@@ -90,7 +90,7 @@ const novemberVehicles = [
     basePrice: 37823900,
     integration: 11347170,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156, '85a120': 310714 },
     cuotaPura: 252159,
     reservations: { '1': 1211710, '3': 1575223, '6': 1817565 },
@@ -104,7 +104,7 @@ const novemberVehicles = [
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
-    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
+    availablePlans: ['22a84'],
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914 },
     cuotaPura: 292641,
     reservations: { '1': 1177600, '3': 1530880, '6': 1766400 },
@@ -121,7 +121,7 @@ const decemberVehicles = [
     basePrice: 30887900,
     integration: 9266370,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 324858, '13a21': 318403, '22a84': 317611, '85a120': 316027 },
     cuotaPura: 205919,
     reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
@@ -135,7 +135,7 @@ const decemberVehicles = [
     basePrice: 30887900,
     integration: 9266370,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 331665, '13a21': 376492, '22a84': 375502, '85a120': 374512 },
     cuotaPura: 257399,
     reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
@@ -149,7 +149,7 @@ const decemberVehicles = [
     basePrice: 38489900,
     integration: 11546970,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 404810, '13a21': 396767, '22a84': 395583, '85a120': 395583 },
     cuotaPura: 256599,
     reservations: { '1': 1246142, '3': 1619985, '6': 1869213 },
@@ -163,7 +163,7 @@ const decemberVehicles = [
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
-    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
+    availablePlans: ['22a84'],
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
     reservations: { '1': 1900250, '3': 2470325, '6': 2850375 },
@@ -177,7 +177,7 @@ const decemberVehicles = [
     basePrice: 38391900,
     integration: 11517570,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
-    availablePlans: ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: ['85a120'],
     shareByPlan: { '2a12': 403780, '13a21': 395757, '22a84': 394576, '85a120': 393985 },
     cuotaPura: 255946,
     reservations: { '1': 1246450, '3': 1620385, '6': 1869675 },
@@ -191,7 +191,7 @@ const decemberVehicles = [
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
-    availablePlans: ['2a12', '13a21', '22a84', 'ctapura'],
+    availablePlans: ['22a84'],
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914, '85a120': 426914 },
     cuotaPura: 292641,
     reservations: { '1': 1210710, '3': 1573923, '6': 1816065 },
@@ -2116,14 +2116,14 @@ function renderVehicleTable() {
       </div>
     </td>`).join('')}</tr>`);
 
-  const planOptions = plans.map(key => `<option value="${key}">${labels[key]}</option>`).join('');
-  bodyRows.push(`<tr><td>Plan de cuotas</td>${vehicles.map((v, idx) => {
+  bodyRows.push(`<tr><td>Plan de cuotas</td>${vehicles.map(v => {
     const currentPlan = v.planProfile?.planType || plans[0];
-    const labelValue = v.planProfile?.label || '';
+    const labelValue = v.planProfile?.label || labels[currentPlan] || 'Plan fijo';
+    const total = planTerms[currentPlan] || planTerms[v.planProfile?.planType] || 120;
     return `<td>
-      <div class="plan-profile-cell">
-        <select data-vehicle="${idx}" data-plan-profile-type="true">${planOptions}</select>
-        <input data-vehicle="${idx}" data-plan-profile-label="true" value="${labelValue}" placeholder="Ej: 80/20 (120 cuotas)">
+      <div class="plan-profile-cell readonly">
+        <span class="chip muted">${labelValue}</span>
+        <small class="muted tiny">${total} cuotas • No editable</small>
       </div>
     </td>`;
   }).join('')}</tr>`);
@@ -2173,23 +2173,6 @@ function renderVehicleTable() {
     bindMoneyInput(inp, () => updateVehicleValue({ target: inp }));
   });
 
-  table.querySelectorAll('[data-plan-profile-type]').forEach(sel => {
-    const idx = Number(sel.dataset.vehicle);
-    const currentPlan = vehicles[idx]?.planProfile?.planType || plans[0];
-    sel.value = currentPlan;
-    if (!sel.dataset.bound) {
-      sel.addEventListener('change', () => updatePlanProfile(idx, { planType: sel.value }));
-      sel.dataset.bound = 'true';
-    }
-  });
-
-  table.querySelectorAll('[data-plan-profile-label]').forEach(inp => {
-    const idx = Number(inp.dataset.vehicle);
-    if (!inp.dataset.bound) {
-      inp.addEventListener('input', () => updatePlanProfile(idx, { label: inp.value }));
-      inp.dataset.bound = 'true';
-    }
-  });
 }
 
 function updateVehicleValue(e) {
@@ -2230,16 +2213,14 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
   }
   if (resetManual && planSelect) planSelect.dataset.manual = '';
   if (vehicle?.planProfile?.planType && planSelect) {
-    if (!preserveExisting || planSelect.dataset.manual !== 'true') {
-      planSelect.value = available.includes(vehicle.planProfile.planType) ? vehicle.planProfile.planType : available[0];
-    }
+    planSelect.value = available.includes(vehicle.planProfile.planType) ? vehicle.planProfile.planType : available[0];
     if (!available.includes(planSelect.value)) planSelect.value = available[0];
   }
   if (helper) {
     const planLabel = vehicle?.planProfile?.label ? `Plan asignado automáticamente: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
     const benefit = vehicle?.benefits?.bonificacion || '';
     const pactada = vehicle?.benefits?.pactada || '';
-    helper.textContent = [planLabel, benefit, pactada].filter(Boolean).join(' • ');
+    helper.textContent = [planLabel, 'Esquema fijo por modelo.', benefit, pactada].filter(Boolean).join(' • ');
   }
 }
 
@@ -2876,7 +2857,8 @@ function updatePlanSummary() {
     { label: priceSource, value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice) },
     { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
     { label: 'Plan seleccionado', value: planLabel(plan) },
-    { label: 'Cuota pura (catálogo)', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaAjustada, showCuotaAdjustment) },
+    { label: 'Cuota pura del catálogo (original)', value: currency.format(projection.baseCatalogCuota) },
+    { label: 'Cuota pura recalculada con llave x llave', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaAjustada, showCuotaAdjustment || projection.cuotaAjustada !== projection.baseCatalogCuota) },
     { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCuotaAdjustment) }
   ];
 

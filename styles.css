@@ -315,6 +315,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .search-field input:focus { box-shadow: none; }
 .search-field.compact { padding: 6px 8px; }
 .plan-profile-cell { display: grid; gap: 6px; }
+.plan-profile-cell.readonly { align-items: flex-start; }
+.plan-profile-cell.readonly .chip { justify-content: flex-start; }
 .picker-list { max-height: 400px; overflow-y: auto; margin-top: 12px; display: grid; gap: 10px; }
 .picker-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #0f1625; display: grid; gap: 4px; }
 .picker-card:hover { border-color: var(--accent); cursor: pointer; }
