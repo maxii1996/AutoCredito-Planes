@@ -216,6 +216,8 @@ const planTerms = {
   'ctapura': 120
 };
 
+const PLAN_START_INSTALLMENT = 2;
+
 function getPlanTypeForVehicle(vehicle) {
   const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
   const preferred = vehicle?.planProfile?.planType;
@@ -438,6 +440,15 @@ function enforceLatestPriceTab({ silent = true } = {}) {
   }
   updatePriceContextTag();
   return latest || getActivePriceTab();
+}
+
+let enforcingPlanTab = false;
+
+function ensurePlansUseLatestPrices() {
+  if (enforcingPlanTab) return;
+  enforcingPlanTab = true;
+  enforceLatestPriceTab({ silent: true });
+  enforcingPlanTab = false;
 }
 
 function setActivePriceTab(tabId) {
@@ -2603,7 +2614,7 @@ function updateIntegrationDetails(modelIdx) {
   const reserva1 = getReservationValue('reservation1', vehicle.reservations['1']);
   const reserva3 = getReservationValue('reservation3', vehicle.reservations['3']);
   const reserva6 = getReservationValue('reservation6', vehicle.reservations['6']);
-  if (nodes.one) nodes.one.textContent = `1 cuota promocionada: ${currency.format(reserva1 || 0)}`;
+  if (nodes.one) nodes.one.textContent = `Cuota 1 · Reserva / Integración: ${currency.format(reserva1 || 0)}`;
   if (nodes.three) nodes.three.textContent = `3 cuotas "sin interés" de: ${currency.format((reserva3 || 0) / 3 || 0)} cada una`;
   if (nodes.six) nodes.six.textContent = `6 cuotas "sin interés" de: ${currency.format((reserva6 || 0) / 6 || 0)} cada una`;
 }
@@ -2655,18 +2666,28 @@ function resolveVehiclePrice(vehicle, customPrice) {
 
 function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType) {
   if (!totalInstallments) return 0;
-  if (!customPrice && vehicle?.cuotaPura) return vehicle.cuotaPura;
-  if (!customPrice && vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
+  if (!customPrice) {
+    if (planType === 'ctapura' && vehicle?.shareByPlan?.ctapura) return vehicle.shareByPlan.ctapura;
+    if (vehicle?.cuotaPura) return vehicle.cuotaPura;
+    if (vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
+  }
   return financedAmount / totalInstallments;
 }
 
 
 function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0) {
   if (!totalInstallments || !cuotaPura) {
-    return { segments: [], coveredInstallments: 0, partialCover: 0, kickoffInstallment: 1, remainingInstallments: totalInstallments };
+    return {
+      segments: [],
+      coveredInstallments: 0,
+      partialCover: 0,
+      kickoffInstallment: PLAN_START_INSTALLMENT,
+      startInstallment: PLAN_START_INSTALLMENT,
+      remainingInstallments: totalInstallments
+    };
   }
 
-  let pointer = totalInstallments;
+  let pointer = PLAN_START_INSTALLMENT;
   let coveredInstallments = 0;
   let partialCover = 0;
   const segments = [];
@@ -2677,39 +2698,39 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
     const remainder = contrib.amount - (fullCovers * cuotaPura);
 
     if (fullCovers > 0) {
-      const from = Math.max(pointer - fullCovers + 1, 1);
+      const from = Math.max(pointer, PLAN_START_INSTALLMENT);
       segments.push({
         type: contrib.type,
         label: contrib.label,
         from,
-        to: pointer,
+        to: from + fullCovers - 1,
         covered: fullCovers,
         partial: 0,
         amount: contrib.amount
       });
       coveredInstallments += fullCovers;
-      pointer = from - 1;
+      pointer = from + fullCovers;
     }
 
-    if (remainder > 0 && pointer >= 1) {
+    if (remainder > 0) {
       partialCover = Math.max(partialCover, remainder);
       segments.push({
         type: contrib.type,
         label: `${contrib.label} (parcial)`,
-        from: pointer,
-        to: pointer,
+        from: Math.max(pointer, PLAN_START_INSTALLMENT),
+        to: Math.max(pointer, PLAN_START_INSTALLMENT),
         covered: 0,
         partial: remainder,
         amount: remainder
       });
-      pointer -= 1;
+      pointer += 1;
     }
   });
 
   const remainingInstallments = Math.ceil(Math.max(outstanding, 0) / cuotaPura);
-  const kickoffInstallment = Math.max(totalInstallments - coveredInstallments, 1);
+  const kickoffInstallment = Math.max(pointer, PLAN_START_INSTALLMENT);
 
-  return { segments, coveredInstallments, partialCover, kickoffInstallment, remainingInstallments };
+  return { segments, coveredInstallments, partialCover, kickoffInstallment, startInstallment: PLAN_START_INSTALLMENT, remainingInstallments };
 }
 
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0 }) {
@@ -2763,12 +2784,14 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     partialCover: coverage.partialCover,
     remainingInstallments: coverage.remainingInstallments,
     kickoffInstallment: coverage.kickoffInstallment,
+    startInstallment: coverage.startInstallment,
     coverageSegments: coverage.segments,
     scheme
   };
 }
 
 function updatePlanSummary() {
+  ensurePlansUseLatestPrices();
   const modelIdx = Number(document.getElementById('planModel').value || 0);
   const v = vehicles[modelIdx] || vehicles[0];
   const plan = getPlanTypeForVehicle(v);
@@ -2810,19 +2833,19 @@ function updatePlanSummary() {
   };
   const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
   const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1);
-  const partialSegment = (projection.coverageSegments || []).find(s => s.partial > 0);
+  const startInstallment = projection.startInstallment || PLAN_START_INSTALLMENT;
   const coveredText = projection.coveredInstallments
-    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde la cuota ${Math.max(projection.totalInstallments - projection.coveredInstallments + 1, 1)} hacia atrás`
+    ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas (cuotas ${startInstallment} a ${startInstallment + projection.coveredInstallments - 1}) antes de pagar.`
     : 'Sin cuotas cubiertas aún';
-  const partialText = partialSegment
-    ? `+ ${currency.format(partialSegment.partial)} adelantados en la cuota ${partialSegment.from}`
+  const partialText = projection.partialCover
+    ? `+ ${currency.format(projection.partialCover)} adelantados en la cuota ${startInstallment + projection.coveredInstallments}`
     : '';
   const priceSource = customPrice > 0 ? 'Precio personalizado' : 'Precio base de catálogo';
   const reservationText = projection.selectedReservation
-    ? `${currency.format(projection.selectedReservation)} · ${appliedReservation} cuota(s). Es un gasto adicional, no descuenta el plan.`
-    : 'Completa el valor de la reserva para continuar.';
+    ? `${currency.format(projection.selectedReservation)} · cuota 1 (reserva informativa / integración). Es un gasto adicional, no descuenta el plan.`
+    : 'Completa el valor de la reserva informativa para continuar.';
   const remainingInstallments = Number.isFinite(projection.remainingInstallments) ? projection.remainingInstallments : 0;
-  const firstPayable = Math.max(projection.kickoffInstallment, 1);
+  const firstPayable = Math.max(projection.kickoffInstallment, startInstallment);
   const scheme = projection.scheme || { financedPct: 1, integrationPct: 0, label: 'Plan' };
   const integrationPctLabel = `${Math.round((scheme.integrationPct || 0) * 100)}%`;
 
@@ -2870,7 +2893,7 @@ function updatePlanSummary() {
     { label: 'Modelo', value: v.name },
     { label: priceSource, value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice) },
     { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
-    { label: 'Plan seleccionado', value: planLabel(plan) },
+    { label: 'Plan seleccionado', value: v.planProfile?.label ? `${v.planProfile.label} (${planLabel(plan)})` : planLabel(plan) },
     { label: 'Cuota pura del catálogo (original)', value: currency.format(projection.baseCatalogCuota) },
     { label: 'Cuota pura recalculada con llave x llave', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaAjustada, showCuotaAdjustment || projection.cuotaAjustada !== projection.baseCatalogCuota) },
     { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCuotaAdjustment) }
@@ -2882,11 +2905,12 @@ function updatePlanSummary() {
     { label: 'Saldo financiado pendiente', value: currency.format(projection.outstanding) },
     { label: 'Cuotas pendientes', value: `${remainingInstallments} cuota${remainingInstallments !== 1 ? 's' : ''} arrancando en la cuota ${firstPayable}` },
     { label: 'Total de cuotas del plan', value: projection.totalInstallments },
+    { label: 'Inicio de pagos', value: `Las cuotas financiadas arrancan en la cuota ${startInstallment}; la cuota 1 es la reserva informativa / integración.` },
     { label: 'Cuotas cubiertas con aportes', value: `${coveredText} ${partialText}`.trim() || 'Sin aportes al día' }
   ];
 
   const reservationRows = [
-    { label: 'Reserva informativa (gasto aparte)', value: reservationText },
+    { label: 'Reserva informativa (cuota 1, gasto aparte)', value: reservationText },
     { label: 'Valores vigentes del mes', value: `${currency.format(reserva1)} · ${currency.format(reserva3)} (3x ${cuota3}) · ${currency.format(reserva6)} (6x ${cuota6})` },
     { label: 'Entrega llave por llave', value: tradeIn ? `Sí (toma usado por ${tradeInFormatted})` : 'No aplica' }
   ];
@@ -3058,6 +3082,7 @@ function buildQuoteFromForm() {
     cuotaBase: plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota),
     cuotaAjustada: projection.cuotaAjustada,
     priceRatio: projection.priceRatio,
+    startInstallment: projection.startInstallment,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
     summaryText: ''
@@ -3070,7 +3095,7 @@ function buildQuoteSummaryText(quote) {
   const cuota3 = quote.reservation3 ? currency.format(quote.reservation3 / 3) : currency.format(0);
   const cuota6 = quote.reservation6 ? currency.format(quote.reservation6 / 6) : currency.format(0);
   const reservaDetalle = quote.selectedReservation
-    ? `${currency.format(quote.selectedReservation)} en ${quote.reservationMode || '1'} cuota(s) (gasto adicional)`
+    ? `${currency.format(quote.selectedReservation)} en cuota 1 (reserva informativa / integración, gasto adicional)`
     : 'Reserva pendiente (gasto adicional)';
   const hasCustomPrice = quote.priceApplied && quote.basePrice && quote.priceApplied !== quote.basePrice;
   const hasTradeInAjuste = quote.tradeIn && quote.aporteInicial > 0;
@@ -3096,7 +3121,7 @@ function buildQuoteSummaryText(quote) {
     `Entrega llave por llave: ${quote.tradeIn ? `Sí (toma usado por ${currency.format(quote.tradeInValue || 0)})` : 'No'}`,
     `Aporte al plan con usado: ${currency.format(quote.aporteInicial || 0)}`,
     `Saldo financiado pendiente: ${currency.format(quote.outstanding || 0)}`,
-    `Cuotas restantes: ${quote.remainingInstallments || 0} (se reinicia en la cuota ${quote.kickoffInstallment || 1})`,
+    `Cuotas restantes: ${quote.remainingInstallments || 0} (se pagan desde la cuota ${quote.startInstallment || quote.kickoffInstallment || PLAN_START_INSTALLMENT})`,
     `Notas: ${quote.notes || 'Sin notas'}`,
     `Fecha: ${new Date(quote.timestamp).toLocaleString('es-AR')}`
   ];
