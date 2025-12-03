@@ -2766,6 +2766,64 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
   return { segments, coveredInstallments, partialCover, kickoffInstallment, startInstallment: PLAN_START_INSTALLMENT, remainingInstallments };
 }
 
+function rangeKeyForInstallment(i, totalInstallments) {
+  if (i <= 12) return '2a12';
+  if (i <= 21) return '13a21';
+  if (totalInstallments <= 84) return '22a84';
+  if (i <= 84) return '22a84';
+  return '85a120';
+}
+
+function buildInstallmentSchedule({
+  vehicle,
+  priceRatio,
+  totalInstallments,
+  coverageSegments = [],
+  cuotaPura,
+  planType
+}) {
+  const amountsByRange = {};
+  const coverageMap = {};
+  coverageSegments.forEach(seg => {
+    for (let i = seg.from; i <= seg.to; i++) {
+      coverageMap[i] = { ...seg };
+    }
+    if (seg.partial) {
+      coverageMap[seg.from] = { ...seg, partial: seg.partial };
+    }
+  });
+
+  const entries = [];
+  for (let i = PLAN_START_INSTALLMENT; i <= totalInstallments; i++) {
+    const rangeKey = rangeKeyForInstallment(i, totalInstallments);
+    const baseAmount = vehicle?.shareByPlan?.[rangeKey]
+      ?? vehicle?.shareByPlan?.[planType]
+      ?? vehicle?.cuotaPura
+      ?? cuotaPura
+      ?? 0;
+    const amount = Math.round(baseAmount * (priceRatio || 1));
+    const coverage = coverageMap[i];
+    const payable = coverage
+      ? Math.max(amount - (coverage.partial || amount), 0)
+      : amount;
+    amountsByRange[rangeKey] = Math.round(baseAmount * (priceRatio || 1));
+    entries.push({
+      installment: i,
+      amount,
+      payable,
+      coverage
+    });
+  }
+
+  const payableEntries = entries.filter(e => e.payable > 0);
+  const remainingInstallments = payableEntries.length;
+  const outstanding = payableEntries.reduce((sum, e) => sum + e.payable, 0);
+  const kickoffInstallment = payableEntries[0]?.installment || PLAN_START_INSTALLMENT;
+  const nextInstallmentAmount = payableEntries[0]?.amount || 0;
+
+  return { entries, remainingInstallments, outstanding, kickoffInstallment, nextInstallmentAmount, amountsByRange };
+}
+
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
   const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
@@ -2798,8 +2856,16 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   }
 
   const outstanding = Math.max(outstandingBeforeAdvance - additionalAdvance, 0);
-  const cuotaAjustada = totalInstallments ? Math.round(outstanding / totalInstallments) : cuotaPura;
   const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding, { advancePayments });
+  const schedule = buildInstallmentSchedule({
+    vehicle,
+    priceRatio,
+    totalInstallments,
+    coverageSegments: coverage.segments,
+    cuotaPura,
+    planType
+  });
+  const cuotaAjustada = schedule.nextInstallmentAmount || cuotaPura;
 
   return {
     basePrice,
@@ -2818,14 +2884,16 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     selectedReservation,
     reservationMeta,
     aporteInicial: contributionToPlan,
-    outstanding,
+    outstanding: schedule.outstanding,
     outstandingBeforeAdvance,
     coveredInstallments: coverage.coveredInstallments,
     partialCover: coverage.partialCover,
-    remainingInstallments: coverage.remainingInstallments,
-    kickoffInstallment: coverage.kickoffInstallment,
+    remainingInstallments: schedule.remainingInstallments,
+    kickoffInstallment: schedule.kickoffInstallment,
     startInstallment: coverage.startInstallment,
     coverageSegments: coverage.segments,
+    installmentSchedule: schedule.entries,
+    rangeAmounts: schedule.amountsByRange,
     scheme,
     advancePayments,
     advanceAmountApplied: additionalAdvance
@@ -2867,8 +2935,8 @@ function updatePlanSummary() {
     advanceAmount
   });
   const cuotaBase = plan === 'ctapura'
-    ? (v.cuotaPura || projection.baseCatalogCuota)
-    : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
+    ? (projection.baseCatalogCuota || v.cuotaPura)
+    : (projection.rangeAmounts?.[plan] ?? v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
@@ -2958,8 +3026,8 @@ function updatePlanSummary() {
       const limits = rangeLimits[key];
       const label = planLabel(key);
       const baseAmount = key === 'ctapura'
-        ? (v.shareByPlan?.ctapura || projection.baseCatalogCuota)
-        : (v.shareByPlan?.[key] ?? cuotaBase);
+        ? (projection.baseCatalogCuota || v.shareByPlan?.ctapura || projection.baseCatalogCuota)
+        : (projection.rangeAmounts?.[key] ?? v.shareByPlan?.[key] ?? cuotaBase);
       const amount = key === plan ? projection.cuotaAjustada || baseAmount : baseAmount;
       const status = limits ? describeCoverage(limits.from, limits.to) : 'Pendiente de pago';
       return `
@@ -3014,6 +3082,13 @@ function renderInstallmentBreakdown() {
   const cuotaPura = projection.baseCatalogCuota || projection.cuotaPura || 0;
   const total = projection.totalInstallments || 0;
   const coverageSegments = projection.coverageSegments || [];
+  const schedule = (projection.installmentSchedule && projection.installmentSchedule.length)
+    ? projection.installmentSchedule
+    : Array.from({ length: Math.max(total - PLAN_START_INSTALLMENT + 1, 0) }, (_, idx) => ({
+      installment: PLAN_START_INSTALLMENT + idx,
+      amount: projection.cuotaAjustada || cuotaPura,
+      coverage: null
+    }));
   const map = {};
   coverageSegments.forEach(seg => {
     for (let i = seg.from; i <= seg.to; i++) {
@@ -3022,9 +3097,9 @@ function renderInstallmentBreakdown() {
     if (seg.partial && !map[seg.from]) map[seg.from] = seg;
   });
   const cards = [];
-  for (let i = total; i >= PLAN_START_INSTALLMENT; i--) {
-    const seg = map[i];
-    let title = `Cuota ${i}`;
+  [...schedule].reverse().forEach(entry => {
+    const seg = entry.coverage || map[entry.installment];
+    let title = `Cuota ${entry.installment}`;
     let note = 'Pendiente de pago.';
     let chip = 'pendiente';
     let chipLabel = 'Pendiente';
@@ -3049,10 +3124,10 @@ function renderInstallmentBreakdown() {
         <div class="coverage-chip" data-type="${chip}">${chipLabel}</div>
         <h5>${title}</h5>
         <p class="muted tiny">${note}</p>
-        <strong>${currency.format(cuotaPura)}</strong>
+        <strong>${currency.format(entry.amount || cuotaPura)}</strong>
       </div>
     `);
-  }
+  });
   cards.push(`
     <div class="coverage-card" data-state="reservation">
       <div class="coverage-chip" data-type="reservation">Reserva</div>
