@@ -2292,6 +2292,20 @@ function bindClientPicker() {
     search.addEventListener('input', renderClientPickerList);
     search.dataset.bound = 'true';
   }
+
+  ['clientVehicleClose', 'clientVehicleCancel'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', closeClientVehicleModal);
+      btn.dataset.bound = 'true';
+    }
+  });
+
+  const applyBtn = document.getElementById('clientVehicleApply');
+  if (applyBtn && !applyBtn.dataset.bound) {
+    applyBtn.addEventListener('click', applyClientVehicleSelection);
+    applyBtn.dataset.bound = 'true';
+  }
 }
 
 function openClientPicker() {
@@ -2429,14 +2443,76 @@ function selectClientForPlan(id) {
   document.getElementById('clientName').value = client.name || '';
   uiState.planDraft.clientName = client.name || '';
   uiState.planDraft.selectedClientId = id;
-  const modelIdx = vehicles.findIndex(v => (v.name || '').toLowerCase() === (client.model || '').toLowerCase());
-  if (modelIdx >= 0) document.getElementById('planModel').value = modelIdx;
-  applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
-  applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  resolveClientVehicleSelection(client);
   refreshClientSelectionHint(client);
-  updatePlanSummary();
   closeClientPicker();
   persist();
+}
+
+function resolveClientVehicleSelection(client) {
+  const ranking = rankVehiclesForModel(client.model, vehicles);
+  const selection = ranking.filter(opt => opt.score > 0);
+  const options = selection.length ? selection : ranking.slice(0, 5);
+  const select = document.getElementById('planModel');
+  const modal = document.getElementById('clientVehicleModal');
+  const optionsSelect = document.getElementById('clientVehicleOptions');
+  const context = document.getElementById('clientVehicleContext');
+
+  const fallbackIdx = vehicles.findIndex(v => (v.name || '').toLowerCase() === (client.model || '').toLowerCase());
+  const bestIdx = options[0]?.index ?? (fallbackIdx >= 0 ? fallbackIdx : 0);
+
+  if (!modal || !optionsSelect || options.length <= 1) {
+    if (select) select.value = vehicles[bestIdx] ? bestIdx : 0;
+    applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+    applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+    applyCustomPriceDefaultForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+    updatePlanSummary();
+    return;
+  }
+
+  if (select) select.value = vehicles[bestIdx] ? bestIdx : 0;
+  context.textContent = client.model
+    ? `El cliente tiene asociado el auto: ${client.model}`
+    : 'Selecciona el modelo correspondiente al cliente';
+  optionsSelect.innerHTML = options.map(opt => `<option value="${opt.index}">${opt.name}</option>`).join('');
+  optionsSelect.value = vehicles[bestIdx] ? bestIdx : options[0].index;
+  modal.classList.remove('hidden');
+  requestAnimationFrame(() => modal.classList.add('show'));
+}
+
+function closeClientVehicleModal() {
+  const modal = document.getElementById('clientVehicleModal');
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => modal.classList.add('hidden'), 180);
+}
+
+function applyClientVehicleSelection() {
+  const modal = document.getElementById('clientVehicleModal');
+  const optionsSelect = document.getElementById('clientVehicleOptions');
+  if (!modal || !optionsSelect) return;
+  const idx = Number(optionsSelect.value || 0);
+  const select = document.getElementById('planModel');
+  if (select) select.value = vehicles[idx] ? idx : 0;
+  applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  applyCustomPriceDefaultForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
+  updatePlanSummary();
+  closeClientVehicleModal();
+}
+
+function rankVehiclesForModel(modelName = '', list = []) {
+  const normalized = (modelName || '').toLowerCase();
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  return list.map((v, idx) => {
+    const name = (v.name || '').toLowerCase();
+    let score = 0;
+    tokens.forEach(t => {
+      if (name.includes(t)) score += 1;
+    });
+    if (name.includes(normalized) && normalized) score += 2;
+    return { name: v.name, index: idx, score };
+  }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 }
 
 function refreshClientSelectionHint(client) {
@@ -2650,6 +2726,9 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   const integrationTarget = price * scheme.integrationPct;
   const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planType);
   const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType);
+  const baseCatalogCuota = planType === 'ctapura'
+    ? (vehicle?.cuotaPura || baseCuotaPura)
+    : (vehicle?.shareByPlan?.[planType] ?? baseCuotaPura);
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
   const selectedReservation = reservations[normalizedReservation] || 0;
@@ -2664,6 +2743,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     : [];
 
   const outstanding = Math.max(financedAmount - contributionToPlan, 0);
+  const cuotaAjustada = totalInstallments ? Math.round(outstanding / totalInstallments) : cuotaPura;
   const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding);
 
   return {
@@ -2673,6 +2753,8 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     baseFinancedAmount,
     cuotaPura,
     baseCuotaPura,
+    baseCatalogCuota,
+    cuotaAjustada,
     totalInstallments,
     financedAmount,
     integrationTarget,
@@ -2719,10 +2801,10 @@ function updatePlanSummary() {
     appliedReservation,
     customPrice
   });
-  const cuotaBase = plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
-  const cuota = plan === 'ctapura'
-    ? projection.cuotaPura
-    : Math.round(cuotaBase * (projection.priceRatio || 1));
+  const cuotaBase = plan === 'ctapura'
+    ? (v.cuotaPura || projection.baseCuotaPura)
+    : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
+  const cuota = projection.cuotaAjustada;
   const tradeInFormatted = tradeInValue ? currency.format(tradeInValue) : 'a definir';
   const cuota3 = reserva3 ? currency.format(reserva3 / 3) : currency.format(0);
   const cuota6 = reserva6 ? currency.format(reserva6 / 6) : currency.format(0);
@@ -2732,6 +2814,7 @@ function updatePlanSummary() {
     return `${originalTag} ${currency.format(adjusted || 0)}`;
   };
   const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
+  const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1);
   const partialSegment = (projection.coverageSegments || []).find(s => s.partial > 0);
   const coveredText = projection.coveredInstallments
     ? `${projection.coveredInstallments} cuota${projection.coveredInstallments !== 1 ? 's' : ''} cubiertas desde la cuota ${Math.max(projection.totalInstallments - projection.coveredInstallments + 1, 1)} hacia atrás`
@@ -2793,8 +2876,8 @@ function updatePlanSummary() {
     { label: priceSource, value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice) },
     { label: 'Esquema del plan', value: `${scheme.label} · Financia ${currency.format(projection.financedAmount)} · Integra ${currency.format(projection.integrationTarget)} (${integrationPctLabel})` },
     { label: 'Plan seleccionado', value: planLabel(plan) },
-    { label: 'Cuota pura (catálogo)', value: formatAdjustedValue(projection.baseCuotaPura, projection.cuotaPura, showCustomPrice) },
-    { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCustomPrice) }
+    { label: 'Cuota pura (catálogo)', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaAjustada, showCuotaAdjustment) },
+    { label: 'Cuota estimada del tramo', value: formatAdjustedValue(cuotaBase, cuota, showCuotaAdjustment) }
   ];
 
   const financingRows = [
@@ -2940,8 +3023,8 @@ function buildQuoteFromForm() {
     appliedReservation,
     customPrice
   });
-  const cuotaBase = plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura);
-  const cuota = plan === 'ctapura' ? projection.cuotaPura : Math.round(cuotaBase * (projection.priceRatio || 1));
+  const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
+  const cuota = projection.cuotaAjustada;
   const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
   const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
   const quote = {
@@ -2958,7 +3041,7 @@ function buildQuoteFromForm() {
     reservation6,
     integration: v.integration,
     customPrice: projection.price,
-    cuotaPura: projection.cuotaPura,
+    cuotaPura: projection.cuotaAjustada,
     totalInstallments: projection.totalInstallments,
     appliedReservation,
     outstanding: projection.outstanding,
@@ -2975,9 +3058,9 @@ function buildQuoteFromForm() {
     planProfileLabel: v.planProfile?.label || 'Personalizar',
     basePrice: projection.basePrice,
     priceApplied: projection.price,
-    baseCuotaPura: projection.baseCuotaPura,
-    cuotaBase: plan === 'ctapura' ? projection.baseCuotaPura : (v.shareByPlan[plan] ?? projection.baseCuotaPura),
-    cuotaAjustada: plan === 'ctapura' ? projection.cuotaPura : Math.round((v.shareByPlan[plan] ?? projection.baseCuotaPura) * (projection.priceRatio || 1)),
+    baseCuotaPura: projection.baseCatalogCuota,
+    cuotaBase: plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota),
+    cuotaAjustada: projection.cuotaAjustada,
     priceRatio: projection.priceRatio,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
@@ -2994,10 +3077,12 @@ function buildQuoteSummaryText(quote) {
     ? `${currency.format(quote.selectedReservation)} en ${quote.reservationMode || '1'} cuota(s) (gasto adicional)`
     : 'Reserva pendiente (gasto adicional)';
   const hasCustomPrice = quote.priceApplied && quote.basePrice && quote.priceApplied !== quote.basePrice;
-  const cuotaPuraDetalle = hasCustomPrice
+  const hasTradeInAjuste = quote.tradeIn && quote.aporteInicial > 0;
+  const hasCuotaAdjust = hasCustomPrice || hasTradeInAjuste || (quote.cuotaPura && quote.baseCuotaPura && quote.cuotaPura !== quote.baseCuotaPura);
+  const cuotaPuraDetalle = hasCuotaAdjust
     ? `${currency.format(quote.baseCuotaPura || 0)} → ${currency.format(quote.cuotaPura || 0)}`
     : (quote.cuotaPura ? currency.format(quote.cuotaPura) : 'Completar manual');
-  const cuotaTramoDetalle = hasCustomPrice
+  const cuotaTramoDetalle = hasCuotaAdjust
     ? `${currency.format(quote.cuotaBase || 0)} → ${currency.format(quote.cuotaAjustada || 0)}`
     : (quote.cuota ? currency.format(quote.cuota) : 'Completar manual');
   const parts = [
