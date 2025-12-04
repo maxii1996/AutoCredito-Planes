@@ -2846,20 +2846,7 @@ function buildInstallmentSchedule({
   const kickoffInstallment = payableEntries[0]?.installment || PLAN_START_INSTALLMENT;
   const nextInstallmentAmount = payableEntries[0]?.amount || 0;
 
-  const rangePayableTotals = {};
-  const rangePayableCounts = {};
-  payableEntries.forEach(entry => {
-    const key = rangeKeyForInstallment(entry.installment, totalInstallments);
-    rangePayableTotals[key] = (rangePayableTotals[key] || 0) + entry.payable;
-    rangePayableCounts[key] = (rangePayableCounts[key] || 0) + 1;
-  });
-  const rangePayableAverages = Object.entries(rangePayableTotals).reduce((acc, [key, total]) => {
-    const count = rangePayableCounts[key] || 0;
-    acc[key] = count ? total / count : 0;
-    return acc;
-  }, {});
-
-  return { entries, remainingInstallments, outstanding, kickoffInstallment, nextInstallmentAmount, amountsByRange, rangePayableAverages };
+  return { entries, remainingInstallments, outstanding, kickoffInstallment, nextInstallmentAmount, amountsByRange };
 }
 
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0, versionSelection = 'base', versionUpgrade = 0 }) {
@@ -2876,8 +2863,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   const integrationTarget = price * scheme.integrationPct;
   const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planProfileType);
   const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planProfileType);
-  const pureInstallment = vehicle?.shareByPlan?.[planType] ?? vehicle?.cuotaPura ?? baseCuotaPura;
-  const baseCatalogCuota = pureInstallment;
+  const baseCatalogCuota = vehicle?.cuotaPura || baseCuotaPura;
   const upgradeDelta = upgradeInstallments ? upgradeAmount / upgradeInstallments : 0;
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
@@ -2899,20 +2885,18 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   }
 
   const outstanding = Math.max(outstandingBeforeAdvance - additionalAdvance, 0);
-  const coverage = buildCoverageSegments(totalInstallments, pureInstallment, contributions, outstanding, { advancePayments });
+  const coverage = buildCoverageSegments(totalInstallments, baseCatalogCuota, contributions, outstanding, { advancePayments });
   const schedule = buildInstallmentSchedule({
     vehicle,
     priceRatio,
     totalInstallments,
     coverageSegments: coverage.segments,
-    cuotaPura: pureInstallment,
+    cuotaPura: baseCatalogCuota,
     planType,
     upgradeDelta,
     upgradeInstallments
   });
-  const payableOutstanding = schedule.outstanding;
-  const payableAverage = schedule.remainingInstallments ? Math.round(payableOutstanding / schedule.remainingInstallments) : schedule.nextInstallmentAmount;
-  const cuotaAjustada = payableAverage || (pureInstallment + upgradeDelta);
+  const cuotaAjustada = schedule.nextInstallmentAmount || (baseCatalogCuota + upgradeDelta);
   const remainingInstallments = coverage.remainingInstallments || schedule.remainingInstallments;
   const kickoffInstallment = coverage.kickoffInstallment ?? schedule.kickoffInstallment;
 
@@ -2923,8 +2907,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     baseFinancedAmount,
     cuotaPura: baseCatalogCuota,
     baseCuotaPura,
-    pureInstallment,
-    baseCatalogCuota: pureInstallment,
+    baseCatalogCuota,
     cuotaAjustada,
     upgradeDelta,
     upgradeInstallments,
@@ -2938,7 +2921,7 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     selectedReservation,
     reservationMeta,
     aporteInicial: contributionToPlan,
-    outstanding: payableOutstanding,
+    outstanding,
     outstandingBeforeAdvance,
     coveredInstallments: coverage.coveredInstallments,
     partialCover: coverage.partialCover,
@@ -2948,7 +2931,6 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     coverageSegments: coverage.segments,
     installmentSchedule: schedule.entries,
     rangeAmounts: schedule.amountsByRange,
-    rangePayableAverages: schedule.rangePayableAverages,
     scheme,
     advancePayments,
     advanceAmountApplied: additionalAdvance
@@ -3094,9 +3076,7 @@ function updatePlanSummary() {
       const baseAmount = key === 'ctapura'
         ? (projection.baseCatalogCuota || v.shareByPlan?.ctapura || projection.baseCatalogCuota)
         : (projection.rangeAmounts?.[key] ?? v.shareByPlan?.[key] ?? cuotaBase);
-      const averagePayableRaw = projection.rangePayableAverages?.[key];
-      const averagePayable = Number.isFinite(averagePayableRaw) ? Math.round(averagePayableRaw) : null;
-      const amount = key === plan && averagePayable !== null ? averagePayable : baseAmount;
+      const amount = key === plan ? projection.cuotaAjustada || baseAmount : baseAmount;
       const status = limits ? describeCoverage(limits.from, limits.to) : 'Pendiente de pago';
       return `
         <div class="range-card" data-active="${plan === key}">
