@@ -218,6 +218,10 @@ const planTerms = {
 
 const PLAN_START_INSTALLMENT = 2;
 
+const upgradeInstallmentsByPlan = {
+  '120_100': 55
+};
+
 function getPlanTypeForVehicle(vehicle) {
   const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
   const preferred = vehicle?.planProfile?.planType;
@@ -2552,6 +2556,20 @@ function renderPlanForm() {
       customPriceInput.dataset.manual = 'true';
       updatePlanSummary();
     });
+    const versionSelect = document.getElementById('versionSelect');
+    if (versionSelect) {
+      versionSelect.addEventListener('change', () => {
+        updatePlanSummary();
+        savePlanDraft();
+      });
+    }
+    const versionUpgradeInput = document.getElementById('versionUpgrade');
+    if (versionUpgradeInput) {
+      bindMoneyInput(versionUpgradeInput, () => {
+        versionUpgradeInput.dataset.manual = 'true';
+        updatePlanSummary();
+      });
+    }
     ['reservation1', 'reservation3', 'reservation6'].forEach(id => {
       const el = document.getElementById(id);
       bindMoneyInput(el, () => {
@@ -2693,12 +2711,16 @@ function resolveVehiclePrice(vehicle, customPrice) {
 
 function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType) {
   if (!totalInstallments) return 0;
-  if (!customPrice) {
-    if (planType === 'ctapura' && vehicle?.shareByPlan?.ctapura) return vehicle.shareByPlan.ctapura;
-    if (vehicle?.cuotaPura) return vehicle.cuotaPura;
-    if (vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
-  }
+  if (planType === 'ctapura' && vehicle?.shareByPlan?.ctapura) return vehicle.shareByPlan.ctapura;
+  if (vehicle?.shareByPlan?.[planType]) return vehicle.shareByPlan[planType];
+  if (vehicle?.cuotaPura) return vehicle.cuotaPura;
   return financedAmount / totalInstallments;
+}
+
+function resolveUpgradeInstallments(planType, totalInstallments, scheme) {
+  const isHundredPercent = Math.round((scheme?.financedPct || 0) * 100) === 100;
+  const key = totalInstallments === 120 && isHundredPercent ? '120_100' : planType;
+  return upgradeInstallmentsByPlan[key] || totalInstallments;
 }
 
 
@@ -2780,7 +2802,9 @@ function buildInstallmentSchedule({
   totalInstallments,
   coverageSegments = [],
   cuotaPura,
-  planType
+  planType,
+  upgradeDelta = 0,
+  upgradeInstallments = 0
 }) {
   const amountsByRange = {};
   const coverageMap = {};
@@ -2801,12 +2825,13 @@ function buildInstallmentSchedule({
       ?? vehicle?.cuotaPura
       ?? cuotaPura
       ?? 0;
-    const amount = Math.round(baseAmount * (priceRatio || 1));
+    const upgradeApplied = upgradeDelta && i < (PLAN_START_INSTALLMENT + (upgradeInstallments || 0)) ? upgradeDelta : 0;
+    const amount = Math.round((baseAmount * (priceRatio || 1)) + upgradeApplied);
     const coverage = coverageMap[i];
     const payable = coverage
       ? Math.max(amount - (coverage.partial || amount), 0)
       : amount;
-    amountsByRange[rangeKey] = Math.round(baseAmount * (priceRatio || 1));
+    amountsByRange[rangeKey] = amount;
     entries.push({
       installment: i,
       amount,
@@ -2824,18 +2849,22 @@ function buildInstallmentSchedule({
   return { entries, remainingInstallments, outstanding, kickoffInstallment, nextInstallmentAmount, amountsByRange };
 }
 
-function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0 }) {
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0, versionSelection = 'base', versionUpgrade = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
-  const totalInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType);
+  const planProfileType = vehicle?.planProfile?.planType || planType;
+  const totalInstallments = resolveTotalInstallments(planType, planProfileType);
   const basePrice = resolveVehiclePrice(vehicle, 0);
   const price = resolveVehiclePrice(vehicle, customPrice);
   const priceRatio = basePrice ? price / basePrice : 1;
-  const financedAmount = price * scheme.financedPct;
+  const upgradeAmount = versionSelection === 'base' ? 0 : Math.max(versionUpgrade, 0);
+  const upgradeInstallments = resolveUpgradeInstallments(planProfileType, totalInstallments, scheme);
+  const financedAmount = (price * scheme.financedPct) + upgradeAmount;
   const baseFinancedAmount = basePrice * scheme.financedPct;
   const integrationTarget = price * scheme.integrationPct;
-  const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planType);
-  const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planType);
+  const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planProfileType);
+  const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planProfileType);
   const baseCatalogCuota = vehicle?.cuotaPura || baseCuotaPura;
+  const upgradeDelta = upgradeInstallments ? upgradeAmount / upgradeInstallments : 0;
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
   const selectedReservation = reservations[normalizedReservation] || 0;
@@ -2856,16 +2885,18 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
   }
 
   const outstanding = Math.max(outstandingBeforeAdvance - additionalAdvance, 0);
-  const coverage = buildCoverageSegments(totalInstallments, cuotaPura, contributions, outstanding, { advancePayments });
+  const coverage = buildCoverageSegments(totalInstallments, baseCatalogCuota, contributions, outstanding, { advancePayments });
   const schedule = buildInstallmentSchedule({
     vehicle,
     priceRatio,
     totalInstallments,
     coverageSegments: coverage.segments,
-    cuotaPura,
-    planType
+    cuotaPura: baseCatalogCuota,
+    planType,
+    upgradeDelta,
+    upgradeInstallments
   });
-  const cuotaAjustada = schedule.nextInstallmentAmount || cuotaPura;
+  const cuotaAjustada = schedule.nextInstallmentAmount || (baseCatalogCuota + upgradeDelta);
   const remainingInstallments = coverage.remainingInstallments || schedule.remainingInstallments;
   const kickoffInstallment = coverage.kickoffInstallment ?? schedule.kickoffInstallment;
 
@@ -2874,10 +2905,14 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     price,
     priceRatio,
     baseFinancedAmount,
-    cuotaPura,
+    cuotaPura: baseCatalogCuota,
     baseCuotaPura,
     baseCatalogCuota,
     cuotaAjustada,
+    upgradeDelta,
+    upgradeInstallments,
+    versionSelection,
+    versionUpgrade: upgradeAmount,
     totalInstallments,
     financedAmount,
     integrationTarget,
@@ -2917,6 +2952,14 @@ function updatePlanSummary() {
   const advanceAmount = advancePayments ? parseMoney(advanceAmountInput?.dataset.raw || advanceAmountInput?.value || 0) : 0;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const versionSelection = document.getElementById('versionSelect')?.value || 'base';
+  const versionUpgradeInput = document.getElementById('versionUpgrade');
+  const rawUpgrade = parseMoney(versionUpgradeInput?.dataset.raw || versionUpgradeInput?.value || 0);
+  const versionUpgrade = versionSelection === 'base' ? 0 : rawUpgrade;
+  if (versionSelection === 'base' && versionUpgradeInput) {
+    setMoneyValue(versionUpgradeInput, 0);
+    versionUpgradeInput.dataset.manual = '';
+  }
   const appliedReservation = '1';
   const appliedReservationInput = document.getElementById('appliedReservation');
   if (appliedReservationInput) appliedReservationInput.value = appliedReservation;
@@ -2934,7 +2977,9 @@ function updatePlanSummary() {
     appliedReservation,
     customPrice,
     advancePayments,
-    advanceAmount
+    advanceAmount,
+    versionSelection,
+    versionUpgrade
   });
   const cuotaBase = plan === 'ctapura'
     ? (projection.baseCatalogCuota || v.cuotaPura)
@@ -2949,7 +2994,7 @@ function updatePlanSummary() {
     return `${originalTag} ${currency.format(adjusted || 0)}`;
   };
   const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
-  const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1);
+  const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1) || (versionUpgrade > 0);
   const scheme = projection.scheme || v.planProfile || {};
   const coverageSegments = (projection.coverageSegments || []).map(seg => ({
     ...seg,
@@ -2974,6 +3019,7 @@ function updatePlanSummary() {
     { label: '0Km a adquirir', value: v.name || 'Seleccionar modelo' },
     { label: 'Precio nominal del coche', value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice), helper: showCustomPrice ? 'Precio ajustado para la cotización' : 'Valor de catálogo' },
     { label: 'Tipo de plan', value: v.planProfile?.label ? `${v.planProfile.label} · ${planLabel(plan)}` : planLabel(plan), helper: scheme.label },
+    { label: 'Versión seleccionada', value: versionSelection === 'base' ? 'Versión base' : 'Versión mejorada', helper: versionSelection === 'base' ? 'Sin upgrade aplicado' : `Se financian ${currency.format(versionUpgrade || 0)} adicionales` },
     { label: 'Cantidad de cuotas totales del plan', value: projection.totalInstallments || 0 },
     { label: '¿Utiliza llave x llave?', value: tradeIn ? 'Sí' : 'No' },
     { label: 'Valor cotizado por llave x llave', value: tradeIn ? tradeInFormatted : 'Sin usado aplicado' },
@@ -3185,6 +3231,11 @@ function buildQuoteFromForm() {
   const advanceAmount = advancePayments ? parseMoney(advanceAmountInput?.dataset.raw || advanceAmountInput?.value || 0) : 0;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const versionSelection = document.getElementById('versionSelect')?.value || 'base';
+  const versionUpgradeInput = document.getElementById('versionUpgrade');
+  const versionUpgrade = versionSelection === 'base'
+    ? 0
+    : parseMoney(versionUpgradeInput?.dataset.raw || versionUpgradeInput?.value || 0);
   const appliedReservation = '1';
   const notes = document.getElementById('notes').value.trim();
   const reservation1 = getReservationValue('reservation1', v.reservations['1']);
@@ -3200,7 +3251,9 @@ function buildQuoteFromForm() {
     appliedReservation,
     customPrice,
     advancePayments,
-    advanceAmount
+    advanceAmount,
+    versionSelection,
+    versionUpgrade
   });
   const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
@@ -3220,9 +3273,11 @@ function buildQuoteFromForm() {
     reservation6,
     integration: v.integration,
     customPrice: projection.price,
-    cuotaPura: projection.cuotaAjustada,
+    cuotaPura: projection.cuotaPura,
     totalInstallments: projection.totalInstallments,
     appliedReservation,
+    versionSelection,
+    versionUpgrade,
     outstanding: projection.outstanding,
     remainingInstallments: projection.remainingInstallments,
     kickoffInstallment: projection.kickoffInstallment,
@@ -3270,6 +3325,7 @@ function buildQuoteSummaryText(quote) {
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
+    `Versión elegida: ${quote.versionSelection === 'base' ? 'Versión base' : 'Versión mejorada'}`,
     `Precio base catálogo: ${currency.format(quote.basePrice || 0)}`,
     hasCustomPrice ? `Precio aplicado: ${currency.format(quote.priceApplied || 0)} (ajustado)` : `Precio aplicado: ${currency.format(quote.priceApplied || 0)}`,
     `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
@@ -3340,6 +3396,13 @@ function applyPlanDraft() {
   const customPriceInput = document.getElementById('customPrice');
   setMoneyValue(customPriceInput, draft.customPrice || '');
   if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
+  const versionSelect = document.getElementById('versionSelect');
+  if (versionSelect) versionSelect.value = draft.versionSelection || 'base';
+  const versionUpgradeInput = document.getElementById('versionUpgrade');
+  if (versionUpgradeInput) {
+    setMoneyValue(versionUpgradeInput, draft.versionUpgrade || 0);
+    if (parseMoney(draft.versionUpgrade)) versionUpgradeInput.dataset.manual = 'true';
+  }
   document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(draft.appliedReservation) ? draft.appliedReservation : '1';
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
@@ -3363,6 +3426,8 @@ function savePlanDraft() {
     advancePayments: document.getElementById('advancePayments').checked,
     advanceAmount: parseMoney(document.getElementById('advanceAmount').dataset.raw || document.getElementById('advanceAmount').value),
     customPrice: parseMoney(document.getElementById('customPrice').dataset.raw || document.getElementById('customPrice').value),
+    versionSelection: document.getElementById('versionSelect').value,
+    versionUpgrade: parseMoney(document.getElementById('versionUpgrade').dataset.raw || document.getElementById('versionUpgrade').value),
     appliedReservation: document.getElementById('appliedReservation').value,
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
     clientName: document.getElementById('clientName').value,
