@@ -1110,6 +1110,17 @@ function normalizeNotesValue(value) {
   return text && text !== '-' ? text : '-';
 }
 
+function toggleFadeOverlay(overlay, show) {
+  if (!overlay) return;
+  overlay.classList.remove('closing');
+  if (show) {
+    overlay.classList.add('show');
+  } else {
+    overlay.classList.add('closing');
+    setTimeout(() => overlay.classList.remove('show', 'closing'), 260);
+  }
+}
+
 function hasNotes(client = {}) {
   return normalizeNotesValue(client.type) !== '-';
 }
@@ -3693,7 +3704,7 @@ function bindClientManager() {
   const applyPalette = document.getElementById('applyPalette');
   const togglePalette = (show) => {
     if (!paletteOverlay) return;
-    paletteOverlay.classList[show ? 'add' : 'remove']('show');
+    toggleFadeOverlay(paletteOverlay, show);
   };
   if (openPalette) openPalette.addEventListener('click', () => togglePalette(true));
   if (closePalette) closePalette.addEventListener('click', () => togglePalette(false));
@@ -3718,22 +3729,61 @@ function bindActionCustomizer() {
   const cancelBtn = document.getElementById('cancelCustomAction');
   const saveBtn = document.getElementById('saveCustomAction');
   const iconPicker = document.getElementById('customActionIcons');
+  const wizardOverlay = document.getElementById('customActionOverlay');
+  const closeWizard = document.getElementById('closeCustomAction');
+  const iconOverlay = document.getElementById('iconPickerOverlay');
+  const openIconPicker = document.getElementById('openIconPicker');
+  const closeIconPicker = document.getElementById('closeIconPicker');
 
   if (!overlay || !openBtn) return;
 
-  const toggle = (show) => overlay.classList[show ? 'add' : 'remove']('show');
-
-  openBtn.addEventListener('click', () => {
+  const showCustomizer = () => {
     renderActionCustomizer();
-    toggle(true);
-  });
-  if (closeBtn) closeBtn.addEventListener('click', () => toggle(false));
-  if (cancelBtn) cancelBtn.addEventListener('click', () => {
+    toggleFadeOverlay(overlay, true);
+  };
+
+  const hideCustomizer = () => toggleFadeOverlay(overlay, false);
+
+  const openWizard = (action = null) => {
+    startCustomActionEdit(action);
+    toggleFadeOverlay(wizardOverlay, true);
+  };
+
+  const hideWizard = () => {
     hideCustomActionForm();
     resetCustomActionForm();
-  });
-  if (newBtn) newBtn.addEventListener('click', () => startCustomActionEdit());
+    toggleFadeOverlay(wizardOverlay, false);
+  };
+
+  openBtn.addEventListener('click', showCustomizer);
+  if (closeBtn) closeBtn.addEventListener('click', hideCustomizer);
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) hideCustomizer();
+    });
+  }
+
+  if (wizardOverlay) {
+    wizardOverlay.addEventListener('click', (e) => {
+      if (e.target === wizardOverlay) hideWizard();
+    });
+  }
+
+  if (newBtn) newBtn.addEventListener('click', () => openWizard());
+  if (closeWizard) closeWizard.addEventListener('click', hideWizard);
+  if (cancelBtn) cancelBtn.addEventListener('click', hideWizard);
   if (saveBtn) saveBtn.addEventListener('click', saveCustomAction);
+
+  if (openIconPicker) openIconPicker.addEventListener('click', () => {
+    renderIconPicker(selectedCustomIcon);
+    toggleFadeOverlay(iconOverlay, true);
+  });
+  if (closeIconPicker) closeIconPicker.addEventListener('click', () => toggleFadeOverlay(iconOverlay, false));
+  if (iconOverlay) {
+    iconOverlay.addEventListener('click', (e) => {
+      if (e.target === iconOverlay) toggleFadeOverlay(iconOverlay, false);
+    });
+  }
 
   if (iconPicker && !iconPicker.dataset.bound) {
     iconPicker.dataset.bound = 'true';
@@ -3744,6 +3794,7 @@ function bindActionCustomizer() {
 function renderActionCustomizer() {
   const defaultList = document.getElementById('defaultActionList');
   const customList = document.getElementById('customActionList');
+  const emptyState = document.getElementById('customActionEmpty');
   if (!defaultList || !customList) return;
 
   defaultList.innerHTML = defaultActionCatalog.map(action => {
@@ -3786,6 +3837,10 @@ function renderActionCustomizer() {
       </div>`;
   }).join('');
 
+  const hasCustoms = (clientManagerState.customActions || []).length > 0;
+  if (customList) customList.style.display = hasCustoms ? 'grid' : 'none';
+  if (emptyState) emptyState.hidden = hasCustoms;
+
   defaultList.querySelectorAll('[data-default-action]').forEach(btn => btn.addEventListener('click', () => {
     const id = btn.dataset.defaultAction;
     clientManagerState.actionVisibility[id] = !(clientManagerState.actionVisibility[id] !== false);
@@ -3807,13 +3862,16 @@ function renderActionCustomizer() {
     const target = getCustomActionById(id);
     if (!target) return;
     startCustomActionEdit(target);
+    toggleFadeOverlay(document.getElementById('customActionOverlay'), true);
   }));
 }
 
 function renderIconPicker(selected = selectedCustomIcon) {
   const iconPicker = document.getElementById('customActionIcons');
+  const preview = document.getElementById('customIconPreview');
+  if (preview) preview.innerHTML = `<i class='bx ${selected}'></i>`;
   if (!iconPicker) return;
-  const icons = ['bx-check-circle', 'bx-whatsapp', 'bx-phone', 'bx-message-square-dots', 'bx-message-rounded', 'bx-like', 'bx-dislike', 'bx-bell', 'bx-time-five', 'bx-block', 'bx-info-circle', 'bx-star', 'bx-user-voice', 'bx-copy-alt'];
+  const icons = ['bx-check-circle', 'bx-whatsapp', 'bx-phone', 'bx-message-square-dots', 'bx-message-rounded', 'bx-like', 'bx-dislike', 'bx-bell', 'bx-time-five', 'bx-block', 'bx-info-circle', 'bx-star', 'bx-user-voice', 'bx-copy-alt', 'bx-bookmark-plus', 'bx-bolt-circle', 'bx-calendar-star', 'bx-chat', 'bx-detail', 'bx-envelope', 'bx-export', 'bx-flag', 'bx-heart', 'bx-id-card', 'bx-label', 'bx-link', 'bx-magic-wand', 'bx-navigation', 'bx-paper-plane', 'bx-pin', 'bx-refresh', 'bx-rocket', 'bx-send', 'bx-shield-check', 'bx-stopwatch', 'bx-support', 'bx-task', 'bx-trophy', 'bx-user-check'];
   iconPicker.innerHTML = icons.map(icon => {
     const active = icon === selected;
     return `<button type="button" class="icon-option ${active ? 'active' : ''}" data-icon="${icon}"><i class='bx ${icon}'></i></button>`;
@@ -3821,35 +3879,42 @@ function renderIconPicker(selected = selectedCustomIcon) {
   iconPicker.querySelectorAll('.icon-option').forEach(btn => btn.addEventListener('click', () => {
     selectedCustomIcon = btn.dataset.icon;
     renderIconPicker(selectedCustomIcon);
+    toggleFadeOverlay(document.getElementById('iconPickerOverlay'), false);
   }));
 }
 
 function resetCustomActionForm() {
   const label = document.getElementById('customActionLabel');
   const color = document.getElementById('customActionColor');
+  const title = document.getElementById('customActionTitle');
+  const subtitle = document.getElementById('customActionSubtitle');
   editingCustomActionId = null;
   if (label) label.value = '';
   if (color) color.value = '#38bdf8';
+  if (title) title.textContent = 'Crear acción personalizada';
+  if (subtitle) subtitle.textContent = 'Nueva acción';
   selectedCustomIcon = 'bx-check-circle';
   renderIconPicker();
 }
 
 function startCustomActionEdit(action = null) {
-  const form = document.getElementById('customActionForm');
   const label = document.getElementById('customActionLabel');
   const color = document.getElementById('customActionColor');
-  if (!form || !label || !color) return;
-  form.hidden = false;
+  const title = document.getElementById('customActionTitle');
+  const subtitle = document.getElementById('customActionSubtitle');
+  if (!label || !color || !title || !subtitle) return;
   editingCustomActionId = action?.id || null;
   label.value = action?.label || '';
   color.value = action?.color || '#38bdf8';
   selectedCustomIcon = action?.icon || 'bx-check-circle';
+  title.textContent = action ? 'Editar acción personalizada' : 'Crear acción personalizada';
+  subtitle.textContent = action ? 'Editar acción' : 'Nueva acción';
   renderIconPicker(selectedCustomIcon);
 }
 
 function hideCustomActionForm() {
-  const form = document.getElementById('customActionForm');
-  if (form) form.hidden = true;
+  const wizardOverlay = document.getElementById('customActionOverlay');
+  toggleFadeOverlay(wizardOverlay, false);
 }
 
 function saveCustomAction() {
@@ -4065,12 +4130,17 @@ function handleClientImport(file, importDate = '') {
 }
 
 function statusCounters() {
-  const totals = { all: managerClients.length, contacted: 0, no_number: 0, favorite: 0, pending: 0 };
+  const totals = { all: managerClients.length, contacted: 0, no_number: 0, favorite: 0, pending: 0, customs: {} };
   managerClients.forEach((client) => {
-    const status = clientStatus(client).className;
-    if (status === 'status-contacted') totals.contacted += 1;
-    else if (status === 'status-no-number') totals.no_number += 1;
-    else if (status === 'status-favorite') totals.favorite += 1;
+    const status = clientStatus(client);
+    if (status.className === 'status-custom' && client.flags?.customStatus?.id) {
+      const customId = client.flags.customStatus.id;
+      totals.customs[customId] = (totals.customs[customId] || 0) + 1;
+      return;
+    }
+    if (status.className === 'status-contacted') totals.contacted += 1;
+    else if (status.className === 'status-no-number') totals.no_number += 1;
+    else if (status.className === 'status-favorite') totals.favorite += 1;
     else totals.pending += 1;
   });
   return totals;
@@ -4086,7 +4156,12 @@ function renderStatusFilter() {
     { value: 'contacted', label: 'Contactados', count: counts.contacted },
     { value: 'no_number', label: 'Número no disponible', count: counts.no_number },
     { value: 'favorite', label: 'Favoritos', count: counts.favorite },
-    { value: 'pending', label: 'Pendientes', count: counts.pending }
+    { value: 'pending', label: 'Pendientes', count: counts.pending },
+    ...Object.entries(counts.customs || {}).map(([id, count]) => {
+      const custom = getCustomActionById(id);
+      const label = custom?.label || 'Acción personalizada';
+      return { value: `custom:${id}`, label, count };
+    })
   ];
   select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
   if (!options.some(opt => opt.value === clientManagerState.statusFilter)) {
@@ -4130,7 +4205,8 @@ function filteredManagerClients() {
       : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
       : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
       : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
-      : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite);
+      : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
+      : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus);
     return matchesSearch && matchesStatus && matchesDate && status !== 'Oculto';
   });
 }

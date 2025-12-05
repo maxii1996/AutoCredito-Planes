@@ -469,7 +469,7 @@
       <p>Creado por Maximiliano Martinez | version 1.0.51 | Solo uso interno autorizado</p>
     </footer>
   </div>
-  <div class="popover-overlay" id="actionCustomizerOverlay">
+  <div class="popover-overlay fade" id="actionCustomizerOverlay">
     <div class="popover wide">
       <div class="popover-head">
         <div>
@@ -495,34 +495,67 @@
               <p class="eyebrow">Acciones personalizadas</p>
               <h4>Tus accesos rápidos</h4>
             </div>
-            <button class="secondary-btn" id="newCustomAction"><i class='bx bx-plus'></i>Crear nueva acción personalizada</button>
           </header>
           <div class="action-list" id="customActionList"></div>
-          <div class="custom-action-form" id="customActionForm" hidden>
-            <div class="form-grid">
-              <div class="field">
-                <label for="customActionLabel">Texto a mostrar</label>
-                <input id="customActionLabel" placeholder="Ej: Contactado por Whatsapp" />
-              </div>
-              <div class="field">
-                <label for="customActionColor">Color a usar</label>
-                <input type="color" id="customActionColor" value="#38bdf8" />
-              </div>
-            </div>
-            <div class="field">
-              <label>Icono a mostrar</label>
-              <div class="icon-picker" id="customActionIcons"></div>
-            </div>
-            <div class="form-actions">
-              <button class="ghost-btn" id="cancelCustomAction">Cancelar</button>
-              <button class="primary-btn" id="saveCustomAction"><i class='bx bx-save'></i>Guardar acción</button>
-            </div>
+          <div class="empty-state" id="customActionEmpty" hidden>
+            <i class='bx bx-customize'></i>
+            <strong>Sin acciones personalizadas.</strong>
+            <p class="muted">Crea tus botones rápidos con el icono y color que quieras.</p>
+          </div>
+          <div class="actions center">
+            <button class="primary-btn" id="newCustomAction"><i class='bx bx-plus'></i>Crear Nueva acción Personalizada</button>
           </div>
         </section>
       </div>
     </div>
   </div>
-  <div class="popover-overlay" id="paletteOverlay">
+  <div class="popover-overlay fade" id="customActionOverlay">
+    <div class="popover compact" id="customActionPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow" id="customActionSubtitle">Nueva acción</p>
+          <h3 id="customActionTitle">Crear acción personalizada</h3>
+          <p class="muted subtle">Define icono, color y texto para tu acceso rápido.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeCustomAction"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="customActionLabel">Texto a mostrar</label>
+          <input id="customActionLabel" placeholder="Ej: Contactado por Whatsapp" />
+        </div>
+        <div class="field">
+          <label for="customActionColor">Color a usar</label>
+          <input type="color" id="customActionColor" value="#38bdf8" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Icono a mostrar</label>
+        <div class="icon-row">
+          <div class="icon-preview" id="customIconPreview"><i class='bx bx-check-circle'></i></div>
+          <button class="secondary-btn" id="openIconPicker"><i class='bx bx-grid-alt'></i>Elegir icono</button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="ghost-btn" id="cancelCustomAction">Cancelar</button>
+        <button class="primary-btn" id="saveCustomAction"><i class='bx bx-save'></i>Guardar esta acción personalizada</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="iconPickerOverlay">
+    <div class="popover nested" id="iconPickerPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Selector de iconos</p>
+          <h3>Elige un ícono</h3>
+          <p class="muted subtle">Explora la biblioteca y selecciona el que mejor identifique tu acción.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeIconPicker"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="icon-picker" id="customActionIcons"></div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="paletteOverlay">
     <div class="popover" id="palettePopover">
       <div class="popover-head">
         <div>
