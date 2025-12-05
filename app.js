@@ -6697,7 +6697,6 @@ function openClientContextMenu(id, event = null) {
       <div class="context-section-head">
         <div class="label">
           <p class="eyebrow">Acciones rápidas</p>
-          <strong>Todo para este contacto</strong>
         </div>
         <span class="context-tag">Menú contextual</span>
       </div>
@@ -6714,7 +6713,7 @@ function openClientContextMenu(id, event = null) {
                   <p class="muted tiny">${tone}</p>
                 </div>
               </div>
-              <button class="primary-btn mini">Aplicar</button>
+              <button class="primary-btn mini">⮡</button>
             </div>
           `;
         }).join('') || '<p class="muted">No hay acciones rápidas disponibles.</p>'}
