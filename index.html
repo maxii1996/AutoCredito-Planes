@@ -423,34 +423,34 @@
                 <select id="advisorSelector" disabled></select>
               </div>
             </div>
-            <div class="toggles">
-            <label class="toggle" title="Agrupar registros por modelo de vehículo">
-              <input type="checkbox" id="groupByModel" checked>
-              <span>Agrupar por modelo</span>
-            </label>
-            <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
-                <i class='bx bx-filter-alt'></i>
-              <div class="filter-label">
-                <span class="muted tiny">Mostrar:</span>
-                <strong id="statusFilterLabel">Todos</strong>
+            <div class="control-bar">
+              <div class="search-field compact">
+                <i class='bx bx-search'></i>
+                <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
               </div>
-              <select id="statusFilter">
-                <option value="all">Todos</option>
-                <option value="contacted">Contactado</option>
-                <option value="no_number">Número no disponible</option>
-                <option value="favorite">Favoritos</option>
-                <option value="pending">Pendientes</option>
-              </select>
-            </div>
-            <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
-            <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
-            <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
-          </div>
-        </div>
-        <div class="search-row">
-          <div class="search-field expanded">
-            <i class='bx bx-search'></i>
-              <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+              <label class="toggle" title="Agrupar registros por modelo de vehículo">
+                <input type="checkbox" id="groupByModel" checked>
+                <span>Agrupar por modelo</span>
+              </label>
+              <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+                <i class='bx bx-filter-alt'></i>
+                <div class="filter-label">
+                  <span class="muted tiny">Mostrar:</span>
+                  <strong id="statusFilterLabel">Todos</strong>
+                </div>
+                <select id="statusFilter">
+                  <option value="all">Todos</option>
+                  <option value="contacted">Contactado</option>
+                  <option value="no_number">Número no disponible</option>
+                  <option value="favorite">Favoritos</option>
+                  <option value="pending">Pendientes</option>
+                </select>
+              </div>
+              <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+              <div class="flex-spacer"></div>
+              <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
+              <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
+              <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
             </div>
           </div>
           <div id="dateFilterHelper" class="muted tiny"></div>
@@ -468,6 +468,59 @@
     <footer class="app-footer">
       <p>Creado por Maximiliano Martinez | version 1.0.51 | Solo uso interno autorizado</p>
     </footer>
+  </div>
+  <div class="popover-overlay" id="actionCustomizerOverlay">
+    <div class="popover wide">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Configuración de acciones</p>
+          <h3>Personalizar acciones rápidas</h3>
+          <p class="muted subtle">Oculta las predeterminadas o crea tus propias acciones con icono y color.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeActionCustomizer"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="customizer-content">
+        <section class="action-group">
+          <header class="group-head">
+            <div>
+              <p class="eyebrow">Acciones por defecto</p>
+              <h4>Mostrar u ocultar</h4>
+            </div>
+          </header>
+          <div class="action-list" id="defaultActionList"></div>
+        </section>
+        <section class="action-group">
+          <header class="group-head">
+            <div>
+              <p class="eyebrow">Acciones personalizadas</p>
+              <h4>Tus accesos rápidos</h4>
+            </div>
+            <button class="secondary-btn" id="newCustomAction"><i class='bx bx-plus'></i>Crear nueva acción personalizada</button>
+          </header>
+          <div class="action-list" id="customActionList"></div>
+          <div class="custom-action-form" id="customActionForm" hidden>
+            <div class="form-grid">
+              <div class="field">
+                <label for="customActionLabel">Texto a mostrar</label>
+                <input id="customActionLabel" placeholder="Ej: Contactado por Whatsapp" />
+              </div>
+              <div class="field">
+                <label for="customActionColor">Color a usar</label>
+                <input type="color" id="customActionColor" value="#38bdf8" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Icono a mostrar</label>
+              <div class="icon-picker" id="customActionIcons"></div>
+            </div>
+            <div class="form-actions">
+              <button class="ghost-btn" id="cancelCustomAction">Cancelar</button>
+              <button class="primary-btn" id="saveCustomAction"><i class='bx bx-save'></i>Guardar acción</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
   <div class="popover-overlay" id="paletteOverlay">
     <div class="popover" id="palettePopover">

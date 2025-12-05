@@ -251,6 +251,17 @@ const exportableColumns = {
   status: { label: 'Estado', default: true }
 };
 
+const defaultActionCatalog = [
+  { id: 'contacted', label: 'Marcar como contactado', icon: 'bx-check-circle', color: '#22c55e' },
+  { id: 'no_number', label: 'Número no disponible', icon: 'bx-block', color: '#f87171' },
+  { id: 'favorite', label: 'Favorito', icon: 'bx-star', color: '#f6b04b' },
+  { id: 'open_notes', label: 'Notas', icon: 'bx-note', color: '#94a3b8' },
+  { id: 'copy_message', label: 'Copiar mensaje', icon: 'bx-message-square-dots', color: '#38bdf8' },
+  { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' }
+];
+
+const defaultActionVisibility = Object.fromEntries(defaultActionCatalog.map(action => [action.id, true]));
+
 const presetExportHeaders = [
   { key: 'cuit', label: 'CUIT0' },
   { key: 'document', label: 'DOC' },
@@ -281,7 +292,9 @@ const defaultClientManagerState = {
     selectedColumns: Object.keys(exportableColumns)
   },
   contactLogSearch: '',
-  editingMode: false
+  editingMode: false,
+  actionVisibility: { ...defaultActionVisibility },
+  customActions: []
 };
 
 const clientColumnWidths = {
@@ -849,6 +862,8 @@ function applyProfileData(parsed) {
   clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
+  clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
+  clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
@@ -1101,6 +1116,12 @@ function hasNotes(client = {}) {
 
 function clientStatus(client = {}) {
   const flags = client.flags || {};
+  if (flags.customStatus?.id) {
+    const custom = getCustomActionById(flags.customStatus.id) || flags.customStatus;
+    const color = custom?.color || '#38bdf8';
+    const label = custom?.label || 'Acción personalizada';
+    return { label, className: 'status-custom', color };
+  }
   if (flags.noNumber) return { label: 'Número no disponible', className: 'status-no-number' };
   if (flags.favorite) return { label: 'Favorito', className: 'status-favorite' };
   if (flags.contacted) return { label: 'Contactado', className: 'status-contacted' };
@@ -1183,6 +1204,8 @@ let activeNoteClientId = null;
 let activeActionClientId = null;
 let activeEditAction = null;
 let contactLogInterval = null;
+let editingCustomActionId = null;
+let selectedCustomIcon = 'bx-check-circle';
 
 function upgradePriceTabsFromLegacy() {
   const storedTabs = load('priceTabs');
@@ -1204,6 +1227,8 @@ enforceLatestPriceTab({ silent: true });
 
 clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
+clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
+clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
@@ -1251,6 +1276,7 @@ function init() {
     bindPriceImportActions();
     attachVehicleToggles();
     bindClientManager();
+    bindActionCustomizer();
     startContactLogTicker();
     startRealtimePersistence();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
@@ -3684,6 +3710,178 @@ function bindClientManager() {
   renderColumnToggles();
 }
 
+function bindActionCustomizer() {
+  const openBtn = document.getElementById('openActionCustomizer');
+  const closeBtn = document.getElementById('closeActionCustomizer');
+  const overlay = document.getElementById('actionCustomizerOverlay');
+  const newBtn = document.getElementById('newCustomAction');
+  const cancelBtn = document.getElementById('cancelCustomAction');
+  const saveBtn = document.getElementById('saveCustomAction');
+  const iconPicker = document.getElementById('customActionIcons');
+
+  if (!overlay || !openBtn) return;
+
+  const toggle = (show) => overlay.classList[show ? 'add' : 'remove']('show');
+
+  openBtn.addEventListener('click', () => {
+    renderActionCustomizer();
+    toggle(true);
+  });
+  if (closeBtn) closeBtn.addEventListener('click', () => toggle(false));
+  if (cancelBtn) cancelBtn.addEventListener('click', () => {
+    hideCustomActionForm();
+    resetCustomActionForm();
+  });
+  if (newBtn) newBtn.addEventListener('click', () => startCustomActionEdit());
+  if (saveBtn) saveBtn.addEventListener('click', saveCustomAction);
+
+  if (iconPicker && !iconPicker.dataset.bound) {
+    iconPicker.dataset.bound = 'true';
+    renderIconPicker();
+  }
+}
+
+function renderActionCustomizer() {
+  const defaultList = document.getElementById('defaultActionList');
+  const customList = document.getElementById('customActionList');
+  if (!defaultList || !customList) return;
+
+  defaultList.innerHTML = defaultActionCatalog.map(action => {
+    const active = clientManagerState.actionVisibility?.[action.id] !== false;
+    const eyeIcon = active ? 'bx-show' : 'bx-hide';
+    const eyeClass = active ? 'eye-toggle active' : 'eye-toggle';
+    return `
+      <div class="action-row" data-id="${action.id}">
+        <div class="action-main">
+          <div class="icon"><i class='bx ${action.icon}'></i></div>
+          <div class="action-meta">
+            <span class="label">${action.label}</span>
+            <span class="muted">Acción por defecto</span>
+          </div>
+        </div>
+        <div class="action-actions">
+          <button class="${eyeClass}" data-default-action="${action.id}"><i class='bx ${eyeIcon}'></i> ${active ? 'Visible' : 'Oculta'}</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  customList.innerHTML = (clientManagerState.customActions || []).map(action => {
+    const active = action.visible !== false;
+    const eyeIcon = active ? 'bx-show' : 'bx-hide';
+    const eyeClass = active ? 'eye-toggle active' : 'eye-toggle';
+    return `
+      <div class="action-row" data-custom-id="${action.id}">
+        <div class="action-main">
+          <div class="icon" style="color:${action.color}; background:${hexToRgba(action.color || '#38bdf8', 0.16)}"><i class='bx ${action.icon}'></i></div>
+          <div class="action-meta">
+            <span class="label">${action.label}</span>
+            <span class="muted">Personalizada</span>
+          </div>
+        </div>
+        <div class="action-actions">
+          <span class="color-dot" style="background:${action.color}"></span>
+          <button class="ghost-btn mini" data-edit-custom="${action.id}"><i class='bx bx-edit-alt'></i>Editar</button>
+          <button class="${eyeClass}" data-toggle-custom="${action.id}"><i class='bx ${eyeIcon}'></i> ${active ? 'Visible' : 'Oculta'}</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  defaultList.querySelectorAll('[data-default-action]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.defaultAction;
+    clientManagerState.actionVisibility[id] = !(clientManagerState.actionVisibility[id] !== false);
+    persist();
+    renderActionCustomizer();
+    renderClientManager();
+  }));
+
+  customList.querySelectorAll('[data-toggle-custom]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.toggleCustom;
+    clientManagerState.customActions = (clientManagerState.customActions || []).map(action => action.id === id ? { ...action, visible: action.visible === false } : action);
+    persist();
+    renderActionCustomizer();
+    renderClientManager();
+  }));
+
+  customList.querySelectorAll('[data-edit-custom]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.editCustom;
+    const target = getCustomActionById(id);
+    if (!target) return;
+    startCustomActionEdit(target);
+  }));
+}
+
+function renderIconPicker(selected = selectedCustomIcon) {
+  const iconPicker = document.getElementById('customActionIcons');
+  if (!iconPicker) return;
+  const icons = ['bx-check-circle', 'bx-whatsapp', 'bx-phone', 'bx-message-square-dots', 'bx-message-rounded', 'bx-like', 'bx-dislike', 'bx-bell', 'bx-time-five', 'bx-block', 'bx-info-circle', 'bx-star', 'bx-user-voice', 'bx-copy-alt'];
+  iconPicker.innerHTML = icons.map(icon => {
+    const active = icon === selected;
+    return `<button type="button" class="icon-option ${active ? 'active' : ''}" data-icon="${icon}"><i class='bx ${icon}'></i></button>`;
+  }).join('');
+  iconPicker.querySelectorAll('.icon-option').forEach(btn => btn.addEventListener('click', () => {
+    selectedCustomIcon = btn.dataset.icon;
+    renderIconPicker(selectedCustomIcon);
+  }));
+}
+
+function resetCustomActionForm() {
+  const label = document.getElementById('customActionLabel');
+  const color = document.getElementById('customActionColor');
+  editingCustomActionId = null;
+  if (label) label.value = '';
+  if (color) color.value = '#38bdf8';
+  selectedCustomIcon = 'bx-check-circle';
+  renderIconPicker();
+}
+
+function startCustomActionEdit(action = null) {
+  const form = document.getElementById('customActionForm');
+  const label = document.getElementById('customActionLabel');
+  const color = document.getElementById('customActionColor');
+  if (!form || !label || !color) return;
+  form.hidden = false;
+  editingCustomActionId = action?.id || null;
+  label.value = action?.label || '';
+  color.value = action?.color || '#38bdf8';
+  selectedCustomIcon = action?.icon || 'bx-check-circle';
+  renderIconPicker(selectedCustomIcon);
+}
+
+function hideCustomActionForm() {
+  const form = document.getElementById('customActionForm');
+  if (form) form.hidden = true;
+}
+
+function saveCustomAction() {
+  const label = document.getElementById('customActionLabel');
+  const color = document.getElementById('customActionColor');
+  if (!label || !color) return;
+  const trimmed = (label.value || '').trim();
+  if (!trimmed) {
+    showToast('Agrega un nombre para la acción personalizada.', 'error');
+    return;
+  }
+  const actionData = {
+    id: editingCustomActionId || `custom-${Date.now()}`,
+    label: trimmed,
+    color: color.value || '#38bdf8',
+    icon: selectedCustomIcon,
+    visible: true
+  };
+  const existing = getCustomActionById(actionData.id);
+  if (existing) {
+    clientManagerState.customActions = (clientManagerState.customActions || []).map(action => action.id === actionData.id ? { ...action, ...actionData } : action);
+  } else {
+    clientManagerState.customActions = [...(clientManagerState.customActions || []), actionData];
+  }
+  persist();
+  renderActionCustomizer();
+  renderClientManager();
+  hideCustomActionForm();
+  resetCustomActionForm();
+  showToast('Acción personalizada guardada', 'success');
+}
+
 function renderColumnToggles() {
   const container = document.getElementById('columnToggles');
   if (!container) return;
@@ -4002,7 +4200,10 @@ function renderClientManager() {
     const groupTitle = clientManagerState.groupByModel ? `<div class="group-row">${group} (${items.length})</div>` : '';
     const content = items.map(c => {
       const status = clientStatus(c);
-      const statusVars = `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
+      const statusColor = status.color || '#38bdf8';
+      const statusVars = status.className === 'status-custom'
+        ? `--row-bg: ${hexToRgba(statusColor, 0.18)}; --row-border: ${hexToRgba(statusColor, 0.32)}; --row-text: ${statusColor}; --custom-status-bg: ${hexToRgba(statusColor, 0.18)}; --custom-status-border: ${hexToRgba(statusColor, 0.32)}; --custom-status-text: ${statusColor};`
+        : `--row-bg: var(--${status.className}-bg); --row-border: var(--${status.className}-border); --row-text: var(--${status.className}-text);`;
       const rowClass = `grid-row client-row ${status.className}`;
       const notesActive = hasNotes(c);
       const notesClass = notesActive ? ' has-notes' : '';
@@ -4010,13 +4211,7 @@ function renderClientManager() {
       const cells = visibleColumns.map(([key, col]) => `<div class="grid-cell" data-label="${col.label}">${formatCell(key, c)}</div>`).join('');
       const actionsContent = clientManagerState.editingMode
         ? `<button class="secondary-btn mini action-menu-btn compact" data-action="open_menu"><i class='bx bx-dots-vertical'></i>Menú de acciones</button>`
-        : `
-            <button class="icon-btn" data-action="contacted" title="Marcar como contactado"><i class='bx bx-check-circle'></i></button>
-            <button class="icon-btn" data-action="no_number" title="Número no disponible"><i class='bx bx-block'></i></button>
-            <button class="icon-btn" data-action="favorite" title="Agregar a favoritos"><i class='bx bx-star'></i></button>
-            <button class="icon-btn${notesClass}" data-action="open_notes" title="${notesTitle}"><i class='bx bx-note'></i></button>
-            <button class="icon-btn" data-action="copy_message" title="Copiar mensaje inicial"><i class='bx bx-message-square-dots'></i></button>
-            <button class="icon-btn" data-action="copy_phone" title="Copiar número"><i class='bx bx-phone'></i></button>`;
+        : buildActionButtons(notesClass, notesTitle);
       return `
         <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
           ${cells}
@@ -4031,6 +4226,31 @@ function renderClientManager() {
   bindClientTableActions();
   if (helper) helper.textContent = `${rows.length} clientes visibles · columnas activas: ${visibleColumns.length}`;
   renderContactLog();
+}
+
+function getCustomActionById(id) {
+  return (clientManagerState.customActions || []).find(action => action.id === id);
+}
+
+function getAvailableActions() {
+  const defaults = defaultActionCatalog
+    .filter(action => clientManagerState.actionVisibility?.[action.id] !== false)
+    .map(action => ({ ...action, type: 'default', actionKey: action.id }));
+  const customs = (clientManagerState.customActions || [])
+    .filter(action => action.visible !== false)
+    .map(action => ({ ...action, type: 'custom', actionKey: `custom:${action.id}` }));
+  return [...defaults, ...customs];
+}
+
+function buildActionButtons(notesClass = '', notesTitle = '') {
+  return getAvailableActions().map(action => {
+    const isNotes = action.id === 'open_notes';
+    const label = isNotes ? notesTitle : action.label;
+    const customClass = action.type === 'custom' ? ' custom' : '';
+    const activeClass = isNotes ? notesClass : '';
+    const style = action.color ? ` style="--action-color:${action.color}; color:${action.color};"` : '';
+    return `<button class="icon-btn${customClass}${activeClass}" data-action="${action.actionKey}" title="${label}"${style}><i class='bx ${action.icon}'></i></button>`;
+  }).join('');
 }
 
 function renderContactLog() {
@@ -4599,6 +4819,11 @@ function bindClientTableActions() {
       return;
     }
     if (clientManagerState.editingMode) return;
+    if (action?.startsWith('custom:')) {
+      const customId = action.split(':')[1];
+      handleCustomAction(customId, id);
+      return;
+    }
     if (action === 'contacted') updateClientFlag(id, 'contacted');
     if (action === 'no_number') updateClientFlag(id, 'noNumber');
     if (action === 'favorite') updateClientFlag(id, 'favorite');
@@ -4623,6 +4848,7 @@ function updateClientFlag(id, flag) {
   const client = managerClients.find(c => c.id === id);
   if (!client) return;
   client.flags = client.flags || {};
+  client.flags.customStatus = null;
   if (flag === 'favorite') {
     client.flags.favorite = !client.flags.favorite;
   } else if (flag === 'noNumber') {
@@ -4632,6 +4858,21 @@ function updateClientFlag(id, flag) {
     client.flags.contacted = !client.flags.contacted;
     if (client.flags.contacted) client.flags.noNumber = false;
   }
+  updateContactMeta(client);
+  persist();
+  renderClientManager();
+}
+
+function handleCustomAction(actionId, clientId) {
+  if (!actionId || !clientId) return;
+  const client = managerClients.find(c => c.id === clientId);
+  const action = getCustomActionById(actionId);
+  if (!client || !action) return;
+  client.flags = client.flags || {};
+  const isSame = client.flags.customStatus?.id === actionId;
+  client.flags.customStatus = isSame ? null : { id: action.id, label: action.label, color: action.color, icon: action.icon };
+  client.flags.contacted = !isSame;
+  client.flags.noNumber = false;
   updateContactMeta(client);
   persist();
   renderClientManager();
@@ -4759,7 +5000,7 @@ function bindProfileActions() {
         message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
         confirmText: 'Exportar',
         onConfirm: () => {
-        const payload = { version: 5, vehicles, priceTabs, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 6, vehicles, priceTabs, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -4878,6 +5119,8 @@ function syncFromStorage() {
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
+  clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
+  clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   snapshots = load('snapshots') || snapshots;
   applyStatusPalette();
