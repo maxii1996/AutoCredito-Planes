@@ -3782,6 +3782,8 @@ function renderActionCustomizer() {
   const emptyState = document.getElementById('customActionEmpty');
   if (!defaultList || !customList) return;
 
+  const customActions = (clientManagerState.customActions || []).filter(Boolean);
+
   defaultList.innerHTML = defaultActionCatalog.map(action => {
     const active = clientManagerState.actionVisibility?.[action.id] !== false;
     const eyeIcon = active ? 'bx-show' : 'bx-hide';
@@ -3801,7 +3803,7 @@ function renderActionCustomizer() {
       </div>`;
   }).join('');
 
-  customList.innerHTML = (clientManagerState.customActions || []).map(action => {
+  customList.innerHTML = customActions.map(action => {
     const active = action.visible !== false;
     const eyeIcon = active ? 'bx-show' : 'bx-hide';
     const eyeClass = active ? 'eye-toggle active' : 'eye-toggle';
@@ -3823,7 +3825,7 @@ function renderActionCustomizer() {
       </div>`;
   }).join('');
 
-  const hasCustoms = (clientManagerState.customActions || []).length > 0;
+  const hasCustoms = customActions.length > 0;
   if (customList) customList.style.display = hasCustoms ? 'grid' : 'none';
   if (emptyState) emptyState.hidden = hasCustoms;
 
@@ -4965,10 +4967,14 @@ function bindCustomContextMenu() {
     });
     document.body.dataset.contextMenuKeys = 'true';
   }
-  if (!document.body.dataset.contextMenuScroll) {
-    window.addEventListener('scroll', hideClientContextMenu, true);
-    window.addEventListener('resize', hideClientContextMenu);
-    document.body.dataset.contextMenuScroll = 'true';
+  if (!document.body.dataset.contextMenuClicks) {
+    document.addEventListener('pointerdown', (e) => {
+      const menu = document.getElementById('clientContextMenu');
+      if (!menu || menu.classList.contains('hidden')) return;
+      if (menu.contains(e.target)) return;
+      hideClientContextMenu();
+    });
+    document.body.dataset.contextMenuClicks = 'true';
   }
 }
 
