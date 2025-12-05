@@ -569,28 +569,30 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
   background: #0f1625;
   border: 1px solid var(--border);
   border-radius: 12px;
-  width: min(360px, 92vw);
+  width: min(320px, 92vw);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
-  padding: 8px;
+  padding: 6px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   backdrop-filter: blur(10px);
+  font-size: 13px;
 }
 .context-menu.hidden { display: none; }
 .context-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .context-menu-head h4 { margin: 2px 0; }
-.context-menu-body { display: grid; gap: 8px; max-height: 64vh; overflow: auto; padding-right: 2px; }
-.context-section { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: #0d1524; display: grid; gap: 6px; }
+.context-menu-body { display: grid; gap: 6px; max-height: 64vh; overflow: auto; padding-right: 2px; }
+.context-section { border: 1px solid var(--border); border-radius: 10px; padding: 6px; background: #0d1524; display: grid; gap: 5px; }
 .context-section-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
 .context-section-head .label { display: grid; gap: 1px; }
-.context-actions { display: grid; gap: 5px; }
-.context-action { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); border-radius: 9px; padding: 6px 8px; background: rgba(255,255,255,0.02); }
+.context-actions { display: grid; gap: 4px; }
+.context-action { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); border-radius: 9px; padding: 5px 7px; background: rgba(255,255,255,0.02); }
 .context-action .meta { display: flex; align-items: center; gap: 6px; }
-.context-action .meta .icon { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,0.04); color: var(--accent); font-size: 18px; }
+.context-action .meta .icon { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,0.04); color: var(--accent); font-size: 16px; }
 .context-action .meta .texts { display: grid; gap: 1px; }
-.context-action .meta .texts .muted { font-size: 11px; }
-.context-action button { white-space: nowrap; padding: 6px 10px; font-size: 12px; }
-.context-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px dashed var(--border); font-size: 11px; color: var(--muted); }
+.context-action .meta .texts strong { font-size: 13px; }
+.context-action .meta .texts .muted { font-size: 10px; }
+.context-action button { white-space: nowrap; padding: 6px; font-size: 12px; width: 32px; display: grid; place-items: center; }
+.context-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px dashed var(--border); font-size: 10px; color: var(--muted); }
 
 
 .money-field { position: relative; display: flex; align-items: center; }
@@ -689,7 +691,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .menu-item { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 10px; text-align: left; cursor: pointer; display: flex; gap: 8px; align-items: center; transition: 0.2s; }
 .menu-item:hover { border-color: var(--accent); color: var(--accent); }
 
-.toast-container { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: grid; gap: 12px; z-index: 20; width: min(420px, 92vw); justify-items: center; pointer-events: none; }
+.toast-container { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: grid; gap: 12px; z-index: 9999; width: min(420px, 92vw); justify-items: center; pointer-events: none; }
 .toast { padding: 14px 16px; border-radius: 14px; border: 1px solid #e5e7eb; background: #ffffff; box-shadow: 0 16px 42px rgba(0,0,0,0.16); display: flex; gap: 12px; align-items: center; width: 100%; color: #0b1220; opacity: 0; transform: translateY(10px) scale(0.98); pointer-events: auto; }
 .toast.visible { animation: toastIn 0.3s ease forwards; }
 .toast.hide { animation: toastOut 0.24s ease forwards; }

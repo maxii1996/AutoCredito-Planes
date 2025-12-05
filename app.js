@@ -530,10 +530,15 @@ function showToast(message, type = 'info') {
   toast.innerHTML = `<span class="icon">${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}</span><div><strong>${message}</strong></div>`;
   container.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('visible'));
-  setTimeout(() => {
+  const closeToast = () => {
     toast.classList.add('hide');
     setTimeout(() => toast.remove(), 260);
-  }, 3800);
+  };
+  const timer = setTimeout(closeToast, 3800);
+  toast.addEventListener('click', () => {
+    clearTimeout(timer);
+    closeToast();
+  });
 }
 
 function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm } = {}) {
@@ -1539,6 +1544,7 @@ function renderTemplates() {
         <div class="small-actions">
           <button class="mini-btn" data-action="move-up" data-id="${tpl.id}" title="Subir"><i class='bx bx-up-arrow-alt'></i></button>
           <button class="mini-btn" data-action="move-down" data-id="${tpl.id}" title="Bajar"><i class='bx bx-down-arrow-alt'></i></button>
+          <button class="mini-btn" data-action="copy" data-id="${tpl.id}" title="Copiar"><i class='bx bx-copy'></i></button>
           <button class="mini-btn" data-action="delete" data-id="${tpl.id}" title="Eliminar"><i class='bx bx-trash'></i></button>
         </div>
       </div>
@@ -1582,6 +1588,13 @@ function renderTemplates() {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         moveTemplate(id, 1);
+      });
+    }
+    if (btn.dataset.action === 'copy') {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const targetTpl = templates.find(t => t.id === id);
+        await copyTemplateContent(targetTpl);
       });
     }
   });
@@ -1673,21 +1686,43 @@ function moveTemplate(id, direction) {
   renderTemplates();
 }
 
-function updatePreview() {
-  const body = document.getElementById('templateBody').value || '';
+function getTemplateValues() {
   const values = { ...(uiState.variableValues || {}) };
   const inputs = document.querySelectorAll('#variableInputs input');
   inputs.forEach(inp => {
     values[inp.dataset.var] = inp.value || '';
   });
-  const replaced = body.replace(/{{(.*?)}}/g, (_, key) => {
+  return values;
+}
+
+function buildTemplateText(body, values = getTemplateValues()) {
+  return (body || '').replace(/{{(.*?)}}/g, (_, key) => {
     const k = key.trim();
     return values[k] !== undefined && values[k] !== '' ? values[k] : `{{${k}}}`;
   });
+}
+
+function updatePreview() {
+  const body = document.getElementById('templateBody').value || '';
+  const values = getTemplateValues();
+  const replaced = buildTemplateText(body, values);
   const preview = document.getElementById('templatePreview');
   if (preview) {
     preview.textContent = replaced;
   }
+}
+
+async function copyTemplateContent(template = templates[selectedTemplateIndex]) {
+  if (!template) return;
+  const values = getTemplateValues();
+  const text = buildTemplateText(template.body, values);
+  await navigator.clipboard.writeText(text);
+  const status = document.getElementById('copyStatus');
+  if (status) {
+    status.textContent = 'Plantilla copiada con variables aplicadas';
+    setTimeout(() => status.textContent = '', 2000);
+  }
+  showToast('Plantilla copiada', 'success');
 }
 
 function attachTemplateActions() {
@@ -1718,13 +1753,7 @@ function attachTemplateActions() {
     }
   });
 
-  document.getElementById('copyTemplate').addEventListener('click', async () => {
-    const text = document.getElementById('templatePreview').textContent;
-    await navigator.clipboard.writeText(text);
-    const status = document.getElementById('copyStatus');
-    status.textContent = 'Plantilla copiada con variables aplicadas';
-    setTimeout(() => status.textContent = '', 2000);
-  });
+  document.getElementById('copyTemplate').addEventListener('click', () => copyTemplateContent());
 
   document.getElementById('addTemplate').addEventListener('click', () => {
     const id = `tpl-${Date.now()}`;
@@ -3779,7 +3808,6 @@ function bindActionCustomizer() {
 function renderActionCustomizer() {
   const defaultList = document.getElementById('defaultActionList');
   const customList = document.getElementById('customActionList');
-  const emptyState = document.getElementById('customActionEmpty');
   if (!defaultList || !customList) return;
 
   const customActions = (clientManagerState.customActions || []).filter(Boolean);
@@ -3827,7 +3855,6 @@ function renderActionCustomizer() {
 
   const hasCustoms = customActions.length > 0;
   if (customList) customList.style.display = hasCustoms ? 'grid' : 'none';
-  if (emptyState) emptyState.hidden = hasCustoms;
 
   defaultList.querySelectorAll('[data-default-action]').forEach(btn => btn.addEventListener('click', () => {
     const id = btn.dataset.defaultAction;
@@ -6658,7 +6685,7 @@ function openClientContextMenu(id, event = null) {
                 <p class="muted tiny">${action.value ? action.value : 'Sin datos'}</p>
               </div>
             </div>
-            <button class="secondary-btn mini">Copiar</button>
+            <button class="secondary-btn mini icon-only" title="Copiar"><i class='bx bx-copy'></i></button>
           </div>
         `).join('')}
       </div>
