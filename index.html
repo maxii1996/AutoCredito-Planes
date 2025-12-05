@@ -497,13 +497,13 @@
             </div>
           </header>
           <div class="action-list" id="customActionList"></div>
+          <div class="actions center" id="customActionCreate">
+            <button class="primary-btn" id="newCustomAction"><i class='bx bx-plus'></i>Crear Nueva acción Personalizada</button>
+          </div>
           <div class="empty-state" id="customActionEmpty" hidden>
             <i class='bx bx-customize'></i>
             <strong>Sin acciones personalizadas.</strong>
             <p class="muted">Crea tus botones rápidos con el icono y color que quieras.</p>
-          </div>
-          <div class="actions center">
-            <button class="primary-btn" id="newCustomAction"><i class='bx bx-plus'></i>Crear Nueva acción Personalizada</button>
           </div>
         </section>
       </div>
@@ -667,6 +667,17 @@
         <p class="muted">Aún no hay registros de contacto. Marca clientes como contactados, número no disponible o favoritos para verlos aquí.</p>
       </div>
     </div>
+  </div>
+  <div class="context-menu hidden" id="clientContextMenu">
+    <div class="context-menu-head">
+      <div>
+        <p class="eyebrow">Seleccionaste a:</p>
+        <h4 id="contextClientName">Cliente</h4>
+        <p class="muted tiny" id="contextClientModel"></p>
+      </div>
+      <button class="ghost-btn icon-only" id="closeContextMenu"><i class='bx bx-x'></i></button>
+    </div>
+    <div class="context-menu-body" id="contextMenuContent"></div>
   </div>
   <div id="toastContainer" class="toast-container"></div>
   <div id="exportModal" class="modal hidden">

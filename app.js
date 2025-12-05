@@ -1217,6 +1217,7 @@ let activeEditAction = null;
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
+let activeContextClientId = null;
 
 function upgradePriceTabsFromLegacy() {
   const storedTabs = load('priceTabs');
@@ -1288,6 +1289,7 @@ function init() {
     attachVehicleToggles();
     bindClientManager();
     bindActionCustomizer();
+    bindCustomContextMenu();
     startContactLogTicker();
     startRealtimePersistence();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
@@ -3757,18 +3759,6 @@ function bindActionCustomizer() {
 
   openBtn.addEventListener('click', showCustomizer);
   if (closeBtn) closeBtn.addEventListener('click', hideCustomizer);
-  if (overlay) {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) hideCustomizer();
-    });
-  }
-
-  if (wizardOverlay) {
-    wizardOverlay.addEventListener('click', (e) => {
-      if (e.target === wizardOverlay) hideWizard();
-    });
-  }
-
   if (newBtn) newBtn.addEventListener('click', () => openWizard());
   if (closeWizard) closeWizard.addEventListener('click', hideWizard);
   if (cancelBtn) cancelBtn.addEventListener('click', hideWizard);
@@ -3779,11 +3769,6 @@ function bindActionCustomizer() {
     toggleFadeOverlay(iconOverlay, true);
   });
   if (closeIconPicker) closeIconPicker.addEventListener('click', () => toggleFadeOverlay(iconOverlay, false));
-  if (iconOverlay) {
-    iconOverlay.addEventListener('click', (e) => {
-      if (e.target === iconOverlay) toggleFadeOverlay(iconOverlay, false);
-    });
-  }
 
   if (iconPicker && !iconPicker.dataset.bound) {
     iconPicker.dataset.bound = 'true';
@@ -3832,6 +3817,7 @@ function renderActionCustomizer() {
         <div class="action-actions">
           <span class="color-dot" style="background:${action.color}"></span>
           <button class="ghost-btn mini" data-edit-custom="${action.id}"><i class='bx bx-edit-alt'></i>Editar</button>
+          <button class="ghost-btn mini danger" data-delete-custom="${action.id}"><i class='bx bx-trash'></i>Borrar</button>
           <button class="${eyeClass}" data-toggle-custom="${action.id}"><i class='bx ${eyeIcon}'></i> ${active ? 'Visible' : 'Oculta'}</button>
         </div>
       </div>`;
@@ -3864,6 +3850,35 @@ function renderActionCustomizer() {
     startCustomActionEdit(target);
     toggleFadeOverlay(document.getElementById('customActionOverlay'), true);
   }));
+
+  customList.querySelectorAll('[data-delete-custom]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.deleteCustom;
+    const target = getCustomActionById(id);
+    if (!target) return;
+    confirmAction({
+      title: 'Borrar acción personalizada',
+      message: `¿Seguro que quieres eliminar "${target.label}"? Se quitará de las filas y del historial.`,
+      confirmText: 'Sí, borrar',
+      cancelText: 'Cancelar',
+      onConfirm: () => removeCustomAction(id)
+    });
+  }));
+}
+
+function removeCustomAction(id) {
+  clientManagerState.customActions = (clientManagerState.customActions || []).filter(action => action.id !== id);
+  managerClients = (managerClients || []).map(client => {
+    const needsCleanup = client?.flags?.customStatus?.id === id;
+    if (!needsCleanup) return client;
+    const updated = { ...client, flags: { ...(client.flags || {}), customStatus: null } };
+    updateContactMeta(updated);
+    return updated;
+  });
+  persist();
+  renderActionCustomizer();
+  renderClientManager();
+  renderContactLog();
+  showToast('Acción personalizada eliminada', 'success');
 }
 
 function renderIconPicker(selected = selectedCustomIcon) {
@@ -3871,7 +3886,17 @@ function renderIconPicker(selected = selectedCustomIcon) {
   const preview = document.getElementById('customIconPreview');
   if (preview) preview.innerHTML = `<i class='bx ${selected}'></i>`;
   if (!iconPicker) return;
-  const icons = ['bx-check-circle', 'bx-whatsapp', 'bx-phone', 'bx-message-square-dots', 'bx-message-rounded', 'bx-like', 'bx-dislike', 'bx-bell', 'bx-time-five', 'bx-block', 'bx-info-circle', 'bx-star', 'bx-user-voice', 'bx-copy-alt', 'bx-bookmark-plus', 'bx-bolt-circle', 'bx-calendar-star', 'bx-chat', 'bx-detail', 'bx-envelope', 'bx-export', 'bx-flag', 'bx-heart', 'bx-id-card', 'bx-label', 'bx-link', 'bx-magic-wand', 'bx-navigation', 'bx-paper-plane', 'bx-pin', 'bx-refresh', 'bx-rocket', 'bx-send', 'bx-shield-check', 'bx-stopwatch', 'bx-support', 'bx-task', 'bx-trophy', 'bx-user-check'];
+  const icons = [
+    'bx-check-circle', 'bxl-whatsapp', 'bxl-messenger', 'bxl-telegram', 'bxl-instagram', 'bxl-facebook-circle', 'bxl-twitter',
+    'bxl-linkedin-square', 'bxl-tiktok', 'bxl-skype', 'bxl-slack', 'bxl-discord', 'bxl-gmail', 'bxl-outlook', 'bxl-youtube',
+    'bxl-reddit', 'bxl-medium', 'bxl-pinterest', 'bxl-dribbble', 'bxl-behance', 'bx-phone-call', 'bx-phone', 'bx-mobile-alt',
+    'bx-envelope', 'bx-envelope-open', 'bx-chat', 'bx-message-rounded-dots', 'bx-message-detail', 'bx-message-rounded',
+    'bx-comment-detail', 'bx-comment-dots', 'bx-video', 'bx-video-recording', 'bx-camera', 'bx-microphone', 'bx-broadcast',
+    'bx-rss', 'bx-podcast', 'bx-share-alt', 'bx-link', 'bx-user-voice', 'bx-user-circle', 'bx-user-check', 'bx-user-plus',
+    'bx-id-card', 'bx-detail', 'bx-copy-alt', 'bx-bookmark-plus', 'bx-calendar-event', 'bx-calendar-plus', 'bx-time-five',
+    'bx-map', 'bx-map-pin', 'bx-navigation', 'bx-pin', 'bx-globe', 'bx-support', 'bx-notepad', 'bx-task', 'bx-paper-plane',
+    'bx-send', 'bx-export', 'bx-import', 'bx-flag', 'bx-heart', 'bx-bell', 'bx-stopwatch'
+  ];
   iconPicker.innerHTML = icons.map(icon => {
     const active = icon === selected;
     return `<button type="button" class="icon-option ${active ? 'active' : ''}" data-icon="${icon}"><i class='bx ${icon}'></i></button>`;
@@ -4890,23 +4915,194 @@ function bindClientTableActions() {
     const id = row?.dataset.id;
     if (!id) return;
     e.stopPropagation();
-    if (action === 'open_menu') {
-      openClientActionMenu(id);
-      return;
-    }
-    if (clientManagerState.editingMode) return;
-    if (action?.startsWith('custom:')) {
-      const customId = action.split(':')[1];
-      handleCustomAction(customId, id);
-      return;
-    }
-    if (action === 'contacted') updateClientFlag(id, 'contacted');
-    if (action === 'no_number') updateClientFlag(id, 'noNumber');
-    if (action === 'favorite') updateClientFlag(id, 'favorite');
-    if (action === 'open_notes') openClientNotes(id);
-    if (action === 'copy_message') copyText(buildMessageForClient(managerClients.find(c => c.id === id)), 'Mensaje copiado');
-    if (action === 'copy_phone') copyText(normalizePhone(managerClients.find(c => c.id === id)?.phone || ''), 'Número copiado');
+    triggerClientAction(action, id);
   }));
+}
+
+function triggerClientAction(actionKey, clientId) {
+  if (!actionKey || !clientId) return;
+  const client = managerClients.find(c => c.id === clientId);
+  if (!client && !actionKey.startsWith('custom:')) return;
+  if (actionKey === 'open_menu') {
+    openClientActionMenu(clientId);
+    return;
+  }
+  if (clientManagerState.editingMode && !actionKey.startsWith('custom:')) return;
+  if (actionKey.startsWith('custom:')) {
+    const customId = actionKey.split(':')[1];
+    handleCustomAction(customId, clientId);
+    return;
+  }
+  if (actionKey === 'contacted') updateClientFlag(clientId, 'contacted');
+  if (actionKey === 'no_number') updateClientFlag(clientId, 'noNumber');
+  if (actionKey === 'favorite') updateClientFlag(clientId, 'favorite');
+  if (actionKey === 'open_notes') openClientNotes(clientId);
+  if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
+  if (actionKey === 'copy_phone') copyText(normalizePhone(client?.phone || ''), 'Número copiado');
+}
+
+function bindCustomContextMenu() {
+  const closeBtn = document.getElementById('closeContextMenu');
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener('click', hideClientContextMenu);
+    closeBtn.dataset.bound = 'true';
+  }
+  if (!document.body.dataset.contextMenuBound) {
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const row = e.target.closest('.client-row');
+      if (row?.dataset?.id) {
+        openClientContextMenu(row.dataset.id, e);
+      } else {
+        hideClientContextMenu();
+      }
+    });
+    document.body.dataset.contextMenuBound = 'true';
+  }
+  if (!document.body.dataset.contextMenuKeys) {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideClientContextMenu();
+    });
+    document.body.dataset.contextMenuKeys = 'true';
+  }
+  if (!document.body.dataset.contextMenuScroll) {
+    window.addEventListener('scroll', hideClientContextMenu, true);
+    window.addEventListener('resize', hideClientContextMenu);
+    document.body.dataset.contextMenuScroll = 'true';
+  }
+}
+
+function hideClientContextMenu() {
+  const menu = document.getElementById('clientContextMenu');
+  if (menu) {
+    menu.classList.add('hidden');
+    menu.style.left = '';
+    menu.style.top = '';
+  }
+  activeContextClientId = null;
+}
+
+function openClientContextMenu(id, event = null) {
+  const menu = document.getElementById('clientContextMenu');
+  const nameLabel = document.getElementById('contextClientName');
+  const modelLabel = document.getElementById('contextClientModel');
+  const content = document.getElementById('contextMenuContent');
+  const client = managerClients.find(c => c.id === id);
+  if (!menu || !content || !client) return;
+  activeContextClientId = id;
+  if (nameLabel) nameLabel.textContent = client.name || 'Cliente';
+  if (modelLabel) modelLabel.textContent = client.model ? `Modelo: ${client.model}` : 'Sin modelo asociado';
+
+  const dataActions = [
+    { key: 'name', label: 'Copiar Nombre', icon: 'bx-id-card', value: client.name || '', toast: 'Nombre copiado' },
+    { key: 'model', label: 'Copiar Modelo del Coche', icon: 'bx-car', value: client.model || '', toast: 'Modelo copiado' },
+    { key: 'phone', label: 'Copiar Celular', icon: 'bx-phone-call', value: normalizePhone(client.phone), toast: 'Celular copiado' },
+    { key: 'city', label: 'Copiar Localidad', icon: 'bx-map-pin', value: client.city || '', toast: 'Localidad copiada' },
+    { key: 'province', label: 'Copiar Provincia', icon: 'bx-map', value: client.province || '', toast: 'Provincia copiada' },
+    { key: 'document', label: 'Copiar DNI', icon: 'bx-id-card', value: client.document || '', toast: 'DNI copiado' },
+    { key: 'cuit', label: 'Copiar CUIT', icon: 'bx-id-card', value: client.cuit || '', toast: 'CUIT copiado' },
+    { key: 'birthDate', label: 'Copiar Fecha de Nacimiento', icon: 'bx-calendar-event', value: formatDateForDisplay(client.birthDate) || '', toast: 'Fecha de nacimiento copiada' },
+    { key: 'postalCode', label: 'Copiar CP', icon: 'bx-navigation', value: client.postalCode || '', toast: 'Código postal copiado' },
+    { key: 'purchaseDate', label: 'Copiar Fecha de Compra', icon: 'bx-calendar-check', value: formatDateForDisplay(client.purchaseDate) || '', toast: 'Fecha de compra copiada' }
+  ];
+
+  const quickActions = getAvailableActions();
+
+  const dataSection = `
+    <div class="context-section">
+      <div class="context-section-head">
+        <div class="label">
+          <p class="eyebrow">Datos del Cliente</p>
+          <strong>Copiar contenido clave</strong>
+        </div>
+        <span class="context-tag">Accesos rápidos</span>
+      </div>
+      <div class="context-actions">
+        ${dataActions.map(action => `
+          <div class="context-action" data-copy-key="${action.key}">
+            <div class="meta">
+              <div class="icon"><i class='bx ${action.icon}'></i></div>
+              <div class="texts">
+                <strong>${action.label}</strong>
+                <p class="muted tiny">${action.value ? action.value : 'Sin datos'}</p>
+              </div>
+            </div>
+            <button class="secondary-btn mini">Copiar</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  const quickSection = `
+    <div class="context-section">
+      <div class="context-section-head">
+        <div class="label">
+          <p class="eyebrow">Acciones rápidas</p>
+          <strong>Todo para este contacto</strong>
+        </div>
+        <span class="context-tag">Menú contextual</span>
+      </div>
+      <div class="context-actions">
+        ${quickActions.map(action => {
+          const style = action.color ? `style="color:${action.color}; background:${hexToRgba(action.color, 0.14)}"` : '';
+          const tone = action.type === 'custom' ? 'Personalizada' : 'Predeterminada';
+          return `
+            <div class="context-action" data-context-action="${action.actionKey}">
+              <div class="meta">
+                <div class="icon" ${style}><i class='bx ${action.icon}'></i></div>
+                <div class="texts">
+                  <strong>${action.label}</strong>
+                  <p class="muted tiny">${tone}</p>
+                </div>
+              </div>
+              <button class="primary-btn mini">Aplicar</button>
+            </div>
+          `;
+        }).join('') || '<p class="muted">No hay acciones rápidas disponibles.</p>'}
+      </div>
+    </div>
+  `;
+
+  content.innerHTML = dataSection + quickSection;
+
+  dataActions.forEach(action => {
+    const target = content.querySelector(`[data-copy-key="${action.key}"] button`);
+    if (target) {
+      target.addEventListener('click', () => {
+        copyText(action.value || '', action.toast);
+        hideClientContextMenu();
+      });
+    }
+  });
+
+  quickActions.forEach(action => {
+    const target = content.querySelector(`[data-context-action="${action.actionKey}"] button`);
+    if (target) {
+      target.addEventListener('click', () => {
+        hideClientContextMenu();
+        triggerClientAction(action.actionKey, id);
+      });
+    }
+  });
+
+  menu.classList.remove('hidden');
+  requestAnimationFrame(() => positionContextMenu(menu, event));
+}
+
+function positionContextMenu(menu, event = null) {
+  const padding = 14;
+  const clickX = event?.clientX ?? (window.innerWidth / 2);
+  const clickY = event?.clientY ?? (window.innerHeight / 2);
+  const { width, height } = menu.getBoundingClientRect();
+  let left = clickX;
+  let top = clickY;
+  if (left + width > window.innerWidth - padding) left = window.innerWidth - width - padding;
+  if (top + height > window.innerHeight - padding) top = window.innerHeight - height - padding;
+  left = Math.max(padding, left);
+  top = Math.max(padding, top);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }
 
 function updateContactMeta(client) {
