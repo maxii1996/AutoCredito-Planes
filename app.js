@@ -2804,57 +2804,80 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
     };
   }
 
-  const reverseMode = !!advancePayments || contributions.some(contrib => contrib.type === 'tradeIn');
-  let pointer = reverseMode ? totalInstallments : PLAN_START_INSTALLMENT;
+  let pointer = PLAN_START_INSTALLMENT;
   let coveredInstallments = 0;
   let partialCover = 0;
   const segments = [];
 
   contributions.forEach(contrib => {
-    if (!contrib.amount) return;
-    const fullCovers = Math.floor(contrib.amount / cuotaPura);
-    const remainder = contrib.amount - (fullCovers * cuotaPura);
+    if (!contrib || !contrib.amount) return;
+    const amount = Number(contrib.amount) || 0;
+    if (!amount) return;
 
-    if (fullCovers > 0) {
-      const from = reverseMode
-        ? Math.max(PLAN_START_INSTALLMENT, pointer - fullCovers + 1)
-        : Math.max(pointer, PLAN_START_INSTALLMENT);
-      segments.push({
-        type: contrib.type,
-        label: contrib.label,
-        from,
-        to: reverseMode ? Math.max(PLAN_START_INSTALLMENT, pointer) : from + fullCovers - 1,
-        covered: fullCovers,
-        partial: 0,
-        amount: contrib.amount
-      });
-      coveredInstallments += fullCovers;
-      pointer = reverseMode ? from - 1 : from + fullCovers;
+    const fullCovers = Math.floor(amount / cuotaPura);
+    const remainder = amount - fullCovers * cuotaPura;
+
+    if (fullCovers > 0 && pointer <= totalInstallments) {
+      const from = Math.max(pointer, PLAN_START_INSTALLMENT);
+      const to = Math.min(from + fullCovers - 1, totalInstallments);
+      const appliedCovers = Math.max(to - from + 1, 0);
+
+      if (appliedCovers > 0) {
+        segments.push({
+          type: contrib.type,
+          label: contrib.label,
+          from,
+          to,
+          covered: appliedCovers,
+          partial: 0,
+          amount
+        });
+        coveredInstallments += appliedCovers;
+        pointer = to + 1;
+      }
     }
 
-    if (remainder > 0) {
+    if (remainder > 0 && pointer <= totalInstallments) {
       partialCover = Math.max(partialCover, remainder);
-      const partialSlot = reverseMode ? Math.max(pointer, PLAN_START_INSTALLMENT) : Math.max(pointer, PLAN_START_INSTALLMENT);
+      const slot = Math.max(pointer, PLAN_START_INSTALLMENT);
       segments.push({
         type: contrib.type,
         label: `${contrib.label} (parcial)`,
-        from: partialSlot,
-        to: partialSlot,
+        from: slot,
+        to: slot,
         covered: 0,
         partial: remainder,
         amount: remainder
       });
-      pointer = reverseMode ? partialSlot - 1 : partialSlot + 1;
+      pointer = slot + 1;
     }
   });
 
-  const remainingInstallments = Math.ceil(Math.max(outstanding, 0) / cuotaPura);
-  const kickoffInstallment = reverseMode
-    ? PLAN_START_INSTALLMENT
-    : Math.max(pointer, PLAN_START_INSTALLMENT);
+  let remainingInstallments;
+  if (outstanding && outstanding > 0) {
+    remainingInstallments = Math.min(
+      Math.ceil(outstanding / cuotaPura),
+      Math.max(totalInstallments - (pointer - 1), 0)
+    );
+  } else {
+    remainingInstallments = Math.max(totalInstallments - (pointer - 1), 0);
+  }
 
-  return { segments, coveredInstallments, partialCover, kickoffInstallment, startInstallment: PLAN_START_INSTALLMENT, remainingInstallments };
+  const startInstallment = Math.min(
+    Math.max(pointer, PLAN_START_INSTALLMENT),
+    totalInstallments + 1
+  );
+
+  return {
+    segments,
+    coveredInstallments,
+    partialCover,
+    kickoffInstallment: startInstallment,
+    startInstallment,
+    remainingInstallments
+  };
 }
+
 
 function rangeKeyForInstallment(i, totalInstallments) {
   if (i <= 12) return '2a12';
