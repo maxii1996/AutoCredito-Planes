@@ -3810,25 +3810,6 @@ function bindClientManager() {
     exportBtn.addEventListener('click', openExportModal);
   }
 
-  const paletteOverlay = document.getElementById('paletteOverlay');
-  const openPalette = document.getElementById('openPaletteFromMenu');
-  const closePalette = document.getElementById('closePalette');
-  const applyPalette = document.getElementById('applyPalette');
-  const togglePalette = (show) => {
-    if (!paletteOverlay) return;
-    toggleFadeOverlay(paletteOverlay, show);
-  };
-  if (openPalette) openPalette.addEventListener('click', () => togglePalette(true));
-  if (closePalette) closePalette.addEventListener('click', () => togglePalette(false));
-  if (applyPalette) {
-    applyPalette.addEventListener('click', () => {
-      applyStatusPalette();
-      persist();
-      togglePalette(false);
-      showToast('Paleta aplicada', 'success');
-    });
-  }
-
   bindClientEditHandlers();
   renderColumnToggles();
 }

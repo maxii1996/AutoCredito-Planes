@@ -43,23 +43,29 @@
             <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
             <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
           </div>
-          <div class="action-menu" id="actionMenu">
-            <button class="primary-btn" id="actionMenuToggle"><i class='bx bx-collection'></i> Opciones</button>
-            <div class="menu-panel" id="actionMenuPanel">
-              <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
-              <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
-              <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
-              <div class="menu-sub">
-                <p class="menu-subtitle"><i class='bx bx-palette'></i> Colores de estado</p>
-                <button class="menu-item" id="openPaletteFromMenu"><i class='bx bx-adjust'></i> Ajustar colores</button>
+          <div class="menu-cluster">
+            <div class="action-menu" id="actionMenu">
+              <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Opciones</span><i class='bx bx-chevron-down'></i></button>
+              <div class="menu-panel" id="actionMenuPanel">
+                <div class="menu-head">
+                  <p class="eyebrow">Accesos rápidos</p>
+                  <h4>Perfil y snapshots</h4>
+                </div>
+                <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
+                <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+                <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
               </div>
             </div>
-          </div>
-          <div class="icon-menu" id="settingsMenu">
-            <button class="ghost-btn icon-only" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i></button>
-            <div class="menu-panel" id="settingsPanel">
-              <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
-              <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+            <div class="icon-menu" id="settingsMenu">
+              <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Centro</span><i class='bx bx-dots-vertical-rounded'></i></button>
+              <div class="menu-panel" id="settingsPanel">
+                <div class="menu-head">
+                  <p class="eyebrow">Mantenimiento</p>
+                  <h4>Datos locales</h4>
+                </div>
+                <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
+                <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+              </div>
             </div>
           </div>
         </div>
@@ -565,63 +571,6 @@
         <button class="ghost-btn icon-only" id="closeIconPicker"><i class='bx bx-x'></i></button>
       </div>
       <div class="icon-picker" id="customActionIcons"></div>
-    </div>
-  </div>
-  <div class="popover-overlay fade" id="paletteOverlay">
-    <div class="popover" id="palettePopover">
-      <div class="popover-head">
-        <div>
-          <p class="eyebrow">Colores de estados</p>
-          <h3>Personaliza los resaltados de filas</h3>
-          <p class="muted subtle">Se aplican a toda la fila, columna de estado y etiquetas.</p>
-        </div>
-        <button class="ghost-btn icon-only" id="closePalette"><i class='bx bx-x'></i></button>
-      </div>
-      <div class="palette-grid">
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Cliente contactado</p>
-            <input type="color" data-status-color="contacted" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="contacted" />
-          </div>
-        </div>
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Número no disponible</p>
-            <input type="color" data-status-color="noNumber" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="noNumber" />
-          </div>
-        </div>
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Favorito</p>
-            <input type="color" data-status-color="favorite" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="favorite" />
-          </div>
-        </div>
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Pendiente</p>
-            <input type="color" data-status-color="pending" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="pending" />
-          </div>
-        </div>
-      </div>
-      <div class="actions compact end">
-        <button class="primary-btn" id="applyPalette"><i class='bx bx-check-double'></i> Guardar colores</button>
-      </div>
     </div>
   </div>
   <div class="popover-overlay" id="clientActionOverlay">
