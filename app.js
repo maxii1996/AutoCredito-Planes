@@ -5729,7 +5729,138 @@ function normalizeCell(value) {
   return (value || '').toString().trim();
 }
 
-const fallbackHeaders = ['NOMBRE', 'CELULAR', 'MODELO', 'MARCA', 'OLOC', 'OPCIA', 'DOC', 'CUIT0', 'FECNAC', 'FECHA1', 'CP', 'TIPO'];
+function buildImportColumns(headerRow, rows) {
+  const columnCount = Math.max(headerRow?.length || 0, ...rows.map(r => (r || []).length));
+  const sampleRow = rows.find(r => Array.isArray(r) && r.some(cell => normalizeCell(cell))) || [];
+  return Array.from({ length: columnCount }, (_, idx) => {
+    const header = (headerRow?.[idx] || '').toString();
+    const normalized = header.trim().toUpperCase();
+    const sample = normalizeCell(sampleRow[idx] ?? '');
+    const display = header ? header : `Sin cabezal (Col ${idx + 1})`;
+    return { index: idx, header, normalized, sample, display };
+  });
+}
+
+function guessImportMapping(columns) {
+  const mapping = {};
+  const used = new Set();
+  columns.forEach((col) => {
+    const property = headerMap[col.normalized];
+    if (!property || used.has(col.index)) return;
+    const field = importRequiredFields.find(f => f.id === property);
+    if (field) {
+      mapping[field.id] = col.index;
+      used.add(col.index);
+    }
+  });
+  return mapping;
+}
+
+function buildHeadersFromMapping(mapping, columnCount) {
+  const headers = Array.from({ length: columnCount }, () => '');
+  importRequiredFields.forEach((field) => {
+    const idx = mapping[field.id];
+    if (typeof idx === 'number') {
+      headers[idx] = field.headerKey;
+    }
+  });
+  return headers;
+}
+
+function openImportMappingModal(headerRow, rows, columns, guessedMapping = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('importMappingModal');
+    if (!modal) {
+      const fallbackMapping = { ...guessedMapping };
+      if (Object.keys(fallbackMapping).length === importRequiredFields.length) {
+        resolve(fallbackMapping);
+      } else {
+        showToast('No se pudo abrir el asistente de cabezales.', 'error');
+        resolve(null);
+      }
+      return;
+    }
+
+    const hint = document.getElementById('importMappingHint');
+    const fieldsContainer = document.getElementById('importMappingFields');
+    const confirmBtn = document.getElementById('importMappingConfirm');
+    const cancelBtn = document.getElementById('importMappingCancel');
+    const closeBtn = document.getElementById('importMappingClose');
+
+    const recognized = columns.filter(col => headerMap[col.normalized]);
+    if (hint) {
+      const recognizedText = recognized.length
+        ? `Detectamos ${recognized.length} cabezales con nombre conocido. Ajusta manualmente si algo está desordenado.`
+        : 'No detectamos cabezales conocidos. Asigna cada campo obligatorio usando las columnas disponibles.';
+      const extra = headerRow?.length ? ` Total de columnas: ${columns.length}.` : '';
+      hint.textContent = `${recognizedText}${extra}`;
+    }
+
+    const optionsHtml = (selected) => {
+      const placeholder = '<option value="">Selecciona la columna</option>';
+      const options = columns.map(col => {
+        const label = col.sample ? `${col.display} — Ej: ${col.sample}` : col.display;
+        const checked = selected === col.index ? 'selected' : '';
+        return `<option value="${col.index}" ${checked}>${label}</option>`;
+      });
+      return placeholder + options.join('');
+    };
+
+    if (fieldsContainer) {
+      fieldsContainer.innerHTML = importRequiredFields.map((field) => {
+        const selectId = `import-map-${field.id}`;
+        const prefill = guessedMapping[field.id];
+        return `
+          <div class="mapping-field" data-field="${field.id}">
+            <div class="label"><span>${field.label}</span><span class="pill">Obligatorio</span></div>
+            <p class="muted">${field.helper}</p>
+            <select id="${selectId}">${optionsHtml(prefill)}</select>
+          </div>`;
+      }).join('');
+    }
+
+    const cleanup = (result) => {
+      toggleModal(modal, false);
+      if (confirmBtn) confirmBtn.onclick = null;
+      if (cancelBtn) cancelBtn.onclick = null;
+      if (closeBtn) closeBtn.onclick = null;
+      resolve(result);
+    };
+
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        const mapping = {};
+        const usedColumns = new Set();
+        let missing = false;
+        for (const field of importRequiredFields) {
+          const select = document.getElementById(`import-map-${field.id}`);
+          const value = select?.value ?? '';
+          if (value === '') {
+            missing = true;
+            break;
+          }
+          const idx = Number(value);
+          if (usedColumns.has(idx)) {
+            showToast('Cada columna solo puede asignarse a un campo.', 'error');
+            return;
+          }
+          usedColumns.add(idx);
+          mapping[field.id] = idx;
+        }
+        if (missing) {
+          showToast('Debes asignar todas las columnas obligatorias.', 'error');
+          return;
+        }
+        cleanup(mapping);
+      };
+    }
+    if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
+    if (closeBtn) closeBtn.onclick = () => cleanup(null);
+
+    toggleModal(modal, true);
+  });
+}
+
 const headerMap = {
   'NOMBRE': 'name',
   'CELULAR12': 'phone',
@@ -5748,6 +5879,21 @@ const headerMap = {
   'CP': 'postalCode',
   'TIPO': 'type'
 };
+
+const importRequiredFields = [
+  { id: 'name', headerKey: 'NOMBRE', label: 'Campo obligatorio - Nombre del cliente', helper: 'Seleccione que columna contiene los nombres de los clientes.' },
+  { id: 'document', headerKey: 'DOC', label: 'Campo obligatorio - DNI del cliente', helper: 'Seleccione que columna contiene el DNI.' },
+  { id: 'birthDate', headerKey: 'FECNAC', label: 'Campo obligatorio - Fecha de nacimiento', helper: 'Seleccione que columna contiene la fecha de nacimiento.' },
+  { id: 'city', headerKey: 'OLOC', label: 'Campo obligatorio - Localidad', helper: 'Seleccione que columna contiene la localidad del cliente.' },
+  { id: 'province', headerKey: 'OPCIA', label: 'Campo obligatorio - Provincia', helper: 'Seleccione que columna contiene la provincia.' },
+  { id: 'postalCode', headerKey: 'CP', label: 'Campo obligatorio - Código Postal', helper: 'Seleccione que columna contiene el código postal.' },
+  { id: 'phone', headerKey: 'CELULAR12', label: 'Campo obligatorio - Celular', helper: 'Seleccione que columna contiene el celular del cliente.' },
+  { id: 'purchaseDate', headerKey: 'FECHA1', label: 'Campo obligatorio - Fecha compra coche', helper: 'Seleccione que columna contiene la fecha de compra.' },
+  { id: 'brand', headerKey: 'MARCA', label: 'Campo obligatorio - Marca del coche', helper: 'Seleccione que columna contiene la marca.' },
+  { id: 'model', headerKey: 'MODELO', label: 'Campo obligatorio - Modelo del coche', helper: 'Seleccione que columna contiene el modelo.' },
+  { id: 'type', headerKey: 'TIPO', label: 'Campo obligatorio - Notas (TIPO)', helper: 'Seleccione que columna contiene las notas o el campo TIPO.' },
+  { id: 'cuit', headerKey: 'CUIT0', label: 'Campo obligatorio - CUIT', helper: 'Seleccione que columna contiene el CUIT del cliente.' }
+];
 
 function mapRow(row, headers, systemDate = '') {
 
@@ -5777,7 +5923,7 @@ function mapRow(row, headers, systemDate = '') {
 
 function handleClientImport(file, importDate = '') {
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = async (ev) => {
     try {
       const data = new Uint8Array(ev.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
@@ -5789,8 +5935,8 @@ function handleClientImport(file, importDate = '') {
         return;
       }
 
-      const normalizedHeaders = headerRow.map(h => (h || '').toString().trim().toUpperCase());
-      const recognized = normalizedHeaders.filter(h => headerMap[h]);
+      const columns = buildImportColumns(headerRow, rows);
+      const guessedMapping = guessImportMapping(columns);
 
       const processImport = (headersToUse, dataRows, showWarning = false) => {
         const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
@@ -5808,21 +5954,15 @@ function handleClientImport(file, importDate = '') {
         persist();
         renderClientManager();
         renderStats();
-        const extra = showWarning ? ' (usando cabezales por defecto)' : '';
+        const extra = showWarning ? ' (usando asignación manual)' : '';
         showToast(`Se han importado ${imported} clientes correctamente${extra}.`, 'success');
       };
 
-      if (!recognized.length) {
-        confirmAction({
-          title: 'Cabezales faltantes',
-          message: 'El excel que has importado, no tiene cabezales como primer fila. ¿quieres intentar importarlo con los cabezales por defecto?',
-          confirmText: 'Sí, intentar',
-          onConfirm: () => processImport(fallbackHeaders, [headerRow, ...rows], true)
-        });
-        return;
-      }
-
-      processImport(headerRow, rows);
+      const mapping = await openImportMappingModal(headerRow, rows, columns, guessedMapping);
+      if (!mapping) return;
+      const headersToUse = buildHeadersFromMapping(mapping, columns.length);
+      const showWarning = Object.keys(guessedMapping).length !== importRequiredFields.length;
+      processImport(headersToUse, rows, showWarning);
     } catch (err) {
       console.error(err);
       showToast('No se pudo procesar el Excel.', 'error');

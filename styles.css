@@ -716,6 +716,21 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .modal-actions.top { position: sticky; top: 0; z-index: 3; padding: 10px 0; margin-top: 0; margin-bottom: 10px; background: #0f1625; border-bottom: 1px solid var(--border); }
+#importMappingModal .modal-content { width: min(960px, 100%); max-height: 90vh; display: flex; flex-direction: column; gap: 12px; }
+#importMappingModal .modal-content.tall { gap: 12px; }
+#importMappingModal .modal-actions { margin-top: 6px; }
+#importMappingModal .modal-content .modal-head { position: sticky; top: 0; background: #0f1625; z-index: 2; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+#importMappingModal .modal-content .modal-head p { margin: 0; }
+#importMappingModal .modal-content .muted { margin: 2px 0 0; }
+#importMappingModal select { width: 100%; }
+.import-mapping-hint { border: 1px dashed var(--border); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.02); color: var(--muted); font-size: 14px; }
+.import-mapping-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); max-height: 55vh; overflow-y: auto; padding-right: 4px; }
+.mapping-field { border: 1px solid var(--border); border-radius: 12px; background: #0f1625; padding: 12px; display: grid; gap: 8px; box-shadow: var(--shadow); }
+.mapping-field .label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
+.mapping-field .label .pill { font-size: 11px; padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+.mapping-field .muted { font-size: 13px; margin: 0; }
+.mapping-field select { padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: var(--text); }
+.mapping-field select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(56,189,248,0.14); }
 #installmentModal .modal-content { width: min(1100px, 100%); max-height: 90vh; display: flex; flex-direction: column; gap: 12px; }
 #installmentModal #installmentSummary { background: #0f1d33; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: grid; gap: 10px; max-height: none; }
 #installmentModal #installmentSummary .folio-row { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.08); }
