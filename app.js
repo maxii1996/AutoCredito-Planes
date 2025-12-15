@@ -1238,9 +1238,6 @@ let activeNoteClientId = null;
 let activeActionClientId = null;
 let activeEditAction = null;
 let contactLogInterval = null;
-let contactAssistantTimer = null;
-let assistantRemainingSeconds = defaultClientManagerState.contactAssistant.interval;
-let assistantCycleSeconds = defaultClientManagerState.contactAssistant.interval;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
 let activeContextClientId = null;
@@ -3840,58 +3837,22 @@ function bindContactAssistant() {
   const openBtn = document.getElementById('openContactAssistant');
   const overlay = document.getElementById('contactAssistantOverlay');
   const closeBtn = document.getElementById('closeContactAssistant');
-  const prevBtn = document.getElementById('assistantPrev');
-  const nextBtn = document.getElementById('assistantNext');
-  const extendBtn = document.getElementById('assistantExtend');
-  const intervalInput = document.getElementById('assistantInterval');
   const copyPhoneBtn = document.getElementById('assistantCopyPhone');
   const copyMsgBtn = document.getElementById('assistantCopyMessage');
+  const markContactedBtn = document.getElementById('assistantMarkContacted');
+  const markNoNumberBtn = document.getElementById('assistantMarkNoNumber');
 
   const openAssistant = () => {
     renderContactAssistant();
-    startContactAssistantTimer();
     toggleFadeOverlay(overlay, true);
   };
 
   const closeAssistant = () => {
-    stopContactAssistantTimer();
     toggleFadeOverlay(overlay, false);
   };
 
   if (openBtn) openBtn.addEventListener('click', openAssistant);
   if (closeBtn) closeBtn.addEventListener('click', closeAssistant);
-
-  if (prevBtn) prevBtn.addEventListener('click', () => {
-    moveAssistant(-1, 'slide-right');
-    assistantRemainingSeconds = assistantCycleSeconds;
-    updateAssistantCountdownUI(pendingClientsPool());
-    persist();
-  });
-
-  if (nextBtn) nextBtn.addEventListener('click', () => {
-    moveAssistant(1, 'slide-left');
-    assistantRemainingSeconds = assistantCycleSeconds;
-    updateAssistantCountdownUI(pendingClientsPool());
-    persist();
-  });
-
-  if (extendBtn) extendBtn.addEventListener('click', () => {
-    assistantRemainingSeconds += 15;
-    assistantCycleSeconds += 15;
-    updateAssistantCountdownUI(pendingClientsPool());
-  });
-
-  if (intervalInput) {
-    intervalInput.value = clientManagerState.contactAssistant?.interval || defaultClientManagerState.contactAssistant.interval;
-    intervalInput.addEventListener('change', () => {
-      const seconds = Math.min(180, Math.max(5, Number(intervalInput.value) || defaultClientManagerState.contactAssistant.interval));
-      clientManagerState.contactAssistant.interval = seconds;
-      assistantCycleSeconds = seconds;
-      assistantRemainingSeconds = seconds;
-      persist();
-      updateAssistantCountdownUI(pendingClientsPool());
-    });
-  }
 
   if (copyPhoneBtn) copyPhoneBtn.addEventListener('click', () => {
     const { current } = assistantContext();
@@ -3905,6 +3866,20 @@ function bindContactAssistant() {
     const message = buildMessageForClient(current);
     copyText(message, 'Mensaje copiado');
   });
+
+  const markAndAdvance = (flag) => {
+    const { current } = assistantContext();
+    if (!current) return;
+    updateClientFlag(current.id, flag, true);
+    const pending = pendingClientsPool();
+    const index = Math.min(clientManagerState.contactAssistant.currentIndex, pending.length - 1);
+    clientManagerState.contactAssistant.currentIndex = Math.max(0, index);
+    persist();
+    renderContactAssistant('slide-left');
+  };
+
+  if (markContactedBtn) markContactedBtn.addEventListener('click', () => markAndAdvance('contacted'));
+  if (markNoNumberBtn) markNoNumberBtn.addEventListener('click', () => markAndAdvance('noNumber'));
 }
 
 function bindActionCustomizer() {
@@ -6363,67 +6338,16 @@ function assistantContext() {
   return { pending, current: pending[index], index, state };
 }
 
-function updateAssistantCountdownUI(pending = []) {
-  const countdown = document.getElementById('assistantCountdown');
-  const progress = document.getElementById('assistantProgress');
+function updateAssistantHelper(pending = []) {
   const helper = document.getElementById('assistantHelper');
-  if (!countdown || !progress || !helper) return;
+  if (!helper) return;
   if (!pending.length) {
-    countdown.textContent = '--';
-    progress.style.transform = 'scaleX(0)';
     helper.textContent = 'No hay clientes pendientes para contactar.';
     return;
   }
-  const remaining = Math.max(0, Math.round(assistantRemainingSeconds));
-  countdown.textContent = `${remaining}s`;
-  const ratio = assistantCycleSeconds ? Math.max(0, Math.min(1, assistantRemainingSeconds / assistantCycleSeconds)) : 0;
-  progress.style.transform = `scaleX(${ratio})`;
-}
-
-function resetAssistantTiming(baseSeconds = null, pending = []) {
   const state = normalizeContactAssistantState();
-  const seconds = baseSeconds !== null ? baseSeconds : state.interval;
-  assistantCycleSeconds = Math.min(180, Math.max(5, Number(seconds) || state.interval));
-  assistantRemainingSeconds = assistantCycleSeconds;
-  updateAssistantCountdownUI(pending);
-}
-
-function stopContactAssistantTimer() {
-  if (contactAssistantTimer) clearInterval(contactAssistantTimer);
-  contactAssistantTimer = null;
-}
-
-function startContactAssistantTimer() {
-  stopContactAssistantTimer();
-  const { pending } = assistantContext();
-  if (!pending.length) {
-    updateAssistantCountdownUI([]);
-    return;
-  }
-  resetAssistantTiming(clientManagerState.contactAssistant.interval, pending);
-  contactAssistantTimer = setInterval(() => {
-    assistantRemainingSeconds -= 1;
-    if (assistantRemainingSeconds <= 0) {
-      moveAssistant(1, 'slide-left', true);
-    } else {
-      updateAssistantCountdownUI(pendingClientsPool());
-    }
-  }, 1000);
-}
-
-function moveAssistant(step = 1, direction = 'slide-left', skipPersist = false) {
-  const { pending, state } = assistantContext();
-  if (!pending.length) {
-    stopContactAssistantTimer();
-    renderContactAssistant();
-    return;
-  }
-  const len = pending.length;
-  const nextIndex = ((state.currentIndex + step) % len + len) % len;
-  clientManagerState.contactAssistant.currentIndex = nextIndex;
-  if (!skipPersist) persist();
-  assistantRemainingSeconds = assistantCycleSeconds;
-  renderContactAssistant(direction);
+  const index = Math.min(state.currentIndex, pending.length - 1);
+  helper.textContent = `${index + 1} de ${pending.length} pendientes.`;
 }
 
 function renderContactAssistant(direction = '') {
@@ -6432,19 +6356,16 @@ function renderContactAssistant(direction = '') {
   const name = document.getElementById('assistantClientName');
   const phone = document.getElementById('assistantClientPhone');
   const messagePreview = document.getElementById('assistantMessagePreview');
-  const intervalInput = document.getElementById('assistantInterval');
-  const { pending, current, index, state } = assistantContext();
-  const buttons = ['assistantPrev', 'assistantNext', 'assistantCopyPhone', 'assistantCopyMessage', 'assistantExtend'].map(id => document.getElementById(id));
-  if (!overlay || !card || !name || !phone || !messagePreview || !intervalInput) return;
-
-  intervalInput.value = state.interval;
+  const { pending, current, index } = assistantContext();
+  const buttons = ['assistantCopyPhone', 'assistantCopyMessage', 'assistantMarkContacted', 'assistantMarkNoNumber'].map(id => document.getElementById(id));
+  if (!overlay || !card || !name || !phone || !messagePreview) return;
 
   if (!pending.length || !current) {
     name.textContent = 'Sin pendientes';
     phone.textContent = '-';
     messagePreview.textContent = 'No hay clientes pendientes para contactar.';
     buttons.forEach(btn => btn && (btn.disabled = true));
-    updateAssistantCountdownUI([]);
+    updateAssistantHelper([]);
     return;
   }
 
@@ -6459,12 +6380,11 @@ function renderContactAssistant(direction = '') {
 
   name.textContent = current.name || 'Sin nombre';
   phone.textContent = normalizePhone(current.phone || '') || 'Sin número';
-  const fullMessage = buildMessageForClient(current);
-  messagePreview.textContent = fullMessage || 'No hay plantilla inicial disponible.';
+  const fullMessage = buildMessageForClient(current) || 'No hay plantilla inicial disponible.';
+  const preview = fullMessage.length > 128 ? `${fullMessage.slice(0, 128)}...` : fullMessage;
+  messagePreview.textContent = preview;
 
-  const helper = document.getElementById('assistantHelper');
-  if (helper) helper.textContent = `${index + 1} de ${pending.length} pendientes.`;
-  updateAssistantCountdownUI(pending);
+  updateAssistantHelper(pending);
 }
 
 function paginateClients(rows = []) {
@@ -6495,14 +6415,18 @@ function renderPaginationControls(pagination) {
   const info = document.getElementById('clientPaginationInfo');
   const prev = document.getElementById('clientPaginationPrev');
   const next = document.getElementById('clientPaginationNext');
+  const bar = document.getElementById('clientPaginationBar');
   if (select) {
     select.value = pagination.size ? String(pagination.size) : 'none';
+  }
+  if (bar) {
+    bar.classList.toggle('hidden', !pagination.size);
   }
   if (info) {
     const totalPages = pagination.totalPages || 1;
     info.textContent = pagination.size
       ? `Página ${pagination.currentPage} de ${totalPages} · ${pagination.totalItems} registros`
-      : `Lista completa (${pagination.totalItems} registros)`;
+      : '';
   }
   if (prev) {
     prev.disabled = !pagination.size || pagination.currentPage <= 1;
@@ -6616,7 +6540,7 @@ function renderClientManager() {
   const assistantOverlay = document.getElementById('contactAssistantOverlay');
   if (assistantOverlay?.classList.contains('show')) {
     renderContactAssistant();
-    updateAssistantCountdownUI(pendingClientsPool());
+    updateAssistantHelper(pendingClientsPool());
   }
 }
 
@@ -7410,18 +7334,21 @@ function updateContactMeta(client) {
   }
 }
 
-function updateClientFlag(id, flag) {
+function updateClientFlag(id, flag, forceValue = null) {
   const client = managerClients.find(c => c.id === id);
   if (!client) return;
   client.flags = client.flags || {};
   client.flags.customStatus = null;
   if (flag === 'favorite') {
-    client.flags.favorite = !client.flags.favorite;
+    const nextValue = forceValue !== null ? !!forceValue : !client.flags.favorite;
+    client.flags.favorite = nextValue;
   } else if (flag === 'noNumber') {
-    client.flags.noNumber = !client.flags.noNumber;
+    const nextValue = forceValue !== null ? !!forceValue : !client.flags.noNumber;
+    client.flags.noNumber = nextValue;
     if (client.flags.noNumber) client.flags.contacted = false;
   } else if (flag === 'contacted') {
-    client.flags.contacted = !client.flags.contacted;
+    const nextValue = forceValue !== null ? !!forceValue : !client.flags.contacted;
+    client.flags.contacted = nextValue;
     if (client.flags.contacted) client.flags.noNumber = false;
   }
   updateContactMeta(client);

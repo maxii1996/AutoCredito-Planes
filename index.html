@@ -452,20 +452,20 @@
               <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
               <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Asistente de Contactos</button>
               <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
+              <div class="field compact-field inline" id="paginationToggleField">
+                <label for="clientPaginationSelect">Paginación</label>
+                <select id="clientPaginationSelect">
+                  <option value="none">Desactivada</option>
+                  <option value="20">Cada 20</option>
+                  <option value="50">Cada 50</option>
+                  <option value="100">Cada 100</option>
+                </select>
+              </div>
             </div>
           </div>
           <div id="dateFilterHelper" class="muted tiny"></div>
           <div class="column-pills" id="columnToggles"></div>
-          <div class="pagination-bar">
-            <div class="field compact-field">
-              <label for="clientPaginationSelect">¿Activar paginación?</label>
-              <select id="clientPaginationSelect">
-                <option value="none">No - Lista completa</option>
-                <option value="20">Sí: Paginar cada 20</option>
-                <option value="50">Sí: Paginar cada 50</option>
-                <option value="100">Sí: Paginar cada 100</option>
-              </select>
-            </div>
+          <div class="pagination-bar hidden" id="clientPaginationBar">
             <div class="pagination-controls">
               <button class="ghost-btn mini" id="clientPaginationPrev"><i class='bx bx-chevron-left'></i>Anterior</button>
               <span id="clientPaginationInfo" class="muted tiny"></span>
@@ -643,53 +643,38 @@
         <div>
           <p class="eyebrow">Ronda de pendientes</p>
           <h3>Asistente de Contactos</h3>
-          <p class="muted subtle">Recorre automáticamente los clientes pendientes con atajos listos.</p>
+          <p class="muted subtle">Gestiona cada cliente pendiente de forma manual y ordenada.</p>
         </div>
         <button class="ghost-btn icon-only" id="closeContactAssistant"><i class='bx bx-x'></i></button>
       </div>
       <div class="assistant-shell">
-        <div class="assistant-client" id="contactAssistantCard">
-          <p class="eyebrow">Próximo Cliente a Contactar</p>
+        <div class="assistant-header">
+          <p class="muted tiny">Cliente actual</p>
           <h3 id="assistantClientName">-</h3>
-          <div class="assistant-info">
-            <div class="info-row">
-              <div>
-                <p class="muted tiny">Celular</p>
-                <strong id="assistantClientPhone">-</strong>
-              </div>
-              <button class="glow-btn icon-only" id="assistantCopyPhone" title="Copiar celular"><i class='bx bx-copy'></i></button>
-            </div>
-            <div class="info-row">
-              <div>
-                <p class="muted tiny">Mensaje</p>
-                <p class="muted" id="assistantMessagePreview"></p>
-              </div>
-              <button class="glow-btn icon-only" id="assistantCopyMessage" title="Copiar mensaje"><i class='bx bx-message-square-dots'></i></button>
-            </div>
-          </div>
+          <p class="muted tiny" id="assistantHelper"></p>
         </div>
-        <div class="assistant-controls">
-          <div class="timer-box">
-            <div class="timer-head">
-              <span>Pasando al próximo Cliente en: <strong id="assistantCountdown">--</strong></span>
-              <button class="secondary-btn mini" id="assistantExtend"><i class='bx bx-plus-circle'></i>Extender Tiempo (+15s)</button>
+        <div class="assistant-layout" id="contactAssistantCard">
+          <div class="assistant-card" data-tone="cyan">
+            <div class="card-head">
+              <p class="eyebrow">Teléfono</p>
+              <button class="glow-btn icon-only" id="assistantCopyPhone" data-tone="cyan" title="Copiar celular"><i class='bx bx-copy'></i></button>
             </div>
-            <div class="progress-bar">
-              <div id="assistantProgress"></div>
+            <p class="assistant-value" id="assistantClientPhone">-</p>
+          </div>
+          <div class="assistant-card" data-tone="purple">
+            <div class="card-head">
+              <p class="eyebrow">Copiar mensaje</p>
+              <button class="glow-btn icon-only" id="assistantCopyMessage" data-tone="purple" title="Copiar mensaje"><i class='bx bx-message-square-dots'></i></button>
+            </div>
+            <p class="muted" id="assistantMessagePreview"></p>
+          </div>
+          <div class="assistant-card actions" data-tone="green">
+            <p class="eyebrow">Marcar como...</p>
+            <div class="action-buttons">
+              <button class="glow-btn" id="assistantMarkContacted" data-tone="green"><i class='bx bx-check-circle'></i> Contactado</button>
+              <button class="glow-btn" id="assistantMarkNoNumber" data-tone="red"><i class='bx bx-block'></i> Número no disponible</button>
             </div>
           </div>
-          <div class="assistant-footer">
-            <button class="ghost-btn icon-only" id="assistantPrev"><i class='bx bx-chevron-left'></i></button>
-            <div class="speed-control">
-              <label for="assistantInterval">Tiempo para clientes</label>
-              <div class="speed-input">
-                <input type="number" id="assistantInterval" min="5" max="180" step="1" />
-                <span class="muted tiny">segundos</span>
-              </div>
-            </div>
-            <button class="ghost-btn icon-only" id="assistantNext"><i class='bx bx-chevron-right'></i></button>
-          </div>
-          <p class="muted tiny center" id="assistantHelper"></p>
         </div>
       </div>
     </div>
