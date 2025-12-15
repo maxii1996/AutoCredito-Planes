@@ -5748,34 +5748,22 @@ const headerMap = {
   'CP': 'postalCode',
   'TIPO': 'type'
 };
-const importFieldCatalog = [
-  { key: 'name', label: 'Nombre', required: true, helper: 'Nombre y apellido completo.' },
-  { key: 'phone', label: 'Celular', required: true, helper: 'Número de teléfono de contacto.' },
-  { key: 'model', label: 'Modelo', required: true, helper: 'Vehículo de interés o modelo indicado.' },
-  { key: 'brand', label: 'Marca', helper: 'Marca del vehículo.' },
-  { key: 'city', label: 'Localidad', helper: 'Ciudad u origen del contacto.' },
-  { key: 'province', label: 'Provincia', helper: 'Provincia o estado.' },
-  { key: 'document', label: 'Documento', helper: 'Documento nacional de identidad.' },
-  { key: 'cuit', label: 'CUIT/CUIL', helper: 'Identificación fiscal.' },
-  { key: 'birthDate', label: 'Fecha de nacimiento', helper: 'Fecha de nacimiento del cliente.' },
-  { key: 'contactDate', label: 'Fecha/Hora de contacto', helper: 'Momento en que se registró el contacto.' },
-  { key: 'purchaseDate', label: 'Fecha de compra', helper: 'Fecha prevista o real de compra.' },
-  { key: 'postalCode', label: 'Código postal', helper: 'Código postal o CP.' },
-  { key: 'type', label: 'Estado/Tipo', helper: 'Notas, estado o tipo de cliente.' }
-];
 
-function mapRow(row, headerKeys, systemDate = '') {
+function mapRow(row, headers, systemDate = '') {
 
   const mapped = { flags: {}, selected: false };
-  headerKeys.forEach((key, idx) => {
-    if (!key) return;
-    const rawValue = row[idx];
-    if (key === 'purchaseDate' || key === 'birthDate') {
-      mapped[key] = formatDateISO(rawValue) || normalizeCell(rawValue);
-    } else if (key === 'contactDate') {
-      mapped[key] = normalizeDateTime(rawValue);
-    } else {
-      mapped[key] = normalizeCell(rawValue);
+  headers.forEach((h, idx) => {
+    const normalized = (h || '').toString().trim().toUpperCase();
+    const key = headerMap[normalized];
+    if (key) {
+      const rawValue = row[idx];
+      if (key === 'purchaseDate' || key === 'birthDate') {
+        mapped[key] = formatDateISO(rawValue) || normalizeCell(rawValue);
+      } else if (key === 'contactDate') {
+        mapped[key] = normalizeDateTime(rawValue);
+      } else {
+        mapped[key] = normalizeCell(rawValue);
+      }
     }
   });
   mapped.id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -5787,101 +5775,9 @@ function mapRow(row, headerKeys, systemDate = '') {
   return mapped;
 }
 
-function mapHeadersToKeys(headers = []) {
-  return headers.map(h => headerMap[(h || '').toString().trim().toUpperCase()] || '');
-}
-
-function getRequiredImportKeys() {
-  return importFieldCatalog.filter(f => f.required).map(f => f.key);
-}
-
-function openHeaderMappingModal(headers = [], initialKeys = []) {
-  return new Promise((resolve) => {
-    const overlay = document.getElementById('headerMappingOverlay');
-    const list = document.getElementById('headerMappingList');
-    const statusList = document.getElementById('headerMappingStatus');
-    const helper = document.getElementById('headerMappingHelper');
-    const confirmBtn = document.getElementById('headerMappingConfirm');
-    const cancelBtn = document.getElementById('headerMappingCancel');
-    const closeBtn = document.getElementById('headerMappingClose');
-    if (!overlay || !list || !statusList || !confirmBtn || !cancelBtn) {
-      resolve(initialKeys);
-      return;
-    }
-
-    const selections = headers.map((_, idx) => initialKeys[idx] || '');
-    const requiredKeys = getRequiredImportKeys();
-
-    const renderStatus = () => {
-      const missing = requiredKeys.filter(key => !selections.includes(key));
-      const lines = requiredKeys.map((key) => {
-        const field = importFieldCatalog.find(f => f.key === key);
-        const idx = selections.indexOf(key);
-        const headerLabel = idx >= 0 ? (headers[idx] || `Columna ${idx + 1}`) : null;
-        const state = headerLabel ? `<span class="status-pill success">Vinculado a “${headerLabel}”</span>` : '<span class="status-pill danger">Pendiente de vincular</span>';
-        return `<li><strong>${field?.label || key}:</strong> ${state}</li>`;
-      });
-      statusList.innerHTML = lines.join('');
-      if (helper) {
-        if (missing.length) {
-          helper.textContent = 'Hace falta adaptar y relacionar algunas cosas para continuar...';
-        } else {
-          helper.textContent = 'Todos los campos principales están vinculados. Puedes continuar.';
-        }
-      }
-      confirmBtn.disabled = Boolean(missing.length);
-    };
-
-    const options = ['<option value="">Selecciona el tipo de campo</option>', ...importFieldCatalog.map(f => `<option value="${f.key}">${f.label}${f.required ? ' (principal)' : ''}</option>`), '<option value="ignore">Ignorar este cabezal</option>'];
-    list.innerHTML = headers.map((label, idx) => `
-      <div class="mapping-row">
-        <div class="mapping-label">
-          <p class="eyebrow">Vincular cabezal</p>
-          <strong>${label || 'Columna sin título'}</strong>
-          <span class="muted tiny">Selecciona a qué campo corresponde o ignóralo.</span>
-        </div>
-        <select data-map="${idx}">
-          ${options.join('')}
-        </select>
-      </div>
-    `).join('');
-
-    list.querySelectorAll('select[data-map]').forEach((select) => {
-      const idx = Number(select.dataset.map);
-      select.value = selections[idx] || '';
-      select.onchange = () => {
-        selections[idx] = select.value === 'ignore' ? '' : select.value;
-        renderStatus();
-      };
-    });
-
-    const cleanup = (result) => {
-      toggleFadeOverlay(overlay, false);
-      confirmBtn.onclick = null;
-      cancelBtn.onclick = null;
-      if (closeBtn) closeBtn.onclick = null;
-      resolve(result);
-    };
-
-    confirmBtn.onclick = () => {
-      const missing = requiredKeys.filter(key => !selections.includes(key));
-      if (missing.length) {
-        showToast('Vincula todos los campos principales para continuar.', 'error');
-        return;
-      }
-      cleanup([...selections]);
-    };
-    cancelBtn.onclick = () => cleanup(null);
-    if (closeBtn) closeBtn.onclick = () => cleanup(null);
-
-    renderStatus();
-    toggleFadeOverlay(overlay, true);
-  });
-}
-
 function handleClientImport(file, importDate = '') {
   const reader = new FileReader();
-  reader.onload = async (ev) => {
+  reader.onload = (ev) => {
     try {
       const data = new Uint8Array(ev.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
@@ -5893,20 +5789,14 @@ function handleClientImport(file, importDate = '') {
         return;
       }
 
-      const autoKeys = mapHeadersToKeys(headerRow);
-      const requiredKeys = getRequiredImportKeys();
-      const needsMapping = autoKeys.some(k => !k) || !requiredKeys.every(key => autoKeys.includes(key));
+      const normalizedHeaders = headerRow.map(h => (h || '').toString().trim().toUpperCase());
+      const recognized = normalizedHeaders.filter(h => headerMap[h]);
 
-      const processImport = (headerKeys, dataRows, showWarning = false) => {
-        const missingRequired = requiredKeys.filter(key => !headerKeys.includes(key));
-        if (missingRequired.length) {
-          showToast('Faltan campos principales por vincular.', 'error');
-          return;
-        }
+      const processImport = (headersToUse, dataRows, showWarning = false) => {
         const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
         let imported = 0;
         dataRows.forEach(r => {
-          const mapped = mapRow(r, headerKeys, importDate);
+          const mapped = mapRow(r, headersToUse, importDate);
           const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
           if (existingKeys.has(key)) {
             return;
@@ -5918,18 +5808,21 @@ function handleClientImport(file, importDate = '') {
         persist();
         renderClientManager();
         renderStats();
-        const extra = showWarning ? ' (adaptación manual aplicada)' : '';
+        const extra = showWarning ? ' (usando cabezales por defecto)' : '';
         showToast(`Se han importado ${imported} clientes correctamente${extra}.`, 'success');
       };
 
-      if (needsMapping) {
-        const customMap = await openHeaderMappingModal(headerRow, autoKeys);
-        if (!customMap) return;
-        processImport(customMap, rows, true);
+      if (!recognized.length) {
+        confirmAction({
+          title: 'Cabezales faltantes',
+          message: 'El excel que has importado, no tiene cabezales como primer fila. ¿quieres intentar importarlo con los cabezales por defecto?',
+          confirmText: 'Sí, intentar',
+          onConfirm: () => processImport(fallbackHeaders, [headerRow, ...rows], true)
+        });
         return;
       }
 
-      processImport(autoKeys, rows);
+      processImport(headerRow, rows);
     } catch (err) {
       console.error(err);
       showToast('No se pudo procesar el Excel.', 'error');
