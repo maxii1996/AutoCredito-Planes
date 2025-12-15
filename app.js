@@ -5729,6 +5729,32 @@ function normalizeCell(value) {
   return (value || '').toString().trim();
 }
 
+function columnIndexToLetter(index) {
+  let dividend = index + 1;
+  let label = '';
+  while (dividend > 0) {
+    const modulo = (dividend - 1) % 26;
+    label = String.fromCharCode(65 + modulo) + label;
+    dividend = Math.floor((dividend - modulo) / 26);
+  }
+  return label;
+}
+
+function formatDateForMapping(value) {
+  const iso = formatDateISO(value);
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+
+function buildSampleForField(fieldId, sampleValue) {
+  if (!sampleValue) return '';
+  if (fieldId === 'birthDate' || fieldId === 'purchaseDate') {
+    return formatDateForMapping(sampleValue) || sampleValue;
+  }
+  return sampleValue;
+}
+
 function buildImportColumns(headerRow, rows) {
   const columnCount = Math.max(headerRow?.length || 0, ...rows.map(r => (r || []).length));
   const sampleRow = rows.find(r => Array.isArray(r) && r.some(cell => normalizeCell(cell))) || [];
@@ -5737,7 +5763,8 @@ function buildImportColumns(headerRow, rows) {
     const normalized = header.trim().toUpperCase();
     const sample = normalizeCell(sampleRow[idx] ?? '');
     const display = header ? header : `Sin cabezal (Col ${idx + 1})`;
-    return { index: idx, header, normalized, sample, display };
+    const letter = columnIndexToLetter(idx);
+    return { index: idx, header, normalized, sample, display, letter };
   });
 }
 
@@ -5747,7 +5774,7 @@ function guessImportMapping(columns) {
   columns.forEach((col) => {
     const property = headerMap[col.normalized];
     if (!property || used.has(col.index)) return;
-    const field = importRequiredFields.find(f => f.id === property);
+    const field = importAllFields.find(f => f.id === property);
     if (field) {
       mapping[field.id] = col.index;
       used.add(col.index);
@@ -5758,7 +5785,7 @@ function guessImportMapping(columns) {
 
 function buildHeadersFromMapping(mapping, columnCount) {
   const headers = Array.from({ length: columnCount }, () => '');
-  importRequiredFields.forEach((field) => {
+  importAllFields.forEach((field) => {
     const idx = mapping[field.id];
     if (typeof idx === 'number') {
       headers[idx] = field.headerKey;
@@ -5786,6 +5813,12 @@ function openImportMappingModal(headerRow, rows, columns, guessedMapping = {}) {
     const confirmBtn = document.getElementById('importMappingConfirm');
     const cancelBtn = document.getElementById('importMappingCancel');
     const closeBtn = document.getElementById('importMappingClose');
+    const status = document.getElementById('importMappingStatus');
+
+    const fieldCatalog = importAllFields.map(field => ({
+      ...field,
+      required: importRequiredFields.some(req => req.id === field.id)
+    }));
 
     const recognized = columns.filter(col => headerMap[col.normalized]);
     if (hint) {
@@ -5793,13 +5826,20 @@ function openImportMappingModal(headerRow, rows, columns, guessedMapping = {}) {
         ? `Detectamos ${recognized.length} cabezales con nombre conocido. Ajusta manualmente si algo está desordenado.`
         : 'No detectamos cabezales conocidos. Asigna cada campo obligatorio usando las columnas disponibles.';
       const extra = headerRow?.length ? ` Total de columnas: ${columns.length}.` : '';
-      hint.textContent = `${recognizedText}${extra}`;
+      hint.innerHTML = `${recognizedText}${extra}<br><strong>Los datos no vinculados serán descartados.</strong>`;
     }
 
-    const optionsHtml = (selected) => {
+    const buildOptionLabel = (field, col) => {
+      const headerLabel = col.header || col.display;
+      const sample = buildSampleForField(field.id, col.sample);
+      const sampleText = sample ? ` — Ej: ${sample}` : '';
+      return `(${col.letter}1) ${headerLabel}${sampleText}`;
+    };
+
+    const optionsHtml = (field, selected) => {
       const placeholder = '<option value="">Selecciona la columna</option>';
       const options = columns.map(col => {
-        const label = col.sample ? `${col.display} — Ej: ${col.sample}` : col.display;
+        const label = buildOptionLabel(field, col);
         const checked = selected === col.index ? 'selected' : '';
         return `<option value="${col.index}" ${checked}>${label}</option>`;
       });
@@ -5807,14 +5847,16 @@ function openImportMappingModal(headerRow, rows, columns, guessedMapping = {}) {
     };
 
     if (fieldsContainer) {
-      fieldsContainer.innerHTML = importRequiredFields.map((field) => {
+      fieldsContainer.innerHTML = fieldCatalog.map((field) => {
         const selectId = `import-map-${field.id}`;
         const prefill = guessedMapping[field.id];
+        const pillLabel = field.required ? 'Obligatorio' : 'Opcional';
+        const pillClass = field.required ? 'pill required' : 'pill optional';
         return `
-          <div class="mapping-field" data-field="${field.id}">
-            <div class="label"><span>${field.label}</span><span class="pill">Obligatorio</span></div>
+          <div class="mapping-field" data-field="${field.id}" data-required="${field.required ? 'true' : 'false'}">
+            <div class="label"><span>${field.label}</span><span class="${pillClass}">${pillLabel}</span></div>
             <p class="muted">${field.helper}</p>
-            <select id="${selectId}">${optionsHtml(prefill)}</select>
+            <select id="${selectId}">${optionsHtml(field, prefill)}</select>
           </div>`;
       }).join('');
     }
@@ -5827,37 +5869,104 @@ function openImportMappingModal(headerRow, rows, columns, guessedMapping = {}) {
       resolve(result);
     };
 
-    if (confirmBtn) {
-      confirmBtn.onclick = () => {
-        const mapping = {};
-        const usedColumns = new Set();
-        let missing = false;
-        for (const field of importRequiredFields) {
-          const select = document.getElementById(`import-map-${field.id}`);
-          const value = select?.value ?? '';
-          if (value === '') {
+    const resetCardState = (card) => {
+      if (!card) return;
+      card.classList.remove('valid', 'invalid', 'duplicate', 'missing');
+    };
+
+    const flagCard = (card, state) => {
+      resetCardState(card);
+      if (!card) return;
+      if (state === 'missing') card.classList.add('invalid', 'missing');
+      else if (state === 'duplicate') card.classList.add('invalid', 'duplicate');
+      else if (state === 'valid') card.classList.add('valid');
+    };
+
+    const describeColumn = (colIdx) => {
+      const col = columns.find(c => c.index === Number(colIdx));
+      if (!col) return `Columna ${Number(colIdx) + 1}`;
+      const headerLabel = col.header || col.display;
+      return `(${col.letter}1) ${headerLabel}`;
+    };
+
+    const evaluateMapping = (showStatus = true) => {
+      const mapping = {};
+      const usedColumns = new Map();
+      let missing = false;
+
+      fieldCatalog.forEach((field) => {
+        const select = document.getElementById(`import-map-${field.id}`);
+        const value = select?.value ?? '';
+        const card = fieldsContainer?.querySelector(`[data-field="${field.id}"]`);
+        if (!value) {
+          if (field.required) {
             missing = true;
-            break;
+            flagCard(card, 'missing');
+          } else {
+            resetCardState(card);
           }
-          const idx = Number(value);
-          if (usedColumns.has(idx)) {
-            showToast('Cada columna solo puede asignarse a un campo.', 'error');
-            return;
-          }
-          usedColumns.add(idx);
-          mapping[field.id] = idx;
-        }
-        if (missing) {
-          showToast('Debes asignar todas las columnas obligatorias.', 'error');
           return;
         }
-        cleanup(mapping);
+        const idx = Number(value);
+        mapping[field.id] = idx;
+        const existing = usedColumns.get(idx) || [];
+        existing.push(field);
+        usedColumns.set(idx, existing);
+        flagCard(card, 'valid');
+      });
+
+      const duplicates = [];
+      usedColumns.forEach((fields, colIdx) => {
+        if (fields.length > 1) {
+          duplicates.push({ colIdx, fields });
+          fields.forEach((field) => {
+            const card = fieldsContainer?.querySelector(`[data-field="${field.id}"]`);
+            flagCard(card, 'duplicate');
+          });
+        }
+      });
+
+      const messages = [];
+      if (duplicates.length) {
+        duplicates.forEach((dup) => {
+          const columnLabel = describeColumn(dup.colIdx);
+          const fieldNames = dup.fields.map(f => f.label).join(' - ');
+          messages.push(`El campo ${columnLabel} está siendo utilizado ${dup.fields.length} veces en los campos: ${fieldNames}.`);
+        });
+      }
+      if (missing) {
+        messages.push('Asigna todos los campos obligatorios destacados en rojo.');
+      }
+
+      if (status) {
+        if (!messages.length) {
+          status.textContent = 'Asignación lista para importar.';
+          status.className = 'mapping-status success';
+        } else {
+          status.textContent = messages.join(' ');
+          status.className = 'mapping-status error';
+        }
+      }
+
+      return { mapping, duplicates, missing };
+    };
+
+    if (confirmBtn) {
+      confirmBtn.onclick = () => {
+        const result = evaluateMapping();
+        if (result.duplicates.length || result.missing) return;
+        cleanup(result.mapping);
       };
     }
     if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
     if (closeBtn) closeBtn.onclick = () => cleanup(null);
 
+    fieldsContainer?.querySelectorAll('select')?.forEach(select => {
+      select.addEventListener('change', () => evaluateMapping());
+    });
+
     toggleModal(modal, true);
+    evaluateMapping();
   });
 }
 
@@ -5881,19 +5990,24 @@ const headerMap = {
 };
 
 const importRequiredFields = [
-  { id: 'name', headerKey: 'NOMBRE', label: 'Campo obligatorio - Nombre del cliente', helper: 'Seleccione que columna contiene los nombres de los clientes.' },
-  { id: 'document', headerKey: 'DOC', label: 'Campo obligatorio - DNI del cliente', helper: 'Seleccione que columna contiene el DNI.' },
-  { id: 'birthDate', headerKey: 'FECNAC', label: 'Campo obligatorio - Fecha de nacimiento', helper: 'Seleccione que columna contiene la fecha de nacimiento.' },
-  { id: 'city', headerKey: 'OLOC', label: 'Campo obligatorio - Localidad', helper: 'Seleccione que columna contiene la localidad del cliente.' },
-  { id: 'province', headerKey: 'OPCIA', label: 'Campo obligatorio - Provincia', helper: 'Seleccione que columna contiene la provincia.' },
-  { id: 'postalCode', headerKey: 'CP', label: 'Campo obligatorio - Código Postal', helper: 'Seleccione que columna contiene el código postal.' },
-  { id: 'phone', headerKey: 'CELULAR12', label: 'Campo obligatorio - Celular', helper: 'Seleccione que columna contiene el celular del cliente.' },
-  { id: 'purchaseDate', headerKey: 'FECHA1', label: 'Campo obligatorio - Fecha compra coche', helper: 'Seleccione que columna contiene la fecha de compra.' },
-  { id: 'brand', headerKey: 'MARCA', label: 'Campo obligatorio - Marca del coche', helper: 'Seleccione que columna contiene la marca.' },
-  { id: 'model', headerKey: 'MODELO', label: 'Campo obligatorio - Modelo del coche', helper: 'Seleccione que columna contiene el modelo.' },
-  { id: 'type', headerKey: 'TIPO', label: 'Campo obligatorio - Notas (TIPO)', helper: 'Seleccione que columna contiene las notas o el campo TIPO.' },
-  { id: 'cuit', headerKey: 'CUIT0', label: 'Campo obligatorio - CUIT', helper: 'Seleccione que columna contiene el CUIT del cliente.' }
+  { id: 'name', headerKey: 'NOMBRE', label: 'Nombre del cliente', helper: 'Selecciona qué columna contiene los nombres de los clientes.' },
+  { id: 'document', headerKey: 'DOC', label: 'DNI del cliente', helper: 'Selecciona qué columna contiene el DNI.' },
+  { id: 'birthDate', headerKey: 'FECNAC', label: 'Fecha de nacimiento', helper: 'Selecciona qué columna contiene la fecha de nacimiento.' },
+  { id: 'city', headerKey: 'OLOC', label: 'Localidad', helper: 'Selecciona qué columna contiene la localidad del cliente.' },
+  { id: 'province', headerKey: 'OPCIA', label: 'Provincia', helper: 'Selecciona qué columna contiene la provincia.' },
+  { id: 'postalCode', headerKey: 'CP', label: 'Código Postal', helper: 'Selecciona qué columna contiene el código postal.' },
+  { id: 'phone', headerKey: 'CELULAR12', label: 'Celular', helper: 'Selecciona qué columna contiene el celular del cliente.' },
+  { id: 'purchaseDate', headerKey: 'FECHA1', label: 'Fecha de compra del coche', helper: 'Selecciona qué columna contiene la fecha de compra.' },
+  { id: 'brand', headerKey: 'MARCA', label: 'Marca del coche', helper: 'Selecciona qué columna contiene la marca.' },
+  { id: 'model', headerKey: 'MODELO', label: 'Modelo del coche', helper: 'Selecciona qué columna contiene el modelo.' },
+  { id: 'cuit', headerKey: 'CUIT0', label: 'CUIT', helper: 'Selecciona qué columna contiene el CUIT del cliente.' }
 ];
+
+const importOptionalFields = [
+  { id: 'type', headerKey: 'TIPO', label: 'Notas (opcional)', helper: 'Puedes asignar esta columna si deseas importar las notas.' }
+];
+
+const importAllFields = [...importRequiredFields, ...importOptionalFields];
 
 function mapRow(row, headers, systemDate = '') {
 
