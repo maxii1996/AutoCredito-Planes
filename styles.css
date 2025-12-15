@@ -490,6 +490,10 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .control-bar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; width: 100%; }
 .client-controls .toggles { gap: 8px; align-items: stretch; }
 .client-controls .filter-toggle { margin-left: 0; }
+.pagination-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; margin: 10px 0; }
+.pagination-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pagination-controls .mini { padding-inline: 10px; }
+.field.compact-field { width: 260px; }
 .advisor-combo { display: grid; gap: 6px; flex: 0 1 25%; max-width: 25%; min-width: 220px; }
 .client-controls .ghost-btn { white-space: nowrap; }
 .combo-head { font-size: 12px; letter-spacing: 0.3px; color: var(--muted); text-transform: uppercase; }
@@ -728,7 +732,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .mapping-field { border: 1px solid var(--border); border-radius: 12px; background: #0f1625; padding: 12px; display: grid; gap: 8px; box-shadow: var(--shadow); }
 .mapping-field .label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
 .mapping-field .label .pill { font-size: 11px; padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
-.mapping-field .label .pill.required { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.35); color: #f87171; }
+.mapping-field .label .pill.required { background: rgba(148,163,184,0.16); border-color: rgba(148,163,184,0.35); color: #cbd5e1; }
 .mapping-field .label .pill.optional { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.35); color: #34d399; }
 .mapping-field .muted { font-size: 13px; margin: 0; }
 .mapping-field select { padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: var(--text); }

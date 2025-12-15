@@ -294,7 +294,8 @@ const defaultClientManagerState = {
   contactLogSearch: '',
   editingMode: false,
   actionVisibility: { ...defaultActionVisibility },
-  customActions: []
+  customActions: [],
+  pagination: { size: 0, page: 1 }
 };
 
 const clientColumnWidths = {
@@ -518,6 +519,14 @@ function normalizeExportOptions(options = {}) {
     columnOrder: mergedOrder,
     selectedColumns: selected
   };
+}
+
+function normalizePaginationState(pagination = {}) {
+  const allowedSizes = [0, 20, 50, 100];
+  const requestedSize = Number(pagination.size);
+  const size = allowedSizes.includes(requestedSize) ? requestedSize : 0;
+  const page = Math.max(1, Number(pagination.page) || 1);
+  return { size, page };
 }
 
 function showToast(message, type = 'info') {
@@ -812,6 +821,7 @@ function openDateFilterModal() {
       const from = fromInput?.value || '';
       const to = toInput?.value || '';
       clientManagerState.dateRange = { from, to };
+      clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
       cleanup();
@@ -820,6 +830,7 @@ function openDateFilterModal() {
   if (clearBtn) {
     clearBtn.onclick = () => {
       clientManagerState.dateRange = { from: '', to: '' };
+      clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
       cleanup();
@@ -869,6 +880,8 @@ function applyProfileData(parsed) {
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
+  clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
@@ -1246,6 +1259,7 @@ clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(cli
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
 clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
 clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
+clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
@@ -3687,6 +3701,7 @@ function bindClientManager() {
     search.value = clientManagerState.search || '';
     search.addEventListener('input', () => {
       clientManagerState.search = search.value;
+      clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
     });
@@ -3697,6 +3712,7 @@ function bindClientManager() {
     group.checked = clientManagerState.groupByModel;
     group.addEventListener('change', () => {
       clientManagerState.groupByModel = group.checked;
+      clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
     });
@@ -3707,11 +3723,46 @@ function bindClientManager() {
     statusFilter.value = clientManagerState.statusFilter;
     statusFilter.addEventListener('change', () => {
       clientManagerState.statusFilter = statusFilter.value;
+      clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
     });
   }
   renderStatusFilter();
+
+  const paginationSelect = document.getElementById('clientPaginationSelect');
+  if (paginationSelect) {
+    paginationSelect.value = clientManagerState.pagination.size ? String(clientManagerState.pagination.size) : 'none';
+    paginationSelect.addEventListener('change', () => {
+      const size = paginationSelect.value === 'none' ? 0 : Number(paginationSelect.value) || 0;
+      clientManagerState.pagination = normalizePaginationState({ ...clientManagerState.pagination, size, page: 1 });
+      persist();
+      renderClientManager();
+    });
+  }
+
+  const paginationPrev = document.getElementById('clientPaginationPrev');
+  const paginationNext = document.getElementById('clientPaginationNext');
+  if (paginationPrev && !paginationPrev.dataset.bound) {
+    paginationPrev.addEventListener('click', () => {
+      if (clientManagerState.pagination.size && clientManagerState.pagination.page > 1) {
+        clientManagerState.pagination.page -= 1;
+        persist();
+        renderClientManager();
+      }
+    });
+    paginationPrev.dataset.bound = 'true';
+  }
+  if (paginationNext && !paginationNext.dataset.bound) {
+    paginationNext.addEventListener('click', () => {
+      if (clientManagerState.pagination.size) {
+        clientManagerState.pagination.page += 1;
+        persist();
+        renderClientManager();
+      }
+    });
+    paginationNext.dataset.bound = 'true';
+  }
 
   const dateFilterBtn = document.getElementById('openDateFilter');
   if (dateFilterBtn) {
@@ -5747,10 +5798,22 @@ function formatDateForMapping(value) {
   return `${d}-${m}-${y}`;
 }
 
+function isLikelyDateSample(value) {
+  if (value instanceof Date) return true;
+  if (typeof value === 'number') return value > 20000 && value < 60000;
+  if (typeof value === 'string') {
+    if (value.match(/[\/-]/)) return true;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 20000 && numeric < 60000) return true;
+  }
+  return false;
+}
+
 function buildSampleForField(fieldId, sampleValue) {
   if (!sampleValue) return '';
-  if (fieldId === 'birthDate' || fieldId === 'purchaseDate') {
-    return formatDateForMapping(sampleValue) || sampleValue;
+  if (isLikelyDateSample(sampleValue)) {
+    const formattedDate = formatDateForMapping(sampleValue);
+    if (formattedDate) return formattedDate;
   }
   return sampleValue;
 }
@@ -5837,7 +5900,9 @@ function openImportMappingModal(headerRow, rows, columns, guessedMapping = {}) {
     };
 
     const optionsHtml = (field, selected) => {
-      const placeholder = '<option value="">Selecciona la columna</option>';
+      const placeholder = field.required
+        ? '<option value="">Selecciona la columna</option>'
+        : '<option value="">Selecciona la columna / Ignorar selección</option>';
       const options = columns.map(col => {
         const label = buildOptionLabel(field, col);
         const checked = selected === col.index ? 'selected' : '';
@@ -6144,27 +6209,99 @@ function renderDateFilterHelper() {
   if (clearInline) {
     clearInline.onclick = () => {
       clientManagerState.dateRange = { from: '', to: '' };
+      clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
     };
   }
 }
 
+function clientSearchHaystack(client) {
+  const status = clientStatus(client).label;
+  const values = [
+    client.name,
+    client.model,
+    client.brand,
+    client.city,
+    client.province,
+    client.document,
+    client.cuit,
+    client.phone,
+    normalizePhone(client.phone),
+    client.postalCode,
+    normalizeNotesValue(client.type),
+    formatDateForDisplay(client.birthDate),
+    formatDateForDisplay(client.purchaseDate),
+    formatDateForDisplay(client.systemDate),
+    formatDateTimeForDisplay(client.contactDate),
+    status
+  ];
+  return values.filter(Boolean).map(v => v.toString().toLowerCase()).join(' ');
+}
+
 function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
+  const searchActive = !!search;
   return managerClients.filter(c => {
     const status = clientStatus(c).label;
-    const matchesSearch = [c.name, c.model, c.phone, c.type].some(v => (v || '').toLowerCase().includes(search));
-    const matchesDate = isWithinDateRange(c.systemDate, clientManagerState.dateRange);
-    const matchesStatus = clientManagerState.statusFilter === 'all'
-      ? true
-      : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
-      : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
-      : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
-      : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
-      : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus);
+    const matchesSearch = !search || clientSearchHaystack(c).includes(search);
+    const matchesDate = searchActive ? true : isWithinDateRange(c.systemDate, clientManagerState.dateRange);
+    const matchesStatus = searchActive ? true : (
+      clientManagerState.statusFilter === 'all'
+        ? true
+        : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
+        : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
+        : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
+        : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
+        : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
+    );
     return matchesSearch && matchesStatus && matchesDate && status !== 'Oculto';
   });
+}
+
+function paginateClients(rows = []) {
+  const pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
+  clientManagerState.pagination = pagination;
+  const size = pagination.size;
+  if (!size) {
+    return { items: rows, totalPages: 1, currentPage: 1, size: 0, totalItems: rows.length };
+  }
+  const totalPages = Math.max(1, Math.ceil(rows.length / size));
+  const currentPage = Math.min(pagination.page, totalPages);
+  if (currentPage !== pagination.page) {
+    clientManagerState.pagination.page = currentPage;
+    persist();
+  }
+  const start = (currentPage - 1) * size;
+  return {
+    items: rows.slice(start, start + size),
+    totalPages,
+    currentPage,
+    size,
+    totalItems: rows.length
+  };
+}
+
+function renderPaginationControls(pagination) {
+  const select = document.getElementById('clientPaginationSelect');
+  const info = document.getElementById('clientPaginationInfo');
+  const prev = document.getElementById('clientPaginationPrev');
+  const next = document.getElementById('clientPaginationNext');
+  if (select) {
+    select.value = pagination.size ? String(pagination.size) : 'none';
+  }
+  if (info) {
+    const totalPages = pagination.totalPages || 1;
+    info.textContent = pagination.size
+      ? `Página ${pagination.currentPage} de ${totalPages} · ${pagination.totalItems} registros`
+      : `Lista completa (${pagination.totalItems} registros)`;
+  }
+  if (prev) {
+    prev.disabled = !pagination.size || pagination.currentPage <= 1;
+  }
+  if (next) {
+    next.disabled = !pagination.size || pagination.currentPage >= (pagination.totalPages || 1);
+  }
 }
 
 function updateEditModeButton(button) {
@@ -6220,10 +6357,13 @@ function renderClientManager() {
   ].join('');
   head.innerHTML = `<div class="grid-row grid-header">${headerCells}</div>`;
 
-  const rows = filteredManagerClients();
-  if (!rows.length) {
+  const filteredRows = filteredManagerClients();
+  const pagination = paginateClients(filteredRows);
+  const rows = pagination.items;
+  if (!filteredRows.length) {
     bodyContainer.innerHTML = `<div class="grid-row empty-row"><div class="grid-cell">Sin clientes importados.</div></div>`;
     if (helper) helper.textContent = 'Sube el Excel y el gestor detectará duplicados automáticamente.';
+    renderPaginationControls({ size: 0, currentPage: 1, totalPages: 1, totalItems: 0 });
     return;
   }
 
@@ -6256,7 +6396,14 @@ function renderClientManager() {
 
   bodyContainer.innerHTML = body;
   bindClientTableActions();
-  if (helper) helper.textContent = `${rows.length} clientes visibles · columnas activas: ${visibleColumns.length}`;
+  if (helper) {
+    const showing = rows.length;
+    const total = pagination.totalItems;
+    const sizeLabel = pagination.size ? ` · mostrando ${showing} de ${total} clientes` : '';
+    const pageLabel = pagination.size ? ` · página ${pagination.currentPage} de ${pagination.totalPages}` : '';
+    helper.textContent = `${total} clientes filtrados${sizeLabel}${pageLabel} · columnas activas: ${visibleColumns.length}`;
+  }
+  renderPaginationControls(pagination);
   renderContactLog();
 }
 
@@ -7328,6 +7475,7 @@ function syncFromStorage() {
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+  clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
   snapshots = load('snapshots') || snapshots;
   applyStatusPalette();
   renderStats();
