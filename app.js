@@ -295,7 +295,11 @@ const defaultClientManagerState = {
   editingMode: false,
   actionVisibility: { ...defaultActionVisibility },
   customActions: [],
-  pagination: { size: 0, page: 1 }
+  pagination: { size: 0, page: 1 },
+  contactAssistant: {
+    interval: 15,
+    currentIndex: 0
+  }
 };
 
 const clientColumnWidths = {
@@ -879,6 +883,7 @@ function applyProfileData(parsed) {
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
+  clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
@@ -1233,6 +1238,9 @@ let activeNoteClientId = null;
 let activeActionClientId = null;
 let activeEditAction = null;
 let contactLogInterval = null;
+let contactAssistantTimer = null;
+let assistantRemainingSeconds = defaultClientManagerState.contactAssistant.interval;
+let assistantCycleSeconds = defaultClientManagerState.contactAssistant.interval;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
 let activeContextClientId = null;
@@ -1260,6 +1268,7 @@ clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisib
 clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
 clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
 clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
+clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
@@ -1307,6 +1316,7 @@ function init() {
     bindPriceImportActions();
     attachVehicleToggles();
     bindClientManager();
+    bindContactAssistant();
     bindActionCustomizer();
     bindCustomContextMenu();
     startContactLogTicker();
@@ -3826,6 +3836,77 @@ function bindClientManager() {
   renderColumnToggles();
 }
 
+function bindContactAssistant() {
+  const openBtn = document.getElementById('openContactAssistant');
+  const overlay = document.getElementById('contactAssistantOverlay');
+  const closeBtn = document.getElementById('closeContactAssistant');
+  const prevBtn = document.getElementById('assistantPrev');
+  const nextBtn = document.getElementById('assistantNext');
+  const extendBtn = document.getElementById('assistantExtend');
+  const intervalInput = document.getElementById('assistantInterval');
+  const copyPhoneBtn = document.getElementById('assistantCopyPhone');
+  const copyMsgBtn = document.getElementById('assistantCopyMessage');
+
+  const openAssistant = () => {
+    renderContactAssistant();
+    startContactAssistantTimer();
+    toggleFadeOverlay(overlay, true);
+  };
+
+  const closeAssistant = () => {
+    stopContactAssistantTimer();
+    toggleFadeOverlay(overlay, false);
+  };
+
+  if (openBtn) openBtn.addEventListener('click', openAssistant);
+  if (closeBtn) closeBtn.addEventListener('click', closeAssistant);
+
+  if (prevBtn) prevBtn.addEventListener('click', () => {
+    moveAssistant(-1, 'slide-right');
+    assistantRemainingSeconds = assistantCycleSeconds;
+    updateAssistantCountdownUI(pendingClientsPool());
+    persist();
+  });
+
+  if (nextBtn) nextBtn.addEventListener('click', () => {
+    moveAssistant(1, 'slide-left');
+    assistantRemainingSeconds = assistantCycleSeconds;
+    updateAssistantCountdownUI(pendingClientsPool());
+    persist();
+  });
+
+  if (extendBtn) extendBtn.addEventListener('click', () => {
+    assistantRemainingSeconds += 15;
+    assistantCycleSeconds += 15;
+    updateAssistantCountdownUI(pendingClientsPool());
+  });
+
+  if (intervalInput) {
+    intervalInput.value = clientManagerState.contactAssistant?.interval || defaultClientManagerState.contactAssistant.interval;
+    intervalInput.addEventListener('change', () => {
+      const seconds = Math.min(180, Math.max(5, Number(intervalInput.value) || defaultClientManagerState.contactAssistant.interval));
+      clientManagerState.contactAssistant.interval = seconds;
+      assistantCycleSeconds = seconds;
+      assistantRemainingSeconds = seconds;
+      persist();
+      updateAssistantCountdownUI(pendingClientsPool());
+    });
+  }
+
+  if (copyPhoneBtn) copyPhoneBtn.addEventListener('click', () => {
+    const { current } = assistantContext();
+    if (!current) return;
+    copyText(normalizePhone(current.phone || ''), 'Número copiado');
+  });
+
+  if (copyMsgBtn) copyMsgBtn.addEventListener('click', () => {
+    const { current } = assistantContext();
+    if (!current) return;
+    const message = buildMessageForClient(current);
+    copyText(message, 'Mensaje copiado');
+  });
+}
+
 function bindActionCustomizer() {
   const openBtn = document.getElementById('openActionCustomizer');
   const closeBtn = document.getElementById('closeActionCustomizer');
@@ -6259,6 +6340,133 @@ function filteredManagerClients() {
   });
 }
 
+function normalizeContactAssistantState() {
+  const current = clientManagerState.contactAssistant || {};
+  const interval = Math.min(180, Math.max(5, Number(current.interval) || defaultClientManagerState.contactAssistant.interval));
+  const currentIndex = Math.max(0, Number(current.currentIndex) || 0);
+  clientManagerState.contactAssistant = { interval, currentIndex };
+  return clientManagerState.contactAssistant;
+}
+
+function pendingClientsPool() {
+  return managerClients.filter(client => clientStatus(client).className === 'status-pending');
+}
+
+function assistantContext() {
+  const state = normalizeContactAssistantState();
+  const pending = pendingClientsPool();
+  if (!pending.length) {
+    return { pending, current: null, index: 0, state };
+  }
+  const index = Math.min(state.currentIndex, pending.length - 1);
+  clientManagerState.contactAssistant.currentIndex = index;
+  return { pending, current: pending[index], index, state };
+}
+
+function updateAssistantCountdownUI(pending = []) {
+  const countdown = document.getElementById('assistantCountdown');
+  const progress = document.getElementById('assistantProgress');
+  const helper = document.getElementById('assistantHelper');
+  if (!countdown || !progress || !helper) return;
+  if (!pending.length) {
+    countdown.textContent = '--';
+    progress.style.transform = 'scaleX(0)';
+    helper.textContent = 'No hay clientes pendientes para contactar.';
+    return;
+  }
+  const remaining = Math.max(0, Math.round(assistantRemainingSeconds));
+  countdown.textContent = `${remaining}s`;
+  const ratio = assistantCycleSeconds ? Math.max(0, Math.min(1, assistantRemainingSeconds / assistantCycleSeconds)) : 0;
+  progress.style.transform = `scaleX(${ratio})`;
+}
+
+function resetAssistantTiming(baseSeconds = null, pending = []) {
+  const state = normalizeContactAssistantState();
+  const seconds = baseSeconds !== null ? baseSeconds : state.interval;
+  assistantCycleSeconds = Math.min(180, Math.max(5, Number(seconds) || state.interval));
+  assistantRemainingSeconds = assistantCycleSeconds;
+  updateAssistantCountdownUI(pending);
+}
+
+function stopContactAssistantTimer() {
+  if (contactAssistantTimer) clearInterval(contactAssistantTimer);
+  contactAssistantTimer = null;
+}
+
+function startContactAssistantTimer() {
+  stopContactAssistantTimer();
+  const { pending } = assistantContext();
+  if (!pending.length) {
+    updateAssistantCountdownUI([]);
+    return;
+  }
+  resetAssistantTiming(clientManagerState.contactAssistant.interval, pending);
+  contactAssistantTimer = setInterval(() => {
+    assistantRemainingSeconds -= 1;
+    if (assistantRemainingSeconds <= 0) {
+      moveAssistant(1, 'slide-left', true);
+    } else {
+      updateAssistantCountdownUI(pendingClientsPool());
+    }
+  }, 1000);
+}
+
+function moveAssistant(step = 1, direction = 'slide-left', skipPersist = false) {
+  const { pending, state } = assistantContext();
+  if (!pending.length) {
+    stopContactAssistantTimer();
+    renderContactAssistant();
+    return;
+  }
+  const len = pending.length;
+  const nextIndex = ((state.currentIndex + step) % len + len) % len;
+  clientManagerState.contactAssistant.currentIndex = nextIndex;
+  if (!skipPersist) persist();
+  assistantRemainingSeconds = assistantCycleSeconds;
+  renderContactAssistant(direction);
+}
+
+function renderContactAssistant(direction = '') {
+  const overlay = document.getElementById('contactAssistantOverlay');
+  const card = document.getElementById('contactAssistantCard');
+  const name = document.getElementById('assistantClientName');
+  const phone = document.getElementById('assistantClientPhone');
+  const messagePreview = document.getElementById('assistantMessagePreview');
+  const intervalInput = document.getElementById('assistantInterval');
+  const { pending, current, index, state } = assistantContext();
+  const buttons = ['assistantPrev', 'assistantNext', 'assistantCopyPhone', 'assistantCopyMessage', 'assistantExtend'].map(id => document.getElementById(id));
+  if (!overlay || !card || !name || !phone || !messagePreview || !intervalInput) return;
+
+  intervalInput.value = state.interval;
+
+  if (!pending.length || !current) {
+    name.textContent = 'Sin pendientes';
+    phone.textContent = '-';
+    messagePreview.textContent = 'No hay clientes pendientes para contactar.';
+    buttons.forEach(btn => btn && (btn.disabled = true));
+    updateAssistantCountdownUI([]);
+    return;
+  }
+
+  buttons.forEach(btn => btn && (btn.disabled = false));
+
+  if (direction) {
+    card.classList.remove('slide-left', 'slide-right');
+    void card.offsetWidth;
+    card.classList.add(direction);
+    setTimeout(() => card.classList.remove('slide-left', 'slide-right'), 240);
+  }
+
+  name.textContent = current.name || 'Sin nombre';
+  phone.textContent = normalizePhone(current.phone || '') || 'Sin número';
+  const fullMessage = buildMessageForClient(current);
+  messagePreview.textContent = fullMessage || 'No hay plantilla inicial disponible.';
+
+  const helper = document.getElementById('assistantHelper');
+  if (helper) helper.textContent = `${index + 1} de ${pending.length} pendientes.`;
+  updateAssistantCountdownUI(pending);
+}
+
 function paginateClients(rows = []) {
   const pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
   clientManagerState.pagination = pagination;
@@ -6405,6 +6613,11 @@ function renderClientManager() {
   }
   renderPaginationControls(pagination);
   renderContactLog();
+  const assistantOverlay = document.getElementById('contactAssistantOverlay');
+  if (assistantOverlay?.classList.contains('show')) {
+    renderContactAssistant();
+    updateAssistantCountdownUI(pendingClientsPool());
+  }
 }
 
 function getCustomActionById(id) {
@@ -7473,6 +7686,7 @@ function syncFromStorage() {
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
+  clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);

@@ -450,6 +450,7 @@
               <div class="flex-spacer"></div>
               <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
               <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
+              <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Asistente de Contactos</button>
               <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
             </div>
           </div>
@@ -634,6 +635,63 @@
         <button class="ghost-btn icon-only" id="clientActionClose"><i class='bx bx-x'></i></button>
       </div>
       <div class="action-grid" id="clientActionList"></div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="contactAssistantOverlay">
+    <div class="popover assistant" id="contactAssistantPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Ronda de pendientes</p>
+          <h3>Asistente de Contactos</h3>
+          <p class="muted subtle">Recorre automáticamente los clientes pendientes con atajos listos.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeContactAssistant"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="assistant-shell">
+        <div class="assistant-client" id="contactAssistantCard">
+          <p class="eyebrow">Próximo Cliente a Contactar</p>
+          <h3 id="assistantClientName">-</h3>
+          <div class="assistant-info">
+            <div class="info-row">
+              <div>
+                <p class="muted tiny">Celular</p>
+                <strong id="assistantClientPhone">-</strong>
+              </div>
+              <button class="glow-btn icon-only" id="assistantCopyPhone" title="Copiar celular"><i class='bx bx-copy'></i></button>
+            </div>
+            <div class="info-row">
+              <div>
+                <p class="muted tiny">Mensaje</p>
+                <p class="muted" id="assistantMessagePreview"></p>
+              </div>
+              <button class="glow-btn icon-only" id="assistantCopyMessage" title="Copiar mensaje"><i class='bx bx-message-square-dots'></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="assistant-controls">
+          <div class="timer-box">
+            <div class="timer-head">
+              <span>Pasando al próximo Cliente en: <strong id="assistantCountdown">--</strong></span>
+              <button class="secondary-btn mini" id="assistantExtend"><i class='bx bx-plus-circle'></i>Extender Tiempo (+15s)</button>
+            </div>
+            <div class="progress-bar">
+              <div id="assistantProgress"></div>
+            </div>
+          </div>
+          <div class="assistant-footer">
+            <button class="ghost-btn icon-only" id="assistantPrev"><i class='bx bx-chevron-left'></i></button>
+            <div class="speed-control">
+              <label for="assistantInterval">Tiempo para clientes</label>
+              <div class="speed-input">
+                <input type="number" id="assistantInterval" min="5" max="180" step="1" />
+                <span class="muted tiny">segundos</span>
+              </div>
+            </div>
+            <button class="ghost-btn icon-only" id="assistantNext"><i class='bx bx-chevron-right'></i></button>
+          </div>
+          <p class="muted tiny center" id="assistantHelper"></p>
+        </div>
+      </div>
     </div>
   </div>
   <div class="modal hidden" id="clientEditModal">
