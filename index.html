@@ -818,6 +818,38 @@
       </div>
     </div>
   </div>
+  <div id="headerMappingOverlay" class="popover-overlay fade">
+    <div class="header-mapping-panel">
+      <div class="mapping-head">
+        <div>
+          <p class="eyebrow">Importación flexible</p>
+          <h3>Hace falta adaptar y relacionar algunas cosas para continuar...</h3>
+          <p class="muted" id="headerMappingHelper">Revisa los cabezales detectados y asígnalos al campo correcto o ignóralos.</p>
+        </div>
+        <button id="headerMappingClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="mapping-body">
+        <div class="mapping-columns">
+          <div class="mapping-scroll" id="headerMappingList"></div>
+        </div>
+        <aside class="mapping-summary">
+          <div class="summary-head">
+            <p class="eyebrow">Cabezales requeridos</p>
+            <h4>Estado de vinculación</h4>
+            <p class="muted tiny">Los campos principales deben estar vinculados. El resto puede ignorarse.</p>
+          </div>
+          <ul id="headerMappingStatus" class="mapping-status"></ul>
+        </aside>
+      </div>
+      <div class="mapping-actions">
+        <span class="muted tiny">Selecciona a qué campo corresponde cada columna o márcala como ignorada.</span>
+        <div class="actions end">
+          <button id="headerMappingCancel" class="ghost-btn">Cancelar</button>
+          <button id="headerMappingConfirm" class="primary-btn"><i class='bx bx-check'></i>Aplicar mapeo</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="dateFilterModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-head">
