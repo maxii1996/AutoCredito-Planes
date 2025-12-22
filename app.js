@@ -3466,15 +3466,8 @@ function buildProposalPayload() {
 function applyProposalPayloadToSheet(sheet, payload) {
   if (!sheet) return;
   const setCell = (addr, value) => {
-    const existing = sheet[addr] || {};
     const isNumber = typeof value === 'number' && Number.isFinite(value);
-    const cell = {
-      ...existing,
-      t: isNumber ? 'n' : (existing.t || 's'),
-      v: value ?? ''
-    };
-    if (isNumber && cell.w) delete cell.w;
-    sheet[addr] = cell;
+    sheet[addr] = { t: isNumber ? 'n' : 's', v: value ?? '' };
   };
   const formatDate = formatDateForDisplay(payload.dueDate) || payload.dueDate || '';
   setCell('B2', payload.clientName || '');
