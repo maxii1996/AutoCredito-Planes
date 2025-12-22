@@ -6,7 +6,51 @@ const panelTitles = {
   templates: 'Plantillas',
   vehicles: 'Autos y Valores',
   plans: 'Cotizaciones',
+  proposals: 'Propuestas',
   clientManager: 'Gestor de Clientes'
+};
+
+const baseGlobalSettings = {
+  advisorName: 'Chevrolet Argentina',
+  clientType: '',
+  statusPalette: {
+    contacted: { color: '#34d399', opacity: 0.16 },
+    noNumber: { color: '#f87171', opacity: 0.16 },
+    favorite: { color: '#f6b04b', opacity: 0.16 },
+    pending: { color: '#9fb1c5', opacity: 0.14 }
+  }
+};
+
+const defaultProposalState = {
+  clientName: '',
+  advisor: baseGlobalSettings.advisorName,
+  phone: '',
+  dni: '',
+  cuil: '',
+  locality: '',
+  postalCode: '',
+  patent: '',
+  kms: '',
+  clientNotes: '',
+  vehicleUsed: '',
+  usedVersion: '',
+  newVehicle: '',
+  newVersion: '',
+  approvedQuote: '',
+  notes: '',
+  proposalNumber: '',
+  dueDate: '',
+  sourceId: '',
+  totals: {
+    payOne: 0,
+    payThree: 0,
+    rangeA: 0,
+    rangeB: 0,
+    rangeC: 0,
+    cuotaPura: 0
+  },
+  rangeCounts: { rangeA: 11, rangeB: 9, rangeC: 63 },
+  sourceLabel: ''
 };
 
 const defaultUiState = {
@@ -15,16 +59,8 @@ const defaultUiState = {
   planDraft: {},
   quoteSearch: '',
   toggles: { showReservations: true, showIntegration: true },
-  globalSettings: {
-    advisorName: 'Chevrolet Argentina',
-    clientType: '',
-    statusPalette: {
-      contacted: { color: '#34d399', opacity: 0.16 },
-      noNumber: { color: '#f87171', opacity: 0.16 },
-      favorite: { color: '#f6b04b', opacity: 0.16 },
-      pending: { color: '#9fb1c5', opacity: 0.14 }
-    }
-  },
+  globalSettings: baseGlobalSettings,
+  proposal: { ...defaultProposalState },
   advisorNote: ''
 };
 
@@ -879,6 +915,8 @@ function applyProfileData(parsed) {
   managerClients = parsed.managerClients || [];
   snapshots = parsed.snapshots || [];
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
+  uiState.proposal = mergeProposalState(uiState.proposal);
+  proposalState = uiState.proposal;
   clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
@@ -900,6 +938,7 @@ function applyProfileData(parsed) {
   renderVehicleTable();
   renderTemplates();
   renderPlanForm();
+  renderProposals();
   renderClients();
   renderClientManager();
   renderGlobalSettings();
@@ -1011,6 +1050,19 @@ function mergeGlobalSettings(current = {}) {
       pending: { ...base.statusPalette.pending, ...(palette.pending || {}) }
     }
   };
+}
+
+function mergeProposalState(current = {}) {
+  const base = { ...defaultProposalState };
+  const merged = {
+    ...base,
+    ...current,
+    totals: { ...base.totals, ...(current.totals || {}) },
+    rangeCounts: { ...base.rangeCounts, ...(current.rangeCounts || {}) }
+  };
+  merged.dueDate = merged.dueDate || formatLocalISO(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  merged.advisor = merged.advisor || baseGlobalSettings.advisorName;
+  return merged;
 }
 
 function parseExcelDate(value) {
@@ -1229,6 +1281,8 @@ let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
+uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
+uiState.proposal = mergeProposalState(uiState.proposal);
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
@@ -1240,7 +1294,11 @@ let activeEditAction = null;
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
+let proposalState = uiState.proposal;
 let activeContextClientId = null;
+let proposalTemplateBuffer = null;
+let proposalWorkbookCache = null;
+let proposalPreviewBusy = false;
 
 function upgradePriceTabsFromLegacy() {
   const storedTabs = load('priceTabs');
@@ -1272,6 +1330,8 @@ uiState.clientSearch = uiState.clientSearch || '';
 uiState.quoteSearch = uiState.quoteSearch || '';
 uiState.profileSearch = uiState.profileSearch || '';
 uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
+uiState.proposal = mergeProposalState(uiState.proposal);
+proposalState = uiState.proposal;
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
 uiState.variableValues = uiState.variableValues || {};
@@ -1299,10 +1359,12 @@ function init() {
     renderPriceTabs();
     renderVehicleTable();
     renderPlanForm();
+    renderProposals();
     renderClients();
     renderClientManager();
     renderGlobalSettings();
     renderSnapshots();
+    bindProposalActions();
     bindNoteModal();
     bindClientPicker();
     bindQuoteModal();
@@ -1342,6 +1404,9 @@ function activatePanel(targetId) {
   if (targetId === 'plans') {
     enforceLatestPriceTab({ silent: true });
     updatePlanSummary();
+  } else if (targetId === 'proposals') {
+    renderProposals();
+    refreshProposalPreview({ silent: true });
   }
 }
 
@@ -3331,6 +3396,499 @@ function closeInstallmentModal() {
   setTimeout(() => modal.classList.add('hidden'), 180);
 }
 
+async function loadProposalTemplate() {
+  if (proposalTemplateBuffer) return proposalTemplateBuffer;
+  const status = document.getElementById('proposalPreviewStatus');
+  if (status) status.textContent = 'Cargando plantilla base...';
+  const response = await fetch('PlantillaCotizaciones.xlsx');
+  if (!response.ok) throw new Error('No se pudo cargar la plantilla base');
+  proposalTemplateBuffer = await response.arrayBuffer();
+  return proposalTemplateBuffer;
+}
+
+function computeProposalRangeCounts(totalInstallments = 120) {
+  const total = Number.isFinite(Number(totalInstallments)) ? Number(totalInstallments) : 120;
+  const rangeA = Math.max(Math.min(12, total) - 1, 0);
+  const rangeB = total >= 13 ? Math.max(Math.min(21, total) - 12, 0) : 0;
+  const upperC = Math.max(total, 21);
+  const rangeC = upperC > 21 ? upperC - 21 : 0;
+  return { rangeA, rangeB, rangeC };
+}
+
+function generateProposalNumber() {
+  const now = new Date();
+  const parts = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0')
+  ];
+  return `PRO-${parts.join('')}`;
+}
+
+function buildClientNotesSnapshot(client = {}, draft = {}) {
+  const parts = [];
+  if (client.model) parts.push(`Modelo actual: ${client.model}`);
+  if (client.city) parts.push(`Localidad: ${client.city}`);
+  if (client.phone) parts.push(`Tel: ${normalizePhone(client.phone)}`);
+  if (draft.notes) parts.push(draft.notes);
+  return parts.join(' · ');
+}
+
+function buildProposalPayload() {
+  const totals = proposalState.totals || defaultProposalState.totals;
+  const detectedCounts = computeProposalRangeCounts(lastPlanProjection?.totalInstallments || 120);
+  const rangeCounts = {
+    rangeA: Number.isFinite(proposalState.rangeCounts?.rangeA) ? proposalState.rangeCounts.rangeA : detectedCounts.rangeA,
+    rangeB: Number.isFinite(proposalState.rangeCounts?.rangeB) ? proposalState.rangeCounts.rangeB : detectedCounts.rangeB,
+    rangeC: Number.isFinite(proposalState.rangeCounts?.rangeC) ? proposalState.rangeCounts.rangeC : detectedCounts.rangeC
+  };
+  const dueDate = proposalState.dueDate || formatLocalISO(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  const proposalNumber = proposalState.proposalNumber || generateProposalNumber();
+  const fallbackNotes = [
+    proposalState.clientName,
+    proposalState.phone ? `Tel: ${proposalState.phone}` : '',
+    proposalState.locality ? `Localidad: ${proposalState.locality}` : ''
+  ].filter(Boolean).join(' · ');
+  const clientNotes = proposalState.clientNotes || fallbackNotes;
+  return {
+    ...proposalState,
+    totals: { ...totals },
+    rangeCounts,
+    dueDate,
+    proposalNumber,
+    clientNotes,
+    payThreeEach: totals.payThree ? totals.payThree / 3 : 0
+  };
+}
+
+function applyProposalPayloadToSheet(sheet, payload) {
+  if (!sheet) return;
+  const setCell = (addr, value) => {
+    const isNumber = typeof value === 'number' && Number.isFinite(value);
+    sheet[addr] = { t: isNumber ? 'n' : 's', v: value ?? '' };
+  };
+  const formatDate = formatDateForDisplay(payload.dueDate) || payload.dueDate || '';
+  setCell('B2', payload.clientName || '');
+  setCell('B3', payload.advisor || '');
+  setCell('B4', payload.clientNotes || '');
+  setCell('E4', payload.phone || '');
+  setCell('E5', payload.dni || '');
+  setCell('I5', payload.locality || '');
+  setCell('E6', payload.cuil || '');
+  setCell('I6', payload.postalCode || '');
+  setCell('B7', payload.vehicleUsed || '');
+  setCell('E7', payload.usedVersion || '');
+  setCell('B8', payload.patent || '');
+  setCell('I8', payload.kms || '');
+  setCell('B9', payload.approvedQuote || '');
+  setCell('B10', payload.newVehicle || '');
+  setCell('E10', payload.newVersion || '');
+  setCell('B13', payload.totals.payOne || 0);
+  setCell('E13', payload.totals.payOne || 0);
+  setCell('H13', payload.totals.payOne || 0);
+  setCell('B14', payload.totals.payThree || 0);
+  setCell('E14', payload.payThreeEach || 0);
+  setCell('H14', payload.totals.payThree || 0);
+  setCell('B15', payload.totals.rangeA || 0);
+  setCell('E15', payload.totals.rangeA || 0);
+  setCell('H15', (payload.totals.rangeA || 0) * (payload.rangeCounts.rangeA || 0));
+  setCell('B16', payload.totals.rangeB || 0);
+  setCell('E16', payload.totals.rangeB || 0);
+  setCell('H16', (payload.totals.rangeB || 0) * (payload.rangeCounts.rangeB || 0));
+  setCell('B17', payload.totals.rangeC || 0);
+  setCell('E17', payload.totals.rangeC || 0);
+  setCell('H17', (payload.totals.rangeC || 0) * (payload.rangeCounts.rangeC || 0));
+  setCell('B19', payload.totals.cuotaPura || 0);
+  setCell('B21', payload.notes || '');
+  setCell('B37', payload.proposalNumber || '');
+  setCell('F37', payload.sourceLabel || payload.proposalNumber || '');
+  setCell('H37', formatDate);
+}
+
+async function buildProposalWorkbook() {
+  const buffer = await loadProposalTemplate();
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const payload = buildProposalPayload();
+  applyProposalPayloadToSheet(sheet, payload);
+  proposalWorkbookCache = workbook;
+  return workbook;
+}
+
+async function refreshProposalPreview({ silent } = {}) {
+  const preview = document.getElementById('proposalSheetPreview');
+  const status = document.getElementById('proposalPreviewStatus');
+  if (!preview) return;
+  try {
+    proposalPreviewBusy = true;
+    if (status) status.textContent = 'Generando vista previa...';
+    const workbook = await buildProposalWorkbook();
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const html = XLSX.utils.sheet_to_html(sheet, { id: 'proposalSheet', editable: false });
+    preview.innerHTML = html;
+    if (status) status.textContent = 'Vista previa actualizada.';
+  } catch (err) {
+    console.error('No se pudo generar la vista previa de propuestas', err);
+    if (status) status.textContent = 'No se pudo renderizar la plantilla.';
+    if (!silent) showToast('No se pudo generar la vista previa.', 'error');
+    preview.innerHTML = '<p class="muted tiny">No se pudo generar la vista previa. Revisa los datos cargados.</p>';
+  } finally {
+    proposalPreviewBusy = false;
+  }
+}
+
+function renderProposalSourceOptions() {
+  const select = document.getElementById('proposalSource');
+  if (!select) return;
+  const options = [
+    { value: '', label: 'Selecciona un cliente o cotización guardada' },
+    ...managerClients.map(c => ({
+      value: `client:${c.id}`,
+      label: `Cliente: ${c.name || 'Sin nombre'}${c.model ? ' · ' + c.model : ''}`
+    })),
+    ...clients.map(c => ({
+      value: `quote:${c.id}`,
+      label: `Cotización: ${c.name || 'Sin nombre'}${c.model ? ' · ' + c.model : ''}`
+    }))
+  ];
+  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+  if (proposalState.sourceId && options.some(opt => opt.value === proposalState.sourceId)) {
+    select.value = proposalState.sourceId;
+  } else {
+    select.value = '';
+  }
+}
+
+function renderProposals() {
+  renderProposalSourceOptions();
+  const fields = [
+    { id: 'proposalClient', key: 'clientName' },
+    { id: 'proposalAdvisor', key: 'advisor' },
+    { id: 'proposalPhone', key: 'phone' },
+    { id: 'proposalDni', key: 'dni' },
+    { id: 'proposalCuil', key: 'cuil' },
+    { id: 'proposalLocality', key: 'locality' },
+    { id: 'proposalPostal', key: 'postalCode' },
+    { id: 'proposalPatent', key: 'patent' },
+    { id: 'proposalKms', key: 'kms' },
+    { id: 'proposalUsedVehicle', key: 'vehicleUsed' },
+    { id: 'proposalUsedVersion', key: 'usedVersion' },
+    { id: 'proposalNewVehicle', key: 'newVehicle' },
+    { id: 'proposalNewVersion', key: 'newVersion' },
+    { id: 'proposalApprovedQuote', key: 'approvedQuote' },
+    { id: 'proposalNotes', key: 'notes' },
+    { id: 'proposalNumber', key: 'proposalNumber' }
+  ];
+  fields.forEach(({ id, key }) => {
+    const el = document.getElementById(id);
+    if (el && el.value !== (proposalState[key] || '')) el.value = proposalState[key] || '';
+  });
+  const due = document.getElementById('proposalDueDate');
+  if (due) {
+    const value = proposalState.dueDate || formatLocalISO(new Date());
+    if (due.value !== value) due.value = value;
+  }
+  const moneyFields = [
+    { id: 'proposalPayOne', key: 'payOne' },
+    { id: 'proposalPayThree', key: 'payThree' },
+    { id: 'proposalRangeA', key: 'rangeA' },
+    { id: 'proposalRangeB', key: 'rangeB' },
+    { id: 'proposalRangeC', key: 'rangeC' },
+    { id: 'proposalCuotaPura', key: 'cuotaPura' }
+  ];
+  moneyFields.forEach(({ id, key }) => {
+    const el = document.getElementById(id);
+    if (el) setMoneyValue(el, proposalState.totals?.[key] || 0);
+  });
+  if (document.getElementById('proposals')?.classList.contains('active') && !proposalPreviewBusy) {
+    refreshProposalPreview({ silent: true });
+  }
+}
+
+function bindProposalActions() {
+  const fields = [
+    { id: 'proposalClient', key: 'clientName' },
+    { id: 'proposalAdvisor', key: 'advisor' },
+    { id: 'proposalPhone', key: 'phone' },
+    { id: 'proposalDni', key: 'dni' },
+    { id: 'proposalCuil', key: 'cuil' },
+    { id: 'proposalLocality', key: 'locality' },
+    { id: 'proposalPostal', key: 'postalCode' },
+    { id: 'proposalPatent', key: 'patent' },
+    { id: 'proposalKms', key: 'kms' },
+    { id: 'proposalUsedVehicle', key: 'vehicleUsed' },
+    { id: 'proposalUsedVersion', key: 'usedVersion' },
+    { id: 'proposalNewVehicle', key: 'newVehicle' },
+    { id: 'proposalNewVersion', key: 'newVersion' },
+    { id: 'proposalApprovedQuote', key: 'approvedQuote' },
+    { id: 'proposalNotes', key: 'notes' },
+    { id: 'proposalNumber', key: 'proposalNumber' }
+  ];
+  fields.forEach(({ id, key }) => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.bound) return;
+    el.addEventListener('input', () => {
+      proposalState[key] = el.value;
+      persist();
+      if (document.getElementById('proposals')?.classList.contains('active')) {
+        refreshProposalPreview({ silent: true });
+      }
+    });
+    el.dataset.bound = 'true';
+  });
+  const due = document.getElementById('proposalDueDate');
+  if (due && !due.dataset.bound) {
+    due.addEventListener('change', () => {
+      proposalState.dueDate = due.value || formatLocalISO(new Date());
+      persist();
+      refreshProposalPreview({ silent: true });
+    });
+    due.dataset.bound = 'true';
+  }
+  const moneyFields = [
+    { id: 'proposalPayOne', key: 'payOne' },
+    { id: 'proposalPayThree', key: 'payThree' },
+    { id: 'proposalRangeA', key: 'rangeA' },
+    { id: 'proposalRangeB', key: 'rangeB' },
+    { id: 'proposalRangeC', key: 'rangeC' },
+    { id: 'proposalCuotaPura', key: 'cuotaPura' }
+  ];
+  moneyFields.forEach(({ id, key }) => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.moneyBound) return;
+    bindMoneyInput(el, (value) => {
+      proposalState.totals[key] = value || 0;
+      persist();
+      if (document.getElementById('proposals')?.classList.contains('active')) {
+        refreshProposalPreview({ silent: true });
+      }
+    });
+    el.dataset.moneyBound = 'true';
+  });
+  const refreshBtn = document.getElementById('proposalRefresh');
+  if (refreshBtn && !refreshBtn.dataset.bound) {
+    refreshBtn.addEventListener('click', () => refreshProposalPreview());
+    refreshBtn.dataset.bound = 'true';
+  }
+  const fromPlan = document.getElementById('proposalFromPlan');
+  if (fromPlan && !fromPlan.dataset.bound) {
+    fromPlan.addEventListener('click', applyPlanToProposal);
+    fromPlan.dataset.bound = 'true';
+  }
+  const fromClientBtn = document.getElementById('proposalFromClient');
+  if (fromClientBtn && !fromClientBtn.dataset.bound) {
+    fromClientBtn.addEventListener('click', () => {
+      if (!managerClients.length) {
+        showToast('No hay clientes importados aún.', 'error');
+        return;
+      }
+      const candidate = managerClients.find(c => c.id === selectedPlanClientId) || managerClients[0];
+      applyClientToProposal(candidate);
+    });
+    fromClientBtn.dataset.bound = 'true';
+  }
+  const applySource = document.getElementById('proposalApplySource');
+  if (applySource && !applySource.dataset.bound) {
+    applySource.addEventListener('click', handleProposalSourceSelection);
+    applySource.dataset.bound = 'true';
+  }
+  const exportPng = document.getElementById('proposalExportPng');
+  if (exportPng && !exportPng.dataset.bound) {
+    exportPng.addEventListener('click', () => exportProposal('png'));
+    exportPng.dataset.bound = 'true';
+  }
+  const exportPdf = document.getElementById('proposalExportPdf');
+  if (exportPdf && !exportPdf.dataset.bound) {
+    exportPdf.addEventListener('click', () => exportProposal('pdf'));
+    exportPdf.dataset.bound = 'true';
+  }
+  const exportExcel = document.getElementById('proposalExportExcel');
+  if (exportExcel && !exportExcel.dataset.bound) {
+    exportExcel.addEventListener('click', () => exportProposal('excel'));
+    exportExcel.dataset.bound = 'true';
+  }
+}
+
+function applyClientToProposal(client) {
+  if (!client) {
+    showToast('No se encontró el cliente seleccionado.', 'error');
+    return;
+  }
+  const draft = uiState.planDraft || {};
+  const notes = buildClientNotesSnapshot(client, draft);
+  Object.assign(proposalState, {
+    clientName: client.name || proposalState.clientName,
+    phone: normalizePhone(client.phone) || proposalState.phone,
+    dni: client.document || proposalState.dni,
+    cuil: client.cuit || proposalState.cuil,
+    locality: client.city || client.province || proposalState.locality,
+    postalCode: client.postalCode || proposalState.postalCode,
+    patent: client.plate || client.patent || proposalState.patent,
+    kms: client.kms || client.km || client.kilometers || proposalState.kms,
+    vehicleUsed: client.model || proposalState.vehicleUsed,
+    usedVersion: client.version || proposalState.usedVersion,
+    clientNotes: notes || proposalState.clientNotes,
+    sourceId: `client:${client.id}`,
+    sourceLabel: client.name || 'Cliente importado'
+  });
+  persist();
+  renderProposals();
+  refreshProposalPreview({ silent: true });
+  showToast('Datos del cliente aplicados a la propuesta.', 'success');
+}
+
+function applyQuoteToProposalSource(quote) {
+  if (!quote) return;
+  const vehicle = vehicles.find(v => (v.name || '').toLowerCase() === (quote.model || '').toLowerCase()) || vehicles[0];
+  const counts = computeProposalRangeCounts(quote.totalInstallments || planTerms[quote.plan] || 120);
+  const rangeA = vehicle?.shareByPlan?.['2a12'] || quote.cuotaBase || quote.cuotaAjustada || quote.cuota || 0;
+  const rangeB = vehicle?.shareByPlan?.['13a21'] || quote.cuotaAjustada || quote.cuota || rangeA;
+  const rangeC = vehicle?.shareByPlan?.['22a84'] || vehicle?.shareByPlan?.['85a120'] || quote.cuotaAjustada || quote.cuota || rangeB;
+  Object.assign(proposalState, {
+    clientName: quote.name || proposalState.clientName,
+    newVehicle: quote.model || proposalState.newVehicle,
+    newVersion: quote.planProfileLabel || proposalState.newVersion,
+    approvedQuote: quote.basePrice ? currency.format(quote.basePrice) : proposalState.approvedQuote,
+    notes: quote.notes || proposalState.notes,
+    sourceId: `quote:${quote.id}`,
+    sourceLabel: quote.name ? `Cotización: ${quote.name}` : 'Cotización',
+    proposalNumber: proposalState.proposalNumber || generateProposalNumber(),
+    dueDate: proposalState.dueDate || formatLocalISO(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+  });
+  proposalState.totals = {
+    payOne: quote.reservation1 || proposalState.totals.payOne,
+    payThree: quote.reservation3 || proposalState.totals.payThree,
+    rangeA,
+    rangeB,
+    rangeC,
+    cuotaPura: quote.cuotaPura || quote.baseCuotaPura || proposalState.totals.cuotaPura
+  };
+  proposalState.rangeCounts = counts;
+  persist();
+  renderProposals();
+  refreshProposalPreview({ silent: true });
+  showToast('Cotización aplicada a la propuesta.', 'success');
+}
+
+function applyPlanToProposal() {
+  updatePlanSummary();
+  if (!lastPlanProjection) {
+    showToast('Primero genera la cotización en la sección de Cotizaciones.', 'error');
+    return;
+  }
+  const modelIdx = Number(document.getElementById('planModel').value || 0);
+  const vehicle = vehicles[modelIdx] || vehicles[0];
+  const draft = uiState.planDraft || {};
+  const managerClient = selectedPlanClientId ? managerClients.find(c => c.id === selectedPlanClientId) : null;
+  const counts = computeProposalRangeCounts(lastPlanProjection.totalInstallments || planTerms[getPlanTypeForVehicle(vehicle)] || 120);
+  const rangeAmounts = lastPlanProjection.rangeAmounts || {};
+  const payOne = getReservationValue('reservation1', vehicle?.reservations?.['1']);
+  const payThree = getReservationValue('reservation3', vehicle?.reservations?.['3']);
+  Object.assign(proposalState, {
+    clientName: draft.clientName || managerClient?.name || proposalState.clientName,
+    advisor: uiState.globalSettings?.advisorName || proposalState.advisor,
+    phone: normalizePhone(managerClient?.phone) || proposalState.phone,
+    dni: managerClient?.document || proposalState.dni,
+    cuil: managerClient?.cuit || proposalState.cuil,
+    locality: managerClient?.city || managerClient?.province || proposalState.locality,
+    postalCode: managerClient?.postalCode || proposalState.postalCode,
+    patent: managerClient?.plate || managerClient?.patent || proposalState.patent,
+    kms: managerClient?.kms || managerClient?.km || managerClient?.kilometers || proposalState.kms,
+    vehicleUsed: managerClient?.model || proposalState.vehicleUsed,
+    usedVersion: managerClient?.version || proposalState.usedVersion,
+    newVehicle: vehicle?.name || proposalState.newVehicle,
+    newVersion: draft.versionSelection === 'base' ? 'Versión base' : 'Versión mejorada',
+    approvedQuote: lastPlanProjection.price ? currency.format(lastPlanProjection.price) : (vehicle?.basePrice ? currency.format(vehicle.basePrice) : proposalState.approvedQuote),
+    notes: draft.notes || proposalState.notes,
+    clientNotes: buildClientNotesSnapshot(managerClient, draft) || proposalState.clientNotes,
+    proposalNumber: proposalState.proposalNumber || generateProposalNumber(),
+    dueDate: proposalState.dueDate || formatLocalISO(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+    sourceLabel: vehicle?.name ? `Plan activo: ${vehicle.name}` : proposalState.sourceLabel
+  });
+  proposalState.rangeCounts = counts;
+  proposalState.totals = {
+    payOne,
+    payThree,
+    rangeA: rangeAmounts['2a12'] ?? lastPlanProjection.cuotaAjustada ?? vehicle?.shareByPlan?.['2a12'] ?? proposalState.totals.rangeA,
+    rangeB: rangeAmounts['13a21'] ?? rangeAmounts['22a84'] ?? lastPlanProjection.cuotaAjustada ?? vehicle?.shareByPlan?.['13a21'] ?? proposalState.totals.rangeB,
+    rangeC: rangeAmounts['22a84'] ?? rangeAmounts['85a120'] ?? lastPlanProjection.cuotaAjustada ?? vehicle?.shareByPlan?.['22a84'] ?? proposalState.totals.rangeC,
+    cuotaPura: lastPlanProjection.cuotaPura || lastPlanProjection.baseCatalogCuota || vehicle?.cuotaPura || proposalState.totals.cuotaPura
+  };
+  persist();
+  renderProposals();
+  refreshProposalPreview();
+}
+
+function handleProposalSourceSelection() {
+  const select = document.getElementById('proposalSource');
+  if (!select || !select.value) {
+    showToast('Selecciona una opción para aplicar.', 'error');
+    return;
+  }
+  const [type, id] = select.value.split(':');
+  proposalState.sourceId = select.value;
+  if (type === 'client') {
+    const client = managerClients.find(c => c.id === id);
+    applyClientToProposal(client);
+  } else if (type === 'quote') {
+    const quote = clients.find(c => c.id === id);
+    applyQuoteToProposalSource(quote);
+  } else {
+    showToast('No se pudo aplicar la opción seleccionada.', 'error');
+  }
+}
+
+async function exportProposal(format = 'png') {
+  try {
+    const workbook = await buildProposalWorkbook();
+    if (format === 'excel') {
+      XLSX.writeFile(workbook, `Propuesta-${proposalState.proposalNumber || 'cliente'}.xlsx`);
+      showToast('Excel descargado con la propuesta.', 'success');
+      return;
+    }
+    const preview = document.querySelector('#proposalSheetPreview table') || document.getElementById('proposalSheetPreview');
+    if (!preview || typeof html2canvas !== 'function') {
+      showToast('No hay vista previa para exportar.', 'error');
+      return;
+    }
+    const canvas = await html2canvas(preview, { scale: 2, backgroundColor: '#f8fafc' });
+    if (format === 'png') {
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Propuesta-${proposalState.proposalNumber || 'cliente'}.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('PNG exportado correctamente.', 'success');
+      });
+      return;
+    }
+    if (format === 'pdf') {
+      if (!window.jspdf?.jsPDF) {
+        showToast('No se pudo generar el PDF.', 'error');
+        return;
+      }
+      const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pageWidth = pdf.internal.pageSize.getWidth() - 40;
+      const ratio = pageWidth / canvas.width;
+      const height = canvas.height * ratio;
+      pdf.addImage(imgData, 'PNG', 20, 20, pageWidth, height);
+      pdf.save(`Propuesta-${proposalState.proposalNumber || 'cliente'}.pdf`);
+      showToast('PDF exportado correctamente.', 'success');
+    }
+  } catch (err) {
+    console.error('No se pudo exportar la propuesta', err);
+    showToast('Hubo un problema exportando la propuesta.', 'error');
+  }
+}
+
 function buildQuoteFromForm() {
   const modelIdx = Number(document.getElementById('planModel').value || 0);
   const v = vehicles[modelIdx] || vehicles[0];
@@ -3653,6 +4211,7 @@ function renderClients() {
       });
     }
   }));
+  renderProposalSourceOptions();
 }
 
 function attachVehicleToggles() {
@@ -6518,6 +7077,7 @@ function renderClientManager() {
   }
   renderPaginationControls(pagination);
   renderContactLog();
+  renderProposalSourceOptions();
   const assistantOverlay = document.getElementById('contactAssistantOverlay');
   if (assistantOverlay?.classList.contains('show')) {
     renderContactAssistant();
@@ -7537,6 +8097,8 @@ function bindProfileActions() {
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
           uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '', globalSettings: mergeGlobalSettings(defaultUiState.globalSettings) };
+          uiState.proposal = mergeProposalState(defaultProposalState);
+          proposalState = uiState.proposal;
           clientManagerState = { ...defaultClientManagerState };
           planDraftApplied = false;
           persist();
@@ -7545,6 +8107,7 @@ function bindProfileActions() {
           renderVehicleTable();
           renderTemplates();
           renderPlanForm();
+          renderProposals();
           renderClientManager();
           renderGlobalSettings();
           renderWelcomeHero();
@@ -7559,6 +8122,7 @@ function bindProfileActions() {
 
 function persist() {
   syncActiveVehiclesToTab();
+  uiState.proposal = mergeProposalState(proposalState);
   save('priceTabs', priceTabs);
   save('activePriceTabId', activePriceTabId);
   save('vehicles', vehicles);
@@ -7590,6 +8154,8 @@ function syncFromStorage() {
   clients = load('clients') || clients;
   managerClients = load('managerClients') || managerClients;
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
+  uiState.proposal = mergeProposalState(uiState.proposal);
+  proposalState = uiState.proposal;
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
@@ -7608,6 +8174,7 @@ function syncFromStorage() {
   renderPlanForm();
   renderClients();
   renderClientManager();
+  renderProposals();
   renderGlobalSettings();
   renderSnapshots();
   startContactLogTicker();
@@ -7641,6 +8208,8 @@ function clearStorage() {
       managerClients = [];
       snapshots = [];
       uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '', globalSettings: mergeGlobalSettings(defaultUiState.globalSettings) };
+      uiState.proposal = mergeProposalState(defaultProposalState);
+      proposalState = uiState.proposal;
       clientManagerState = { ...defaultClientManagerState };
       selectedTemplateIndex = 0;
       selectedTemplateId = templates[0].id;
@@ -7650,6 +8219,7 @@ function clearStorage() {
       renderVehicleTable();
       renderTemplates();
       renderPlanForm();
+      renderProposals();
       renderClients();
       renderClientManager();
       renderWelcomeHero();
@@ -7662,4 +8232,3 @@ function clearStorage() {
     }
   });
 }
-
