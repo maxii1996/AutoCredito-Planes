@@ -1432,9 +1432,14 @@ function bindSidebarToggle() {
 function bindSettingsMenu() {
   const toggle = document.getElementById('settingsToggle');
   const panel = document.getElementById('settingsPanel');
+  const actionPanel = document.getElementById('actionMenuPanel');
   if (!toggle || !panel) return;
-  toggle.addEventListener('click', () => {
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
     panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      actionPanel?.classList.remove('open');
+    }
   });
   document.addEventListener('click', (e) => {
     if (!panel.contains(e.target) && !toggle.contains(e.target)) {
@@ -1447,10 +1452,14 @@ function bindActionMenu() {
   const toggle = document.getElementById('actionMenuToggle');
   const panel = document.getElementById('actionMenuPanel');
   const wrapper = document.getElementById('actionMenu');
+  const settingsPanel = document.getElementById('settingsPanel');
   if (!toggle || !panel || !wrapper) return;
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      settingsPanel?.classList.remove('open');
+    }
   });
   document.addEventListener('click', (e) => {
     if (!wrapper.contains(e.target)) panel.classList.remove('open');
@@ -7675,7 +7684,10 @@ function exportManagerClients() {
 }
 
 function bindProfileActions() {
-  document.getElementById('quickSnapshot').addEventListener('click', saveSnapshot);
+  const quickSnapshot = document.getElementById('quickSnapshot');
+  if (quickSnapshot) {
+    quickSnapshot.addEventListener('click', saveSnapshot);
+  }
 
   document.getElementById('exportProfile').addEventListener('click', () => {
       confirmAction({
