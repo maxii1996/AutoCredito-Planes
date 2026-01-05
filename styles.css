@@ -242,6 +242,10 @@ button, .icon-btn { cursor: pointer; }
 .tile[data-tone="green"] { border-color: rgba(52,211,153,0.4); box-shadow: 0 8px 30px rgba(52,211,153,0.12); }
 .tile:hover { transform: translateY(-2px); }
 .tile-icon { width: 44px; height: 44px; border-radius: 12px; background: #0f1725; display: grid; place-items: center; font-size: 22px; }
+.scheduled-summary-card { background: #101828; border: 1px solid var(--border); border-radius: 16px; padding: 14px; display: grid; gap: 10px; }
+.scheduled-summary-card .value { font-size: 28px; font-weight: 700; margin: 0; }
+.scheduled-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
+.scheduled-summary-row strong { color: var(--text); font-size: 16px; }
 .highlight-banner { background: linear-gradient(120deg, rgba(246,176,75,0.2), rgba(15,23,42,0.9)); border: 1px solid rgba(246,176,75,0.35); border-radius: 14px; padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: var(--shadow); }
 .highlight-banner h4 { margin: 4px 0; }
 .dashboard-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 8px; }
@@ -724,6 +728,11 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
   color: var(--accent);
   background: rgba(125, 211, 176, 0.12);
 }
+#scheduleContactPopover .bx { color: #fff; }
+#scheduleContactPopover .chip { color: var(--muted); }
+#scheduleContactPopover .chip:hover { color: #fff; }
+#scheduleContactPopover .chips .chip.active { color: #fff; }
+#scheduleContactPopover .schedule-contact-options .option-card span { color: var(--text); }
 
 .tip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 

@@ -328,6 +328,7 @@ const defaultClientManagerState = {
   dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
   selection: {},
+  exportScope: 'filtered',
   exportOptions: {
     mode: 'local',
     columnOrder: Object.keys(exportableColumns),
@@ -597,7 +598,7 @@ function showToast(message, type = 'info') {
   });
 }
 
-function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm } = {}) {
+function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm, onCancel } = {}) {
   const modal = document.getElementById('modal');
   if (!modal) return;
   modal.classList.add('show');
@@ -622,7 +623,10 @@ function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Acept
     cleanup();
     if (typeof onConfirm === 'function') onConfirm();
   };
-  cancelBtn.onclick = cleanup;
+  cancelBtn.onclick = () => {
+    cleanup();
+    if (typeof onCancel === 'function') onCancel();
+  };
   closeBtn.onclick = cleanup;
 }
 
@@ -788,65 +792,85 @@ function renderExportModal() {
 
 function openExportModal() {
   const modal = document.getElementById('exportModal');
-  if (!modal) {
-    exportManagerClients();
+  const openWithScope = (scope) => {
+    clientManagerState.exportScope = scope;
+    persist();
+    if (!modal) {
+      exportManagerClients({ scope });
+      return;
+    }
+    renderExportModal();
+    const confirmBtn = document.getElementById('exportConfirm');
+    const cancelBtn = document.getElementById('exportCancel');
+    const closeBtn = document.getElementById('exportClose');
+    const selectAllBtn = document.getElementById('exportSelectAll');
+    const modeRadios = Array.from(document.querySelectorAll('input[name="exportMode"]'));
+    const list = document.getElementById('exportColumnsList');
+
+    const close = () => toggleModal(modal, false);
+
+    if (confirmBtn) confirmBtn.onclick = () => {
+      close();
+      exportManagerClients({ scope: clientManagerState.exportScope || 'filtered' });
+    };
+    if (cancelBtn) cancelBtn.onclick = close;
+    if (closeBtn) closeBtn.onclick = close;
+
+    if (selectAllBtn) {
+      selectAllBtn.onclick = () => {
+        const allKeys = Object.keys(exportableColumns);
+        const current = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
+        const allSelected = (current.selectedColumns || []).length === allKeys.length;
+        clientManagerState.exportOptions = normalizeExportOptions({
+          ...current,
+          selectedColumns: allSelected ? [] : allKeys
+        });
+        persist();
+        renderExportModal();
+      };
+    }
+
+    modeRadios.forEach(radio => {
+      radio.onchange = () => {
+        clientManagerState.exportOptions = normalizeExportOptions({
+          ...clientManagerState.exportOptions,
+          mode: radio.value
+        });
+        persist();
+        renderExportModal();
+      };
+    });
+
+    if (list) {
+      list.onchange = (e) => {
+        const target = e.target;
+        if (target.matches('input[type="checkbox"][data-key]')) {
+          updateExportSelection(target.dataset.key, target.checked);
+        }
+      };
+      list.onclick = (e) => {
+        const btn = e.target.closest('[data-move]');
+        if (btn) {
+          moveExportColumn(btn.dataset.key, btn.dataset.move);
+        }
+      };
+    }
+
+    toggleModal(modal, true);
+  };
+
+  if (hasActiveManagerFilters()) {
+    confirmAction({
+      title: 'Exportación con filtros',
+      message: '¿Quieres exportar todo el contenido o solo lo que actualmente estás viendo?',
+      confirmText: 'Exportar todo, omitiendo los filtros.',
+      cancelText: 'Exportar manteniendo la configuración actual.',
+      onConfirm: () => openWithScope('all'),
+      onCancel: () => openWithScope('filtered')
+    });
     return;
   }
-  renderExportModal();
-  const confirmBtn = document.getElementById('exportConfirm');
-  const cancelBtn = document.getElementById('exportCancel');
-  const closeBtn = document.getElementById('exportClose');
-  const selectAllBtn = document.getElementById('exportSelectAll');
-  const modeRadios = Array.from(document.querySelectorAll('input[name="exportMode"]'));
-  const list = document.getElementById('exportColumnsList');
-
-  const close = () => toggleModal(modal, false);
-
-  if (confirmBtn) confirmBtn.onclick = () => { close(); exportManagerClients(); };
-  if (cancelBtn) cancelBtn.onclick = close;
-  if (closeBtn) closeBtn.onclick = close;
-
-  if (selectAllBtn) {
-    selectAllBtn.onclick = () => {
-      const allKeys = Object.keys(exportableColumns);
-      const current = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
-      const allSelected = (current.selectedColumns || []).length === allKeys.length;
-      clientManagerState.exportOptions = normalizeExportOptions({
-        ...current,
-        selectedColumns: allSelected ? [] : allKeys
-      });
-      persist();
-      renderExportModal();
-    };
-  }
-
-  modeRadios.forEach(radio => {
-    radio.onchange = () => {
-      clientManagerState.exportOptions = normalizeExportOptions({
-        ...clientManagerState.exportOptions,
-        mode: radio.value
-      });
-      persist();
-      renderExportModal();
-    };
-  });
-
-  if (list) {
-    list.onchange = (e) => {
-      const target = e.target;
-      if (target.matches('input[type="checkbox"][data-key]')) {
-        updateExportSelection(target.dataset.key, target.checked);
-      }
-    };
-    list.onclick = (e) => {
-      const btn = e.target.closest('[data-move]');
-      if (btn) {
-        moveExportColumn(btn.dataset.key, btn.dataset.move);
-      }
-    };
-  }
-
-  toggleModal(modal, true);
+  openWithScope(clientManagerState.exportScope || 'filtered');
 }
 
 function openDateFilterModal() {
@@ -1767,6 +1791,7 @@ function renderStats() {
   const clientCount = document.getElementById('clientCount');
   if (templateCount) templateCount.textContent = templates.length;
   if (clientCount) clientCount.textContent = clients.length + managerClients.length;
+  renderScheduledSummary();
   renderWelcomeHero();
   renderAdvisorNote();
 }
@@ -6734,6 +6759,17 @@ function filteredManagerClients() {
   });
 }
 
+function visibleManagerClients() {
+  return managerClients.filter(c => clientStatus(c).label !== 'Oculto');
+}
+
+function hasActiveManagerFilters() {
+  const search = (clientManagerState.search || '').trim();
+  const range = clientManagerState.dateRange || {};
+  const status = clientManagerState.statusFilter || 'all';
+  return !!search || !!range.from || !!range.to || (status && status !== 'all');
+}
+
 function normalizeContactAssistantState() {
   const current = clientManagerState.contactAssistant || {};
   const interval = Math.min(180, Math.max(5, Number(current.interval) || defaultClientManagerState.contactAssistant.interval));
@@ -7074,6 +7110,27 @@ function scheduledClientsList() {
     .sort((a, b) => new Date(a.scheduleAt).getTime() - new Date(b.scheduleAt).getTime());
 }
 
+function isMeaningfulLocation(value) {
+  if (!value) return false;
+  const normalized = value.toString().trim().toLowerCase();
+  return normalized !== 'sin determinar' && normalized !== 'sin determinar.';
+}
+
+function isSameLocalDay(first, second) {
+  return first.toDateString() === second.toDateString();
+}
+
+function renderScheduledSummary() {
+  const totalEl = document.getElementById('scheduledTotalCount');
+  const todayEl = document.getElementById('scheduledTodayCount');
+  if (!totalEl && !todayEl) return;
+  const scheduled = scheduledClientsList();
+  const today = new Date();
+  const todayCount = scheduled.filter(client => isSameLocalDay(new Date(client.scheduleAt), today)).length;
+  if (totalEl) totalEl.textContent = String(scheduled.length);
+  if (todayEl) todayEl.textContent = String(todayCount);
+}
+
 function updateScheduleClock() {
   const today = document.getElementById('scheduledToday');
   const now = document.getElementById('scheduledNow');
@@ -7089,6 +7146,7 @@ function renderScheduledClients() {
   if (!timeline) return;
   const scheduled = scheduledClientsList();
   if (count) count.textContent = String(scheduled.length);
+  renderScheduledSummary();
 
   if (!scheduled.length) {
     timeline.innerHTML = '<p class="muted">No hay recontactos programados todavía.</p>';
@@ -7107,8 +7165,8 @@ function renderScheduledClients() {
         : 'Mensaje de Whatsapp';
     const detailTags = [
       `<span class="schedule-tag"><i class='bx bx-phone'></i>${methodLabel}</span>`,
-      client.city ? `<span class="schedule-tag"><i class='bx bx-map'></i>${client.city}</span>` : '',
-      client.province ? `<span class="schedule-tag"><i class='bx bx-flag'></i>${client.province}</span>` : ''
+      isMeaningfulLocation(client.city) ? `<span class="schedule-tag">${client.city}</span>` : '',
+      isMeaningfulLocation(client.province) ? `<span class="schedule-tag">${client.province}</span>` : ''
     ].filter(Boolean).join('');
     const toneAttr = tone ? ` data-tone="${tone}"` : '';
     return `
@@ -7313,7 +7371,7 @@ function startContactLogTicker() {
 function startScheduleClock() {
   if (scheduleClockInterval) clearInterval(scheduleClockInterval);
   updateScheduleClock();
-  scheduleClockInterval = setInterval(updateScheduleClock, 60000);
+  scheduleClockInterval = setInterval(updateScheduleClock, 1000);
 }
 
 function bindClientEditHandlers() {
@@ -8134,8 +8192,8 @@ function buildPresetExportData(rows) {
   });
 }
 
-function exportManagerClients() {
-  const rows = filteredManagerClients();
+function exportManagerClients({ scope = 'filtered' } = {}) {
+  const rows = scope === 'all' ? visibleManagerClients() : filteredManagerClients();
   if (!rows.length) {
     showToast('No hay clientes para exportar.', 'error');
     return;
@@ -8185,7 +8243,7 @@ function bindProfileActions() {
   document.getElementById('exportProfile').addEventListener('click', () => {
       confirmAction({
         title: 'Exportar perfil',
-        message: 'Descargarás un respaldo con vehículos, plantillas y clientes.',
+        message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
         confirmText: 'Exportar',
         onConfirm: () => {
         const payload = { version: 6, vehicles, priceTabs, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
