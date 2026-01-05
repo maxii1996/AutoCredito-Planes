@@ -430,46 +430,56 @@
               </div>
             </div>
             <div class="control-bar">
-              <div class="search-group">
-                <div class="search-field compact">
-                  <i class='bx bx-search'></i>
-                  <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+              <div class="control-group primary">
+                <div class="search-group">
+                  <div class="search-field compact expandable">
+                    <i class='bx bx-search'></i>
+                    <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+                  </div>
+                  <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
                 </div>
-                <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
+                <label class="toggle" title="Agrupar registros por modelo de vehículo">
+                  <input type="checkbox" id="groupByModel" checked>
+                  <span>Agrupar por modelo</span>
+                </label>
+                <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+                  <i class='bx bx-filter-alt'></i>
+                  <div class="filter-label">
+                    <span class="muted tiny">Mostrar:</span>
+                    <strong id="statusFilterLabel">Todos</strong>
+                  </div>
+                  <select id="statusFilter">
+                    <option value="all">Todos</option>
+                    <option value="contacted">Contactado</option>
+                    <option value="no_number">Número no disponible</option>
+                    <option value="favorite">Favoritos</option>
+                    <option value="pending">Pendientes</option>
+                  </select>
+                </div>
+                <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
-              <label class="toggle" title="Agrupar registros por modelo de vehículo">
-                <input type="checkbox" id="groupByModel" checked>
-                <span>Agrupar por modelo</span>
-              </label>
-              <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+              <div class="control-group secondary">
+                <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
+                <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
+                <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Asistente de Contactos</button>
+                <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
+                <div class="field compact-field inline" id="paginationToggleField">
+                  <label for="clientPaginationSelect">Paginación</label>
+                  <select id="clientPaginationSelect">
+                    <option value="none">Desactivada</option>
+                    <option value="20">Cada 20</option>
+                    <option value="50">Cada 50</option>
+                    <option value="100">Cada 100</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="search-notice hidden" id="clientSearchNotice">
+              <div class="search-notice-text">
                 <i class='bx bx-filter-alt'></i>
-                <div class="filter-label">
-                  <span class="muted tiny">Mostrar:</span>
-                  <strong id="statusFilterLabel">Todos</strong>
-                </div>
-                <select id="statusFilter">
-                  <option value="all">Todos</option>
-                  <option value="contacted">Contactado</option>
-                  <option value="no_number">Número no disponible</option>
-                  <option value="favorite">Favoritos</option>
-                  <option value="pending">Pendientes</option>
-                </select>
+                <span>Se están mostrando los resultados de la búsqueda: <strong id="clientSearchTerm"></strong></span>
               </div>
-              <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
-              <div class="flex-spacer"></div>
-              <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
-              <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
-              <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Asistente de Contactos</button>
-              <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
-              <div class="field compact-field inline" id="paginationToggleField">
-                <label for="clientPaginationSelect">Paginación</label>
-                <select id="clientPaginationSelect">
-                  <option value="none">Desactivada</option>
-                  <option value="20">Cada 20</option>
-                  <option value="50">Cada 50</option>
-                  <option value="100">Cada 100</option>
-                </select>
-              </div>
+              <button class="ghost-btn mini" id="clientSearchReset">Restablecer</button>
             </div>
           </div>
           <div id="dateFilterHelper" class="muted tiny"></div>

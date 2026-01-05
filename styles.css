@@ -343,10 +343,12 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .variable-grid input { width: 100%; }
 .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .actions.compact { justify-content: flex-end; }
-.search-field { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; background: #0f1625; border: 1px solid var(--border); border-radius: 12px; }
+.search-field { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; background: #0f1625; border: 1px solid var(--border); border-radius: 12px; transition: width 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease; }
 .search-field input { border: none; background: transparent; padding: 6px 0; }
 .search-field input:focus { box-shadow: none; }
 .search-field.compact { padding: 6px 8px; }
+.search-field.compact.expandable { width: clamp(260px, 36vw, 520px); }
+.search-field.compact.expandable:focus-within { width: clamp(320px, 44vw, 640px); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(125, 211, 176, 0.16); }
 .search-group { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 320px; flex-wrap: wrap; }
 .plan-profile-cell { display: grid; gap: 6px; }
 .plan-profile-cell.readonly { align-items: flex-start; }
@@ -490,6 +492,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .popover.nested { max-width: 540px; }
 .popover-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .preferences-content { display: grid; gap: 16px; }
+#preferencesPanel { max-height: min(86vh, 760px); display: flex; flex-direction: column; }
+#preferencesPanel .preferences-content { overflow-y: auto; padding-right: 6px; flex: 1 1 auto; min-height: 0; }
 .preferences-section { border: 1px solid var(--border); border-radius: 14px; background: #0f1625; padding: 14px; display: grid; gap: 12px; }
 .preferences-grid { display: grid; gap: 10px; }
 .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: #0b1120; flex-wrap: wrap; }
@@ -514,10 +518,17 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .actions.end { justify-content: flex-end; }
 
 .client-controls { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 8px; }
-.control-bar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; width: 100%; }
+.control-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; width: 100%; }
+.control-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.control-group.primary { flex: 1 1 520px; min-width: 280px; }
+.control-group.secondary { flex: 1 1 360px; justify-content: flex-end; min-width: 260px; }
 .field.inline { display: grid; gap: 4px; }
 #paginationToggleField { min-width: 190px; }
 #clientPaginationBar.hidden { display: none; }
+.search-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(125, 211, 176, 0.32); background: rgba(125, 211, 176, 0.08); color: var(--text); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+.search-notice.hidden { display: none; }
+.search-notice-text { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; flex-wrap: wrap; }
+.search-notice-text i { color: var(--accent); font-size: 18px; }
 .client-controls .toggles { gap: 8px; align-items: stretch; }
 .client-controls .filter-toggle { margin-left: 0; }
 .pagination-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; margin: 6px 0; }
@@ -534,7 +545,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .combo-shell i { color: var(--muted); }
 .client-controls .search-field { flex: 1 1 220px; }
 .client-controls .search-group { flex: 1 1 320px; }
-.search-field.compact { width: clamp(240px, 40%, 520px); max-width: 40%; }
+.search-field.compact { width: clamp(240px, 40%, 520px); max-width: 100%; }
 .filter-toggle { padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; gap: 10px; color: var(--text); }
 .filter-toggle select { background: #0f1625; border: 1px solid rgba(255,255,255,0.06); color: var(--text); padding: 10px 12px; min-width: 180px; border-radius: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
 .filter-toggle select option { background: #0e1727; color: var(--text); }

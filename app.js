@@ -6431,6 +6431,30 @@ function renderDateFilterHelper() {
   }
 }
 
+function renderSearchNotice() {
+  const notice = document.getElementById('clientSearchNotice');
+  if (!notice) return;
+  const term = (clientManagerState.search || '').trim();
+  if (!term) {
+    notice.classList.add('hidden');
+    return;
+  }
+  const termLabel = document.getElementById('clientSearchTerm');
+  const resetBtn = document.getElementById('clientSearchReset');
+  if (termLabel) termLabel.textContent = `"${term}"`;
+  notice.classList.remove('hidden');
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      clientManagerState.search = '';
+      const input = document.getElementById('clientManagerSearch');
+      if (input) input.value = '';
+      clientManagerState.pagination.page = 1;
+      persist();
+      renderClientManager();
+    };
+  }
+}
+
 function clientSearchHaystack(client) {
   const status = clientStatus(client).label;
   const values = [
@@ -6632,6 +6656,7 @@ function renderClientManager() {
   if (!head || !bodyContainer) return;
   renderStatusFilter();
   renderDateFilterHelper();
+  renderSearchNotice();
 
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
   const templateColumns = [
