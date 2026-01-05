@@ -452,7 +452,7 @@
               <div class="control-group secondary">
                 <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
                 <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
-                <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Asistente de Contactos</button>
+                <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Modo Inteligente</button>
                 <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
               </div>
             </div>
@@ -607,11 +607,17 @@
         <div>
           <p class="eyebrow">Ronda de pendientes</p>
           <h3>Asistente de Contactos</h3>
-          <p class="muted subtle">Gestiona cada cliente pendiente de forma manual y ordenada.</p>
         </div>
         <button class="ghost-btn icon-only" id="closeContactAssistant"><i class='bx bx-x'></i></button>
       </div>
       <div class="assistant-shell">
+        <div class="assistant-undo hidden" id="assistantUndo">
+          <div>
+            <p class="muted tiny">El cliente anterior fue:</p>
+            <p class="assistant-undo-text">"<span id="assistantUndoName">-</span>" y ha sido marcado como: "<span id="assistantUndoStatus">-</span>".</p>
+          </div>
+          <button class="secondary-btn" id="assistantUndoBtn"><i class='bx bx-undo'></i>Deshacer esta acción</button>
+        </div>
         <div class="assistant-header">
           <p class="muted tiny">Cliente actual</p>
           <h3 id="assistantClientName">-</h3>
@@ -653,34 +659,59 @@
         </div>
         <button class="ghost-btn icon-only" id="closePreferences"><i class='bx bx-x'></i></button>
       </div>
-      <div class="preferences-content">
-        <section class="preferences-section">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Tamaño de fuente</p>
-              <h4>Campos del gestor</h4>
-              <p class="muted tiny">Cada ajuste afecta al Gestor de Clientes y al Asistente de Contactos.</p>
+      <div class="preferences-content preferences-layout">
+        <aside class="preferences-nav">
+          <button class="preferences-tab active" data-pref-tab="fonts"><i class='bx bx-font'></i> Tipografía</button>
+          <button class="preferences-tab" data-pref-tab="context"><i class='bx bx-layout'></i> Menú contextual</button>
+          <button class="preferences-tab" data-pref-tab="display"><i class='bx bx-low-vision'></i> Visualización</button>
+        </aside>
+        <div class="preferences-panels">
+          <section class="preferences-section pref-panel active" data-pref-panel="fonts">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Tamaño de fuente</p>
+                <h4>Campos del gestor</h4>
+                <p class="muted tiny">Cada ajuste afecta al Gestor de Clientes y al Asistente de Contactos.</p>
+              </div>
             </div>
-          </div>
-          <div class="preferences-grid" id="fontPreferencesList"></div>
-        </section>
-        <section class="preferences-section">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Visualización</p>
-              <h4>Celulares en formato simple</h4>
-              <p class="muted tiny">Solo afecta a la tabla y al Asistente, no al copiado.</p>
+            <div class="preferences-grid" id="fontPreferencesList"></div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="context">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Menú contextual</p>
+                <h4>Tamaño de fuente</h4>
+                <p class="muted tiny">Define cómo se muestran los textos dentro del menú contextual.</p>
+              </div>
             </div>
-          </div>
-          <div class="field">
-            <label for="phoneDisplaySelect">Visualización sencilla de celulares</label>
-            <select id="phoneDisplaySelect">
-              <option value="plain">Desactivada</option>
-              <option value="split2">Activada con separador de 2</option>
-              <option value="split3">Activada con separador de 3</option>
-            </select>
-          </div>
-        </section>
+            <div class="preferences-grid" id="contextFontPreferencesList"></div>
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Contenido visible</p>
+                <h4>Elige qué mostrar</h4>
+                <p class="muted tiny">Activa o desactiva cada dato y acción por separado.</p>
+              </div>
+            </div>
+            <div class="preferences-grid" id="contextVisibilityList"></div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="display">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Visualización</p>
+                <h4>Celulares en formato simple</h4>
+                <p class="muted tiny">Solo afecta a la tabla y al Asistente, no al copiado.</p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="phoneDisplaySelect">Visualización sencilla de celulares</label>
+              <select id="phoneDisplaySelect">
+                <option value="plain">Desactivada</option>
+                <option value="split2">Activada con separador de 2</option>
+                <option value="split3">Activada con separador de 3</option>
+              </select>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   </div>

@@ -24,7 +24,11 @@ const defaultPreferenceFontSizes = {
   systemDate: '14px',
   postalCode: '14px',
   type: '14px',
-  status: '14px'
+  status: '14px',
+  contextTitle: '16px',
+  contextSubtitle: '12px',
+  contextLabel: '14px',
+  contextMeta: '12px'
 };
 
 const defaultUiState = {
@@ -35,7 +39,8 @@ const defaultUiState = {
   toggles: { showReservations: true, showIntegration: true },
   preferences: {
     fontSizes: { ...defaultPreferenceFontSizes },
-    phoneDisplay: 'plain'
+    phoneDisplay: 'plain',
+    contextMenuVisibility: { data: {}, actions: {} }
   },
   globalSettings: {
     advisorName: 'Chevrolet Argentina',
@@ -282,6 +287,19 @@ const defaultActionCatalog = [
   { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' }
 ];
 
+const contextMenuDataCatalog = [
+  { key: 'name', label: 'Nombre' },
+  { key: 'model', label: 'Modelo del coche' },
+  { key: 'phone', label: 'Celular' },
+  { key: 'city', label: 'Localidad' },
+  { key: 'province', label: 'Provincia' },
+  { key: 'document', label: 'DNI' },
+  { key: 'cuit', label: 'CUIT' },
+  { key: 'birthDate', label: 'Fecha de nacimiento' },
+  { key: 'postalCode', label: 'Código postal' },
+  { key: 'purchaseDate', label: 'Fecha de compra' }
+];
+
 const defaultActionVisibility = Object.fromEntries(defaultActionCatalog.map(action => [action.id, true]));
 
 const presetExportHeaders = [
@@ -320,7 +338,8 @@ const defaultClientManagerState = {
   pagination: { size: 0, page: 1 },
   contactAssistant: {
     interval: 15,
-    currentIndex: 0
+    currentIndex: 0,
+    lastAction: null
   }
 };
 
@@ -1037,12 +1056,23 @@ function mergeGlobalSettings(current = {}) {
   };
 }
 
+function buildDefaultContextMenuVisibility() {
+  return {
+    data: Object.fromEntries(contextMenuDataCatalog.map(item => [item.key, true])),
+    actions: Object.fromEntries(defaultActionCatalog.map(action => [action.id, true]))
+  };
+}
+
 function mergePreferences(current = {}) {
   const base = defaultUiState.preferences;
   const fontSizes = { ...base.fontSizes, ...(current.fontSizes || {}) };
+  const defaultVisibility = buildDefaultContextMenuVisibility();
+  const dataVisibility = { ...defaultVisibility.data, ...(current.contextMenuVisibility?.data || {}) };
+  const actionVisibility = { ...defaultVisibility.actions, ...(current.contextMenuVisibility?.actions || {}) };
   return {
     fontSizes,
-    phoneDisplay: current.phoneDisplay ?? base.phoneDisplay
+    phoneDisplay: current.phoneDisplay ?? base.phoneDisplay,
+    contextMenuVisibility: { data: dataVisibility, actions: actionVisibility }
   };
 }
 
@@ -1490,51 +1520,122 @@ function preferenceFields() {
   ];
 }
 
+function contextMenuFontFields() {
+  return [
+    { key: 'contextTitle', label: 'Título principal' },
+    { key: 'contextSubtitle', label: 'Subtítulos y etiquetas' },
+    { key: 'contextLabel', label: 'Nombre de acción o dato' },
+    { key: 'contextMeta', label: 'Texto secundario' }
+  ];
+}
+
 function renderPreferencesPanel() {
   const container = document.getElementById('fontPreferencesList');
+  const contextContainer = document.getElementById('contextFontPreferencesList');
+  const visibilityContainer = document.getElementById('contextVisibilityList');
   if (!container) return;
   const prefs = mergePreferences(uiState.preferences);
-  const fields = preferenceFields();
-  container.innerHTML = fields.map(({ key, label }) => {
-    const value = Number.parseFloat(prefs.fontSizes?.[key] || defaultPreferenceFontSizes[key] || '14');
-    return `
-      <div class="preference-row" data-key="${key}">
-        <div class="preference-label">
-          <strong>${label}</strong>
-          <span class="muted tiny">Tamaño en píxeles</span>
+  const renderFontList = (target, fields) => {
+    if (!target) return;
+    target.innerHTML = fields.map(({ key, label }) => {
+      const value = Number.parseFloat(prefs.fontSizes?.[key] || defaultPreferenceFontSizes[key] || '14');
+      return `
+        <div class="preference-row" data-key="${key}">
+          <div class="preference-label">
+            <strong>${label}</strong>
+            <span class="muted tiny">Tamaño en píxeles</span>
+          </div>
+          <div class="preference-controls">
+            <input type="number" min="10" max="24" step="1" value="${Number.isFinite(value) ? value : 14}" data-pref-key="${key}">
+            <button class="ghost-btn mini" data-pref-reset="${key}">Restaurar tamaño por defecto</button>
+          </div>
         </div>
-        <div class="preference-controls">
-          <input type="number" min="10" max="24" step="1" value="${Number.isFinite(value) ? value : 14}" data-pref-key="${key}">
-          <button class="ghost-btn mini" data-pref-reset="${key}">Restaurar tamaño por defecto</button>
-        </div>
+      `;
+    }).join('');
+
+    target.querySelectorAll('[data-pref-key]').forEach(input => {
+      input.addEventListener('input', () => {
+        const key = input.dataset.prefKey;
+        if (!key) return;
+        uiState.preferences = mergePreferences(uiState.preferences);
+        uiState.preferences.fontSizes[key] = normalizeFontSize(input.value, defaultPreferenceFontSizes[key]);
+        persist();
+        applyPreferences();
+      });
+    });
+
+    target.querySelectorAll('[data-pref-reset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.prefReset;
+        if (!key) return;
+        const fallback = defaultPreferenceFontSizes[key] || '14px';
+        uiState.preferences = mergePreferences(uiState.preferences);
+        uiState.preferences.fontSizes[key] = normalizeFontSize(fallback, fallback);
+        const input = target.querySelector(`[data-pref-key="${key}"]`);
+        if (input) input.value = Number.parseFloat(uiState.preferences.fontSizes[key]);
+        persist();
+        applyPreferences();
+      });
+    });
+  };
+
+  renderFontList(container, preferenceFields());
+  renderFontList(contextContainer, contextMenuFontFields());
+
+  if (visibilityContainer) {
+    const visibility = prefs.contextMenuVisibility || { data: {}, actions: {} };
+    const dataItems = contextMenuDataCatalog.map(item => ({
+      key: item.key,
+      label: item.label,
+      checked: visibility.data?.[item.key] !== false,
+      scope: 'data'
+    }));
+    const actionItems = getAvailableActions().map(action => ({
+      key: action.actionKey,
+      label: action.label,
+      checked: visibility.actions?.[action.actionKey] !== false,
+      scope: 'actions',
+      tone: action.type === 'custom' ? 'Personalizada' : 'Predeterminada'
+    }));
+
+    visibilityContainer.innerHTML = `
+      <div class="preference-group">
+        <p class="eyebrow">Datos del cliente</p>
+        ${dataItems.map(item => `
+          <label class="toggle inline" data-visibility-key="${item.key}" data-visibility-scope="${item.scope}">
+            <input type="checkbox" ${item.checked ? 'checked' : ''}>
+            <span>${item.label}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div class="preference-group">
+        <p class="eyebrow">Acciones rápidas</p>
+        ${actionItems.map(item => `
+          <label class="toggle inline" data-visibility-key="${item.key}" data-visibility-scope="${item.scope}">
+            <input type="checkbox" ${item.checked ? 'checked' : ''}>
+            <span>${item.label} <em class="muted tiny">${item.tone}</em></span>
+          </label>
+        `).join('')}
       </div>
     `;
-  }).join('');
 
-  container.querySelectorAll('[data-pref-key]').forEach(input => {
-    input.addEventListener('input', () => {
-      const key = input.dataset.prefKey;
-      if (!key) return;
-      uiState.preferences = mergePreferences(uiState.preferences);
-      uiState.preferences.fontSizes[key] = normalizeFontSize(input.value, defaultPreferenceFontSizes[key]);
-      persist();
-      applyPreferences();
+    visibilityContainer.querySelectorAll('[data-visibility-key]').forEach(row => {
+      const input = row.querySelector('input');
+      if (!input) return;
+      input.addEventListener('change', () => {
+        const key = row.dataset.visibilityKey;
+        const scope = row.dataset.visibilityScope;
+        if (!key || !scope) return;
+        uiState.preferences = mergePreferences(uiState.preferences);
+        if (scope === 'data') {
+          uiState.preferences.contextMenuVisibility.data[key] = input.checked;
+        } else {
+          uiState.preferences.contextMenuVisibility.actions[key] = input.checked;
+        }
+        persist();
+      });
     });
-  });
-
-  container.querySelectorAll('[data-pref-reset]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.prefReset;
-      if (!key) return;
-      const fallback = defaultPreferenceFontSizes[key] || '14px';
-      uiState.preferences = mergePreferences(uiState.preferences);
-      uiState.preferences.fontSizes[key] = normalizeFontSize(fallback, fallback);
-      const input = container.querySelector(`[data-pref-key="${key}"]`);
-      if (input) input.value = Number.parseFloat(uiState.preferences.fontSizes[key]);
-      persist();
-      applyPreferences();
-    });
-  });
+  }
 
   const phoneSelect = document.getElementById('phoneDisplaySelect');
   if (phoneSelect) {
@@ -1547,6 +1648,8 @@ function bindPreferencesPanel() {
   const overlay = document.getElementById('preferencesOverlay');
   const closeBtn = document.getElementById('closePreferences');
   const phoneSelect = document.getElementById('phoneDisplaySelect');
+  const tabs = document.querySelectorAll('.preferences-tab');
+  const panels = document.querySelectorAll('.pref-panel');
   if (openBtn && overlay) {
     openBtn.addEventListener('click', () => {
       renderPreferencesPanel();
@@ -1556,9 +1659,14 @@ function bindPreferencesPanel() {
   if (closeBtn && overlay) {
     closeBtn.addEventListener('click', () => toggleFadeOverlay(overlay, false));
   }
-  if (overlay) {
-    overlay.addEventListener('click', (event) => {
-      if (event.target === overlay) toggleFadeOverlay(overlay, false);
+  if (tabs.length && panels.length) {
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.prefTab;
+        if (!target) return;
+        tabs.forEach(btn => btn.classList.toggle('active', btn === tab));
+        panels.forEach(panel => panel.classList.toggle('active', panel.dataset.prefPanel === target));
+      });
     });
   }
   if (phoneSelect && !phoneSelect.dataset.bound) {
@@ -3997,6 +4105,7 @@ function bindContactAssistant() {
   const copyMsgBtn = document.getElementById('assistantCopyMessage');
   const markContactedBtn = document.getElementById('assistantMarkContacted');
   const markNoNumberBtn = document.getElementById('assistantMarkNoNumber');
+  const undoBtn = document.getElementById('assistantUndoBtn');
 
   const openAssistant = () => {
     renderContactAssistant();
@@ -4026,16 +4135,45 @@ function bindContactAssistant() {
   const markAndAdvance = (flag) => {
     const { current } = assistantContext();
     if (!current) return;
+    clientManagerState.contactAssistant.lastAction = {
+      clientId: current.id,
+      clientName: current.name || 'Sin nombre',
+      actionLabel: flag === 'contacted' ? 'Contactado' : 'Número no disponible',
+      previousFlags: { ...(current.flags || {}) },
+      previousContactDate: current.contactDate || '',
+      previousIndex: clientManagerState.contactAssistant.currentIndex
+    };
     updateClientFlag(current.id, flag, true);
     const pending = pendingClientsPool();
     const index = Math.min(clientManagerState.contactAssistant.currentIndex, pending.length - 1);
     clientManagerState.contactAssistant.currentIndex = Math.max(0, index);
     persist();
-    renderContactAssistant('slide-left');
+    renderContactAssistant('slide-right');
   };
 
   if (markContactedBtn) markContactedBtn.addEventListener('click', () => markAndAdvance('contacted'));
   if (markNoNumberBtn) markNoNumberBtn.addEventListener('click', () => markAndAdvance('noNumber'));
+
+  if (undoBtn && !undoBtn.dataset.bound) {
+    undoBtn.addEventListener('click', () => {
+      const undo = clientManagerState.contactAssistant?.lastAction;
+      if (!undo) return;
+      const client = managerClients.find(c => c.id === undo.clientId);
+      if (!client) return;
+      client.flags = { ...(undo.previousFlags || {}) };
+      client.contactDate = undo.previousContactDate || '';
+      const pending = pendingClientsPool();
+      const restoredIndex = pending.findIndex(item => item.id === undo.clientId);
+      clientManagerState.contactAssistant.currentIndex = restoredIndex >= 0
+        ? restoredIndex
+        : Math.max(0, Math.min(undo.previousIndex ?? 0, pending.length - 1));
+      clientManagerState.contactAssistant.lastAction = null;
+      persist();
+      renderClientManager();
+      renderContactAssistant('slide-left');
+    });
+    undoBtn.dataset.bound = 'true';
+  }
 }
 
 function bindActionCustomizer() {
@@ -6432,10 +6570,11 @@ function renderDateFilterHelper() {
   if (!helper) return;
   const { from, to } = clientManagerState.dateRange || {};
   if (!from && !to) {
-    helper.textContent = 'Sin filtro por fecha de carga.';
-    helper.innerHTML = 'Sin filtro por fecha de carga.';
+    helper.textContent = '';
+    helper.classList.add('hidden');
     return;
   }
+  helper.classList.remove('hidden');
   const fromLabel = from ? formatDateLabel(from) : 'Inicio';
   const toLabel = to ? formatDateLabel(to) : 'Actualidad';
   helper.innerHTML = `<span class="date-filter-badge">Rango activo: <strong>${fromLabel} → ${toLabel}</strong><button class="ghost-btn mini-btn" id="clearDateFilterInline"><i class='bx bx-x'></i>Limpiar</button></span>`;
@@ -6521,7 +6660,8 @@ function normalizeContactAssistantState() {
   const current = clientManagerState.contactAssistant || {};
   const interval = Math.min(180, Math.max(5, Number(current.interval) || defaultClientManagerState.contactAssistant.interval));
   const currentIndex = Math.max(0, Number(current.currentIndex) || 0);
-  clientManagerState.contactAssistant = { interval, currentIndex };
+  const lastAction = current.lastAction || null;
+  clientManagerState.contactAssistant = { interval, currentIndex, lastAction };
   return clientManagerState.contactAssistant;
 }
 
@@ -6552,6 +6692,21 @@ function updateAssistantHelper(pending = []) {
   helper.textContent = `${index + 1} de ${pending.length} pendientes.`;
 }
 
+function updateAssistantUndo() {
+  const wrapper = document.getElementById('assistantUndo');
+  const name = document.getElementById('assistantUndoName');
+  const status = document.getElementById('assistantUndoStatus');
+  if (!wrapper) return;
+  const undo = clientManagerState.contactAssistant?.lastAction;
+  if (!undo) {
+    wrapper.classList.add('hidden');
+    return;
+  }
+  wrapper.classList.remove('hidden');
+  if (name) name.textContent = undo.clientName || 'Sin nombre';
+  if (status) status.textContent = undo.actionLabel || 'Pendiente';
+}
+
 function renderContactAssistant(direction = '') {
   const overlay = document.getElementById('contactAssistantOverlay');
   const card = document.getElementById('contactAssistantCard');
@@ -6561,6 +6716,8 @@ function renderContactAssistant(direction = '') {
   const { pending, current, index } = assistantContext();
   const buttons = ['assistantCopyPhone', 'assistantCopyMessage', 'assistantMarkContacted', 'assistantMarkNoNumber'].map(id => document.getElementById(id));
   if (!overlay || !card || !name || !phone || !messagePreview) return;
+
+  updateAssistantUndo();
 
   if (!pending.length || !current) {
     name.textContent = 'Sin pendientes';
@@ -6577,7 +6734,7 @@ function renderContactAssistant(direction = '') {
     card.classList.remove('slide-left', 'slide-right');
     void card.offsetWidth;
     card.classList.add(direction);
-    setTimeout(() => card.classList.remove('slide-left', 'slide-right'), 240);
+    setTimeout(() => card.classList.remove('slide-left', 'slide-right'), 360);
   }
 
   name.textContent = current.name || 'Sin nombre';
@@ -7434,7 +7591,9 @@ function openClientContextMenu(id, event = null) {
     { key: 'purchaseDate', label: 'Copiar Fecha de Compra', icon: 'bx-calendar-check', value: formatDateForDisplay(client.purchaseDate) || '', toast: 'Fecha de compra copiada' }
   ];
 
-  const quickActions = getAvailableActions();
+  const contextPrefs = mergePreferences(uiState.preferences).contextMenuVisibility || { data: {}, actions: {} };
+  const visibleDataActions = dataActions.filter(action => contextPrefs.data?.[action.key] !== false);
+  const quickActions = getAvailableActions().filter(action => contextPrefs.actions?.[action.actionKey] !== false);
 
   const dataSection = `
     <div class="context-section">
@@ -7446,7 +7605,7 @@ function openClientContextMenu(id, event = null) {
         <span class="context-tag">Accesos rápidos</span>
       </div>
       <div class="context-actions">
-        ${dataActions.map(action => `
+        ${visibleDataActions.length ? visibleDataActions.map(action => `
           <div class="context-action" data-copy-key="${action.key}">
             <div class="meta">
               <div class="icon"><i class='bx ${action.icon}'></i></div>
@@ -7457,7 +7616,7 @@ function openClientContextMenu(id, event = null) {
             </div>
             <button class="secondary-btn mini icon-only" title="Copiar"><i class='bx bx-copy'></i></button>
           </div>
-        `).join('')}
+        `).join('') : '<p class="muted">No hay datos visibles en el menú contextual.</p>'}
       </div>
     </div>
   `;
@@ -7493,7 +7652,7 @@ function openClientContextMenu(id, event = null) {
 
   content.innerHTML = dataSection + quickSection;
 
-  dataActions.forEach(action => {
+  visibleDataActions.forEach(action => {
     const target = content.querySelector(`[data-copy-key="${action.key}"] button`);
     if (target) {
       target.addEventListener('click', () => {
