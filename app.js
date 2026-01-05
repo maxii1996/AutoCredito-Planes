@@ -6,7 +6,8 @@ const panelTitles = {
   templates: 'Plantillas',
   vehicles: 'Autos y Valores',
   plans: 'Cotizaciones',
-  clientManager: 'Gestor de Clientes'
+  clientManager: 'Gestor de Clientes',
+  scheduledClients: 'Clientes Programados'
 };
 
 const defaultPreferenceFontSizes = {
@@ -284,7 +285,8 @@ const defaultActionCatalog = [
   { id: 'favorite', label: 'Favorito', icon: 'bx-star', color: '#f6b04b' },
   { id: 'open_notes', label: 'Notas', icon: 'bx-note', color: '#94a3b8' },
   { id: 'copy_message', label: 'Copiar mensaje', icon: 'bx-message-square-dots', color: '#38bdf8' },
-  { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' }
+  { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' },
+  { id: 'schedule_contact', label: 'Programar contacto', icon: 'bx-calendar-event', color: '#7dd3b0' }
 ];
 
 const contextMenuDataCatalog = [
@@ -945,6 +947,7 @@ function applyProfileData(parsed) {
   renderPlanForm();
   renderClients();
   renderClientManager();
+  renderScheduledClients();
   renderGlobalSettings();
   renderSnapshots();
   renderStats();
@@ -1148,6 +1151,30 @@ function normalizeDateTime(value) {
   return date.toISOString();
 }
 
+function buildScheduleDateTime(dateValue, timeValue) {
+  if (!dateValue || !timeValue) return '';
+  const normalized = new Date(`${dateValue}T${timeValue}:00`);
+  if (Number.isNaN(normalized.getTime())) return '';
+  return normalized.toISOString();
+}
+
+function formatTimeValue(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function scheduleTone(scheduleAt) {
+  if (!scheduleAt) return '';
+  const timestamp = new Date(scheduleAt).getTime();
+  if (Number.isNaN(timestamp)) return '';
+  const diff = timestamp - Date.now();
+  if (diff < 0) return 'overdue';
+  if (diff < 3600000 * 4) return 'soon';
+  return '';
+}
+
 function timeAgo(isoValue) {
   if (!isoValue) return '';
   const now = Date.now();
@@ -1346,6 +1373,8 @@ let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
 let activeContextClientId = null;
+let activeScheduleClientId = null;
+let scheduleClockInterval = null;
 
 function upgradePriceTabsFromLegacy() {
   const storedTabs = load('priceTabs');
@@ -1410,6 +1439,7 @@ function init() {
     renderPlanForm();
     renderClients();
     renderClientManager();
+    renderScheduledClients();
     renderGlobalSettings();
     renderSnapshots();
     bindNoteModal();
@@ -1423,9 +1453,11 @@ function init() {
     attachVehicleToggles();
     bindClientManager();
     bindContactAssistant();
+    bindScheduleModal();
     bindActionCustomizer();
     bindCustomContextMenu();
     startContactLogTicker();
+    startScheduleClock();
     startRealtimePersistence();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
     loadPricesFromServer({ silent: true });
@@ -1451,6 +1483,9 @@ function activatePanel(targetId) {
   if (targetId === 'plans') {
     enforceLatestPriceTab({ silent: true });
     updatePlanSummary();
+  }
+  if (targetId === 'scheduledClients') {
+    renderScheduledClients();
   }
 }
 
@@ -7032,9 +7067,253 @@ function renderContactLog() {
   }));
 }
 
+function scheduledClientsList() {
+  return managerClients
+    .filter(client => client.schedule?.scheduledAt)
+    .map(client => ({ ...client, scheduleAt: client.schedule.scheduledAt }))
+    .sort((a, b) => new Date(a.scheduleAt).getTime() - new Date(b.scheduleAt).getTime());
+}
+
+function updateScheduleClock() {
+  const today = document.getElementById('scheduledToday');
+  const now = document.getElementById('scheduledNow');
+  if (!today || !now) return;
+  const current = new Date();
+  today.textContent = current.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  now.textContent = current.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function renderScheduledClients() {
+  const timeline = document.getElementById('scheduledTimeline');
+  const count = document.getElementById('scheduledCount');
+  if (!timeline) return;
+  const scheduled = scheduledClientsList();
+  if (count) count.textContent = String(scheduled.length);
+
+  if (!scheduled.length) {
+    timeline.innerHTML = '<p class="muted">No hay recontactos programados todavía.</p>';
+    return;
+  }
+
+  timeline.innerHTML = scheduled.map(client => {
+    const schedule = client.schedule || {};
+    const tone = scheduleTone(schedule.scheduledAt);
+    const statusLabel = tone === 'overdue' ? 'Vencido' : tone === 'soon' ? 'Próximo' : 'Programado';
+    const statusClass = tone === 'overdue' ? 'status-no-number' : tone === 'soon' ? 'status-favorite' : 'status-contacted';
+    const methodLabel = schedule.channel === 'phone'
+      ? 'Llamada telefónica'
+      : schedule.channel === 'other'
+        ? (schedule.otherChannel || 'Otro')
+        : 'Mensaje de Whatsapp';
+    const detailTags = [
+      `<span class="schedule-tag"><i class='bx bx-phone'></i>${methodLabel}</span>`,
+      client.city ? `<span class="schedule-tag"><i class='bx bx-map'></i>${client.city}</span>` : '',
+      client.province ? `<span class="schedule-tag"><i class='bx bx-flag'></i>${client.province}</span>` : ''
+    ].filter(Boolean).join('');
+    const toneAttr = tone ? ` data-tone="${tone}"` : '';
+    return `
+      <div class="schedule-card"${toneAttr} data-id="${client.id}">
+        <div class="schedule-card-head">
+          <div class="schedule-time"><i class='bx bx-time'></i>${formatDateTimeForDisplay(schedule.scheduledAt)}</div>
+          <span class="status-pill ${statusClass}">${statusLabel}</span>
+        </div>
+        <div class="schedule-body">
+          <div class="schedule-client">
+            <div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div>
+            <div class="client-meta">
+              <strong>${client.name || 'Sin nombre'}</strong>
+              <p class="muted tiny">${client.model || 'Sin modelo'} · ${formatPhoneDisplay(client.phone) || 'Sin número'}</p>
+            </div>
+          </div>
+          <div class="schedule-detail">
+            <p class="muted tiny">Motivo de recontacto</p>
+            <p>${schedule.message || 'Sin motivo asignado.'}</p>
+          </div>
+          ${detailTags ? `<div class="schedule-tags">${detailTags}</div>` : ''}
+        </div>
+        <div class="schedule-actions">
+          <button class="ghost-btn mini danger" data-action="delete_schedule">Eliminar esta programación</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  timeline.querySelectorAll('[data-action="delete_schedule"]').forEach(btn => btn.addEventListener('click', () => {
+    const card = btn.closest('.schedule-card');
+    const id = card?.dataset.id;
+    const client = managerClients.find(c => c.id === id);
+    if (!client) return;
+    confirmAction({
+      title: 'Eliminar programación',
+      message: `Se eliminará la programación para ${client.name || 'este contacto'}.`,
+      confirmText: 'Eliminar',
+      onConfirm: () => {
+        client.schedule = null;
+        persist();
+        renderClientManager();
+        renderScheduledClients();
+        showToast('Programación eliminada', 'success');
+      }
+    });
+  }));
+}
+
+function bindScheduleModal() {
+  const overlay = document.getElementById('scheduleContactOverlay');
+  const closeBtn = document.getElementById('closeScheduleContact');
+  const cancelBtn = document.getElementById('cancelScheduleContact');
+  const confirmBtn = document.getElementById('confirmScheduleContact');
+  const messageInput = document.getElementById('scheduleMessage');
+  const dateInput = document.getElementById('scheduleDate');
+  const timeInput = document.getElementById('scheduleTime');
+  const otherField = document.getElementById('scheduleOtherContactField');
+  const otherInput = document.getElementById('scheduleOtherContact');
+  const reasonChips = document.getElementById('scheduleQuickReasons');
+
+  const closeModal = () => {
+    toggleFadeOverlay(overlay, false);
+    activeScheduleClientId = null;
+  };
+
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener('click', closeModal);
+    closeBtn.dataset.bound = 'true';
+  }
+  if (cancelBtn && !cancelBtn.dataset.bound) {
+    cancelBtn.addEventListener('click', closeModal);
+    cancelBtn.dataset.bound = 'true';
+  }
+
+  const updateOtherField = (value) => {
+    if (!otherField) return;
+    const show = value === 'other';
+    otherField.classList.toggle('hidden', !show);
+    if (!show && otherInput) otherInput.value = '';
+  };
+
+  const setActiveChip = (message) => {
+    if (!reasonChips) return;
+    reasonChips.querySelectorAll('.chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.message === message);
+    });
+  };
+
+  reasonChips?.querySelectorAll('.chip').forEach(chip => {
+    if (chip.dataset.bound) return;
+    chip.addEventListener('click', () => {
+      if (messageInput) messageInput.value = chip.dataset.message || '';
+      setActiveChip(chip.dataset.message || '');
+    });
+    chip.dataset.bound = 'true';
+  });
+
+  messageInput?.addEventListener('input', () => {
+    setActiveChip(messageInput.value.trim());
+  });
+
+  document.querySelectorAll('input[name="scheduleContactMethod"]').forEach(radio => {
+    if (radio.dataset.bound) return;
+    radio.addEventListener('change', () => updateOtherField(radio.value));
+    radio.dataset.bound = 'true';
+  });
+
+  if (confirmBtn && !confirmBtn.dataset.bound) {
+    confirmBtn.addEventListener('click', () => {
+      if (!activeScheduleClientId) return;
+      const client = managerClients.find(c => c.id === activeScheduleClientId);
+      if (!client) return;
+      const dateValue = dateInput?.value || '';
+      const timeValue = timeInput?.value || '';
+      const message = messageInput?.value.trim() || '';
+      if (!dateValue || !timeValue) {
+        showToast('Selecciona fecha y horario para programar.', 'error');
+        return;
+      }
+      if (!message) {
+        showToast('Agrega un motivo de recontacto.', 'error');
+        return;
+      }
+      const channel = document.querySelector('input[name="scheduleContactMethod"]:checked')?.value || 'whatsapp';
+      const otherChannel = channel === 'other' ? (otherInput?.value.trim() || '') : '';
+      if (channel === 'other' && !otherChannel) {
+        showToast('Especifica la otra forma de contacto.', 'error');
+        return;
+      }
+      const scheduledAt = buildScheduleDateTime(dateValue, timeValue);
+      if (!scheduledAt) {
+        showToast('Fecha u horario inválidos.', 'error');
+        return;
+      }
+      client.schedule = {
+        date: dateValue,
+        time: timeValue,
+        message,
+        channel,
+        otherChannel,
+        scheduledAt,
+        createdAt: client.schedule?.createdAt || new Date().toISOString()
+      };
+      persist();
+      renderClientManager();
+      renderScheduledClients();
+      showToast('Recontacto programado', 'success');
+      closeModal();
+    });
+    confirmBtn.dataset.bound = 'true';
+  }
+}
+
+function openScheduleModal(clientId) {
+  const overlay = document.getElementById('scheduleContactOverlay');
+  const nameLabel = document.getElementById('scheduleClientName');
+  const dateInput = document.getElementById('scheduleDate');
+  const timeInput = document.getElementById('scheduleTime');
+  const messageInput = document.getElementById('scheduleMessage');
+  const otherField = document.getElementById('scheduleOtherContactField');
+  const otherInput = document.getElementById('scheduleOtherContact');
+  const reasonChips = document.getElementById('scheduleQuickReasons');
+  if (!overlay) return;
+  const client = managerClients.find(c => c.id === clientId);
+  if (!client) return;
+  activeScheduleClientId = clientId;
+  if (nameLabel) nameLabel.textContent = client.name || 'Cliente';
+
+  const schedule = client.schedule || {};
+  if (dateInput) {
+    dateInput.value = schedule.date || (schedule.scheduledAt ? formatLocalISO(new Date(schedule.scheduledAt)) : formatLocalISO());
+  }
+  if (timeInput) {
+    timeInput.value = schedule.time || formatTimeValue(schedule.scheduledAt) || '';
+  }
+  if (messageInput) {
+    messageInput.value = schedule.message || '';
+  }
+  const selectedChannel = schedule.channel || 'whatsapp';
+  document.querySelectorAll('input[name="scheduleContactMethod"]').forEach(radio => {
+    radio.checked = radio.value === selectedChannel;
+  });
+  if (otherField) {
+    otherField.classList.toggle('hidden', selectedChannel !== 'other');
+  }
+  if (otherInput) {
+    otherInput.value = schedule.otherChannel || '';
+  }
+  reasonChips?.querySelectorAll('.chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.message === (schedule.message || ''));
+  });
+
+  toggleFadeOverlay(overlay, true);
+}
+
 function startContactLogTicker() {
   if (contactLogInterval) clearInterval(contactLogInterval);
   contactLogInterval = setInterval(() => renderContactLog(), 60000);
+}
+
+function startScheduleClock() {
+  if (scheduleClockInterval) clearInterval(scheduleClockInterval);
+  updateScheduleClock();
+  scheduleClockInterval = setInterval(updateScheduleClock, 60000);
 }
 
 function bindClientEditHandlers() {
@@ -7513,7 +7792,12 @@ function updateStatusSetting(status, payload = {}) {
 }
 
 function formatCell(key, client) {
-  if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong></div></div>`;
+  if (key === 'name') {
+    const scheduleIcon = client.schedule?.scheduledAt
+      ? `<span class="schedule-indicator" title="Contacto programado"><i class='bx bx-time'></i></span>`
+      : '';
+    return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div class="name-stack"><strong>${client.name}</strong>${scheduleIcon}</div></div>`;
+  }
   if (key === 'model') return `<div class="name-cell"><strong>${client.model}</strong></div>`;
   if (key === 'phone') return `<div class="tip"><span>${formatPhoneDisplay(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
@@ -7563,6 +7847,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'open_notes') openClientNotes(clientId);
   if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
   if (actionKey === 'copy_phone') copyText(normalizePhone(client?.phone || ''), 'Número copiado');
+  if (actionKey === 'schedule_contact') openScheduleModal(clientId);
 }
 
 function bindCustomContextMenu() {

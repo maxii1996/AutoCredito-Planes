@@ -24,6 +24,7 @@
       <nav class="nav">
         <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
         <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
+        <button class="nav-link" data-target="scheduledClients"><i class='bx bx-calendar-check'></i><span class="label"> Clientes Programados</span></button>
         <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
         <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
         <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
@@ -502,6 +503,33 @@
           <p id="clientManagerHelper" class="muted tiny"></p>
         </div>
       </section>
+
+      <section id="scheduledClients" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Agenda de recontactos</p>
+            <h2>Clientes Programados</h2>
+            <p class="muted subtle">Organiza tus seguimientos y mantén tu cronograma al día.</p>
+          </div>
+        </div>
+        <div class="card schedule-summary">
+          <div class="schedule-meta">
+            <div>
+              <p class="muted">Hoy es: <strong id="scheduledToday">--</strong></p>
+              <p class="muted">Y son actualmente las: <strong id="scheduledNow">--</strong></p>
+            </div>
+            <div class="schedule-count">
+              <span class="eyebrow">Clientes Programados</span>
+              <p class="value" id="scheduledCount">0</p>
+            </div>
+          </div>
+          <div class="schedule-divider"></div>
+          <div class="schedule-agenda">
+            <h3>Esta es tu agenda:</h3>
+            <div id="scheduledTimeline" class="schedule-timeline"></div>
+          </div>
+        </div>
+      </section>
     </main>
     <footer class="app-footer">
       <p>Creado por Maximiliano Martinez | version 1.0.8 | Solo uso interno autorizado</p>
@@ -572,6 +600,65 @@
       <div class="form-actions">
         <button class="ghost-btn" id="cancelCustomAction">Cancelar</button>
         <button class="primary-btn" id="saveCustomAction"><i class='bx bx-save'></i>Guardar esta acción personalizada</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="scheduleContactOverlay">
+    <div class="popover" id="scheduleContactPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Programar Contacto</p>
+          <h3>Agenda un nuevo recontacto</h3>
+          <p class="muted subtle">Estás programando recontactar a: <strong id="scheduleClientName">Cliente</strong></p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeScheduleContact"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="form-grid two">
+        <div class="field">
+          <label for="scheduleDate">Selecciona una fecha</label>
+          <input type="date" id="scheduleDate">
+        </div>
+        <div class="field">
+          <label for="scheduleTime">Selecciona un horario</label>
+          <input type="time" id="scheduleTime">
+        </div>
+      </div>
+      <div class="field textarea-field">
+        <label for="scheduleMessage">Motivo de Recontacto</label>
+        <div class="textarea-shell">
+          <textarea id="scheduleMessage" rows="4" placeholder="Escribe el mensaje o motivo principal..."></textarea>
+          <div class="chips inline" id="scheduleQuickReasons">
+            <button class="chip compact" type="button" data-message="Seguimiento del plan solicitado.">Seguimiento del plan</button>
+            <button class="chip compact" type="button" data-message="Enviar información y valores actualizados.">Enviar información</button>
+            <button class="chip compact" type="button" data-message="Confirmar documentación y próximos pasos.">Confirmar documentación</button>
+            <button class="chip compact" type="button" data-message="Recordatorio de propuesta y beneficios.">Recordatorio</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Forma de Contacto</label>
+        <div class="schedule-contact-options">
+          <label class="toggle option-card">
+            <input type="radio" name="scheduleContactMethod" value="whatsapp" checked>
+            <span>Mensaje de Whatsapp</span>
+          </label>
+          <label class="toggle option-card">
+            <input type="radio" name="scheduleContactMethod" value="phone">
+            <span>Llamada telefónica</span>
+          </label>
+          <label class="toggle option-card">
+            <input type="radio" name="scheduleContactMethod" value="other">
+            <span>Otro</span>
+          </label>
+        </div>
+      </div>
+      <div class="field hidden" id="scheduleOtherContactField">
+        <label for="scheduleOtherContact">Especificar otra forma</label>
+        <input id="scheduleOtherContact" placeholder="Ej: Videollamada, email, reunión presencial">
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-btn" id="cancelScheduleContact">Cancelar</button>
+        <button class="primary-btn" id="confirmScheduleContact"><i class='bx bx-check-circle'></i>Programar</button>
       </div>
     </div>
   </div>
