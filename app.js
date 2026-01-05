@@ -1235,6 +1235,20 @@ function toggleFadeOverlay(overlay, show) {
   }
 }
 
+function updateScrollLock() {
+  const hasModal = document.querySelector('.modal.show:not(.hidden)');
+  const hasPopover = document.querySelector('.popover-overlay.show');
+  document.body.classList.toggle('no-scroll', Boolean(hasModal || hasPopover));
+}
+
+function setupScrollLockObserver() {
+  updateScrollLock();
+  const targets = document.querySelectorAll('.modal, .popover-overlay');
+  if (!targets.length) return;
+  const observer = new MutationObserver(() => updateScrollLock());
+  targets.forEach(target => observer.observe(target, { attributes: true, attributeFilter: ['class'] }));
+}
+
 function hasNotes(client = {}) {
   return normalizeNotesValue(client.type) !== '-';
 }
@@ -1375,6 +1389,7 @@ init();
 
 function init() {
   try {
+    setupScrollLockObserver();
     bindNavigation();
     bindProfileActions();
     bindSettingsMenu();
@@ -1650,9 +1665,34 @@ function bindPreferencesPanel() {
   const phoneSelect = document.getElementById('phoneDisplaySelect');
   const tabs = document.querySelectorAll('.preferences-tab');
   const panels = document.querySelectorAll('.pref-panel');
+  const panelsContainer = document.querySelector('#preferencesPanel .preferences-panels');
+  const setActiveTab = (target) => {
+    if (!target) return;
+    tabs.forEach(btn => btn.classList.toggle('active', btn.dataset.prefTab === target));
+    panels.forEach(panel => panel.classList.toggle('active', panel.dataset.prefPanel === target));
+  };
+  const scrollToPanel = (target) => {
+    if (!target || !panelsContainer) return;
+    const panel = panelsContainer.querySelector(`[data-pref-panel="${target}"]`);
+    if (!panel) return;
+    const top = panel.offsetTop - panelsContainer.offsetTop;
+    panelsContainer.scrollTo({ top, behavior: 'smooth' });
+    setActiveTab(target);
+  };
+  const updateActiveTabFromScroll = () => {
+    if (!panelsContainer || !panels.length) return;
+    const containerTop = panelsContainer.getBoundingClientRect().top;
+    const threshold = 48;
+    const panelList = Array.from(panels);
+    const visible = panelList.filter(panel => panel.getBoundingClientRect().top - containerTop <= threshold);
+    const activePanel = visible.length ? visible[visible.length - 1] : panelList[0];
+    if (activePanel) setActiveTab(activePanel.dataset.prefPanel);
+  };
   if (openBtn && overlay) {
     openBtn.addEventListener('click', () => {
       renderPreferencesPanel();
+      if (panelsContainer) panelsContainer.scrollTo({ top: 0, behavior: 'auto' });
+      if (tabs.length) setActiveTab(tabs[0].dataset.prefTab);
       toggleFadeOverlay(overlay, true);
     });
   }
@@ -1664,10 +1704,13 @@ function bindPreferencesPanel() {
       tab.addEventListener('click', () => {
         const target = tab.dataset.prefTab;
         if (!target) return;
-        tabs.forEach(btn => btn.classList.toggle('active', btn === tab));
-        panels.forEach(panel => panel.classList.toggle('active', panel.dataset.prefPanel === target));
+        scrollToPanel(target);
       });
     });
+  }
+  if (panelsContainer && !panelsContainer.dataset.bound) {
+    panelsContainer.addEventListener('scroll', updateActiveTabFromScroll, { passive: true });
+    panelsContainer.dataset.bound = 'true';
   }
   if (phoneSelect && !phoneSelect.dataset.bound) {
     phoneSelect.addEventListener('change', () => {

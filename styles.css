@@ -524,9 +524,9 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .preferences-tab { display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 10px 12px; border: 1px solid transparent; background: transparent; color: var(--text); font-weight: 600; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
 .preferences-tab:hover { border-color: rgba(148,163,184,0.4); background: rgba(148,163,184,0.08); }
 .preferences-tab.active { border-color: rgba(56,189,248,0.6); background: rgba(56,189,248,0.14); color: #bae6fd; }
-.preferences-panels { display: grid; gap: 16px; overflow-y: auto; padding-right: 6px; }
-.pref-panel { display: none; }
-.pref-panel.active { display: grid; gap: 12px; }
+.preferences-panels { display: grid; gap: 16px; overflow-y: auto; padding-right: 6px; overscroll-behavior: contain; }
+.pref-panel { display: grid; gap: 12px; scroll-margin-top: 6px; }
+.pref-panel.active { border-color: rgba(56,189,248,0.4); box-shadow: 0 0 0 1px rgba(56,189,248,0.2) inset; }
 .preferences-section { border: 1px solid var(--border); border-radius: 14px; background: #0f1625; padding: 14px; display: grid; gap: 12px; }
 .preferences-grid { display: grid; gap: 10px; }
 .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: #0b1120; flex-wrap: wrap; }
@@ -823,6 +823,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .modal .modal-content { background: #0f1625; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 18px; width: min(480px, 100%); transform: translateY(10px); transition: transform 0.2s ease; }
 .modal.show { opacity: 1; pointer-events: all; }
 .modal.show .modal-content { transform: translateY(0); }
+.no-scroll { overflow: hidden; }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .modal-actions.top { position: sticky; top: 0; z-index: 3; padding: 10px 0; margin-top: 0; margin-bottom: 10px; background: #0f1625; border-bottom: 1px solid var(--border); }
