@@ -9,12 +9,34 @@ const panelTitles = {
   clientManager: 'Gestor de Clientes'
 };
 
+const defaultPreferenceFontSizes = {
+  name: '14px',
+  model: '14px',
+  phone: '14px',
+  contactDate: '14px',
+  brand: '14px',
+  city: '14px',
+  province: '14px',
+  document: '14px',
+  cuit: '14px',
+  birthDate: '14px',
+  purchaseDate: '14px',
+  systemDate: '14px',
+  postalCode: '14px',
+  type: '14px',
+  status: '14px'
+};
+
 const defaultUiState = {
   selectedTemplateIndex: 0,
   variableValues: {},
   planDraft: {},
   quoteSearch: '',
   toggles: { showReservations: true, showIntegration: true },
+  preferences: {
+    fontSizes: { ...defaultPreferenceFontSizes },
+    phoneDisplay: 'plain'
+  },
   globalSettings: {
     advisorName: 'Chevrolet Argentina',
     clientType: '',
@@ -891,11 +913,13 @@ function applyProfileData(parsed) {
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
   uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
+  uiState.preferences = mergePreferences(uiState.preferences);
   selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
   selectedTemplateId = templates[selectedTemplateIndex]?.id;
   planDraftApplied = false;
   persist();
   applyToggleState();
+  applyPreferences();
   applyStatusPalette();
   renderVehicleTable();
   renderTemplates();
@@ -1013,6 +1037,15 @@ function mergeGlobalSettings(current = {}) {
   };
 }
 
+function mergePreferences(current = {}) {
+  const base = defaultUiState.preferences;
+  const fontSizes = { ...base.fontSizes, ...(current.fontSizes || {}) };
+  return {
+    fontSizes,
+    phoneDisplay: current.phoneDisplay ?? base.phoneDisplay
+  };
+}
+
 function parseExcelDate(value) {
   if (value instanceof Date) return value;
   if (typeof value === 'number' && Number.isFinite(value) && value > 59) {
@@ -1126,6 +1159,34 @@ function extractYear(value) {
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '');
+}
+
+function normalizeFontSize(value, fallback = '14px') {
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  const clamped = Math.min(24, Math.max(10, numeric));
+  return `${clamped}px`;
+}
+
+function formatPhoneDisplay(value) {
+  const digits = normalizePhone(value);
+  if (!digits) return '';
+  const mode = uiState.preferences?.phoneDisplay || defaultUiState.preferences.phoneDisplay;
+  if (mode === 'split2') {
+    const groups = [];
+    for (let i = 0; i < digits.length; i += 2) {
+      groups.push(digits.slice(i, i + 2));
+    }
+    return `(+54) ${groups.join('-')}`;
+  }
+  if (mode === 'split3') {
+    const groups = [];
+    for (let i = 0; i < digits.length; i += 3) {
+      groups.push(digits.slice(i, i + 3));
+    }
+    return `(+54) ${groups.join('-')}`;
+  }
+  return digits;
 }
 
 function normalizeNotesValue(value) {
@@ -1272,6 +1333,7 @@ uiState.clientSearch = uiState.clientSearch || '';
 uiState.quoteSearch = uiState.quoteSearch || '';
 uiState.profileSearch = uiState.profileSearch || '';
 uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
+uiState.preferences = mergePreferences(uiState.preferences);
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
 uiState.variableValues = uiState.variableValues || {};
@@ -1286,10 +1348,12 @@ function init() {
     bindNavigation();
     bindProfileActions();
     bindSettingsMenu();
+    bindPreferencesPanel();
     bindActionMenu();
     bindSidebarToggle();
     bindQuickLinks();
     applyToggleState();
+    applyPreferences();
     applyStatusPalette();
     renderStats();
     renderWelcomeHero();
@@ -1399,6 +1463,109 @@ function applyToggleState() {
   const integ = document.getElementById('showIntegration');
   if (res) res.checked = toggles.showReservations;
   if (integ) integ.checked = toggles.showIntegration;
+}
+
+function applyPreferences() {
+  const prefs = mergePreferences(uiState.preferences);
+  uiState.preferences = prefs;
+  const root = document.documentElement;
+  Object.entries(prefs.fontSizes || {}).forEach(([key, size]) => {
+    const fallback = defaultPreferenceFontSizes[key] || '14px';
+    root.style.setProperty(`--pref-font-${key}`, normalizeFontSize(size, fallback));
+  });
+}
+
+function preferenceFields() {
+  return [
+    ...Object.entries(clientColumns).map(([key, col]) => ({ key, label: col.label })),
+    { key: 'status', label: 'Estado' }
+  ];
+}
+
+function renderPreferencesPanel() {
+  const container = document.getElementById('fontPreferencesList');
+  if (!container) return;
+  const prefs = mergePreferences(uiState.preferences);
+  const fields = preferenceFields();
+  container.innerHTML = fields.map(({ key, label }) => {
+    const value = Number.parseFloat(prefs.fontSizes?.[key] || defaultPreferenceFontSizes[key] || '14');
+    return `
+      <div class="preference-row" data-key="${key}">
+        <div class="preference-label">
+          <strong>${label}</strong>
+          <span class="muted tiny">Tamaño en píxeles</span>
+        </div>
+        <div class="preference-controls">
+          <input type="number" min="10" max="24" step="1" value="${Number.isFinite(value) ? value : 14}" data-pref-key="${key}">
+          <button class="ghost-btn mini" data-pref-reset="${key}">Restaurar tamaño por defecto</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('[data-pref-key]').forEach(input => {
+    input.addEventListener('input', () => {
+      const key = input.dataset.prefKey;
+      if (!key) return;
+      uiState.preferences = mergePreferences(uiState.preferences);
+      uiState.preferences.fontSizes[key] = normalizeFontSize(input.value, defaultPreferenceFontSizes[key]);
+      persist();
+      applyPreferences();
+    });
+  });
+
+  container.querySelectorAll('[data-pref-reset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.prefReset;
+      if (!key) return;
+      const fallback = defaultPreferenceFontSizes[key] || '14px';
+      uiState.preferences = mergePreferences(uiState.preferences);
+      uiState.preferences.fontSizes[key] = normalizeFontSize(fallback, fallback);
+      const input = container.querySelector(`[data-pref-key="${key}"]`);
+      if (input) input.value = Number.parseFloat(uiState.preferences.fontSizes[key]);
+      persist();
+      applyPreferences();
+    });
+  });
+
+  const phoneSelect = document.getElementById('phoneDisplaySelect');
+  if (phoneSelect) {
+    phoneSelect.value = prefs.phoneDisplay || defaultUiState.preferences.phoneDisplay;
+  }
+}
+
+function bindPreferencesPanel() {
+  const openBtn = document.getElementById('openPreferences');
+  const overlay = document.getElementById('preferencesOverlay');
+  const closeBtn = document.getElementById('closePreferences');
+  const phoneSelect = document.getElementById('phoneDisplaySelect');
+  if (openBtn && overlay) {
+    openBtn.addEventListener('click', () => {
+      renderPreferencesPanel();
+      toggleFadeOverlay(overlay, true);
+    });
+  }
+  if (closeBtn && overlay) {
+    closeBtn.addEventListener('click', () => toggleFadeOverlay(overlay, false));
+  }
+  if (overlay) {
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) toggleFadeOverlay(overlay, false);
+    });
+  }
+  if (phoneSelect && !phoneSelect.dataset.bound) {
+    phoneSelect.addEventListener('change', () => {
+      uiState.preferences = mergePreferences(uiState.preferences);
+      uiState.preferences.phoneDisplay = phoneSelect.value;
+      persist();
+      renderClientManager();
+      const assistantOverlay = document.getElementById('contactAssistantOverlay');
+      if (assistantOverlay?.classList.contains('show')) {
+        renderContactAssistant();
+      }
+    });
+    phoneSelect.dataset.bound = 'true';
+  }
 }
 
 function renderStats() {
@@ -3706,12 +3873,23 @@ function bindClientManager() {
   const search = document.getElementById('clientManagerSearch');
   if (search) {
     search.value = clientManagerState.search || '';
-    search.addEventListener('input', () => {
-      clientManagerState.search = search.value;
+    const applySearch = () => {
+      clientManagerState.search = search.value.trim();
       clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
+    };
+    search.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applySearch();
+      }
     });
+    const searchBtn = document.getElementById('clientManagerSearchBtn');
+    if (searchBtn && !searchBtn.dataset.bound) {
+      searchBtn.addEventListener('click', applySearch);
+      searchBtn.dataset.bound = 'true';
+    }
   }
 
   const group = document.getElementById('groupByModel');
@@ -6360,7 +6538,7 @@ function renderContactAssistant(direction = '') {
   }
 
   name.textContent = current.name || 'Sin nombre';
-  phone.textContent = normalizePhone(current.phone || '') || 'Sin número';
+  phone.textContent = formatPhoneDisplay(current.phone || '') || 'Sin número';
   const fullMessage = buildMessageForClient(current) || 'No hay plantilla inicial disponible.';
   const preview = fullMessage.length > 128 ? `${fullMessage.slice(0, 128)}...` : fullMessage;
   messagePreview.textContent = preview;
@@ -6493,14 +6671,20 @@ function renderClientManager() {
       const notesActive = hasNotes(c);
       const notesClass = notesActive ? ' has-notes' : '';
       const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
-      const cells = visibleColumns.map(([key, col]) => `<div class="grid-cell" data-label="${col.label}">${formatCell(key, c)}</div>`).join('');
+      const cells = visibleColumns.map(([key, col]) => `
+        <div class="grid-cell" data-label="${col.label}" data-key="${key}" style="--cell-font: var(--pref-font-${key})">
+          ${formatCell(key, c)}
+        </div>
+      `).join('');
       const actionsContent = clientManagerState.editingMode
         ? `<button class="secondary-btn mini action-menu-btn compact" data-action="open_menu"><i class='bx bx-dots-vertical'></i>Menú de acciones</button>`
         : buildActionButtons(notesClass, notesTitle);
       return `
         <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
           ${cells}
-          <div class="grid-cell status-col" data-label="Estado"><span class="status-pill ${status.className}">${status.label}</span></div>
+          <div class="grid-cell status-col" data-label="Estado" data-key="status" style="--cell-font: var(--pref-font-status)">
+            <span class="status-pill ${status.className}">${status.label}</span>
+          </div>
           <div class="grid-cell actions-col" data-label="Acciones">${actionsContent}</div>
         </div>`;
     }).join('');
@@ -7087,7 +7271,7 @@ function updateStatusSetting(status, payload = {}) {
 function formatCell(key, client) {
   if (key === 'name') return `<div class="name-cell"><div class="avatar small">${(client.name || 'NA').slice(0, 2).toUpperCase()}</div><div><strong>${client.name}</strong></div></div>`;
   if (key === 'model') return `<div class="name-cell"><strong>${client.model}</strong></div>`;
-  if (key === 'phone') return `<div class="tip"><span>${normalizePhone(client.phone)}</span></div>`;
+  if (key === 'phone') return `<div class="tip"><span>${formatPhoneDisplay(client.phone)}</span></div>`;
   if (key === 'birthDate' || key === 'purchaseDate') return formatDateForDisplay(client[key]) || '-';
   if (key === 'systemDate') return formatDateForDisplay(client.systemDate) || '-';
   if (key === 'contactDate') return formatDateTimeForDisplay(client.contactDate);
@@ -7536,11 +7720,19 @@ function bindProfileActions() {
           templates = ensureTemplateIds([...defaultTemplates]);
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
-          uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '', globalSettings: mergeGlobalSettings(defaultUiState.globalSettings) };
+          uiState = {
+            ...defaultUiState,
+            templateSearch: '',
+            clientSearch: '',
+            profileSearch: '',
+            globalSettings: mergeGlobalSettings(defaultUiState.globalSettings),
+            preferences: mergePreferences(defaultUiState.preferences)
+          };
           clientManagerState = { ...defaultClientManagerState };
           planDraftApplied = false;
           persist();
           applyToggleState();
+          applyPreferences();
           applyStatusPalette();
           renderVehicleTable();
           renderTemplates();
@@ -7590,6 +7782,7 @@ function syncFromStorage() {
   clients = load('clients') || clients;
   managerClients = load('managerClients') || managerClients;
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
+  uiState.preferences = mergePreferences(uiState.preferences);
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
@@ -7599,6 +7792,7 @@ function syncFromStorage() {
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
   snapshots = load('snapshots') || snapshots;
+  applyPreferences();
   applyStatusPalette();
   renderStats();
   renderQuickOverview();
@@ -7640,12 +7834,20 @@ function clearStorage() {
       clients = [];
       managerClients = [];
       snapshots = [];
-      uiState = { ...defaultUiState, templateSearch: '', clientSearch: '', profileSearch: '', globalSettings: mergeGlobalSettings(defaultUiState.globalSettings) };
+      uiState = {
+        ...defaultUiState,
+        templateSearch: '',
+        clientSearch: '',
+        profileSearch: '',
+        globalSettings: mergeGlobalSettings(defaultUiState.globalSettings),
+        preferences: mergePreferences(defaultUiState.preferences)
+      };
       clientManagerState = { ...defaultClientManagerState };
       selectedTemplateIndex = 0;
       selectedTemplateId = templates[0].id;
       planDraftApplied = false;
       applyToggleState();
+      applyPreferences();
       applyStatusPalette();
       renderVehicleTable();
       renderTemplates();
@@ -7662,4 +7864,3 @@ function clearStorage() {
     }
   });
 }
-
