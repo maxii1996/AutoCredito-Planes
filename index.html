@@ -422,15 +422,15 @@
 
         <div class="card">
           <div class="client-controls">
-            <div class="advisor-combo">
-              <div class="combo-head">Asesor activo</div>
-              <div class="combo-shell">
-                <i class='bx bx-user-voice'></i>
-                <select id="advisorSelector" disabled></select>
+            <div class="client-top-row">
+              <div class="advisor-combo">
+                <div class="combo-head">Asesor activo</div>
+                <div class="combo-shell">
+                  <i class='bx bx-user-voice'></i>
+                  <select id="advisorSelector" disabled></select>
+                </div>
               </div>
-            </div>
-            <div class="control-bar">
-              <div class="control-group primary">
+              <div class="advisor-filters">
                 <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                   <i class='bx bx-filter-alt'></i>
                   <div class="filter-label">
@@ -447,32 +447,25 @@
                 </div>
                 <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
+            </div>
+            <div class="control-bar">
               <div class="control-group secondary">
                 <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
                 <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
                 <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Asistente de Contactos</button>
                 <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
-                <div class="field compact-field inline" id="paginationToggleField">
-                  <label for="clientPaginationSelect">Paginación</label>
-                  <select id="clientPaginationSelect">
-                    <option value="none">Desactivada</option>
-                    <option value="20">Cada 20</option>
-                    <option value="50">Cada 50</option>
-                    <option value="100">Cada 100</option>
-                  </select>
-                </div>
               </div>
-            </div>
-            <div class="search-notice hidden" id="clientSearchNotice">
-              <div class="search-notice-text">
-                <i class='bx bx-filter-alt'></i>
-                <span>Se están mostrando los resultados de la búsqueda: <strong id="clientSearchTerm"></strong></span>
-              </div>
-              <button class="ghost-btn mini" id="clientSearchReset">Restablecer</button>
             </div>
           </div>
           <div id="dateFilterHelper" class="muted tiny"></div>
           <div class="column-pills" id="columnToggles"></div>
+          <div class="search-notice hidden" id="clientSearchNotice">
+            <div class="search-notice-text">
+              <i class='bx bx-filter-alt'></i>
+              <span>Se están mostrando los resultados de la búsqueda: <strong id="clientSearchTerm"></strong></span>
+            </div>
+            <button class="ghost-btn mini" id="clientSearchReset">Restablecer</button>
+          </div>
           <div class="pagination-bar hidden" id="clientPaginationBar">
             <div class="pagination-controls">
               <button class="ghost-btn mini" id="clientPaginationPrev"><i class='bx bx-chevron-left'></i>Anterior</button>
@@ -488,6 +481,17 @@
                   <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
                 </div>
                 <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
+              </div>
+              <div class="table-toolbar-actions">
+                <div class="field compact-field inline" id="paginationToggleField">
+                  <label for="clientPaginationSelect">Paginación</label>
+                  <select id="clientPaginationSelect">
+                    <option value="none">Desactivada</option>
+                    <option value="20">Cada 20</option>
+                    <option value="50">Cada 50</option>
+                    <option value="100">Cada 100</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div class="data-grid" id="clientManagerTable">
