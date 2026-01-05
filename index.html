@@ -45,13 +45,15 @@
           </div>
           <div class="menu-cluster">
             <div class="action-menu" id="actionMenu">
-              <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfil</span><i class='bx bx-chevron-down'></i></button>
+              <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfi</span><i class='bx bx-chevron-down'></i></button>
               <div class="menu-panel" id="actionMenuPanel">
                 <div class="menu-head">
                   <p class="eyebrow">¿Qué quieres hacer?</p>
                 </div>
                                 <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
                 <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+
+                <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
               </div>
             </div>
             <div class="icon-menu" id="settingsMenu">
@@ -436,27 +438,25 @@
                   </div>
                   <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
                 </div>
-                <div class="control-checks">
-                  <label class="toggle" title="Agrupar registros por modelo de vehículo">
-                    <input type="checkbox" id="groupByModel" checked>
-                    <span>Agrupar por modelo</span>
-                  </label>
-                  <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
-                    <i class='bx bx-filter-alt'></i>
-                    <div class="filter-label">
-                      <span class="muted tiny">Mostrar:</span>
-                      <strong id="statusFilterLabel">Todos</strong>
-                    </div>
-                    <select id="statusFilter">
-                      <option value="all">Todos</option>
-                      <option value="contacted">Contactado</option>
-                      <option value="no_number">Número no disponible</option>
-                      <option value="favorite">Favoritos</option>
-                      <option value="pending">Pendientes</option>
-                    </select>
+                <label class="toggle" title="Agrupar registros por modelo de vehículo">
+                  <input type="checkbox" id="groupByModel" checked>
+                  <span>Agrupar por modelo</span>
+                </label>
+                <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+                  <i class='bx bx-filter-alt'></i>
+                  <div class="filter-label">
+                    <span class="muted tiny">Mostrar:</span>
+                    <strong id="statusFilterLabel">Todos</strong>
                   </div>
-                  <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+                  <select id="statusFilter">
+                    <option value="all">Todos</option>
+                    <option value="contacted">Contactado</option>
+                    <option value="no_number">Número no disponible</option>
+                    <option value="favorite">Favoritos</option>
+                    <option value="pending">Pendientes</option>
+                  </select>
                 </div>
+                <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
               <div class="control-group secondary">
                 <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
