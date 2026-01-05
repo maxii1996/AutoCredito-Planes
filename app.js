@@ -1432,9 +1432,13 @@ function bindSidebarToggle() {
 function bindSettingsMenu() {
   const toggle = document.getElementById('settingsToggle');
   const panel = document.getElementById('settingsPanel');
+  const actionPanel = document.getElementById('actionMenuPanel');
   if (!toggle || !panel) return;
   toggle.addEventListener('click', () => {
     panel.classList.toggle('open');
+    if (panel.classList.contains('open') && actionPanel) {
+      actionPanel.classList.remove('open');
+    }
   });
   document.addEventListener('click', (e) => {
     if (!panel.contains(e.target) && !toggle.contains(e.target)) {
@@ -1447,10 +1451,14 @@ function bindActionMenu() {
   const toggle = document.getElementById('actionMenuToggle');
   const panel = document.getElementById('actionMenuPanel');
   const wrapper = document.getElementById('actionMenu');
+  const settingsPanel = document.getElementById('settingsPanel');
   if (!toggle || !panel || !wrapper) return;
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     panel.classList.toggle('open');
+    if (panel.classList.contains('open') && settingsPanel) {
+      settingsPanel.classList.remove('open');
+    }
   });
   document.addEventListener('click', (e) => {
     if (!wrapper.contains(e.target)) panel.classList.remove('open');
@@ -3892,17 +3900,6 @@ function bindClientManager() {
     }
   }
 
-  const group = document.getElementById('groupByModel');
-  if (group) {
-    group.checked = clientManagerState.groupByModel;
-    group.addEventListener('change', () => {
-      clientManagerState.groupByModel = group.checked;
-      clientManagerState.pagination.page = 1;
-      persist();
-      renderClientManager();
-    });
-  }
-
   const statusFilter = document.getElementById('statusFilter');
   if (statusFilter) {
     statusFilter.value = clientManagerState.statusFilter;
@@ -5918,16 +5915,38 @@ function saveCustomAction() {
 function renderColumnToggles() {
   const container = document.getElementById('columnToggles');
   if (!container) return;
-  container.innerHTML = Object.entries(clientColumns).map(([key, col]) => {
+  const groupToggle = `
+    <label class="pill pill-toggle" title="Agrupar registros por modelo de vehículo">
+      <input type="checkbox" id="groupByModel" ${clientManagerState.groupByModel ? 'checked' : ''} />
+      <span>Agrupar por modelo</span>
+    </label>
+  `;
+  const columnToggles = Object.entries(clientColumns).map(([key, col]) => {
     const active = clientManagerState.columnVisibility[key];
-    return `<span class="pill ${active ? 'badge' : ''}" data-key="${key}"><input type="checkbox" ${active ? 'checked' : ''} data-key="${key}" /> ${col.label}</span>`;
+    return `<label class="pill ${active ? 'badge' : ''}" data-key="${key}">
+      <input type="checkbox" ${active ? 'checked' : ''} data-column-key="${key}" />
+      <span>${col.label}</span>
+    </label>`;
   }).join('');
+  container.innerHTML = `${groupToggle}${columnToggles}`;
 
-  container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
-    clientManagerState.columnVisibility[cb.dataset.key] = cb.checked;
+  container.querySelectorAll('input[data-column-key]').forEach(cb => cb.addEventListener('change', () => {
+    const key = cb.dataset.columnKey;
+    if (!key) return;
+    clientManagerState.columnVisibility[key] = cb.checked;
     persist();
     renderClientManager();
   }));
+
+  const groupToggleInput = container.querySelector('#groupByModel');
+  if (groupToggleInput) {
+    groupToggleInput.addEventListener('change', () => {
+      clientManagerState.groupByModel = groupToggleInput.checked;
+      clientManagerState.pagination.page = 1;
+      persist();
+      renderClientManager();
+    });
+  }
 }
 
 function openClientNotes(id) {
@@ -7675,7 +7694,6 @@ function exportManagerClients() {
 }
 
 function bindProfileActions() {
-  document.getElementById('quickSnapshot').addEventListener('click', saveSnapshot);
 
   document.getElementById('exportProfile').addEventListener('click', () => {
       confirmAction({

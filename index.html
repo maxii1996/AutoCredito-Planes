@@ -45,22 +45,22 @@
           </div>
           <div class="menu-cluster">
             <div class="action-menu" id="actionMenu">
-              <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfi</span><i class='bx bx-chevron-down'></i></button>
+              <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfil</span><i class='bx bx-chevron-down'></i></button>
               <div class="menu-panel" id="actionMenuPanel">
                 <div class="menu-head">
-                  <p class="eyebrow">¿Qué quieres hacer?</p>
+                  <p class="eyebrow">Mi Perfil</p>
+                  <h4>Mi Perfil</h4>
                 </div>
                                 <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
                 <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
-
-                <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
               </div>
             </div>
             <div class="icon-menu" id="settingsMenu">
               <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
               <div class="menu-panel" id="settingsPanel">
                 <div class="menu-head">
-                  <p class="eyebrow">Mantenimiento</p>
+                  <p class="eyebrow">Opciones</p>
+                  <h4>Opciones</h4>
                 </div>
                 <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
                 <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
@@ -431,17 +431,6 @@
             </div>
             <div class="control-bar">
               <div class="control-group primary">
-                <div class="search-group">
-                  <div class="search-field compact expandable">
-                    <i class='bx bx-search'></i>
-                    <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
-                  </div>
-                  <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
-                </div>
-                <label class="toggle" title="Agrupar registros por modelo de vehículo">
-                  <input type="checkbox" id="groupByModel" checked>
-                  <span>Agrupar por modelo</span>
-                </label>
                 <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                   <i class='bx bx-filter-alt'></i>
                   <div class="filter-label">
@@ -492,6 +481,15 @@
             </div>
           </div>
           <div class="table-wrapper dense">
+            <div class="table-toolbar">
+              <div class="search-group">
+                <div class="search-field compact expandable">
+                  <i class='bx bx-search'></i>
+                  <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+                </div>
+                <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
+              </div>
+            </div>
             <div class="data-grid" id="clientManagerTable">
               <div class="grid-head"></div>
               <div class="grid-body"></div>
@@ -502,7 +500,7 @@
       </section>
     </main>
     <footer class="app-footer">
-      <p>Creado por Maximiliano Martinez | version 1.0.7 | Solo uso interno autorizado</p>
+      <p>Creado por Maximiliano Martinez | version 1.0.8 | Solo uso interno autorizado</p>
     </footer>
   </div>
   <div class="popover-overlay fade" id="actionCustomizerOverlay">
