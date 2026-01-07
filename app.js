@@ -475,14 +475,19 @@ async function checkPriceFileExists(path) {
 async function discoverPriceTabs() {
   const manifest = await fetchJsonIfExists(`${PRICE_FILES_ROOT}/manifest.json`);
   if (manifest?.entries?.length) {
-    return manifest.entries.map(entry => ensurePriceTabDefaults({
-      id: entry.id || buildPriceTabId(entry.year, entry.month),
-      year: Number(entry.year),
-      month: entry.month,
-      folder: entry.folder || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}`,
-      pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
-      files: entry.files || []
+    const checks = await Promise.all(manifest.entries.map(async entry => {
+      const tab = ensurePriceTabDefaults({
+        id: entry.id || buildPriceTabId(entry.year, entry.month),
+        year: Number(entry.year),
+        month: entry.month,
+        folder: entry.folder || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}`,
+        pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
+        files: entry.files || []
+      });
+      const exists = await checkPriceFileExists(tab.pricePath);
+      return exists ? tab : null;
     }));
+    return checks.filter(Boolean);
   }
   if (manifest?.years) {
     const entries = [];
@@ -497,7 +502,11 @@ async function discoverPriceTabs() {
         }));
       });
     });
-    return entries;
+    const checks = await Promise.all(entries.map(async tab => {
+      const exists = await checkPriceFileExists(tab.pricePath);
+      return exists ? tab : null;
+    }));
+    return checks.filter(Boolean);
   }
 
   const now = new Date();
@@ -2231,31 +2240,28 @@ function attachTemplateActions() {
 function renderPriceTabs() {
   const label = document.getElementById('vehicleUpdateTag');
   const subtitle = document.getElementById('priceTabSubtitle');
-  const yearSelect = document.getElementById('priceYearSelect');
-  const monthSelect = document.getElementById('priceMonthSelect');
+  const tabSelect = document.getElementById('priceTabSelect');
   const active = getActivePriceTab();
   if (label) label.textContent = `Última actualización: ${active?.label || 'Sin definir'}`;
   if (subtitle) subtitle.textContent = getActivePriceStatus();
-  if (!yearSelect || !monthSelect) return;
+  if (!tabSelect) return;
   if (!priceTabs.length) {
-    yearSelect.innerHTML = '<option value="">Sin datos</option>';
-    monthSelect.innerHTML = '<option value="">Sin archivos</option>';
-    yearSelect.disabled = true;
-    monthSelect.disabled = true;
+    tabSelect.innerHTML = '<option value="">Sin archivos</option>';
+    tabSelect.disabled = true;
     updatePriceContextTag();
     return;
   }
-  yearSelect.disabled = false;
-  monthSelect.disabled = false;
-  const years = [...new Set(priceTabs.map(tab => tab.year))].sort((a, b) => b - a);
-  yearSelect.innerHTML = years.map(year => `<option value="${year}">${year}</option>`).join('') || '<option value="">Sin datos</option>';
-  const selectedYear = Number(yearSelect.value) || active?.year || years[0];
-  if (selectedYear) yearSelect.value = selectedYear;
-  const monthsForYear = priceTabs.filter(tab => tab.year === selectedYear).sort((a, b) => getMonthIndex(b.month) - getMonthIndex(a.month));
-  monthSelect.innerHTML = monthsForYear.map(tab => `<option value="${tab.id}">${tab.month}</option>`).join('') || '<option value="">Sin archivos</option>';
-  const activeForYear = monthsForYear.find(tab => tab.id === activePriceTabId);
-  const fallbackTab = activeForYear || monthsForYear[0];
-  if (fallbackTab?.id) monthSelect.value = fallbackTab.id;
+  tabSelect.disabled = false;
+  const options = priceTabs.map(tab => `<option value="${tab.id}">${tab.label}</option>`).join('');
+  const showCustom = activePriceSource === 'local';
+  const customOption = showCustom ? '<option value="custom">Configuración personalizada</option>' : '';
+  tabSelect.innerHTML = `${customOption}${options}` || '<option value="">Sin archivos</option>';
+  if (showCustom) {
+    tabSelect.value = 'custom';
+  } else if (active?.id) {
+    tabSelect.value = active.id;
+  }
+  tabSelect.dataset.current = tabSelect.value;
   updatePriceContextTag();
 }
 
@@ -2327,6 +2333,7 @@ function applyImportedVehicles(data, source = 'archivo', { silentToast = false }
 function markActiveDraftDirty() {
   activePriceSource = 'local';
   syncActiveVehiclesToDraft({ force: true });
+  renderPriceTabs();
 }
 
 async function loadPricesFromServer({ silent = false, forceServer = false } = {}) {
@@ -2590,40 +2597,43 @@ function handlePriceFile(file) {
 
 function bindPriceTabControls() {
   const filesBtn = document.getElementById('viewMonthFiles');
-  const yearSelect = document.getElementById('priceYearSelect');
-  const monthSelect = document.getElementById('priceMonthSelect');
-  const refreshBtn = document.getElementById('refreshPriceCatalogs');
+  const tabSelect = document.getElementById('priceTabSelect');
   const editorBtn = document.getElementById('openVehicleEditor');
-  if (yearSelect && !yearSelect.dataset.bound) {
-    yearSelect.addEventListener('change', async () => {
-      renderPriceTabs();
-      const monthSelectValue = document.getElementById('priceMonthSelect')?.value;
-      if (monthSelectValue) {
-        await setActivePriceTab(monthSelectValue, { silent: false });
+  if (tabSelect && !tabSelect.dataset.bound) {
+    tabSelect.addEventListener('change', () => {
+      const nextValue = tabSelect.value;
+      if (!nextValue) return;
+      if (nextValue === 'custom') {
+        tabSelect.dataset.current = 'custom';
+        activePriceSource = 'local';
+        updatePriceContextTag();
+        renderPriceTabs();
+        return;
       }
-    });
-    yearSelect.dataset.bound = 'true';
-  }
-  if (monthSelect && !monthSelect.dataset.bound) {
-    monthSelect.addEventListener('change', async () => {
-      const tabId = monthSelect.value;
-      if (tabId) {
-        await setActivePriceTab(tabId, { silent: false });
+      const applySelection = async () => {
+        if (nextValue === activePriceTabId) {
+          await loadPricesFromServer({ silent: false, forceServer: true });
+          return;
+        }
+        await setActivePriceTab(nextValue, { silent: false });
+      };
+      if (activePriceSource === 'local') {
+        confirmAction({
+          title: 'Cambiar lista de precios',
+          message: 'Si seleccionas esta opción cambiarán los precios / coches para todo el sistema ¿Continuar?',
+          confirmText: 'Sí, continuar',
+          cancelText: 'No, cancelar',
+          onConfirm: () => applySelection(),
+          onCancel: () => {
+            tabSelect.value = 'custom';
+            tabSelect.dataset.current = 'custom';
+          }
+        });
+        return;
       }
+      applySelection();
     });
-    monthSelect.dataset.bound = 'true';
-  }
-  if (refreshBtn && !refreshBtn.dataset.bound) {
-    refreshBtn.addEventListener('click', async () => {
-      await initializePriceTabs();
-      renderPriceTabs();
-      renderVehicleTable();
-      renderPlanForm();
-      renderClients();
-      renderClientManager();
-      showToast('Listas actualizadas.', 'success');
-    });
-    refreshBtn.dataset.bound = 'true';
+    tabSelect.dataset.bound = 'true';
   }
   if (editorBtn && !editorBtn.dataset.bound) {
     editorBtn.addEventListener('click', openVehicleEditorModal);
