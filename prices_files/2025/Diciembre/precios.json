@@ -1,0 +1,202 @@
+{
+  "month": "Diciembre",
+  "year": 2025,
+  "tabId": "dic-2025",
+  "updatedAt": "2025-12-02T16:21:21.889Z",
+  "vehicles": [
+    {
+      "name": "NUEVO ONIX 1.0 TURBO LT MT",
+      "basePrice": 30887900,
+      "integration": 9266370,
+      "planProfile": {
+        "label": "80/20 (120 cuotas)",
+        "planType": "85a120"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 324858,
+        "13a21": 318403,
+        "22a84": 317611,
+        "85a120": 316027,
+        "ctapura": 205919
+      },
+      "cuotaPura": 205919,
+      "reservations": {
+        "1": 1170025,
+        "3": 1521033,
+        "6": 1755038
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6, llave x llave",
+        "bonificacion": "Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro"
+      }
+    },
+    {
+      "name": "NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT",
+      "basePrice": 30887900,
+      "integration": 9266370,
+      "planProfile": {
+        "label": "100% (120 cuotas)",
+        "planType": "85a120"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 331665,
+        "13a21": 376492,
+        "22a84": 375502,
+        "85a120": 374512,
+        "ctapura": 257399
+      },
+      "cuotaPura": 257399,
+      "reservations": {
+        "1": 1170025,
+        "3": 1521033,
+        "6": 1755038
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6, llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      }
+    },
+    {
+      "name": "LA NUEVA MONTANA LT 1.2 AT",
+      "basePrice": 38489900,
+      "integration": 11546970,
+      "planProfile": {
+        "label": "80/20 (120 cuotas)",
+        "planType": "85a120"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 396767,
+        "13a21": 389747,
+        "22a84": 395583,
+        "85a120": 256599,
+        "ctapura": 252059
+      },
+      "cuotaPura": 256599,
+      "reservations": {
+        "1": 1246142,
+        "3": 1619985,
+        "6": 1869213
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6, llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      }
+    },
+    {
+      "name": "LA NUEVA S10 CD 2.8 TD 4x2 WT",
+      "basePrice": 48596900,
+      "integration": 19438760,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "22a84"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 537310,
+        "13a21": 527066,
+        "22a84": 525464
+      },
+      "cuotaPura": 347121,
+      "reservations": {
+        "1": 1900250,
+        "3": 2470325,
+        "6": 2850375
+      },
+      "benefits": {
+        "pactada": "Acepta llave x llave",
+        "bonificacion": "Débito automático obligatorio con TC"
+      }
+    },
+    {
+      "name": "NUEVA TRACKER LT 1.2AT",
+      "basePrice": 38391900,
+      "integration": 11517570,
+      "planProfile": {
+        "label": "80/20 (120 cuotas)",
+        "planType": "85a120"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 403780,
+        "13a21": 395757,
+        "22a84": 394576,
+        "85a120": 393985,
+        "ctapura": 255946
+      },
+      "cuotaPura": 255946,
+      "reservations": {
+        "1": 1246450,
+        "3": 1620385,
+        "6": 1869675
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      }
+    },
+    {
+      "name": "NUEVA SPIN 1.8 LT 5AA MT",
+      "basePrice": 35116900,
+      "integration": 10535070,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 453603,
+        "13a21": 428039,
+        "22a84": 426914,
+        "85a120": 426914,
+        "ctapura": 292641
+      },
+      "cuotaPura": 292641,
+      "reservations": {
+        "1": 1210710,
+        "3": 1573923,
+        "6": 1816065
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      }
+    }
+  ]
+}
