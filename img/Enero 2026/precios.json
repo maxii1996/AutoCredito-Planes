@@ -1,8 +1,8 @@
 {
   "month": "Enero",
   "year": 2026,
-  "tabId": "ene-2026",
-  "updatedAt": "2026-01-06T18:15:03.068Z",
+  "tabId": "2026-enero",
+  "updatedAt": "2026-01-07T14:30:05.507Z",
   "vehicles": [
     {
       "name": "NUEVO ONIX 1.0 TURBO LT MT",
@@ -195,6 +195,38 @@
       "benefits": {
         "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
         "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      }
+    },
+    {
+      "name": "NUEVA CAPTIVA PHEV (Hibrida) AT",
+      "basePrice": 52740900,
+      "integration": 15822270,
+      "cuotaPura": 439508,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84"
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 654218,
+        "13a21": 642858,
+        "22a84": 641168,
+        "85a120": 0,
+        "ctapura": 439508
+      },
+      "reservations": {
+        "1": 2130000,
+        "3": 2769000,
+        "6": 3195000
+      },
+      "benefits": {
+        "pactada": "CHEVROPLAN\nPACTADA CUOTA N°6 ,\nLLAVE X LLAVE",
+        "bonificacion": "50% DESC. EN LAS\nPRIMERAS 3 CUOTAS DEL\nSEGURO"
       }
     }
   ]
