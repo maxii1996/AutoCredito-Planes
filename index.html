@@ -177,25 +177,13 @@
       <section id="vehicles" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Tabla de Autos Disponibles en Catálogo</p>
-            <h2>Tabla Chevrolet</h2>
-            <p class="muted">Basada en la lista oficial: Onix, Onix Plus, Montana, S10, Tracker y Spin. Ajusta los importes a conveniencia.</p>
-            <p class="muted subtle">Los autos que están aquí podrían cambiar en el futuro, no basarse 100% en esta información.</p>
+            <p class="eyebrow">Productos y precios</p>
+            <h2>Gestor de Productos y Precios</h2>
+            <p class="muted">Te damos la bienvenida al Gestor de Productos y Precios.</p>
             <p class="muted subtle" id="vehicleUpdateTag">Última actualización: Diciembre 2025</p>
           </div>
           <div class="toggles">
-            <button id="viewPriceImage" class="ghost-btn" type="button"><i class='bx bx-image'></i>Ver imagen online</button>
-            <button id="viewMonthFiles" class="ghost-btn" type="button"><i class='bx bx-folder'></i>Ver otros archivos del mes...</button>
-            <button id="importPrices" class="ghost-btn" type="button"><i class='bx bx-import'></i>Importar precios</button>
-            <button id="exportPrices" class="ghost-btn" type="button"><i class='bx bx-export'></i>Exportar precios</button>
-            <label class="toggle">
-              <input type="checkbox" id="showReservations" checked>
-              <span>Ver reservas (1, 3 y 6 cuotas)</span>
-            </label>
-            <label class="toggle">
-              <input type="checkbox" id="showIntegration" checked>
-              <span>Ver integración</span>
-            </label>
+            <button id="viewOnlineFiles" class="ghost-btn" type="button"><i class='bx bx-cloud'></i>Ver archivos online</button>
           </div>
         </div>
         <div class="price-tabs">
@@ -1104,6 +1092,18 @@
       <div id="priceFilesList" class="file-list"></div>
     </div>
   </div>
+  <div id="onlineFilesModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Archivos online</p>
+          <h3>Explorador general</h3>
+        </div>
+        <button id="onlineFilesClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div id="onlineFilesList" class="file-list"></div>
+    </div>
+  </div>
   <div id="priceImportModal" class="modal hidden">
     <div class="modal-content wide">
       <div class="modal-head">
@@ -1354,6 +1354,16 @@
       <div class="modal-actions">
         <button id="modalCancel" class="ghost-btn">Cancelar</button>
         <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <div id="processingOverlay" class="processing-overlay hidden" aria-live="polite">
+    <div class="processing-card">
+      <span class="processing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Procesando cambios</p>
+        <h3>Procesando cambios... Aguarde un momento.</h3>
+        <p class="muted">Estamos ajustando productos, precios y planes.</p>
       </div>
     </div>
   </div>

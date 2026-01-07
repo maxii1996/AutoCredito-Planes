@@ -666,13 +666,18 @@ function showToast(message, type = 'info') {
   });
 }
 
-function confirmAction({ title = 'Confirmar', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm, onCancel } = {}) {
+function confirmAction({ title = 'Confirmar', message = '', messageHtml = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm, onCancel } = {}) {
   const modal = document.getElementById('modal');
   if (!modal) return;
   modal.classList.add('show');
   modal.classList.remove('hidden');
   document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalMessage').textContent = message;
+  const messageEl = document.getElementById('modalMessage');
+  if (messageHtml) {
+    messageEl.innerHTML = messageHtml;
+  } else {
+    messageEl.textContent = message;
+  }
   const confirmBtn = document.getElementById('modalConfirm');
   const cancelBtn = document.getElementById('modalCancel');
   const closeBtn = document.getElementById('modalClose');
@@ -707,6 +712,12 @@ function toggleModal(modal, show) {
     modal.classList.remove('show');
     setTimeout(() => modal.classList.add('hidden'), 200);
   }
+}
+
+function showProcessingOverlay(show) {
+  const overlay = document.getElementById('processingOverlay');
+  if (!overlay) return;
+  overlay.classList.toggle('hidden', !show);
 }
 
 function openImportDateModal() {
@@ -2596,52 +2607,62 @@ function handlePriceFile(file) {
 }
 
 function bindPriceTabControls() {
-  const filesBtn = document.getElementById('viewMonthFiles');
   const tabSelect = document.getElementById('priceTabSelect');
   const editorBtn = document.getElementById('openVehicleEditor');
   if (tabSelect && !tabSelect.dataset.bound) {
     tabSelect.addEventListener('change', () => {
       const nextValue = tabSelect.value;
-      if (!nextValue) return;
-      if (nextValue === 'custom') {
-        tabSelect.dataset.current = 'custom';
-        activePriceSource = 'local';
-        updatePriceContextTag();
-        renderPriceTabs();
-        return;
-      }
+      const previousValue = tabSelect.dataset.current || (activePriceSource === 'local' ? 'custom' : activePriceTabId || '');
+      if (!nextValue || nextValue === previousValue) return;
+      const currentDate = new Date();
+      const currentMonth = currentDate.toLocaleString('es-AR', { month: 'long' });
+      const currentYear = currentDate.getFullYear();
+      const selectedLabel = tabSelect.options[tabSelect.selectedIndex]?.textContent || 'configuración seleccionada';
+      const messageHtml = `
+        <p>Actualmente estas en el mes: <strong>${currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1)}</strong> del año <strong>${currentYear}</strong>.</p>
+        <p>Has seleccionado utilizar los productos, precios y planes según la configuración de: <strong>${selectedLabel}</strong>.</p>
+        <p>Esto modificará los coches disponibles, precios, planes y demás cosas.</p>
+        <p>¿Estas seguro que quieres continuar?</p>
+      `;
       const applySelection = async () => {
-        if (nextValue === activePriceTabId) {
-          await loadPricesFromServer({ silent: false, forceServer: true });
-          return;
-        }
-        await setActivePriceTab(nextValue, { silent: false });
-      };
-      if (activePriceSource === 'local') {
-        confirmAction({
-          title: 'Cambiar lista de precios',
-          message: 'Si seleccionas esta opción cambiarán los precios / coches para todo el sistema ¿Continuar?',
-          confirmText: 'Sí, continuar',
-          cancelText: 'No, cancelar',
-          onConfirm: () => applySelection(),
-          onCancel: () => {
-            tabSelect.value = 'custom';
+        showProcessingOverlay(true);
+        try {
+          if (nextValue === 'custom') {
             tabSelect.dataset.current = 'custom';
+            activePriceSource = 'local';
+            updatePriceContextTag();
+            renderPriceTabs();
+            return;
           }
-        });
-        return;
-      }
-      applySelection();
+          if (nextValue === activePriceTabId) {
+            await loadPricesFromServer({ silent: false, forceServer: true });
+            return;
+          }
+          await setActivePriceTab(nextValue, { silent: false });
+        } finally {
+          showProcessingOverlay(false);
+        }
+      };
+      confirmAction({
+        title: 'Confirmar cambio de lista',
+        messageHtml,
+        confirmText: 'Aceptar',
+        cancelText: 'Cancelar',
+        onConfirm: applySelection,
+        onCancel: () => {
+          if (previousValue) {
+            tabSelect.value = previousValue;
+          } else {
+            renderPriceTabs();
+          }
+        }
+      });
     });
     tabSelect.dataset.bound = 'true';
   }
   if (editorBtn && !editorBtn.dataset.bound) {
     editorBtn.addEventListener('click', openVehicleEditorModal);
     editorBtn.dataset.bound = 'true';
-  }
-  if (filesBtn && !filesBtn.dataset.bound) {
-    filesBtn.addEventListener('click', openPriceFilesModal);
-    filesBtn.dataset.bound = 'true';
   }
 }
 
@@ -2932,12 +2953,6 @@ function applyVehicleEditorChanges() {
 }
 
 function renderVehicleTable() {
-  const resToggle = document.getElementById('showReservations');
-  const intToggle = document.getElementById('showIntegration');
-  const showRes = resToggle ? resToggle.checked : true;
-  const showInt = intToggle ? intToggle.checked : true;
-  uiState.toggles = { showReservations: showRes, showIntegration: showInt };
-  persist();
   renderPriceTabs();
   clearPriceAlerts();
   if (activePriceSource === 'servidor') {
@@ -2995,30 +3010,26 @@ function renderVehicleTable() {
     }).join('')}</tr>`);
   });
 
-  if (showInt) {
-    bodyRows.push(`<tr><td>Integración</td>${vehicles.map((v, idx) => {
+  bodyRows.push(`<tr><td>Integración</td>${vehicles.map((v, idx) => {
+    return `<td>
+      <div class="money-field">
+        <span class="prefix">$</span>
+        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0">
+      </div>
+    </td>`;
+  }).join('')}</tr>`);
+
+  ['1', '3', '6'].forEach(res => {
+    bodyRows.push(`<tr><td>Reserva ${res} cuota(s)</td>${vehicles.map((v, idx) => {
+      const value = v.reservations[res];
       return `<td>
         <div class="money-field">
           <span class="prefix">$</span>
-          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0">
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
         </div>
       </td>`;
     }).join('')}</tr>`);
-  }
-
-  if (showRes) {
-    ['1', '3', '6'].forEach(res => {
-      bodyRows.push(`<tr><td>Reserva ${res} cuota(s)</td>${vehicles.map((v, idx) => {
-        const value = v.reservations[res];
-        return `<td>
-          <div class="money-field">
-            <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
-          </div>
-        </td>`;
-      }).join('')}</tr>`);
-    });
-  }
+  });
 
   table.querySelector('thead').innerHTML = head;
   table.querySelector('tbody').innerHTML = bodyRows.join('');
@@ -4398,22 +4409,10 @@ function renderClients() {
 }
 
 function attachVehicleToggles() {
-  const res = document.getElementById('showReservations');
-  const integ = document.getElementById('showIntegration');
-  const viewBtn = document.getElementById('viewPriceImage');
-  res.addEventListener('change', () => {
-    uiState.toggles.showReservations = res.checked;
-    persist();
-    renderVehicleTable();
-  });
-  integ.addEventListener('change', () => {
-    uiState.toggles.showIntegration = integ.checked;
-    persist();
-    renderVehicleTable();
-  });
-  if (viewBtn && !viewBtn.dataset.bound) {
-    viewBtn.addEventListener('click', openPriceImage);
-    viewBtn.dataset.bound = 'true';
+  const onlineBtn = document.getElementById('viewOnlineFiles');
+  if (onlineBtn && !onlineBtn.dataset.bound) {
+    onlineBtn.addEventListener('click', openOnlineFilesModal);
+    onlineBtn.dataset.bound = 'true';
   }
 }
 
@@ -4432,6 +4431,68 @@ function openPriceImage() {
       showToast('No se encontraron archivos visuales para este mes.', 'error');
     }
   });
+}
+
+async function collectOnlineFiles(rootPath = 'img', currentPath = 'img', results = []) {
+  try {
+    const response = await fetch(`${currentPath}/`, { cache: 'no-store' });
+    if (!response.ok) return results;
+    const html = await response.text();
+    const entries = parseDirectoryListing(html);
+    const folders = entries.filter(entry => entry.endsWith('/'));
+    const files = entries.filter(entry => !entry.endsWith('/'));
+    const folderLabel = currentPath.replace(`${rootPath}/`, '') || rootPath;
+    files.forEach(file => {
+      results.push({
+        folder: folderLabel,
+        name: normalizePriceFileName(file),
+        path: `${currentPath}/${file}`
+      });
+    });
+    for (const folder of folders) {
+      const trimmed = folder.replace(/\/$/, '');
+      await collectOnlineFiles(rootPath, `${currentPath}/${trimmed}`, results);
+    }
+    return results;
+  } catch (err) {
+    return results;
+  }
+}
+
+function renderOnlineFilesList(files = []) {
+  const list = document.getElementById('onlineFilesList');
+  if (!list) return;
+  if (!files.length) {
+    list.innerHTML = '<p class="muted">No se pudieron detectar archivos en la carpeta img.</p>';
+    return;
+  }
+  const grouped = files.reduce((acc, file) => {
+    const key = file.folder || 'img';
+    acc[key] = acc[key] || [];
+    acc[key].push(file);
+    return acc;
+  }, {});
+  list.innerHTML = Object.entries(grouped).map(([folder, folderFiles]) => `
+    <div class="file-group">
+      <p class="file-group-title">${folder}</p>
+      ${folderFiles.map(file => `
+        <a class="file-link" href="${file.path}" target="_blank" rel="noopener noreferrer">
+          <i class='bx bx-file'></i> ${file.name}
+        </a>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function openOnlineFilesModal() {
+  const modal = document.getElementById('onlineFilesModal');
+  const list = document.getElementById('onlineFilesList');
+  const close = document.getElementById('onlineFilesClose');
+  if (!modal || !list) return;
+  list.innerHTML = '<p class="muted">Cargando archivos online...</p>';
+  collectOnlineFiles().then(files => renderOnlineFilesList(files));
+  if (close) close.onclick = () => toggleModal(modal, false);
+  toggleModal(modal, true);
 }
 
 function bindClientManager() {
