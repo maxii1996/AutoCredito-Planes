@@ -391,95 +391,175 @@ const defaultTemplates = [
 function cloneVehicles(list) {
   return (list || []).map(v => ({
     ...v,
-    shareByPlan: { ...v.shareByPlan },
-    reservations: { ...v.reservations },
+    shareByPlan: { ...(v.shareByPlan || {}) },
+    reservations: { ...(v.reservations || {}) },
     planProfile: { ...(v.planProfile || {}) },
     benefits: { ...(v.benefits || {}) },
     availablePlans: v.availablePlans ? [...v.availablePlans] : undefined
   }));
 }
 
-function clonePriceTabs(list) {
-  return (list || []).map(tab => ({
+const PRICE_FILES_ROOT = 'prices_files';
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function buildPriceTabId(year, month) {
+  return `${year}-${String(month || '').trim().toLowerCase()}`;
+}
+
+function buildPriceTabLabel(year, month) {
+  return `${month} ${year}`;
+}
+
+function ensurePriceTabDefaults(tab = {}) {
+  return {
     ...tab,
-    locked: false,
-    source: tab.source || 'predeterminado',
-    files: (tab.files || []).map(f => ({ ...f })),
-    vehicles: cloneVehicles(tab.vehicles || defaultVehicles)
-  }));
-}
-
-function createDefaultPriceTabs() {
-  return clonePriceTabs([
-    {
-      id: 'dic-2025',
-      label: 'Diciembre 2025',
-      month: 'Diciembre',
-      year: 2025,
-      locked: false,
-      source: 'predeterminado',
-      folder: 'img/Diciembre 2025',
-      primaryFile: 'img/Diciembre 2025/LISTA DE CHEVROLET DICIEMBRE 2025.pdf',
-      files: [
-        { name: 'LISTA DE CHEVROLET DICIEMBRE 2025.pdf', path: 'img/Diciembre 2025/LISTA DE CHEVROLET DICIEMBRE 2025.pdf' },
-        { name: 'Lista de precios Chevroplan POSITIVE Diciembre.pdf', path: 'img/Diciembre 2025/Lista de precios Chevroplan POSITIVE Diciembre.pdf' }
-      ],
-      vehicles: decemberVehicles
-    },
-    {
-      id: 'nov-2025',
-      label: 'Noviembre 2025',
-      month: 'Noviembre',
-      year: 2025,
-      locked: false,
-      source: 'predeterminado',
-      folder: 'img/Noviembre 2025',
-      primaryFile: 'img/Noviembre 2025/precios.png',
-      files: [
-        { name: 'precios.png', path: 'img/Noviembre 2025/precios.png' },
-        { name: 'LISTA CHEVROLET NOV. 2025.png', path: 'img/Noviembre 2025/LISTA CHEVROLET NOV. 2025.png' }
-      ],
-      vehicles: novemberVehicles
-    }
-  ]);
-}
-
-function ensurePriceTabsIntegrity() {
-  if (!priceTabs || !priceTabs.length) {
-    priceTabs = createDefaultPriceTabs();
-  }
-  if (!priceTabs.some(t => t.id === activePriceTabId)) {
-    activePriceTabId = priceTabs[0]?.id || '';
-  }
+    label: tab.label || buildPriceTabLabel(tab.year, tab.month),
+    files: Array.isArray(tab.files) ? tab.files.map(file => ({ ...file })) : [],
+    primaryFile: tab.primaryFile || ''
+  };
 }
 
 function getActivePriceTab() {
-  ensurePriceTabsIntegrity();
   return priceTabs.find(t => t.id === activePriceTabId) || priceTabs[0] || null;
 }
 
-function syncActiveVehiclesToTab() {
-  ensurePriceTabsIntegrity();
-  const idx = priceTabs.findIndex(t => t.id === activePriceTabId);
-  if (idx >= 0) {
-    priceTabs[idx].vehicles = cloneVehicles(vehicles);
+function syncActiveVehiclesToDraft({ force = false } = {}) {
+  const active = getActivePriceTab();
+  if (!active) return;
+  if (!force && activePriceSource !== 'local' && !priceDrafts[active.id]) return;
+  priceDrafts[active.id] = {
+    vehicles: cloneVehicles(vehicles),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function syncVehiclesFromDraftOrFallback(tab) {
+  const draft = tab ? priceDrafts[tab.id] : null;
+  if (draft?.vehicles?.length) {
+    vehicles = cloneVehicles(draft.vehicles);
+    activePriceSource = 'local';
+  } else {
+    vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
+    activePriceSource = 'local';
   }
 }
 
-function syncVehiclesFromActiveTab() {
-  const active = getActivePriceTab();
-  vehicles = cloneVehicles(active?.vehicles || defaultVehicles);
-}
-
-const MONTH_ORDER = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MONTH_ORDER = MONTH_NAMES.map(month => month.toLowerCase());
 
 function getMonthIndex(monthName = '') {
   const normalized = String(monthName).trim().toLowerCase();
   return MONTH_ORDER.indexOf(normalized);
 }
 
+async function fetchJsonIfExists(path) {
+  try {
+    const response = await fetch(path, { cache: 'no-store' });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (err) {
+    return null;
+  }
+}
+
+async function checkPriceFileExists(path) {
+  try {
+    const head = await fetch(path, { method: 'HEAD', cache: 'no-store' });
+    if (head.ok) return true;
+    const fallback = await fetch(path, { cache: 'no-store' });
+    return fallback.ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+async function discoverPriceTabs() {
+  const manifest = await fetchJsonIfExists(`${PRICE_FILES_ROOT}/manifest.json`);
+  if (manifest?.entries?.length) {
+    return manifest.entries.map(entry => ensurePriceTabDefaults({
+      id: entry.id || buildPriceTabId(entry.year, entry.month),
+      year: Number(entry.year),
+      month: entry.month,
+      folder: entry.folder || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}`,
+      pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
+      files: entry.files || []
+    }));
+  }
+  if (manifest?.years) {
+    const entries = [];
+    Object.entries(manifest.years).forEach(([year, months]) => {
+      (months || []).forEach(month => {
+        entries.push(ensurePriceTabDefaults({
+          id: buildPriceTabId(year, month),
+          year: Number(year),
+          month,
+          folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
+          pricePath: `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`
+        }));
+      });
+    });
+    return entries;
+  }
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const years = [];
+  for (let year = currentYear + 1; year >= currentYear - 5; year -= 1) {
+    years.push(year);
+  }
+  const checks = [];
+  years.forEach(year => {
+    MONTH_NAMES.forEach(month => {
+      const pricePath = `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`;
+      checks.push(checkPriceFileExists(pricePath).then(exists => {
+        if (!exists) return null;
+        return ensurePriceTabDefaults({
+          id: buildPriceTabId(year, month),
+          year,
+          month,
+          folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
+          pricePath
+        });
+      }));
+    });
+  });
+  const results = await Promise.all(checks);
+  return results.filter(Boolean);
+}
+
+function sortPriceTabs(list = []) {
+  return [...list].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return getMonthIndex(b.month) - getMonthIndex(a.month);
+  });
+}
+
+function resolveDefaultPriceTab() {
+  if (!priceTabs.length) return null;
+  const today = new Date();
+  const todayIndex = today.getFullYear() * 12 + today.getMonth();
+  const sorted = sortPriceTabs(priceTabs);
+  const eligible = sorted.filter(tab => {
+    const tabIndex = (tab.year || 0) * 12 + getMonthIndex(tab.month);
+    return tabIndex <= todayIndex;
+  });
+  return eligible[0] || sorted[0] || null;
+}
+
+async function initializePriceTabs() {
+  priceTabs = sortPriceTabs(await discoverPriceTabs());
+  if (!priceTabs.length) {
+    activePriceTabId = '';
+    vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
+    activePriceSource = 'local';
+    return;
+  }
+  const saved = activePriceTabId && priceTabs.find(tab => tab.id === activePriceTabId);
+  const defaultTab = resolveDefaultPriceTab();
+  activePriceTabId = saved?.id || defaultTab?.id || priceTabs[0].id;
+  await loadPricesFromServer({ silent: true });
+}
+
 function getMostRecentPriceTab() {
-  ensurePriceTabsIntegrity();
   return priceTabs.reduce((latest, tab) => {
     if (!latest) return tab;
     const yearDiff = (tab.year || 0) - (latest.year || 0);
@@ -490,41 +570,21 @@ function getMostRecentPriceTab() {
   }, null);
 }
 
-function enforceLatestPriceTab({ silent = true } = {}) {
-  const latest = getMostRecentPriceTab();
-  if (latest && latest.id !== activePriceTabId) {
-    syncActiveVehiclesToTab();
-    activePriceTabId = latest.id;
-    syncVehiclesFromActiveTab();
-    persist();
-    renderPriceTabs();
-    renderVehicleTable();
-    renderPlanForm();
-    renderClients();
-    renderClientManager();
-    loadPricesFromServer({ silent });
-  }
-  updatePriceContextTag();
-  return latest || getActivePriceTab();
-}
-
 let enforcingPlanTab = false;
 
 function ensurePlansUseLatestPrices() {
   if (enforcingPlanTab) return;
   enforcingPlanTab = true;
-  enforceLatestPriceTab({ silent: true });
+  updatePriceContextTag();
   enforcingPlanTab = false;
 }
 
-function setActivePriceTab(tabId) {
-  ensurePriceTabsIntegrity();
+async function setActivePriceTab(tabId, { silent = true } = {}) {
   const tab = priceTabs.find(t => t.id === tabId);
   if (!tab || tab.id === activePriceTabId) return;
-  syncActiveVehiclesToTab();
+  syncActiveVehiclesToDraft();
   activePriceTabId = tab.id;
-  syncVehiclesFromActiveTab();
-  persist();
+  await loadPricesFromServer({ silent });
   renderPriceTabs();
   renderVehicleTable();
   if (document.getElementById('plans')?.classList.contains('active')) {
@@ -532,7 +592,6 @@ function setActivePriceTab(tabId) {
   }
   renderClients();
   renderClientManager();
-  loadPricesFromServer({ silent: true });
   updatePriceContextTag();
 }
 
@@ -931,16 +990,17 @@ function bindMoneyInput(el, onChange) {
   });
 }
 
-function applyProfileData(parsed) {
-  priceTabs = clonePriceTabs(parsed.priceTabs || priceTabs || createDefaultPriceTabs());
-  activePriceTabId = parsed.activePriceTabId || activePriceTabId || priceTabs[0]?.id || '';
-  if (parsed.priceTabs) {
-    syncVehiclesFromActiveTab();
-  } else {
-    vehicles = cloneVehicles(parsed.vehicles || defaultVehicles);
-    const activeTab = getActivePriceTab();
-    if (activeTab) activeTab.vehicles = cloneVehicles(vehicles);
+async function applyProfileData(parsed) {
+  activePriceTabId = parsed.activePriceTabId || activePriceTabId;
+  priceDrafts = parsed.priceDrafts || priceDrafts;
+  const legacyTabs = parsed.priceTabs || [];
+  const legacyActive = legacyTabs.find(tab => tab.id === activePriceTabId) || legacyTabs[0];
+  vehicles = cloneVehicles(legacyActive?.vehicles || parsed.vehicles || vehicles || defaultVehicles);
+  if (activePriceTabId) {
+    priceDrafts[activePriceTabId] = { vehicles: cloneVehicles(vehicles), updatedAt: new Date().toISOString() };
+    activePriceSource = 'local';
   }
+  await initializePriceTabs();
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
   clients = parsed.clients || [];
   managerClients = parsed.managerClients || [];
@@ -966,6 +1026,7 @@ function applyProfileData(parsed) {
   applyToggleState();
   applyPreferences();
   applyStatusPalette();
+  renderPriceTabs();
   renderVehicleTable();
   renderTemplates();
   renderPlanForm();
@@ -981,8 +1042,8 @@ function saveSnapshot() {
   const title = `Snapshot ${new Date().toLocaleString('es-AR')}`;
   const data = {
     vehicles: cloneVehicles(vehicles),
-    priceTabs: clonePriceTabs(priceTabs),
     activePriceTabId,
+    priceDrafts: JSON.parse(JSON.stringify(priceDrafts || {})),
     templates: ensureTemplateIds(JSON.parse(JSON.stringify(templates))),
     clients: JSON.parse(JSON.stringify(clients)),
     managerClients: JSON.parse(JSON.stringify(managerClients)),
@@ -1378,9 +1439,11 @@ function copyText(text, label = 'Contenido copiado') {
   }
 }
 
-let priceTabs = clonePriceTabs(load('priceTabs') || createDefaultPriceTabs());
-let activePriceTabId = load('activePriceTabId') || (priceTabs[0]?.id || '');
-let vehicles = cloneVehicles((priceTabs.find(t => t.id === activePriceTabId) || priceTabs[0] || {}).vehicles || load('vehicles') || defaultVehicles);
+let priceTabs = [];
+let activePriceTabId = load('activePriceTabId') || '';
+let priceDrafts = load('priceDrafts') || {};
+let activePriceSource = 'local';
+let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
@@ -1399,24 +1462,16 @@ let selectedCustomIcon = 'bx-check-circle';
 let activeContextClientId = null;
 let activeScheduleClientId = null;
 let scheduleClockInterval = null;
+let vehicleEditorState = { selectedIndex: 0, search: '' };
 
-function upgradePriceTabsFromLegacy() {
-  const storedTabs = load('priceTabs');
-  if (!storedTabs) {
-    const legacyVehicles = cloneVehicles(load('vehicles') || vehicles || defaultVehicles);
-    priceTabs = createDefaultPriceTabs();
-    if (priceTabs[0]) {
-      priceTabs[0].vehicles = legacyVehicles;
-      activePriceTabId = priceTabs[0].id;
-    }
+function migrateLegacyPrices() {
+  const legacyVehicles = load('vehicles');
+  if (legacyVehicles && !priceDrafts?.legacy) {
+    priceDrafts = { ...priceDrafts, legacy: { vehicles: cloneVehicles(legacyVehicles), updatedAt: new Date().toISOString() } };
   }
-  priceTabs = clonePriceTabs(priceTabs).map(tab => ({ ...tab, locked: false, source: tab.source || 'predeterminado' }));
-  ensurePriceTabsIntegrity();
-  syncVehiclesFromActiveTab();
 }
 
-upgradePriceTabsFromLegacy();
-enforceLatestPriceTab({ silent: true });
+migrateLegacyPrices();
 
 clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
@@ -1440,8 +1495,9 @@ let selectedPlanClientId = uiState.planDraft.selectedClientId || null;
 
 init();
 
-function init() {
+async function init() {
   try {
+    await initializePriceTabs();
     setupScrollLockObserver();
     bindNavigation();
     bindProfileActions();
@@ -1475,6 +1531,7 @@ function init() {
     bindPriceTabControls();
     bindPriceImportActions();
     attachVehicleToggles();
+    bindVehicleEditor();
     bindClientManager();
     bindContactAssistant();
     bindScheduleModal();
@@ -1484,7 +1541,6 @@ function init() {
     startScheduleClock();
     startRealtimePersistence();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
-    loadPricesFromServer({ silent: true });
   } catch (err) {
     console.error('Error during initialization:', err);
   }
@@ -1505,7 +1561,6 @@ function activatePanel(targetId) {
   const targetPanel = document.getElementById(targetId);
   updateSectionTitle(targetId);
   if (targetId === 'plans') {
-    enforceLatestPriceTab({ silent: true });
     updatePlanSummary();
   }
   if (targetId === 'scheduledClients') {
@@ -2174,38 +2229,44 @@ function attachTemplateActions() {
 }
 
 function renderPriceTabs() {
-  ensurePriceTabsIntegrity();
-  const list = document.getElementById('priceTabList');
   const label = document.getElementById('vehicleUpdateTag');
   const subtitle = document.getElementById('priceTabSubtitle');
-  const renameBtn = document.getElementById('renamePriceTab');
-  const deleteBtn = document.getElementById('deletePriceTab');
+  const yearSelect = document.getElementById('priceYearSelect');
+  const monthSelect = document.getElementById('priceMonthSelect');
   const active = getActivePriceTab();
   if (label) label.textContent = `Última actualización: ${active?.label || 'Sin definir'}`;
   if (subtitle) subtitle.textContent = getActivePriceStatus();
-  if (renameBtn) renameBtn.disabled = !active;
-  if (deleteBtn) deleteBtn.disabled = !active || priceTabs.length <= 1;
-  if (!list) return;
-  list.innerHTML = priceTabs.map(tab => `
-    <button class="tab-chip ${tab.id === activePriceTabId ? 'active' : ''}" data-tab="${tab.id}">
-      <span>${tab.label}</span>
-    </button>
-  `).join('');
-  list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => setActivePriceTab(btn.dataset.tab)));
+  if (!yearSelect || !monthSelect) return;
+  if (!priceTabs.length) {
+    yearSelect.innerHTML = '<option value="">Sin datos</option>';
+    monthSelect.innerHTML = '<option value="">Sin archivos</option>';
+    yearSelect.disabled = true;
+    monthSelect.disabled = true;
+    updatePriceContextTag();
+    return;
+  }
+  yearSelect.disabled = false;
+  monthSelect.disabled = false;
+  const years = [...new Set(priceTabs.map(tab => tab.year))].sort((a, b) => b - a);
+  yearSelect.innerHTML = years.map(year => `<option value="${year}">${year}</option>`).join('') || '<option value="">Sin datos</option>';
+  const selectedYear = Number(yearSelect.value) || active?.year || years[0];
+  if (selectedYear) yearSelect.value = selectedYear;
+  const monthsForYear = priceTabs.filter(tab => tab.year === selectedYear).sort((a, b) => getMonthIndex(b.month) - getMonthIndex(a.month));
+  monthSelect.innerHTML = monthsForYear.map(tab => `<option value="${tab.id}">${tab.month}</option>`).join('') || '<option value="">Sin archivos</option>';
+  const activeForYear = monthsForYear.find(tab => tab.id === activePriceTabId);
+  const fallbackTab = activeForYear || monthsForYear[0];
+  if (fallbackTab?.id) monthSelect.value = fallbackTab.id;
   updatePriceContextTag();
 }
 
 function getPriceFilePath(tab = getActivePriceTab()) {
-  if (!tab?.folder) return '';
-  const trimmed = tab.folder.replace(/\/?$/, '');
-  return `${trimmed}/precios.json`;
+  return tab?.pricePath || '';
 }
 
 function getActivePriceStatus() {
-  const active = getActivePriceTab();
-  if (!active) return 'Precios en modo local';
-  if (active.source === 'servidor') return 'Precios cargados desde archivo del mes';
-  if (active.source === 'archivo') return 'Precios cargados manualmente';
+  if (activePriceSource === 'servidor') return 'Precios cargados desde archivo del mes';
+  if (activePriceSource === 'archivo') return 'Precios cargados manualmente';
+  if (activePriceSource === 'local') return 'Precios editados localmente';
   return 'Precios en modo local';
 }
 
@@ -2229,14 +2290,14 @@ function clearPriceAlerts() {
 function updatePriceContextTag() {
   const tag = document.getElementById('priceContextTag');
   if (!tag) return;
-  const latest = getMostRecentPriceTab() || getActivePriceTab();
-  if (latest) {
-    const month = latest.month || latest.label || 'Mes sin definir';
-    const year = latest.year ? ` ${latest.year}` : '';
+  const active = getActivePriceTab();
+  if (active) {
+    const month = active.month || active.label || 'Mes sin definir';
+    const year = active.year ? ` ${active.year}` : '';
     tag.textContent = `Utilizando precios de: ${month}${year}`;
-  } else {
-    tag.textContent = 'Utilizando precios locales';
+    return;
   }
+  tag.textContent = 'Utilizando precios locales';
 }
 
 function applyImportedVehicles(data, source = 'archivo', { silentToast = false } = {}) {
@@ -2246,10 +2307,9 @@ function applyImportedVehicles(data, source = 'archivo', { silentToast = false }
     return false;
   }
   vehicles = parsedVehicles;
-  const active = getActivePriceTab();
-  if (active) {
-    active.vehicles = cloneVehicles(parsedVehicles);
-    active.source = source;
+  activePriceSource = source;
+  if (source === 'archivo' || source === 'local') {
+    syncActiveVehiclesToDraft({ force: true });
   }
   persist();
   renderVehicleTable();
@@ -2257,18 +2317,45 @@ function applyImportedVehicles(data, source = 'archivo', { silentToast = false }
   renderClients();
   renderClientManager();
   if (!silentToast) {
-    showToast(`Precios aplicados desde ${source === 'servidor' ? 'el servidor' : 'un archivo'}.`, 'success');
+    const label = source === 'servidor' ? 'el servidor' : source === 'local' ? 'el editor' : 'un archivo';
+    showToast(`Precios aplicados desde ${label}.`, 'success');
   }
   updatePriceContextTag();
   return true;
 }
 
-async function loadPricesFromServer({ silent = false } = {}) {
+function markActiveDraftDirty() {
+  activePriceSource = 'local';
+  syncActiveVehiclesToDraft({ force: true });
+}
+
+async function loadPricesFromServer({ silent = false, forceServer = false } = {}) {
   const active = getActivePriceTab();
-  if (!active) return null;
+  if (!active) {
+    if (!silent) renderPriceAlerts('No se encontraron listas disponibles.', 'warning');
+    syncVehiclesFromDraftOrFallback();
+    return null;
+  }
+  const draft = priceDrafts[active.id];
+  if (!forceServer && draft?.vehicles?.length) {
+    vehicles = cloneVehicles(draft.vehicles);
+    activePriceSource = 'local';
+    renderVehicleTable();
+    renderPlanForm();
+    renderClients();
+    renderClientManager();
+    if (!silent) {
+      renderPriceAlerts('Precios cargados desde el borrador local.', 'success');
+      showToast('Se aplicó el borrador local del mes.', 'success');
+      updatePriceImportStatuses({ server: 'Borrador local aplicado' });
+    }
+    updatePriceContextTag();
+    renderPriceTabs();
+    return draft;
+  }
   const path = getPriceFilePath(active);
   if (!path) {
-    if (!silent) renderPriceAlerts('No hay carpeta configurada para este mes.', 'error');
+    if (!silent) renderPriceAlerts('No hay archivo de precios para este mes.', 'error');
     return null;
   }
   try {
@@ -2278,14 +2365,17 @@ async function loadPricesFromServer({ silent = false } = {}) {
     applyImportedVehicles(data, 'servidor', { silentToast: silent });
     renderPriceAlerts(`Precios cargados desde ${path}`, 'success');
     updatePriceImportStatuses({ server: `Cargado desde ${path}` });
+    renderPriceTabs();
     return data;
   } catch (err) {
-    active.source = active.source || 'predeterminado';
+    activePriceSource = activePriceSource || 'predeterminado';
+    syncVehiclesFromDraftOrFallback(active);
     if (!silent) {
-      renderPriceAlerts('No hay archivo de precios para este mes, se usan los valores predeterminados.', 'warning');
+      renderPriceAlerts('No hay archivo de precios para este mes, se usan valores locales.', 'warning');
       showToast('No se encontró precios.json en la carpeta del mes.', 'error');
       updatePriceImportStatuses({ server: 'No se encontró precios.json' });
     }
+    renderPriceTabs();
     return null;
   }
 }
@@ -2333,83 +2423,36 @@ function getPrimaryFileForTab(tab) {
   return '';
 }
 
-function openPriceTabModal(mode = 'create') {
-  const modal = document.getElementById('priceTabModal');
-  if (!modal) return;
-  const title = document.getElementById('priceTabModalTitle');
-  const submit = document.getElementById('priceTabSubmit');
-  const cancel = document.getElementById('priceTabCancel');
-  const close = document.getElementById('priceTabClose');
-  const monthSelect = document.getElementById('priceTabMonth');
-  const yearInput = document.getElementById('priceTabYear');
-  const baseSelect = document.getElementById('priceTabBase');
-  const nameInput = document.getElementById('priceTabCustomName');
-  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  if (monthSelect && !monthSelect.dataset.loaded) {
-    monthSelect.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
-    monthSelect.dataset.loaded = 'true';
+function normalizePriceFileName(name = '') {
+  return decodeURIComponent(String(name)).replace(/\/$/, '');
+}
+
+function parseDirectoryListing(html = '') {
+  const matches = [...html.matchAll(/href="([^"]+)"/g)].map(match => match[1]);
+  return matches
+    .map(item => item.split('?')[0])
+    .filter(item => item && item !== '../' && item !== './');
+}
+
+async function loadPriceTabFiles(tab) {
+  if (!tab?.folder) return [];
+  try {
+    const response = await fetch(`${tab.folder}/`, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const html = await response.text();
+    const entries = parseDirectoryListing(html);
+    const files = entries
+      .filter(entry => !entry.endsWith('/'))
+      .map(entry => ({
+        name: normalizePriceFileName(entry),
+        path: `${tab.folder}/${entry}`
+      }));
+    tab.files = files;
+    tab.primaryFile = files.find(file => /\.(png|jpe?g|pdf)$/i.test(file.name))?.path || '';
+    return files;
+  } catch (err) {
+    return [];
   }
-  if (baseSelect) {
-    baseSelect.innerHTML = priceTabs.map(tab => `<option value="${tab.id}">${tab.label}</option>`).join('');
-    baseSelect.value = activePriceTabId;
-  }
-  const active = getActivePriceTab();
-  if (monthSelect) monthSelect.value = active?.month || months[new Date().getMonth()];
-  if (yearInput) yearInput.value = active?.year || new Date().getFullYear();
-  if (nameInput) nameInput.value = mode === 'rename' ? (active?.label || '') : '';
-  if (title) title.textContent = mode === 'rename' ? 'Renombrar pestaña' : 'Nueva pestaña de precios';
-  if (submit) submit.textContent = mode === 'rename' ? 'Guardar nombre' : 'Crear pestaña';
-
-  const cleanup = () => {
-    if (submit) submit.onclick = null;
-    if (cancel) cancel.onclick = null;
-    if (close) close.onclick = null;
-    toggleModal(modal, false);
-  };
-
-  if (cancel) cancel.onclick = cleanup;
-  if (close) close.onclick = cleanup;
-
-  if (submit) {
-    submit.onclick = () => {
-      const month = monthSelect?.value || '';
-      const year = Number(yearInput?.value) || new Date().getFullYear();
-      const custom = nameInput?.value?.trim();
-      if (mode === 'rename') {
-        if (!active) return;
-        active.month = month;
-        active.year = year;
-        active.label = custom || `${month} ${year}`;
-        persist();
-        renderPriceTabs();
-        showToast('Pestaña renombrada', 'success');
-        cleanup();
-        return;
-      }
-      const baseId = baseSelect?.value || activePriceTabId;
-      const base = priceTabs.find(t => t.id === baseId) || active;
-      const id = `${(month || 'mes').toLowerCase()}-${year}-${Date.now()}`;
-      const label = custom || `${month} ${year}`;
-      priceTabs.push({
-        id,
-        label,
-        month,
-        year,
-        locked: false,
-        folder: base?.folder || '',
-        primaryFile: base?.primaryFile || getPrimaryFileForTab(base),
-        files: (base?.files || []).map(f => ({ ...f })),
-        vehicles: cloneVehicles(base?.vehicles || defaultVehicles),
-        source: base?.source || 'predeterminado'
-      });
-      setActivePriceTab(id);
-      renderPriceTabs();
-      showToast('Nueva pestaña creada', 'success');
-      cleanup();
-    };
-  }
-
-  toggleModal(modal, true);
 }
 
 function openPriceFilesModal() {
@@ -2418,14 +2461,27 @@ function openPriceFilesModal() {
   const close = document.getElementById('priceFilesClose');
   const active = getActivePriceTab();
   if (!modal || !list) return;
-  if (!active?.files?.length) {
-    list.innerHTML = '<p class="muted">No hay archivos registrados para este mes.</p>';
+  if (!active) {
+    list.innerHTML = '<p class="muted">No hay carpeta disponible para mostrar.</p>';
+    if (close) close.onclick = () => toggleModal(modal, false);
+    toggleModal(modal, true);
+    return;
+  }
+  const renderFiles = (files = []) => {
+    if (!files.length) {
+      list.innerHTML = '<p class="muted">No se pudieron detectar archivos en esta carpeta.</p>';
+      return;
+    }
+    list.innerHTML = files.map(file => `
+        <a class="file-link" href="${file.path}" target="_blank" rel="noopener noreferrer">
+          <i class='bx bx-file'></i> ${file.name}
+        </a>
+      `).join('');
+  };
+  if (active?.files?.length) {
+    renderFiles(active.files);
   } else {
-    list.innerHTML = active.files.map(file => `
-      <a class="file-link" href="${file.path}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bx-file'></i> ${file.name}
-      </a>
-    `).join('');
+    loadPriceTabFiles(active).then(renderFiles);
   }
   if (close) close.onclick = () => toggleModal(modal, false);
   toggleModal(modal, true);
@@ -2467,7 +2523,7 @@ function bindPriceImportActions() {
     copyBtn.dataset.bound = 'true';
   }
   if (reloadBtn && !reloadBtn.dataset.bound) {
-    reloadBtn.addEventListener('click', () => loadPricesFromServer({ silent: false }));
+    reloadBtn.addEventListener('click', () => loadPricesFromServer({ silent: false, forceServer: true }));
     reloadBtn.dataset.bound = 'true';
   }
   if (applyFileBtn && !applyFileBtn.dataset.bound) {
@@ -2533,49 +2589,336 @@ function handlePriceFile(file) {
 }
 
 function bindPriceTabControls() {
-  const addBtn = document.getElementById('addPriceTab');
-  const renameBtn = document.getElementById('renamePriceTab');
-  const deleteBtn = document.getElementById('deletePriceTab');
   const filesBtn = document.getElementById('viewMonthFiles');
-  if (addBtn && !addBtn.dataset.bound) {
-    addBtn.addEventListener('click', () => openPriceTabModal('create'));
-    addBtn.dataset.bound = 'true';
-  }
-  if (renameBtn && !renameBtn.dataset.bound) {
-    renameBtn.addEventListener('click', () => openPriceTabModal('rename'));
-    renameBtn.dataset.bound = 'true';
-  }
-  if (deleteBtn && !deleteBtn.dataset.bound) {
-    deleteBtn.addEventListener('click', () => {
-      const active = getActivePriceTab();
-      if (!active) return;
-      confirmAction({
-        title: 'Eliminar pestaña',
-        message: `Se eliminará la pestaña "${active.label}".`,
-        confirmText: 'Eliminar',
-        onConfirm: () => {
-          const idx = priceTabs.findIndex(t => t.id === active.id);
-          if (idx >= 0) {
-            priceTabs.splice(idx, 1);
-            activePriceTabId = priceTabs[0]?.id || '';
-            syncVehiclesFromActiveTab();
-            persist();
-            renderPriceTabs();
-            renderVehicleTable();
-            renderPlanForm();
-            renderClients();
-            renderClientManager();
-            showToast('Pestaña eliminada', 'success');
-          }
-        }
-      });
+  const yearSelect = document.getElementById('priceYearSelect');
+  const monthSelect = document.getElementById('priceMonthSelect');
+  const refreshBtn = document.getElementById('refreshPriceCatalogs');
+  const editorBtn = document.getElementById('openVehicleEditor');
+  if (yearSelect && !yearSelect.dataset.bound) {
+    yearSelect.addEventListener('change', async () => {
+      renderPriceTabs();
+      const monthSelectValue = document.getElementById('priceMonthSelect')?.value;
+      if (monthSelectValue) {
+        await setActivePriceTab(monthSelectValue, { silent: false });
+      }
     });
-    deleteBtn.dataset.bound = 'true';
+    yearSelect.dataset.bound = 'true';
+  }
+  if (monthSelect && !monthSelect.dataset.bound) {
+    monthSelect.addEventListener('change', async () => {
+      const tabId = monthSelect.value;
+      if (tabId) {
+        await setActivePriceTab(tabId, { silent: false });
+      }
+    });
+    monthSelect.dataset.bound = 'true';
+  }
+  if (refreshBtn && !refreshBtn.dataset.bound) {
+    refreshBtn.addEventListener('click', async () => {
+      await initializePriceTabs();
+      renderPriceTabs();
+      renderVehicleTable();
+      renderPlanForm();
+      renderClients();
+      renderClientManager();
+      showToast('Listas actualizadas.', 'success');
+    });
+    refreshBtn.dataset.bound = 'true';
+  }
+  if (editorBtn && !editorBtn.dataset.bound) {
+    editorBtn.addEventListener('click', openVehicleEditorModal);
+    editorBtn.dataset.bound = 'true';
   }
   if (filesBtn && !filesBtn.dataset.bound) {
     filesBtn.addEventListener('click', openPriceFilesModal);
     filesBtn.dataset.bound = 'true';
   }
+}
+
+function ensureVehicleEditorDefaults(vehicle = {}) {
+  return {
+    name: vehicle.name || '',
+    basePrice: Number(vehicle.basePrice || 0),
+    integration: Number(vehicle.integration || 0),
+    cuotaPura: Number(vehicle.cuotaPura || 0),
+    planProfile: {
+      label: vehicle.planProfile?.label || '',
+      planType: vehicle.planProfile?.planType || '85a120'
+    },
+    availablePlans: vehicle.availablePlans?.length ? [...vehicle.availablePlans] : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: {
+      '2a12': Number(vehicle.shareByPlan?.['2a12'] || 0),
+      '13a21': Number(vehicle.shareByPlan?.['13a21'] || 0),
+      '22a84': Number(vehicle.shareByPlan?.['22a84'] || 0),
+      '85a120': Number(vehicle.shareByPlan?.['85a120'] || 0),
+      'ctapura': Number(vehicle.shareByPlan?.['ctapura'] || 0)
+    },
+    reservations: {
+      '1': Number(vehicle.reservations?.['1'] || 0),
+      '3': Number(vehicle.reservations?.['3'] || 0),
+      '6': Number(vehicle.reservations?.['6'] || 0)
+    },
+    benefits: {
+      pactada: vehicle.benefits?.pactada || '',
+      bonificacion: vehicle.benefits?.bonificacion || ''
+    }
+  };
+}
+
+function bindVehicleEditor() {
+  const modal = document.getElementById('vehicleEditorModal');
+  const close = document.getElementById('vehicleEditorClose');
+  const cancel = document.getElementById('vehicleEditorCancel');
+  const save = document.getElementById('saveVehicleEditor');
+  const addBtn = document.getElementById('addVehicle');
+  const deleteBtn = document.getElementById('deleteVehicle');
+  const duplicateBtn = document.getElementById('duplicateVehicle');
+  const exportBtn = document.getElementById('exportPricesFromEditor');
+  const searchInput = document.getElementById('vehicleEditorSearch');
+  if (close && !close.dataset.bound) {
+    close.addEventListener('click', () => toggleModal(modal, false));
+    close.dataset.bound = 'true';
+  }
+  if (cancel && !cancel.dataset.bound) {
+    cancel.addEventListener('click', () => toggleModal(modal, false));
+    cancel.dataset.bound = 'true';
+  }
+  if (save && !save.dataset.bound) {
+    save.addEventListener('click', () => {
+      applyVehicleEditorChanges();
+      showToast('Catálogo actualizado.', 'success');
+    });
+    save.dataset.bound = 'true';
+  }
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.addEventListener('click', () => {
+      const fresh = ensureVehicleEditorDefaults({
+        name: `Nuevo modelo ${vehicles.length + 1}`
+      });
+      vehicles.push({
+        ...fresh,
+        planProfile: { ...fresh.planProfile },
+        shareByPlan: { ...fresh.shareByPlan },
+        reservations: { ...fresh.reservations },
+        benefits: { ...fresh.benefits }
+      });
+      vehicleEditorState.selectedIndex = vehicles.length - 1;
+      markActiveDraftDirty();
+      persist();
+      renderVehicleEditorList();
+      renderVehicleEditorForm();
+      renderVehicleTable();
+      renderPlanForm();
+    });
+    addBtn.dataset.bound = 'true';
+  }
+  if (deleteBtn && !deleteBtn.dataset.bound) {
+    deleteBtn.addEventListener('click', () => {
+      const idx = vehicleEditorState.selectedIndex;
+      const vehicle = vehicles[idx];
+      if (!vehicle) return;
+      confirmAction({
+        title: 'Eliminar modelo',
+        message: `Se eliminará "${vehicle.name || 'Modelo sin nombre'}".`,
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          vehicles.splice(idx, 1);
+          vehicleEditorState.selectedIndex = Math.max(0, idx - 1);
+          markActiveDraftDirty();
+          persist();
+          renderVehicleEditorList();
+          renderVehicleEditorForm();
+          renderVehicleTable();
+          renderPlanForm();
+          showToast('Modelo eliminado.', 'success');
+        }
+      });
+    });
+    deleteBtn.dataset.bound = 'true';
+  }
+  if (duplicateBtn && !duplicateBtn.dataset.bound) {
+    duplicateBtn.addEventListener('click', () => {
+      const idx = vehicleEditorState.selectedIndex;
+      const base = vehicles[idx];
+      if (!base) return;
+      const clone = cloneVehicles([base])[0];
+      clone.name = `${clone.name || 'Modelo'} (copia)`;
+      vehicles.push(clone);
+      vehicleEditorState.selectedIndex = vehicles.length - 1;
+      markActiveDraftDirty();
+      persist();
+      renderVehicleEditorList();
+      renderVehicleEditorForm();
+      renderVehicleTable();
+      renderPlanForm();
+    });
+    duplicateBtn.dataset.bound = 'true';
+  }
+  if (exportBtn && !exportBtn.dataset.bound) {
+    exportBtn.addEventListener('click', downloadPriceFile);
+    exportBtn.dataset.bound = 'true';
+  }
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.addEventListener('input', () => {
+      vehicleEditorState.search = searchInput.value || '';
+      renderVehicleEditorList();
+    });
+    searchInput.dataset.bound = 'true';
+  }
+}
+
+function openVehicleEditorModal() {
+  const modal = document.getElementById('vehicleEditorModal');
+  if (!modal) return;
+  const searchInput = document.getElementById('vehicleEditorSearch');
+  if (searchInput) searchInput.value = vehicleEditorState.search || '';
+  renderVehicleEditorList();
+  renderVehicleEditorForm();
+  modal.querySelectorAll('input.money').forEach(input => {
+    if (input.dataset.bound) return;
+    bindMoneyInput(input, () => {});
+    input.dataset.bound = 'true';
+  });
+  toggleModal(modal, true);
+}
+
+function getFilteredVehicles() {
+  const query = (vehicleEditorState.search || '').toLowerCase();
+  return vehicles
+    .map((vehicle, index) => ({ vehicle, index }))
+    .filter(({ vehicle }) => (vehicle.name || '').toLowerCase().includes(query));
+}
+
+function renderVehicleEditorList() {
+  const list = document.getElementById('vehicleEditorList');
+  const empty = document.getElementById('vehicleEditorEmpty');
+  if (!list) return;
+  if (vehicleEditorState.selectedIndex >= vehicles.length) {
+    vehicleEditorState.selectedIndex = Math.max(0, vehicles.length - 1);
+  }
+  const filtered = getFilteredVehicles();
+  if (!filtered.length) {
+    list.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+  list.innerHTML = filtered.map(({ vehicle, index }) => `
+      <button class="editor-item ${index === vehicleEditorState.selectedIndex ? 'active' : ''}" data-index="${index}">
+        <strong>${vehicle.name || 'Modelo sin nombre'}</strong>
+        <span class="muted tiny">${vehicle.planProfile?.label || 'Plan sin definir'}</span>
+      </button>
+    `).join('');
+  list.querySelectorAll('.editor-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      vehicleEditorState.selectedIndex = Number(btn.dataset.index);
+      renderVehicleEditorList();
+      renderVehicleEditorForm();
+    });
+  });
+}
+
+function renderVehicleEditorForm() {
+  if (!vehicles.length) {
+    const emptyForm = ensureVehicleEditorDefaults({});
+    vehicleEditorState.selectedIndex = 0;
+    const nameInput = document.getElementById('editorVehicleName');
+    const basePriceInput = document.getElementById('editorBasePrice');
+    const integrationInput = document.getElementById('editorIntegration');
+    const cuotaPuraInput = document.getElementById('editorCuotaPura');
+    const planLabelInput = document.getElementById('editorPlanLabel');
+    const planTypeSelect = document.getElementById('editorPlanType');
+    const pactadaInput = document.getElementById('editorBenefitPactada');
+    const bonificacionInput = document.getElementById('editorBenefitBonificacion');
+    if (nameInput) nameInput.value = emptyForm.name;
+    if (basePriceInput) setMoneyValue(basePriceInput, emptyForm.basePrice);
+    if (integrationInput) setMoneyValue(integrationInput, emptyForm.integration);
+    if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, emptyForm.cuotaPura);
+    if (planLabelInput) planLabelInput.value = emptyForm.planProfile.label;
+    if (planTypeSelect) planTypeSelect.value = emptyForm.planProfile.planType;
+    if (pactadaInput) pactadaInput.value = emptyForm.benefits.pactada;
+    if (bonificacionInput) bonificacionInput.value = emptyForm.benefits.bonificacion;
+    document.querySelectorAll('[data-editor-plan]').forEach(input => setMoneyValue(input, 0));
+    document.querySelectorAll('[data-editor-reserva]').forEach(input => setMoneyValue(input, 0));
+    document.querySelectorAll('[data-editor-available]').forEach(input => {
+      input.checked = false;
+    });
+    return;
+  }
+  const vehicle = vehicles[vehicleEditorState.selectedIndex];
+  const form = ensureVehicleEditorDefaults(vehicle);
+  const nameInput = document.getElementById('editorVehicleName');
+  const basePriceInput = document.getElementById('editorBasePrice');
+  const integrationInput = document.getElementById('editorIntegration');
+  const cuotaPuraInput = document.getElementById('editorCuotaPura');
+  const planLabelInput = document.getElementById('editorPlanLabel');
+  const planTypeSelect = document.getElementById('editorPlanType');
+  const pactadaInput = document.getElementById('editorBenefitPactada');
+  const bonificacionInput = document.getElementById('editorBenefitBonificacion');
+  if (nameInput) nameInput.value = form.name;
+  if (basePriceInput) setMoneyValue(basePriceInput, form.basePrice);
+  if (integrationInput) setMoneyValue(integrationInput, form.integration);
+  if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, form.cuotaPura);
+  if (planLabelInput) planLabelInput.value = form.planProfile.label;
+  if (planTypeSelect) planTypeSelect.value = form.planProfile.planType;
+  if (pactadaInput) pactadaInput.value = form.benefits.pactada;
+  if (bonificacionInput) bonificacionInput.value = form.benefits.bonificacion;
+  document.querySelectorAll('[data-editor-plan]').forEach(input => {
+    const planKey = input.dataset.editorPlan;
+    const value = form.shareByPlan[planKey] || 0;
+    setMoneyValue(input, value);
+  });
+  document.querySelectorAll('[data-editor-reserva]').forEach(input => {
+    const resKey = input.dataset.editorReserva;
+    const value = form.reservations[resKey] || 0;
+    setMoneyValue(input, value);
+  });
+  document.querySelectorAll('[data-editor-available]').forEach(input => {
+    input.checked = form.availablePlans.includes(input.value);
+  });
+}
+
+function applyVehicleEditorChanges() {
+  const vehicle = vehicles[vehicleEditorState.selectedIndex];
+  if (!vehicle) return;
+  const nameInput = document.getElementById('editorVehicleName');
+  const basePriceInput = document.getElementById('editorBasePrice');
+  const integrationInput = document.getElementById('editorIntegration');
+  const cuotaPuraInput = document.getElementById('editorCuotaPura');
+  const planLabelInput = document.getElementById('editorPlanLabel');
+  const planTypeSelect = document.getElementById('editorPlanType');
+  const pactadaInput = document.getElementById('editorBenefitPactada');
+  const bonificacionInput = document.getElementById('editorBenefitBonificacion');
+  vehicle.name = nameInput?.value?.trim() || vehicle.name || '';
+  vehicle.basePrice = parseMoney(basePriceInput?.dataset.raw || basePriceInput?.value || 0);
+  vehicle.integration = parseMoney(integrationInput?.dataset.raw || integrationInput?.value || 0);
+  vehicle.cuotaPura = parseMoney(cuotaPuraInput?.dataset.raw || cuotaPuraInput?.value || 0);
+  vehicle.planProfile = {
+    ...(vehicle.planProfile || {}),
+    label: planLabelInput?.value?.trim() || '',
+    planType: planTypeSelect?.value || vehicle.planProfile?.planType || '85a120'
+  };
+  vehicle.benefits = {
+    ...(vehicle.benefits || {}),
+    pactada: pactadaInput?.value?.trim() || '',
+    bonificacion: bonificacionInput?.value?.trim() || ''
+  };
+  vehicle.availablePlans = [...document.querySelectorAll('[data-editor-available]:checked')].map(input => input.value);
+  vehicle.shareByPlan = vehicle.shareByPlan || {};
+  document.querySelectorAll('[data-editor-plan]').forEach(input => {
+    const planKey = input.dataset.editorPlan;
+    vehicle.shareByPlan[planKey] = parseMoney(input.dataset.raw || input.value || 0);
+  });
+  vehicle.reservations = vehicle.reservations || {};
+  document.querySelectorAll('[data-editor-reserva]').forEach(input => {
+    const resKey = input.dataset.editorReserva;
+    vehicle.reservations[resKey] = parseMoney(input.dataset.raw || input.value || 0);
+  });
+  markActiveDraftDirty();
+  persist();
+  renderVehicleEditorList();
+  renderVehicleTable();
+  renderPlanForm();
 }
 
 function renderVehicleTable() {
@@ -2586,12 +2929,13 @@ function renderVehicleTable() {
   uiState.toggles = { showReservations: showRes, showIntegration: showInt };
   persist();
   renderPriceTabs();
-  const active = getActivePriceTab();
   clearPriceAlerts();
-  if (active?.source === 'servidor') {
+  if (activePriceSource === 'servidor') {
     renderPriceAlerts('Precios cargados desde el archivo del mes.', 'success');
-  } else if (active?.source === 'archivo') {
+  } else if (activePriceSource === 'archivo') {
     renderPriceAlerts('Precios cargados manualmente desde un archivo.', 'success');
+  } else if (activePriceSource === 'local') {
+    renderPriceAlerts('Precios editados localmente para este mes.', 'success');
   } else {
     renderPriceAlerts('No hay archivo de precios para este mes, se usan los valores predeterminados.', 'warning');
   }
@@ -2688,12 +3032,14 @@ function updateVehicleValue(e) {
   } else if (e.target.dataset.base) {
     vehicles[idx].basePrice = val;
   }
+  markActiveDraftDirty();
   persist();
   renderPlanForm();
 }
 
 function updatePlanProfile(idx, payload = {}) {
   vehicles[idx].planProfile = { ...(vehicles[idx].planProfile || {}), ...payload };
+  markActiveDraftDirty();
   persist();
   renderPlanForm();
 }
@@ -4066,9 +4412,16 @@ function openPriceImage() {
   const file = getPrimaryFileForTab(active);
   if (file) {
     window.open(file, '_blank');
-  } else {
-    showToast('No hay archivo principal configurado para esta pestaña.', 'error');
+    return;
   }
+  loadPriceTabFiles(active).then(files => {
+    const fallback = files.find(item => /\.(png|jpe?g|pdf)$/i.test(item.name))?.path;
+    if (fallback) {
+      window.open(fallback, '_blank');
+    } else {
+      showToast('No se encontraron archivos visuales para este mes.', 'error');
+    }
+  });
 }
 
 function bindClientManager() {
@@ -8246,7 +8599,7 @@ function bindProfileActions() {
         message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
         confirmText: 'Exportar',
         onConfirm: () => {
-        const payload = { version: 6, vehicles, priceTabs, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 7, vehicles, priceDrafts, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -8300,12 +8653,12 @@ function bindProfileActions() {
       confirmAction({
         title: 'Restaurar valores base',
         message: 'Se repondrán vehículos y plantillas originales, manteniendo los clientes.',
-        confirmText: 'Restaurar',
-        onConfirm: () => {
-          priceTabs = createDefaultPriceTabs();
-          activePriceTabId = priceTabs[0]?.id || '';
-          vehicles = cloneVehicles(getActivePriceTab()?.vehicles || defaultVehicles);
-          templates = ensureTemplateIds([...defaultTemplates]);
+          confirmText: 'Restaurar',
+          onConfirm: async () => {
+            priceDrafts = {};
+            activePriceTabId = '';
+            vehicles = cloneVehicles(defaultVehicles);
+            templates = ensureTemplateIds([...defaultTemplates]);
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
           uiState = {
@@ -8318,6 +8671,7 @@ function bindProfileActions() {
           };
           clientManagerState = { ...defaultClientManagerState };
           planDraftApplied = false;
+          await initializePriceTabs();
           persist();
           applyToggleState();
           applyPreferences();
@@ -8338,9 +8692,9 @@ function bindProfileActions() {
 }
 
 function persist() {
-  syncActiveVehiclesToTab();
-  save('priceTabs', priceTabs);
   save('activePriceTabId', activePriceTabId);
+  syncActiveVehiclesToDraft();
+  save('priceDrafts', priceDrafts);
   save('vehicles', vehicles);
   save('templates', templates);
   save('clients', clients);
@@ -8355,16 +8709,15 @@ function startRealtimePersistence() {
   ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
   setInterval(persistNow, 15000);
   window.addEventListener('storage', (e) => {
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'priceTabs', 'activePriceTabId'].includes(e.key)) {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'priceDrafts'].includes(e.key)) {
       syncFromStorage();
     }
   });
 }
 
 function syncFromStorage() {
-  priceTabs = clonePriceTabs(load('priceTabs') || priceTabs || createDefaultPriceTabs());
-  activePriceTabId = load('activePriceTabId') || activePriceTabId || priceTabs[0]?.id || '';
-  syncVehiclesFromActiveTab();
+  activePriceTabId = load('activePriceTabId') || activePriceTabId;
+  priceDrafts = load('priceDrafts') || priceDrafts;
   vehicles = cloneVehicles(load('vehicles') || vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
   clients = load('clients') || clients;
@@ -8415,9 +8768,9 @@ function clearStorage() {
     confirmText: 'Limpiar',
     onConfirm: () => {
       localStorage.clear();
-      priceTabs = createDefaultPriceTabs();
-      activePriceTabId = priceTabs[0]?.id || '';
-      vehicles = cloneVehicles(getActivePriceTab()?.vehicles || defaultVehicles);
+      priceDrafts = {};
+      activePriceTabId = '';
+      vehicles = cloneVehicles(defaultVehicles);
       templates = ensureTemplateIds([...defaultTemplates]);
       clients = [];
       managerClients = [];
@@ -8434,21 +8787,24 @@ function clearStorage() {
       selectedTemplateIndex = 0;
       selectedTemplateId = templates[0].id;
       planDraftApplied = false;
-      applyToggleState();
-      applyPreferences();
-      applyStatusPalette();
-      renderVehicleTable();
-      renderTemplates();
-      renderPlanForm();
-      renderClients();
-      renderClientManager();
-      renderWelcomeHero();
-      renderAdvisorNote();
-      renderGlobalSettings();
-      renderSnapshots();
-      renderStats();
-      persist();
-      showToast('Datos locales eliminados', 'success');
+      initializePriceTabs().then(() => {
+        applyToggleState();
+        applyPreferences();
+        applyStatusPalette();
+        renderPriceTabs();
+        renderVehicleTable();
+        renderTemplates();
+        renderPlanForm();
+        renderClients();
+        renderClientManager();
+        renderWelcomeHero();
+        renderAdvisorNote();
+        renderGlobalSettings();
+        renderSnapshots();
+        renderStats();
+        persist();
+        showToast('Datos locales eliminados', 'success');
+      });
     }
   });
 }
