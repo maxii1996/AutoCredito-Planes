@@ -400,6 +400,7 @@ function cloneVehicles(list) {
 }
 
 const PRICE_FILES_ROOT = 'prices_files';
+const ONLINE_FILES_ROOT = 'prices_img';
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 function buildPriceTabId(year, month) {
@@ -442,6 +443,11 @@ function syncVehiclesFromDraftOrFallback(tab) {
     vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
     activePriceSource = 'local';
   }
+}
+
+function discardPriceDraft(tabId) {
+  if (!tabId) return;
+  delete priceDrafts[tabId];
 }
 
 const MONTH_ORDER = MONTH_NAMES.map(month => month.toLowerCase());
@@ -591,9 +597,15 @@ function ensurePlansUseLatestPrices() {
 async function setActivePriceTab(tabId, { silent = true } = {}) {
   const tab = priceTabs.find(t => t.id === tabId);
   if (!tab || tab.id === activePriceTabId) return;
-  syncActiveVehiclesToDraft();
+  if (activePriceSource === 'local') {
+    discardPriceDraft(activePriceTabId);
+  } else {
+    syncActiveVehiclesToDraft();
+  }
   activePriceTabId = tab.id;
-  await loadPricesFromServer({ silent });
+  discardPriceDraft(activePriceTabId);
+  activePriceSource = 'servidor';
+  await loadPricesFromServer({ silent, forceServer: true });
   renderPriceTabs();
   renderVehicleTable();
   if (document.getElementById('plans')?.classList.contains('active')) {
@@ -1013,12 +1025,14 @@ function bindMoneyInput(el, onChange) {
 async function applyProfileData(parsed) {
   activePriceTabId = parsed.activePriceTabId || activePriceTabId;
   priceDrafts = parsed.priceDrafts || priceDrafts;
+  activePriceSource = parsed.activePriceSource || activePriceSource;
   const legacyTabs = parsed.priceTabs || [];
   const legacyActive = legacyTabs.find(tab => tab.id === activePriceTabId) || legacyTabs[0];
   vehicles = cloneVehicles(legacyActive?.vehicles || parsed.vehicles || vehicles || defaultVehicles);
-  if (activePriceTabId) {
-    priceDrafts[activePriceTabId] = { vehicles: cloneVehicles(vehicles), updatedAt: new Date().toISOString() };
-    activePriceSource = 'local';
+  if (activePriceSource === 'local' && activePriceTabId) {
+    priceDrafts[activePriceTabId] = priceDrafts[activePriceTabId] || { vehicles: cloneVehicles(vehicles), updatedAt: new Date().toISOString() };
+  } else if (activePriceTabId) {
+    discardPriceDraft(activePriceTabId);
   }
   await initializePriceTabs();
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
@@ -2264,7 +2278,7 @@ function renderPriceTabs() {
   }
   tabSelect.disabled = false;
   const options = priceTabs.map(tab => `<option value="${tab.id}">${tab.label}</option>`).join('');
-  const showCustom = activePriceSource === 'local';
+  const showCustom = activePriceSource === 'local' && !!priceDrafts[active?.id]?.vehicles?.length;
   const customOption = showCustom ? '<option value="custom">Configuración personalizada</option>' : '';
   tabSelect.innerHTML = `${customOption}${options}` || '<option value="">Sin archivos</option>';
   if (showCustom) {
@@ -2373,7 +2387,7 @@ async function loadPricesFromServer({ silent = false, forceServer = false } = {}
   }
   const path = getPriceFilePath(active);
   if (!path) {
-    if (!silent) renderPriceAlerts('No hay archivo de precios para este mes.', 'error');
+    if (!silent) renderPriceAlerts('No hay archivo de precios para este mes.', 'warning');
     return null;
   }
   try {
@@ -2390,7 +2404,7 @@ async function loadPricesFromServer({ silent = false, forceServer = false } = {}
     syncVehiclesFromDraftOrFallback(active);
     if (!silent) {
       renderPriceAlerts('No hay archivo de precios para este mes, se usan valores locales.', 'warning');
-      showToast('No se encontró precios.json en la carpeta del mes.', 'error');
+      showToast('No se encontró precios.json en la carpeta del mes.', 'warning');
       updatePriceImportStatuses({ server: 'No se encontró precios.json' });
     }
     renderPriceTabs();
@@ -2450,6 +2464,27 @@ function parseDirectoryListing(html = '') {
   return matches
     .map(item => item.split('?')[0])
     .filter(item => item && item !== '../' && item !== './');
+}
+
+let onlineFilesCache = null;
+const onlineFilesState = { files: [], search: '' };
+
+function mapOnlineFilesFromManifest(manifest = {}) {
+  if (Array.isArray(manifest.files)) {
+    return manifest.files.map(file => ({
+      folder: ONLINE_FILES_ROOT,
+      name: normalizePriceFileName(file),
+      path: `${ONLINE_FILES_ROOT}/${file}`
+    }));
+  }
+  if (Array.isArray(manifest.entries)) {
+    return manifest.entries.map(entry => ({
+      folder: entry.folder || ONLINE_FILES_ROOT,
+      name: normalizePriceFileName(entry.name || entry.path || ''),
+      path: entry.path || `${ONLINE_FILES_ROOT}/${entry.name || ''}`
+    })).filter(item => item.name && item.path);
+  }
+  return [];
 }
 
 async function loadPriceTabFiles(tab) {
@@ -2981,7 +3016,7 @@ function renderVehicleTable() {
     <td>
       <div class="money-field">
         <span class="prefix">$</span>
-        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" data-raw="${v.basePrice || ''}" placeholder="$ 0">
+        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" data-raw="${v.basePrice || ''}" placeholder="$ 0" disabled>
       </div>
     </td>`).join('')}</tr>`);
 
@@ -3004,7 +3039,7 @@ function renderVehicleTable() {
         <td>
           <div class="money-field">
             <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
           </div>
         </td>`;
     }).join('')}</tr>`);
@@ -3014,7 +3049,7 @@ function renderVehicleTable() {
     return `<td>
       <div class="money-field">
         <span class="prefix">$</span>
-        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0">
+        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0" disabled>
       </div>
     </td>`;
   }).join('')}</tr>`);
@@ -3025,7 +3060,7 @@ function renderVehicleTable() {
       return `<td>
         <div class="money-field">
           <span class="prefix">$</span>
-          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
         </div>
       </td>`;
     }).join('')}</tr>`);
@@ -3035,9 +3070,8 @@ function renderVehicleTable() {
   table.querySelector('tbody').innerHTML = bodyRows.join('');
 
   table.querySelectorAll('input.money').forEach(inp => {
-    bindMoneyInput(inp, () => updateVehicleValue({ target: inp }));
+    inp.setAttribute('tabindex', '-1');
   });
-
 }
 
 function updateVehicleValue(e) {
@@ -4433,7 +4467,7 @@ function openPriceImage() {
   });
 }
 
-async function collectOnlineFiles(rootPath = 'img', currentPath = 'img', results = []) {
+async function collectOnlineFiles(rootPath = ONLINE_FILES_ROOT, currentPath = ONLINE_FILES_ROOT, results = []) {
   try {
     const response = await fetch(`${currentPath}/`, { cache: 'no-store' });
     if (!response.ok) return results;
@@ -4459,15 +4493,33 @@ async function collectOnlineFiles(rootPath = 'img', currentPath = 'img', results
   }
 }
 
-function renderOnlineFilesList(files = []) {
+async function loadOnlineFiles() {
+  if (onlineFilesCache) return onlineFilesCache;
+  const manifest = await fetchJsonIfExists(`${ONLINE_FILES_ROOT}/manifest.json`);
+  const manifestFiles = mapOnlineFilesFromManifest(manifest);
+  if (manifestFiles.length) {
+    onlineFilesCache = manifestFiles;
+    return manifestFiles;
+  }
+  onlineFilesCache = await collectOnlineFiles(ONLINE_FILES_ROOT, ONLINE_FILES_ROOT, []);
+  return onlineFilesCache;
+}
+
+function renderOnlineFilesList(files = [], searchValue = '') {
   const list = document.getElementById('onlineFilesList');
   if (!list) return;
-  if (!files.length) {
-    list.innerHTML = '<p class="muted">No se pudieron detectar archivos en la carpeta img.</p>';
+  const query = searchValue.trim().toLowerCase();
+  const filtered = query
+    ? files.filter(file => file.name.toLowerCase().includes(query) || (file.folder || '').toLowerCase().includes(query))
+    : files;
+  if (!filtered.length) {
+    list.innerHTML = query
+      ? '<p class="muted">No se encontraron archivos con ese nombre.</p>'
+      : '<p class="muted">No se pudieron detectar archivos en la carpeta prices_img.</p>';
     return;
   }
-  const grouped = files.reduce((acc, file) => {
-    const key = file.folder || 'img';
+  const grouped = filtered.reduce((acc, file) => {
+    const key = file.folder || ONLINE_FILES_ROOT;
     acc[key] = acc[key] || [];
     acc[key].push(file);
     return acc;
@@ -4488,9 +4540,23 @@ function openOnlineFilesModal() {
   const modal = document.getElementById('onlineFilesModal');
   const list = document.getElementById('onlineFilesList');
   const close = document.getElementById('onlineFilesClose');
+  const searchInput = document.getElementById('onlineFilesSearch');
   if (!modal || !list) return;
   list.innerHTML = '<p class="muted">Cargando archivos online...</p>';
-  collectOnlineFiles().then(files => renderOnlineFilesList(files));
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.addEventListener('input', () => {
+      onlineFilesState.search = searchInput.value;
+      renderOnlineFilesList(onlineFilesState.files, onlineFilesState.search);
+    });
+    searchInput.dataset.bound = 'true';
+  }
+  if (searchInput) {
+    searchInput.value = onlineFilesState.search || '';
+  }
+  loadOnlineFiles().then(files => {
+    onlineFilesState.files = files;
+    renderOnlineFilesList(files, onlineFilesState.search);
+  });
   if (close) close.onclick = () => toggleModal(modal, false);
   toggleModal(modal, true);
 }
@@ -8670,7 +8736,7 @@ function bindProfileActions() {
         message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
         confirmText: 'Exportar',
         onConfirm: () => {
-        const payload = { version: 7, vehicles, priceDrafts, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 7, vehicles, priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -8728,6 +8794,7 @@ function bindProfileActions() {
           onConfirm: async () => {
             priceDrafts = {};
             activePriceTabId = '';
+            activePriceSource = 'local';
             vehicles = cloneVehicles(defaultVehicles);
             templates = ensureTemplateIds([...defaultTemplates]);
           selectedTemplateIndex = 0;
@@ -8764,6 +8831,7 @@ function bindProfileActions() {
 
 function persist() {
   save('activePriceTabId', activePriceTabId);
+  save('activePriceSource', activePriceSource);
   syncActiveVehiclesToDraft();
   save('priceDrafts', priceDrafts);
   save('vehicles', vehicles);
@@ -8780,7 +8848,7 @@ function startRealtimePersistence() {
   ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
   setInterval(persistNow, 15000);
   window.addEventListener('storage', (e) => {
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'priceDrafts'].includes(e.key)) {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts'].includes(e.key)) {
       syncFromStorage();
     }
   });
@@ -8788,6 +8856,7 @@ function startRealtimePersistence() {
 
 function syncFromStorage() {
   activePriceTabId = load('activePriceTabId') || activePriceTabId;
+  activePriceSource = load('activePriceSource') || activePriceSource;
   priceDrafts = load('priceDrafts') || priceDrafts;
   vehicles = cloneVehicles(load('vehicles') || vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
@@ -8837,10 +8906,11 @@ function clearStorage() {
     title: 'Limpiar datos locales',
     message: 'Esto eliminará los datos guardados, ten en cuenta que si no tienes una copia resguardada, la información se perderá.',
     confirmText: 'Limpiar',
-    onConfirm: () => {
+      onConfirm: () => {
       localStorage.clear();
       priceDrafts = {};
       activePriceTabId = '';
+      activePriceSource = 'local';
       vehicles = cloneVehicles(defaultVehicles);
       templates = ensureTemplateIds([...defaultTemplates]);
       clients = [];

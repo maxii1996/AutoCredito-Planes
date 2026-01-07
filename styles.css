@@ -432,7 +432,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip-select { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: #0f1625; cursor: pointer; font-size: 12px; }
 .chip-select input { accent-color: var(--accent); }
-.editor-sidebar .search-field { width: clamp(160px, 68%, 240px); }
+.editor-sidebar .search-field { width: clamp(160px, 68%, 240px); padding: 4px 8px; }
+.editor-sidebar .search-field input { padding: 4px 0; font-size: 0.9rem; }
 
 @media (max-width: 880px) {
   .editor-grid { grid-template-columns: 1fr; }
@@ -844,6 +845,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .money-field { position: relative; display: flex; align-items: center; }
 .money-field .prefix { position: absolute; left: 10px; color: var(--muted); font-weight: 700; }
 .money-field input { padding-left: 26px; font-weight: 700; letter-spacing: 0.01em; }
+.money-field input:disabled { color: var(--muted); background: #0d1624; border-color: #1b2a3f; cursor: not-allowed; }
 .money { font-variant-numeric: tabular-nums; }
 #vehicleTable td .money-field { margin: 0; }
 

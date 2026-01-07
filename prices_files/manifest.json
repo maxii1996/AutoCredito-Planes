@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "year": 2026,
+      "month": "Enero",
+      "folder": "prices_files/2026/Enero",
+      "pricePath": "prices_files/2026/Enero/precios.json"
+    },
+    {
+      "year": 2025,
+      "month": "Diciembre",
+      "folder": "prices_files/2025/Diciembre",
+      "pricePath": "prices_files/2025/Diciembre/precios.json"
+    }
+  ]
+}
