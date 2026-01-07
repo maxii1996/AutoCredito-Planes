@@ -461,33 +461,56 @@ async function fetchJsonIfExists(path) {
   }
 }
 
-async function checkPriceFileExists(path) {
+async function listDirectoryEntries(path = '') {
+  const normalized = path ? `${path.replace(/\/$/, '')}/` : './';
   try {
-    const head = await fetch(path, { method: 'HEAD', cache: 'no-store' });
-    if (head.ok) return true;
-    const fallback = await fetch(path, { cache: 'no-store' });
-    return fallback.ok;
+    const response = await fetch(normalized, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const html = await response.text();
+    return parseDirectoryListing(html);
   } catch (err) {
-    return false;
+    return [];
   }
 }
 
-async function discoverPriceTabs() {
-  const manifest = await fetchJsonIfExists(`${PRICE_FILES_ROOT}/manifest.json`);
-  if (manifest?.entries?.length) {
-    const checks = await Promise.all(manifest.entries.map(async entry => {
-      const tab = ensurePriceTabDefaults({
-        id: entry.id || buildPriceTabId(entry.year, entry.month),
-        year: Number(entry.year),
-        month: entry.month,
-        folder: entry.folder || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}`,
-        pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
-        files: entry.files || []
+async function discoverPriceTabsFromDirectory() {
+  const yearEntries = await listDirectoryEntries(PRICE_FILES_ROOT);
+  const years = yearEntries.filter(entry => entry.endsWith('/')).map(entry => entry.replace(/\/$/, ''));
+  if (!years.length) return [];
+  const yearTabs = await Promise.all(years.map(async year => {
+    const monthEntries = await listDirectoryEntries(`${PRICE_FILES_ROOT}/${year}`);
+    const months = monthEntries.filter(entry => entry.endsWith('/')).map(entry => entry.replace(/\/$/, ''));
+    if (!months.length) return [];
+    const monthTabs = await Promise.all(months.map(async month => {
+      const files = await listDirectoryEntries(`${PRICE_FILES_ROOT}/${year}/${month}`);
+      const hasPrice = files.some(file => normalizePriceFileName(file).toLowerCase() === 'precios.json');
+      if (!hasPrice) return null;
+      return ensurePriceTabDefaults({
+        id: buildPriceTabId(year, month),
+        year: Number(year),
+        month,
+        folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
+        pricePath: `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`
       });
-      const exists = await checkPriceFileExists(tab.pricePath);
-      return exists ? tab : null;
     }));
-    return checks.filter(Boolean);
+    return monthTabs.filter(Boolean);
+  }));
+  return yearTabs.flat();
+}
+
+async function discoverPriceTabs() {
+  const rootEntries = await listDirectoryEntries(PRICE_FILES_ROOT);
+  const hasManifest = rootEntries.some(entry => normalizePriceFileName(entry).toLowerCase() === 'manifest.json');
+  const manifest = hasManifest ? await fetchJsonIfExists(`${PRICE_FILES_ROOT}/manifest.json`) : null;
+  if (manifest?.entries?.length) {
+    return manifest.entries.map(entry => ensurePriceTabDefaults({
+      id: entry.id || buildPriceTabId(entry.year, entry.month),
+      year: Number(entry.year),
+      month: entry.month,
+      folder: entry.folder || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}`,
+      pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
+      files: entry.files || []
+    }));
   }
   if (manifest?.years) {
     const entries = [];
@@ -502,37 +525,10 @@ async function discoverPriceTabs() {
         }));
       });
     });
-    const checks = await Promise.all(entries.map(async tab => {
-      const exists = await checkPriceFileExists(tab.pricePath);
-      return exists ? tab : null;
-    }));
-    return checks.filter(Boolean);
+    return entries;
   }
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const years = [];
-  for (let year = currentYear + 1; year >= currentYear - 5; year -= 1) {
-    years.push(year);
-  }
-  const checks = [];
-  years.forEach(year => {
-    MONTH_NAMES.forEach(month => {
-      const pricePath = `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`;
-      checks.push(checkPriceFileExists(pricePath).then(exists => {
-        if (!exists) return null;
-        return ensurePriceTabDefaults({
-          id: buildPriceTabId(year, month),
-          year,
-          month,
-          folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
-          pricePath
-        });
-      }));
-    });
-  });
-  const results = await Promise.all(checks);
-  return results.filter(Boolean);
+  return await discoverPriceTabsFromDirectory();
 }
 
 function sortPriceTabs(list = []) {
@@ -1013,6 +1009,7 @@ function bindMoneyInput(el, onChange) {
 async function applyProfileData(parsed) {
   activePriceTabId = parsed.activePriceTabId || activePriceTabId;
   priceDrafts = parsed.priceDrafts || priceDrafts;
+  activePriceSource = parsed.activePriceSource || activePriceSource;
   const legacyTabs = parsed.priceTabs || [];
   const legacyActive = legacyTabs.find(tab => tab.id === activePriceTabId) || legacyTabs[0];
   vehicles = cloneVehicles(legacyActive?.vehicles || parsed.vehicles || vehicles || defaultVehicles);
@@ -1483,6 +1480,8 @@ let activeContextClientId = null;
 let activeScheduleClientId = null;
 let scheduleClockInterval = null;
 let vehicleEditorState = { selectedIndex: 0, search: '' };
+let onlineFilesCache = [];
+let onlineFilesSearch = '';
 
 function migrateLegacyPrices() {
   const legacyVehicles = load('vehicles');
@@ -2264,7 +2263,8 @@ function renderPriceTabs() {
   }
   tabSelect.disabled = false;
   const options = priceTabs.map(tab => `<option value="${tab.id}">${tab.label}</option>`).join('');
-  const showCustom = activePriceSource === 'local';
+  const hasDraft = active?.id && priceDrafts?.[active.id]?.vehicles?.length;
+  const showCustom = activePriceSource === 'local' && hasDraft;
   const customOption = showCustom ? '<option value="custom">Configuración personalizada</option>' : '';
   tabSelect.innerHTML = `${customOption}${options}` || '<option value="">Sin archivos</option>';
   if (showCustom) {
@@ -2981,7 +2981,7 @@ function renderVehicleTable() {
     <td>
       <div class="money-field">
         <span class="prefix">$</span>
-        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" data-raw="${v.basePrice || ''}" placeholder="$ 0">
+        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" data-raw="${v.basePrice || ''}" placeholder="$ 0" readonly tabindex="-1">
       </div>
     </td>`).join('')}</tr>`);
 
@@ -3004,7 +3004,7 @@ function renderVehicleTable() {
         <td>
           <div class="money-field">
             <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" readonly tabindex="-1">
           </div>
         </td>`;
     }).join('')}</tr>`);
@@ -3014,7 +3014,7 @@ function renderVehicleTable() {
     return `<td>
       <div class="money-field">
         <span class="prefix">$</span>
-        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0">
+        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0" readonly tabindex="-1">
       </div>
     </td>`;
   }).join('')}</tr>`);
@@ -3025,7 +3025,7 @@ function renderVehicleTable() {
       return `<td>
         <div class="money-field">
           <span class="prefix">$</span>
-          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0">
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" readonly tabindex="-1">
         </div>
       </td>`;
     }).join('')}</tr>`);
@@ -3033,11 +3033,6 @@ function renderVehicleTable() {
 
   table.querySelector('thead').innerHTML = head;
   table.querySelector('tbody').innerHTML = bodyRows.join('');
-
-  table.querySelectorAll('input.money').forEach(inp => {
-    bindMoneyInput(inp, () => updateVehicleValue({ target: inp }));
-  });
-
 }
 
 function updateVehicleValue(e) {
@@ -4433,41 +4428,45 @@ function openPriceImage() {
   });
 }
 
-async function collectOnlineFiles(rootPath = 'img', currentPath = 'img', results = []) {
-  try {
-    const response = await fetch(`${currentPath}/`, { cache: 'no-store' });
-    if (!response.ok) return results;
-    const html = await response.text();
-    const entries = parseDirectoryListing(html);
-    const folders = entries.filter(entry => entry.endsWith('/'));
-    const files = entries.filter(entry => !entry.endsWith('/'));
-    const folderLabel = currentPath.replace(`${rootPath}/`, '') || rootPath;
-    files.forEach(file => {
-      results.push({
-        folder: folderLabel,
-        name: normalizePriceFileName(file),
-        path: `${currentPath}/${file}`
-      });
+async function collectOnlineFiles(rootPath = '', currentPath = '', results = []) {
+  const entries = await listDirectoryEntries(currentPath);
+  if (!entries.length) return results;
+  const folders = entries.filter(entry => entry.endsWith('/'));
+  const files = entries.filter(entry => !entry.endsWith('/'));
+  const baseLabel = rootPath || 'Raíz';
+  const folderLabel = currentPath ? currentPath.replace(`${rootPath}/`, '') : baseLabel;
+  files.forEach(file => {
+    results.push({
+      folder: folderLabel || baseLabel,
+      name: normalizePriceFileName(file),
+      path: currentPath ? `${currentPath}/${file}` : file
     });
-    for (const folder of folders) {
-      const trimmed = folder.replace(/\/$/, '');
-      await collectOnlineFiles(rootPath, `${currentPath}/${trimmed}`, results);
-    }
-    return results;
-  } catch (err) {
-    return results;
+  });
+  for (const folder of folders) {
+    const trimmed = folder.replace(/\/$/, '');
+    const nextPath = currentPath ? `${currentPath}/${trimmed}` : trimmed;
+    await collectOnlineFiles(rootPath, nextPath, results);
   }
+  return results;
 }
 
-function renderOnlineFilesList(files = []) {
+function renderOnlineFilesList(files = [], query = '') {
   const list = document.getElementById('onlineFilesList');
   if (!list) return;
   if (!files.length) {
-    list.innerHTML = '<p class="muted">No se pudieron detectar archivos en la carpeta img.</p>';
+    list.innerHTML = '<p class="muted">No se pudieron detectar archivos en las carpetas configuradas.</p>';
     return;
   }
-  const grouped = files.reduce((acc, file) => {
-    const key = file.folder || 'img';
+  const normalized = query.trim().toLowerCase();
+  const filtered = normalized
+    ? files.filter(file => `${file.name}`.toLowerCase().includes(normalized))
+    : files;
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted">No se encontraron archivos con ese nombre.</p>';
+    return;
+  }
+  const grouped = filtered.reduce((acc, file) => {
+    const key = file.folder || 'Raíz';
     acc[key] = acc[key] || [];
     acc[key].push(file);
     return acc;
@@ -4488,9 +4487,28 @@ function openOnlineFilesModal() {
   const modal = document.getElementById('onlineFilesModal');
   const list = document.getElementById('onlineFilesList');
   const close = document.getElementById('onlineFilesClose');
+  const search = document.getElementById('onlineFilesSearch');
   if (!modal || !list) return;
-  list.innerHTML = '<p class="muted">Cargando archivos online...</p>';
-  collectOnlineFiles().then(files => renderOnlineFilesList(files));
+  if (search && !search.dataset.bound) {
+    search.addEventListener('input', () => {
+      onlineFilesSearch = search.value || '';
+      renderOnlineFilesList(onlineFilesCache, onlineFilesSearch);
+    });
+    search.dataset.bound = 'true';
+  }
+  if (search) search.value = onlineFilesSearch || '';
+  if (!onlineFilesCache.length) {
+    list.innerHTML = '<p class="muted">Cargando archivos online...</p>';
+    Promise.all([
+      collectOnlineFiles('', ''),
+      collectOnlineFiles('prices_img', 'prices_img')
+    ]).then(([rootFiles, priceFiles]) => {
+      onlineFilesCache = [...rootFiles, ...priceFiles];
+      renderOnlineFilesList(onlineFilesCache, onlineFilesSearch);
+    });
+  } else {
+    renderOnlineFilesList(onlineFilesCache, onlineFilesSearch);
+  }
   if (close) close.onclick = () => toggleModal(modal, false);
   toggleModal(modal, true);
 }
@@ -8670,7 +8688,7 @@ function bindProfileActions() {
         message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
         confirmText: 'Exportar',
         onConfirm: () => {
-        const payload = { version: 7, vehicles, priceDrafts, activePriceTabId, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 7, vehicles, priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

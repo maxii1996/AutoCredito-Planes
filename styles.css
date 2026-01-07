@@ -417,6 +417,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .file-group-title { font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
 .file-link { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #0f1625; color: var(--text); text-decoration: none; transition: 0.2s; }
 .file-link:hover { border-color: var(--accent); color: var(--accent); }
+#onlineFilesModal .search-field { margin-bottom: 12px; width: 100%; }
+#onlineFilesModal .search-field input { width: 100%; }
 .import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .upload-box { position: relative; border: 1px dashed var(--border); border-radius: 14px; padding: 18px; text-align: center; background: #0f1625; display: grid; place-items: center; gap: 4px; cursor: pointer; transition: 0.2s; }
 .upload-box:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 10px 22px rgba(0,0,0,0.32); }
@@ -433,6 +435,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .chip-select { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: #0f1625; cursor: pointer; font-size: 12px; }
 .chip-select input { accent-color: var(--accent); }
 .editor-sidebar .search-field { width: clamp(160px, 68%, 240px); }
+#vehicleEditorModal .search-field { padding: 4px 8px; }
+#vehicleEditorModal .search-field input { padding: 2px 0; font-size: 12px; }
 
 @media (max-width: 880px) {
   .editor-grid { grid-template-columns: 1fr; }
@@ -442,6 +446,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #0d1526; margin: 0 0 10px; flex-wrap: wrap; }
 .table-toolbar .search-group { flex: 1 1 auto; }
 .table-toolbar .search-field { background: #0f1829; border-color: #22334b; }
+.vehicle-table input[readonly] { background: #0f1625; color: var(--text); cursor: default; }
+.vehicle-table input[readonly]:focus { outline: none; box-shadow: none; }
 .table-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .data-grid { width: 100%; min-width: 820px; display: grid; grid-template-rows: auto 1fr; }
 .data-grid .grid-head { position: sticky; top: 0; z-index: 2; background: #101728; }
