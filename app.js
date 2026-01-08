@@ -76,7 +76,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 320051, '13a21': 313692, '22a84': 312912, '85a120': 311352 },
     cuotaPura: 202873,
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
@@ -92,7 +92,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
     cuotaPura: 253591,
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -108,7 +108,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 388584 },
     cuotaPura: 252059,
     reservations: { '1': 1211400, '3': 1574820, '6': 1817100 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -124,7 +124,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
     reservations: { '1': 1825000, '3': 2372500, '6': 2737500 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Acepta llave x llave',
       bonificacion: 'Débito automático obligatorio con TC'
@@ -140,7 +140,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156, '85a120': 310714 },
     cuotaPura: 252159,
     reservations: { '1': 1211710, '3': 1575223, '6': 1817565 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -156,7 +156,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914 },
     cuotaPura: 292641,
     reservations: { '1': 1177600, '3': 1530880, '6': 1766400 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -175,7 +175,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 324858, '13a21': 318403, '22a84': 317611, '85a120': 316027 },
     cuotaPura: 205919,
     reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
@@ -191,7 +191,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 331665, '13a21': 376492, '22a84': 375502, '85a120': 374512 },
     cuotaPura: 257399,
     reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -207,7 +207,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 404810, '13a21': 396767, '22a84': 395583, '85a120': 395583 },
     cuotaPura: 256599,
     reservations: { '1': 1246142, '3': 1619985, '6': 1869213 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -223,7 +223,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
     reservations: { '1': 1900250, '3': 2470325, '6': 2850375 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Acepta llave x llave',
       bonificacion: 'Débito automático obligatorio con TC'
@@ -239,7 +239,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 403780, '13a21': 395757, '22a84': 394576, '85a120': 393985 },
     cuotaPura: 255946,
     reservations: { '1': 1246450, '3': 1620385, '6': 1869675 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -255,7 +255,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914, '85a120': 426914 },
     cuotaPura: 292641,
     reservations: { '1': 1210710, '3': 1573923, '6': 1816065 },
-    withdrawal: { ...DEFAULT_WITHDRAWAL },
+    withdrawal: { ...DEFAULT_WITHDRAWAL, mode: 'pactada' },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -266,7 +266,7 @@ const decemberVehicles = [
 const defaultVehicles = decemberVehicles;
 
 const variableSuggestions = [
-  'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo', 'version'
+  'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo'
 ];
 
 const planTerms = {
@@ -279,10 +279,6 @@ const planTerms = {
 
 const PLAN_TYPES = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
 const PLAN_START_INSTALLMENT = 2;
-
-const upgradeInstallmentsByPlan = {
-  '120_100': 55
-};
 
 function resolveMaxInstallments(maxInstallments, fallbackPlanType = '85a120') {
   const raw = Number(maxInstallments);
@@ -440,7 +436,7 @@ const defaultTemplates = [
   },
   {
     title: 'Informe de cotización (InfoAuto)',
-    body: 'INFORME DE COTIZACIÓN\nMarca: Chevrolet\nModelo: {{modelo_actual}}\nAño: {{anio_retiro}}\nVersión: {{version}}\nMotor: 1.4 Turbo\nCantidad de puertas: 5\nKilometraje: {{km}}\n\nCotizado en un valor en efectivo de ${{valor_efectivo}} pesos arg.\n\nEstimado cliente recuerde enviar a su asesor de ventas 10 imágenes/foto del usado para validar la cotización.\nFuente: INFOAUTO Guía oficial de Precios Noviembre 2025.'
+    body: 'INFORME DE COTIZACIÓN\nMarca: Chevrolet\nModelo: {{modelo_actual}}\nAño: {{anio_retiro}}\nMotor: 1.4 Turbo\nCantidad de puertas: 5\nKilometraje: {{km}}\n\nCotizado en un valor en efectivo de ${{valor_efectivo}} pesos arg.\n\nEstimado cliente recuerde enviar a su asesor de ventas 10 imágenes/foto del usado para validar la cotización.\nFuente: INFOAUTO Guía oficial de Precios Noviembre 2025.'
   }
 ];
 
@@ -1723,8 +1719,7 @@ function buildMessageForClient(client) {
     plan: client.plan || '',
     cuota: client.cuota ? currency.format(client.cuota) : '',
     entrega_usado: client.tradeIn ? 'Sí' : 'No',
-    valor_efectivo: client.tradeInValue ? currency.format(client.tradeInValue) : '',
-    version: client.version || ''
+    valor_efectivo: client.tradeInValue ? currency.format(client.tradeInValue) : ''
   };
   let content = tpl.body || '';
   extractVariables(content).forEach(key => {
@@ -4132,8 +4127,13 @@ function buildPlanModelOptions() {
     return a.localeCompare(b);
   });
   return brandOrder.map(brand => {
+    const brandColor = getBrandColor(brand);
     const options = grouped[brand]
-      .map(({ vehicle, index }) => `<option value="${index}">${vehicle.name}</option>`)
+      .map(({ vehicle, index }) => {
+        const allocationMode = vehicle?.withdrawal?.mode || 'sorteo_licitacion';
+        const noKeyIndicator = allocationMode === 'sorteo_licitacion' ? ' ★ Solo sorteo/licitación' : '';
+        return `<option value="${index}" style="color:${brandColor};">${vehicle.name}${noKeyIndicator}</option>`;
+      })
       .join('');
     return `<optgroup label="${brand}">${options}</optgroup>`;
   }).join('');
@@ -4177,20 +4177,6 @@ function renderPlanForm() {
       customPriceInput.dataset.manual = 'true';
       updatePlanSummary();
     });
-    const versionSelect = document.getElementById('versionSelect');
-    if (versionSelect) {
-      versionSelect.addEventListener('change', () => {
-        updatePlanSummary();
-        savePlanDraft();
-      });
-    }
-    const versionUpgradeInput = document.getElementById('versionUpgrade');
-    if (versionUpgradeInput) {
-      bindMoneyInput(versionUpgradeInput, () => {
-        versionUpgradeInput.dataset.manual = 'true';
-        updatePlanSummary();
-      });
-    }
     ['reservation1', 'reservation3', 'reservation6'].forEach(id => {
       const el = document.getElementById(id);
       bindMoneyInput(el, () => {
@@ -4347,13 +4333,6 @@ function resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPric
   return financedAmount / totalInstallments;
 }
 
-function resolveUpgradeInstallments(planType, totalInstallments, scheme) {
-  const isHundredPercent = Math.round((scheme?.financedPct || 0) * 100) === 100;
-  const key = totalInstallments === 120 && isHundredPercent ? '120_100' : planType;
-  return upgradeInstallmentsByPlan[key] || totalInstallments;
-}
-
-
 function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [], outstanding = 0, { advancePayments = false } = {}) {
   if (!totalInstallments || !cuotaPura) {
     return {
@@ -4455,9 +4434,7 @@ function buildInstallmentSchedule({
   totalInstallments,
   coverageSegments = [],
   cuotaPura,
-  planType,
-  upgradeDelta = 0,
-  upgradeInstallments = 0
+  planType
 }) {
   const amountsByRange = {};
   const coverageMap = {};
@@ -4478,8 +4455,7 @@ function buildInstallmentSchedule({
       ?? vehicle?.cuotaPura
       ?? cuotaPura
       ?? 0;
-    const upgradeApplied = upgradeDelta && i < (PLAN_START_INSTALLMENT + (upgradeInstallments || 0)) ? upgradeDelta : 0;
-    const amount = Math.round((baseAmount * (priceRatio || 1)) + upgradeApplied);
+    const amount = Math.round((baseAmount * (priceRatio || 1)));
     const coverage = coverageMap[i];
     const payable = coverage
       ? Math.max(amount - (coverage.partial || amount), 0)
@@ -4502,22 +4478,19 @@ function buildInstallmentSchedule({
   return { entries, remainingInstallments, outstanding, kickoffInstallment, nextInstallmentAmount, amountsByRange };
 }
 
-function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0, versionSelection = 'base', versionUpgrade = 0 }) {
+function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
   const planProfileType = vehicle?.planProfile?.planType || planType;
   const totalInstallments = resolveTotalInstallments(planType, planProfileType, vehicle?.planProfile?.maxInstallments);
   const basePrice = resolveVehiclePrice(vehicle, 0);
   const price = resolveVehiclePrice(vehicle, customPrice);
   const priceRatio = basePrice ? price / basePrice : 1;
-  const upgradeAmount = versionSelection === 'base' ? 0 : Math.max(versionUpgrade, 0);
-  const upgradeInstallments = resolveUpgradeInstallments(planProfileType, totalInstallments, scheme);
-  const financedAmount = (price * scheme.financedPct) + upgradeAmount;
+  const financedAmount = (price * scheme.financedPct);
   const baseFinancedAmount = basePrice * scheme.financedPct;
   const integrationTarget = price * scheme.integrationPct;
   const baseCuotaPura = resolveCuotaPura(baseFinancedAmount, totalInstallments, vehicle, 0, planProfileType);
   const cuotaPura = resolveCuotaPura(financedAmount, totalInstallments, vehicle, customPrice, planProfileType);
   const baseCatalogCuota = vehicle?.cuotaPura || baseCuotaPura;
-  const upgradeDelta = upgradeInstallments ? upgradeAmount / upgradeInstallments : 0;
 
   const normalizedReservation = ['1', '3', '6'].includes(String(appliedReservation)) ? String(appliedReservation) : '1';
   const selectedReservation = reservations[normalizedReservation] || 0;
@@ -4545,11 +4518,9 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     totalInstallments,
     coverageSegments: coverage.segments,
     cuotaPura: baseCatalogCuota,
-    planType,
-    upgradeDelta,
-    upgradeInstallments
+    planType
   });
-  const cuotaAjustada = schedule.nextInstallmentAmount || (baseCatalogCuota + upgradeDelta);
+  const cuotaAjustada = schedule.nextInstallmentAmount || baseCatalogCuota;
   const remainingInstallments = coverage.remainingInstallments || schedule.remainingInstallments;
   const kickoffInstallment = coverage.kickoffInstallment ?? schedule.kickoffInstallment;
 
@@ -4562,10 +4533,6 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
     baseCuotaPura,
     baseCatalogCuota,
     cuotaAjustada,
-    upgradeDelta,
-    upgradeInstallments,
-    versionSelection,
-    versionUpgrade: upgradeAmount,
     totalInstallments,
     financedAmount,
     integrationTarget,
@@ -4605,14 +4572,6 @@ function updatePlanSummary() {
   const advanceAmount = advancePayments ? parseMoney(advanceAmountInput?.dataset.raw || advanceAmountInput?.value || 0) : 0;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
-  const versionSelection = document.getElementById('versionSelect')?.value || 'base';
-  const versionUpgradeInput = document.getElementById('versionUpgrade');
-  const rawUpgrade = parseMoney(versionUpgradeInput?.dataset.raw || versionUpgradeInput?.value || 0);
-  const versionUpgrade = versionSelection === 'base' ? 0 : rawUpgrade;
-  if (versionSelection === 'base' && versionUpgradeInput) {
-    setMoneyValue(versionUpgradeInput, 0);
-    versionUpgradeInput.dataset.manual = '';
-  }
   const appliedReservation = '1';
   const appliedReservationInput = document.getElementById('appliedReservation');
   if (appliedReservationInput) appliedReservationInput.value = appliedReservation;
@@ -4630,9 +4589,7 @@ function updatePlanSummary() {
     appliedReservation,
     customPrice,
     advancePayments,
-    advanceAmount,
-    versionSelection,
-    versionUpgrade
+    advanceAmount
   });
   const cuotaBase = plan === 'ctapura'
     ? (projection.baseCatalogCuota || v.cuotaPura)
@@ -4647,12 +4604,14 @@ function updatePlanSummary() {
     return `${originalTag} ${currency.format(adjusted || 0)}`;
   };
   const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
-  const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1) || (versionUpgrade > 0);
+  const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1);
   const scheme = projection.scheme || v.planProfile || {};
   const withdrawal = v.withdrawal || {};
   const withdrawalInstallments = formatWithdrawalInstallments(withdrawal.installments || []);
   const withdrawalRequirement = resolveWithdrawalRequirement(withdrawal, projection.price);
   const planLabelValue = resolveVehiclePlanLabel(v, plan);
+  const allocationModeLabel = formatAllocationMode(withdrawal.mode);
+  const isNoKey = withdrawal.mode !== 'pactada';
   const coverageSegments = (projection.coverageSegments || []).map(seg => ({
     ...seg,
     from: Math.min(seg.from, seg.to),
@@ -4675,11 +4634,11 @@ function updatePlanSummary() {
   renderRows(basics, [
     { label: '0Km a adquirir', value: v.name || 'Seleccionar modelo' },
     { label: 'Marca del vehículo', value: normalizeBrand(v.brand) },
-    { label: 'Precio nominal del coche', value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice), helper: showCustomPrice ? 'Precio ajustado para la cotización' : 'Valor de catálogo' },
+    { label: 'Valor del coche a cotizar', value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice), helper: showCustomPrice ? 'Valor informado para la cotización' : 'Valor base del catálogo' },
     { label: 'Tipo de plan', value: planLabelValue ? `${planLabelValue} · ${planLabel(plan)}` : planLabel(plan), helper: scheme.label },
-    { label: 'Versión seleccionada', value: versionSelection === 'base' ? 'Versión base' : 'Versión mejorada', helper: versionSelection === 'base' ? 'Sin upgrade aplicado' : `Se financian ${currency.format(versionUpgrade || 0)} adicionales` },
     { label: 'Cantidad de cuotas totales del plan', value: projection.totalInstallments || 0 },
-    { label: 'Modalidad de adjudicación', value: formatAllocationMode(withdrawal.mode) },
+    { label: 'Modalidad de adjudicación', value: allocationModeLabel },
+    { label: 'Llave x llave disponible', value: isNoKey ? '⭐ Solo sorteo/licitación' : 'Sí' },
     { label: 'Cuotas pactadas de retiro', value: withdrawalInstallments || 'Sin definir', helper: withdrawalInstallments ? 'Definidas por marca y modelo' : 'Configura las cuotas pactadas en el editor' },
     {
       label: 'Requisito de integración para retiro',
@@ -4896,11 +4855,6 @@ function buildQuoteFromForm() {
   const advanceAmount = advancePayments ? parseMoney(advanceAmountInput?.dataset.raw || advanceAmountInput?.value || 0) : 0;
   const customPriceInput = document.getElementById('customPrice');
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
-  const versionSelection = document.getElementById('versionSelect')?.value || 'base';
-  const versionUpgradeInput = document.getElementById('versionUpgrade');
-  const versionUpgrade = versionSelection === 'base'
-    ? 0
-    : parseMoney(versionUpgradeInput?.dataset.raw || versionUpgradeInput?.value || 0);
   const appliedReservation = '1';
   const notes = document.getElementById('notes').value.trim();
   const reservation1 = getReservationValue('reservation1', v.reservations['1']);
@@ -4916,9 +4870,7 @@ function buildQuoteFromForm() {
     appliedReservation,
     customPrice,
     advancePayments,
-    advanceAmount,
-    versionSelection,
-    versionUpgrade
+    advanceAmount
   });
   const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
@@ -4944,8 +4896,6 @@ function buildQuoteFromForm() {
     cuotaPura: projection.cuotaPura,
     totalInstallments: projection.totalInstallments,
     appliedReservation,
-    versionSelection,
-    versionUpgrade,
     outstanding: projection.outstanding,
     remainingInstallments: projection.remainingInstallments,
     kickoffInstallment: projection.kickoffInstallment,
@@ -5008,9 +4958,8 @@ function buildQuoteSummaryText(quote) {
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
     `Marca: ${quote.brand || 'Sin definir'}`,
-    `Versión elegida: ${quote.versionSelection === 'base' ? 'Versión base' : 'Versión mejorada'}`,
-    `Precio base catálogo: ${currency.format(quote.basePrice || 0)}`,
-    hasCustomPrice ? `Precio aplicado: ${currency.format(quote.priceApplied || 0)} (ajustado)` : `Precio aplicado: ${currency.format(quote.priceApplied || 0)}`,
+    `Valor base catálogo: ${currency.format(quote.basePrice || 0)}`,
+    hasCustomPrice ? `Valor del coche a cotizar: ${currency.format(quote.priceApplied || 0)} (informado)` : `Valor del coche a cotizar: ${currency.format(quote.priceApplied || 0)}`,
     `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
     `Modalidad de adjudicación: ${formatAllocationMode(quote.allocationMode || 'sorteo_licitacion')}`,
@@ -5090,13 +5039,6 @@ function applyPlanDraft() {
   const customPriceInput = document.getElementById('customPrice');
   setMoneyValue(customPriceInput, draft.customPrice || '');
   if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
-  const versionSelect = document.getElementById('versionSelect');
-  if (versionSelect) versionSelect.value = draft.versionSelection || 'base';
-  const versionUpgradeInput = document.getElementById('versionUpgrade');
-  if (versionUpgradeInput) {
-    setMoneyValue(versionUpgradeInput, draft.versionUpgrade || 0);
-    if (parseMoney(draft.versionUpgrade)) versionUpgradeInput.dataset.manual = 'true';
-  }
   document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(draft.appliedReservation) ? draft.appliedReservation : '1';
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
   document.getElementById('clientName').value = draft.clientName || '';
@@ -5120,8 +5062,6 @@ function savePlanDraft() {
     advancePayments: document.getElementById('advancePayments').checked,
     advanceAmount: parseMoney(document.getElementById('advanceAmount').dataset.raw || document.getElementById('advanceAmount').value),
     customPrice: parseMoney(document.getElementById('customPrice').dataset.raw || document.getElementById('customPrice').value),
-    versionSelection: document.getElementById('versionSelect').value,
-    versionUpgrade: parseMoney(document.getElementById('versionUpgrade').dataset.raw || document.getElementById('versionUpgrade').value),
     appliedReservation: document.getElementById('appliedReservation').value,
     tradeInValue: parseMoney(document.getElementById('tradeInValue').dataset.raw || document.getElementById('tradeInValue').value),
     clientName: document.getElementById('clientName').value,
