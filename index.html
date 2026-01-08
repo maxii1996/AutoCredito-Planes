@@ -1173,7 +1173,10 @@
           <h3>Gestión de modelos y valores</h3>
           <p class="muted tiny">Edita el catálogo actual y exporta precios.json cuando termines.</p>
         </div>
-        <button id="vehicleEditorClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+        <div class="editor-head-actions">
+          <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Descargar Archivo de Precios</button>
+          <button id="vehicleEditorClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+        </div>
       </div>
       <div class="modal-body editor-body">
         <div class="editor-tabs">
@@ -1196,7 +1199,7 @@
                 </div>
                 <div id="vehicleEditorList" class="editor-list"></div>
                 <p id="vehicleEditorEmpty" class="muted tiny hidden">No se encontraron modelos.</p>
-                <div class="actions compact center">
+                <div class="actions compact center editor-list-actions">
                   <button id="addVehicle" class="secondary-btn mini"><i class='bx bx-plus'></i>Agregar modelo</button>
                   <button id="duplicateVehicle" class="ghost-btn mini"><i class='bx bx-copy'></i>Duplicar</button>
                   <button id="deleteVehicle" class="ghost-btn danger mini"><i class='bx bx-trash'></i>Eliminar</button>
@@ -1408,9 +1411,6 @@
             </div>
           </div>
         </div>
-      </div>
-      <div class="modal-actions">
-        <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Descargar Archivo de Precios</button>
       </div>
     </div>
   </div>
