@@ -1184,15 +1184,13 @@
           <div class="editor-tab-panel active" data-editor-panel="models">
             <div class="editor-grid">
               <aside class="editor-sidebar">
-                <div class="editor-filter-row">
-                  <div class="search-field compact">
-                    <i class='bx bx-search'></i>
-                    <input id="vehicleEditorSearch" placeholder="Buscar modelo" />
-                  </div>
-                  <div class="field compact">
-                    <label for="vehicleEditorBrandFilter">Filtrar marca</label>
-                    <select id="vehicleEditorBrandFilter"></select>
-                  </div>
+                <div class="search-field compact">
+                  <i class='bx bx-search'></i>
+                  <input id="vehicleEditorSearch" placeholder="Buscar modelo" />
+                </div>
+                <div class="field compact">
+                  <label for="vehicleEditorBrandFilter">Filtrar marca</label>
+                  <select id="vehicleEditorBrandFilter"></select>
                 </div>
                 <div id="vehicleEditorList" class="editor-list"></div>
                 <p id="vehicleEditorEmpty" class="muted tiny hidden">No se encontraron modelos.</p>
@@ -1227,7 +1225,7 @@
                   </div>
                   <div class="field">
                     <label>Requisito de integración</label>
-                    <div class="inline-field requirement-inline">
+                    <div class="inline-field">
                       <select id="editorWithdrawalRequirementType">
                         <option value="percent">%</option>
                         <option value="amount">$</option>
@@ -1269,8 +1267,14 @@
                     <input id="editorPlanLabel" placeholder="Ej: 80/20 (120 cuotas)" />
                   </div>
                   <div class="field">
-                    <label for="editorPlanMaxInstallments">Máximo de cuotas</label>
-                    <input id="editorPlanMaxInstallments" type="number" min="1" step="1" placeholder="Ej: 120" />
+                    <label for="editorPlanType">Plan base</label>
+                    <select id="editorPlanType">
+                      <option value="2a12">2 a 12 (120)</option>
+                      <option value="13a21">13 a 21 (120)</option>
+                      <option value="22a84">22 a 84 (84)</option>
+                      <option value="85a120">85 a 120 (120)</option>
+                      <option value="ctapura">Cuota pura (120)</option>
+                    </select>
                   </div>
                 </div>
                 <div class="form-grid three">
@@ -1291,13 +1295,12 @@
                 </div>
                 <div class="field">
                   <label>Planes disponibles</label>
-                  <p class="muted tiny">Se calculan automáticamente según el máximo de cuotas.</p>
                   <div class="chip-group">
-                    <label class="chip-select"><input type="checkbox" data-editor-available value="2a12" disabled>2 a 12</label>
-                    <label class="chip-select"><input type="checkbox" data-editor-available value="13a21" disabled>13 a 21</label>
-                    <label class="chip-select"><input type="checkbox" data-editor-available value="22a84" disabled>22 a 84</label>
-                    <label class="chip-select"><input type="checkbox" data-editor-available value="85a120" disabled>85 a 120</label>
-                    <label class="chip-select"><input type="checkbox" data-editor-available value="ctapura" disabled>Cuota pura</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="2a12">2 a 12</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="13a21">13 a 21</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="22a84">22 a 84</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="85a120">85 a 120</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="ctapura">Cuota pura</label>
                   </div>
                 </div>
                 <div class="field-group compact">

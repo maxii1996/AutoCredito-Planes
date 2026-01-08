@@ -283,25 +283,6 @@ const upgradeInstallmentsByPlan = {
   '120_100': 55
 };
 
-const DEFAULT_MAX_INSTALLMENTS = 120;
-
-function normalizeMaxInstallments(value, fallbackPlanType = '85a120') {
-  const raw = Number(value);
-  if (Number.isFinite(raw) && raw > 0) return Math.round(raw);
-  return planTerms[fallbackPlanType] || DEFAULT_MAX_INSTALLMENTS;
-}
-
-function resolvePlanTypeForMaxInstallments(maxInstallments) {
-  return maxInstallments <= 84 ? '22a84' : '85a120';
-}
-
-function computeAvailablePlansForMaxInstallments(maxInstallments) {
-  const basePlans = ['2a12', '13a21', '22a84'];
-  if (maxInstallments > 84) basePlans.push('85a120');
-  if (maxInstallments >= 120) basePlans.push('ctapura');
-  return basePlans;
-}
-
 function getPlanTypeForVehicle(vehicle) {
   const available = vehicle?.availablePlans?.length ? vehicle.availablePlans : ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
   const preferred = vehicle?.planProfile?.planType;
@@ -517,15 +498,11 @@ function normalizePlanProfile(profile = {}, planTypeFallback = '85a120') {
   const integrationRaw = Number(profile.integrationPct);
   const financedPct = Number.isFinite(financedRaw) ? financedRaw : null;
   const integrationPct = Number.isFinite(integrationRaw) ? integrationRaw : null;
-  const basePlanType = profile.planType || planTypeFallback;
-  const maxInstallments = normalizeMaxInstallments(profile.maxInstallments, basePlanType);
-  const planType = resolvePlanTypeForMaxInstallments(maxInstallments);
   return {
     label: profile.label || '',
-    planType,
+    planType: profile.planType || planTypeFallback,
     financedPct,
-    integrationPct,
-    maxInstallments
+    integrationPct
   };
 }
 
@@ -555,9 +532,6 @@ function normalizeWithdrawal(withdrawal = {}) {
 }
 
 function normalizeVehicle(vehicle = {}) {
-  const planProfile = normalizePlanProfile(vehicle.planProfile, vehicle.planProfile?.planType || '85a120');
-  const maxInstallments = normalizeMaxInstallments(planProfile.maxInstallments, planProfile.planType || '85a120');
-  const availablePlans = computeAvailablePlansForMaxInstallments(maxInstallments);
   const normalized = {
     ...vehicle,
     name: vehicle.name || '',
@@ -565,8 +539,10 @@ function normalizeVehicle(vehicle = {}) {
     basePrice: Number(vehicle.basePrice || 0),
     integration: Number(vehicle.integration || 0),
     cuotaPura: Number(vehicle.cuotaPura || 0),
-    planProfile,
-    availablePlans,
+    planProfile: normalizePlanProfile(vehicle.planProfile, vehicle.planProfile?.planType || '85a120'),
+    availablePlans: vehicle.availablePlans?.length
+      ? [...vehicle.availablePlans]
+      : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: {
       '2a12': Number(vehicle.shareByPlan?.['2a12'] || 0),
       '13a21': Number(vehicle.shareByPlan?.['13a21'] || 0),
@@ -855,15 +831,13 @@ function formatPercentInput(value) {
   return Math.round(value * 100);
 }
 
-function buildPlanLabelFromPercents(financedPct, integrationPct, planType, maxInstallments) {
+function buildPlanLabelFromPercents(financedPct, integrationPct, planType) {
   if (!Number.isFinite(financedPct) && !Number.isFinite(integrationPct)) return '';
   const financed = Number.isFinite(financedPct) ? financedPct : Math.max(0, 1 - (integrationPct || 0));
   const integration = Number.isFinite(integrationPct) ? integrationPct : Math.max(0, 1 - financed);
   const financedLabel = Math.round(financed * 100);
   const integrationLabel = Math.round(integration * 100);
-  const total = Number.isFinite(maxInstallments) && maxInstallments > 0
-    ? maxInstallments
-    : (planTerms[planType] || 120);
+  const total = planTerms[planType] || 120;
   return `${financedLabel}/${integrationLabel} (${total} cuotas)`;
 }
 
@@ -3004,18 +2978,9 @@ function ensureVehicleEditorDefaults(vehicle = {}) {
       label: normalized.planProfile?.label || '',
       planType: normalized.planProfile?.planType || '85a120',
       financedPct: normalized.planProfile?.financedPct ?? null,
-      integrationPct: normalized.planProfile?.integrationPct ?? null,
-      maxInstallments: normalizeMaxInstallments(
-        normalized.planProfile?.maxInstallments,
-        normalized.planProfile?.planType || '85a120'
-      )
+      integrationPct: normalized.planProfile?.integrationPct ?? null
     },
-    availablePlans: computeAvailablePlansForMaxInstallments(
-      normalizeMaxInstallments(
-        normalized.planProfile?.maxInstallments,
-        normalized.planProfile?.planType || '85a120'
-      )
-    ),
+    availablePlans: normalized.availablePlans?.length ? [...normalized.availablePlans] : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: {
       '2a12': Number(normalized.shareByPlan?.['2a12'] || 0),
       '13a21': Number(normalized.shareByPlan?.['13a21'] || 0),
@@ -3048,13 +3013,6 @@ function scheduleVehicleEditorAutosave() {
   }, 250);
 }
 
-function updateEditorAvailablePlans(maxInstallments) {
-  const availablePlans = computeAvailablePlansForMaxInstallments(maxInstallments);
-  document.querySelectorAll('[data-editor-available]').forEach(input => {
-    input.checked = availablePlans.includes(input.value);
-  });
-}
-
 function bindVehicleEditor() {
   const modal = document.getElementById('vehicleEditorModal');
   const close = document.getElementById('vehicleEditorClose');
@@ -3065,7 +3023,7 @@ function bindVehicleEditor() {
   const exportBtn = document.getElementById('exportPricesFromEditor');
   const searchInput = document.getElementById('vehicleEditorSearch');
   const planLabelInput = document.getElementById('editorPlanLabel');
-  const maxInstallmentsInput = document.getElementById('editorPlanMaxInstallments');
+  const planTypeSelect = document.getElementById('editorPlanType');
   const financedInput = document.getElementById('editorPlanFinanced');
   const integrationInput = document.getElementById('editorPlanIntegration');
   const autoLabel = document.getElementById('editorPlanAutoLabel');
@@ -3177,14 +3135,11 @@ function bindVehicleEditor() {
   const updatePlanAutoLabel = () => {
     const financedPct = parsePercentInput(financedInput?.value);
     const integrationPct = parsePercentInput(integrationInput?.value);
-    const maxInstallments = normalizeMaxInstallments(maxInstallmentsInput?.value);
-    const planType = resolvePlanTypeForMaxInstallments(maxInstallments);
-    const label = buildPlanLabelFromPercents(financedPct, integrationPct, planType, maxInstallments);
+    const label = buildPlanLabelFromPercents(financedPct, integrationPct, planTypeSelect?.value);
     if (autoLabel) autoLabel.textContent = label || 'Sin esquema definido';
     if (planLabelInput && (financedPct !== null || integrationPct !== null)) {
       planLabelInput.value = label;
     }
-    updateEditorAvailablePlans(maxInstallments);
   };
   if (financedInput && !financedInput.dataset.bound) {
     financedInput.addEventListener('input', updatePlanAutoLabel);
@@ -3194,10 +3149,9 @@ function bindVehicleEditor() {
     integrationInput.addEventListener('input', updatePlanAutoLabel);
     integrationInput.dataset.bound = 'true';
   }
-  if (maxInstallmentsInput && !maxInstallmentsInput.dataset.boundProfile) {
-    maxInstallmentsInput.addEventListener('input', updatePlanAutoLabel);
-    maxInstallmentsInput.addEventListener('change', updatePlanAutoLabel);
-    maxInstallmentsInput.dataset.boundProfile = 'true';
+  if (planTypeSelect && !planTypeSelect.dataset.boundProfile) {
+    planTypeSelect.addEventListener('change', updatePlanAutoLabel);
+    planTypeSelect.dataset.boundProfile = 'true';
   }
   updatePlanAutoLabel();
 }
@@ -3456,7 +3410,7 @@ function renderVehicleEditorForm() {
     const integrationInput = document.getElementById('editorIntegration');
     const cuotaPuraInput = document.getElementById('editorCuotaPura');
     const planLabelInput = document.getElementById('editorPlanLabel');
-    const maxInstallmentsInput = document.getElementById('editorPlanMaxInstallments');
+    const planTypeSelect = document.getElementById('editorPlanType');
     const financedInput = document.getElementById('editorPlanFinanced');
     const integrationPctInput = document.getElementById('editorPlanIntegration');
     const autoLabel = document.getElementById('editorPlanAutoLabel');
@@ -3472,15 +3426,14 @@ function renderVehicleEditorForm() {
     if (integrationInput) setMoneyValue(integrationInput, emptyForm.integration);
     if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, emptyForm.cuotaPura);
     if (planLabelInput) planLabelInput.value = emptyForm.planProfile.label;
-    if (maxInstallmentsInput) maxInstallmentsInput.value = emptyForm.planProfile.maxInstallments;
+    if (planTypeSelect) planTypeSelect.value = emptyForm.planProfile.planType;
     if (financedInput) financedInput.value = formatPercentInput(emptyForm.planProfile.financedPct);
     if (integrationPctInput) integrationPctInput.value = formatPercentInput(emptyForm.planProfile.integrationPct);
     if (autoLabel) {
       autoLabel.textContent = buildPlanLabelFromPercents(
         emptyForm.planProfile.financedPct,
         emptyForm.planProfile.integrationPct,
-        emptyForm.planProfile.planType,
-        emptyForm.planProfile.maxInstallments
+        emptyForm.planProfile.planType
       ) || 'Sin esquema definido';
     }
     if (pactadaInput) pactadaInput.value = emptyForm.benefits.pactada;
@@ -3490,7 +3443,6 @@ function renderVehicleEditorForm() {
     document.querySelectorAll('[data-editor-available]').forEach(input => {
       input.checked = false;
     });
-    updateEditorAvailablePlans(emptyForm.planProfile.maxInstallments);
     return;
   }
   const vehicle = vehicles[vehicleEditorState.selectedIndex];
@@ -3503,7 +3455,7 @@ function renderVehicleEditorForm() {
   const integrationInput = document.getElementById('editorIntegration');
   const cuotaPuraInput = document.getElementById('editorCuotaPura');
   const planLabelInput = document.getElementById('editorPlanLabel');
-  const maxInstallmentsInput = document.getElementById('editorPlanMaxInstallments');
+  const planTypeSelect = document.getElementById('editorPlanType');
   const financedInput = document.getElementById('editorPlanFinanced');
   const integrationPctInput = document.getElementById('editorPlanIntegration');
   const autoLabel = document.getElementById('editorPlanAutoLabel');
@@ -3519,15 +3471,14 @@ function renderVehicleEditorForm() {
   if (integrationInput) setMoneyValue(integrationInput, form.integration);
   if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, form.cuotaPura);
   if (planLabelInput) planLabelInput.value = form.planProfile.label;
-  if (maxInstallmentsInput) maxInstallmentsInput.value = form.planProfile.maxInstallments;
+  if (planTypeSelect) planTypeSelect.value = form.planProfile.planType;
   if (financedInput) financedInput.value = formatPercentInput(form.planProfile.financedPct);
   if (integrationPctInput) integrationPctInput.value = formatPercentInput(form.planProfile.integrationPct);
   if (autoLabel) {
     autoLabel.textContent = buildPlanLabelFromPercents(
       form.planProfile.financedPct,
       form.planProfile.integrationPct,
-      form.planProfile.planType,
-      form.planProfile.maxInstallments
+      form.planProfile.planType
     ) || 'Sin esquema definido';
   }
   if (pactadaInput) pactadaInput.value = form.benefits.pactada;
@@ -3542,7 +3493,9 @@ function renderVehicleEditorForm() {
     const value = form.reservations[resKey] || 0;
     setMoneyValue(input, value);
   });
-  updateEditorAvailablePlans(form.planProfile.maxInstallments);
+  document.querySelectorAll('[data-editor-available]').forEach(input => {
+    input.checked = form.availablePlans.includes(input.value);
+  });
 }
 
 function applyVehicleEditorChanges() {
@@ -3556,7 +3509,7 @@ function applyVehicleEditorChanges() {
   const integrationInput = document.getElementById('editorIntegration');
   const cuotaPuraInput = document.getElementById('editorCuotaPura');
   const planLabelInput = document.getElementById('editorPlanLabel');
-  const maxInstallmentsInput = document.getElementById('editorPlanMaxInstallments');
+  const planTypeSelect = document.getElementById('editorPlanType');
   const financedInput = document.getElementById('editorPlanFinanced');
   const integrationPctInput = document.getElementById('editorPlanIntegration');
   const pactadaInput = document.getElementById('editorBenefitPactada');
@@ -3579,23 +3532,21 @@ function applyVehicleEditorChanges() {
   vehicle.cuotaPura = parseMoney(cuotaPuraInput?.dataset.raw || cuotaPuraInput?.value || 0);
   const financedPct = parsePercentInput(financedInput?.value);
   const integrationPct = parsePercentInput(integrationPctInput?.value);
-  const maxInstallments = normalizeMaxInstallments(maxInstallmentsInput?.value, vehicle.planProfile?.planType || '85a120');
-  const planType = resolvePlanTypeForMaxInstallments(maxInstallments);
-  const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType, maxInstallments);
+  const planType = planTypeSelect?.value || vehicle.planProfile?.planType || '85a120';
+  const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
   vehicle.planProfile = {
     ...(vehicle.planProfile || {}),
     label: planLabelInput?.value?.trim() || computedLabel || '',
     planType,
     financedPct,
-    integrationPct,
-    maxInstallments
+    integrationPct
   };
   vehicle.benefits = {
     ...(vehicle.benefits || {}),
     pactada: pactadaInput?.value?.trim() || '',
     bonificacion: bonificacionInput?.value?.trim() || ''
   };
-  vehicle.availablePlans = computeAvailablePlansForMaxInstallments(maxInstallments);
+  vehicle.availablePlans = [...document.querySelectorAll('[data-editor-available]:checked')].map(input => input.value);
   vehicle.shareByPlan = vehicle.shareByPlan || {};
   document.querySelectorAll('[data-editor-plan]').forEach(input => {
     const planKey = input.dataset.editorPlan;
@@ -4290,9 +4241,7 @@ function updateIntegrationDetails(modelIdx) {
   if (nodes.six) nodes.six.textContent = `6 cuotas "sin interés" de: ${currency.format((reserva6 || 0) / 6 || 0)} cada una`;
 }
 
-function resolveTotalInstallments(planType, vehiclePlanProfileType, vehiclePlanMaxInstallments) {
-  const normalizedMax = normalizeMaxInstallments(vehiclePlanMaxInstallments, vehiclePlanProfileType || planType || '85a120');
-  if (normalizedMax) return normalizedMax;
+function resolveTotalInstallments(planType, vehiclePlanProfileType) {
   const byVehicle = planTerms[vehiclePlanProfileType];
   if (byVehicle) return byVehicle;
   return planTerms[planType] || 120;
@@ -4302,11 +4251,10 @@ function resolveTotalInstallments(planType, vehiclePlanProfileType, vehiclePlanM
 function resolvePlanScheme(vehicle) {
   const profile = vehicle?.planProfile || {};
   const planType = vehicle?.planProfile?.planType;
-  const maxInstallments = profile.maxInstallments;
   if (Number.isFinite(profile.financedPct) || Number.isFinite(profile.integrationPct)) {
     const financedPct = Number.isFinite(profile.financedPct) ? profile.financedPct : Math.max(0, 1 - (profile.integrationPct || 0));
     const integrationPct = Number.isFinite(profile.integrationPct) ? profile.integrationPct : Math.max(0, 1 - financedPct);
-    const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType, maxInstallments);
+    const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
     return { financedPct, integrationPct, label: profile.label || computedLabel || 'Plan personalizado' };
   }
 
@@ -4315,7 +4263,7 @@ function resolvePlanScheme(vehicle) {
   if (basePrice > 0 && integrationValue > 0) {
     const integrationPct = Math.min(Math.max(integrationValue / basePrice, 0), 1);
     const financedPct = Math.max(1 - integrationPct, 0);
-    const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType, maxInstallments);
+    const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
     return { financedPct, integrationPct, label: profile.label || computedLabel || 'Plan personalizado' };
   }
 
@@ -4325,7 +4273,7 @@ function resolvePlanScheme(vehicle) {
     const financedPct = Number(numericMatch[1]) / 100;
     const integrationPct = Number(numericMatch[2]) / 100;
     if (financedPct + integrationPct === 1) {
-      const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType, maxInstallments);
+      const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
       return { financedPct, integrationPct, label: profile.label || computedLabel || 'Plan personalizado' };
     }
   }
@@ -4508,7 +4456,7 @@ function buildInstallmentSchedule({
 function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeInEnabled = false, reservations = {}, appliedReservation = '1', customPrice = 0, advancePayments = false, advanceAmount = 0, versionSelection = 'base', versionUpgrade = 0 }) {
   const scheme = resolvePlanScheme(vehicle);
   const planProfileType = vehicle?.planProfile?.planType || planType;
-  const totalInstallments = resolveTotalInstallments(planType, planProfileType, vehicle?.planProfile?.maxInstallments);
+  const totalInstallments = resolveTotalInstallments(planType, planProfileType);
   const basePrice = resolveVehiclePrice(vehicle, 0);
   const price = resolveVehiclePrice(vehicle, customPrice);
   const priceRatio = basePrice ? price / basePrice : 1;
@@ -5075,7 +5023,7 @@ function planLabel(key) {
 function resolveVehiclePlanLabel(vehicle, fallbackPlanType) {
   const profile = vehicle?.planProfile || {};
   const planType = fallbackPlanType || profile.planType;
-  const computed = buildPlanLabelFromPercents(profile.financedPct, profile.integrationPct, planType, profile.maxInstallments);
+  const computed = buildPlanLabelFromPercents(profile.financedPct, profile.integrationPct, planType);
   return profile.label || computed || planLabel(planType);
 }
 
