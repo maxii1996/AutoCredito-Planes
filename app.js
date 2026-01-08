@@ -4131,7 +4131,7 @@ function buildPlanModelOptions() {
     const options = grouped[brand]
       .map(({ vehicle, index }) => {
         const allocationMode = vehicle?.withdrawal?.mode || 'sorteo_licitacion';
-        const noKeyIndicator = allocationMode === 'sorteo_licitacion' ? ' ★ Solo sorteo/licitación' : '';
+        const noKeyIndicator = allocationMode === 'sorteo_licitacion' ? ' ★ ' : '';
         return `<option value="${index}" style="color:${brandColor};">${vehicle.name}${noKeyIndicator}</option>`;
       })
       .join('');
