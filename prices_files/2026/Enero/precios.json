@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-08T15:55:59.232Z",
+  "updatedAt": "2026-01-08T16:37:10.571Z",
   "vehicles": [
     {
       "name": "NUEVO ONIX 1.0 TURBO LT MT",
@@ -158,7 +158,7 @@
         "13a21": 527066,
         "22a84": 525464,
         "85a120": 0,
-        "ctapura": 0
+        "ctapura": 347121
       },
       "cuotaPura": 347121,
       "reservations": {
