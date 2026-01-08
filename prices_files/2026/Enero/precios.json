@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-08T19:15:00.000Z",
+  "updatedAt": "2026-01-08T19:20:00.000Z",
   "vehicles": [
     {
       "name": "NUEVO ONIX 1.0 TURBO LT MT",
@@ -578,10 +578,11 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 390100,
-        "13a84": 435289,
+        "13a21": 435289,
+        "22a84": 435289,
         "85a120": 0,
         "ctapura": 303261
       },
@@ -610,10 +611,11 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 485000,
-        "13a84": 542440,
+        "13a21": 542440,
+        "22a84": 542440,
         "85a120": 0,
         "ctapura": 381458
       },
@@ -642,10 +644,11 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 555527,
-        "13a84": 621155,
+        "13a21": 621155,
+        "22a84": 621155,
         "85a120": 0,
         "ctapura": 440428
       },
@@ -674,10 +677,11 @@
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 555252,
-        "13a84": 592382,
+        "13a21": 592382,
+        "22a84": 592382,
         "85a120": 0,
         "ctapura": 416111
       },
@@ -706,10 +710,11 @@
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 556700,
-        "13a84": 593274,
+        "13a21": 593274,
+        "22a84": 593274,
         "85a120": 0,
         "ctapura": 406732
       },
@@ -738,10 +743,11 @@
         "integrationPct": 0,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 584500,
-        "13a84": 722558,
+        "13a21": 722558,
+        "22a84": 722558,
         "85a120": 0,
         "ctapura": 538021
       },
