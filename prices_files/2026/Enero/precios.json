@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-08T15:52:16.431Z",
+  "updatedAt": "2026-01-08T15:55:59.232Z",
   "vehicles": [
     {
       "name": "NUEVO ONIX 1.0 TURBO LT MT",
@@ -91,7 +91,7 @@
         ],
         "requirementType": "amount",
         "requirementValue": 9451770,
-        "mode": "sorteo_licitacion"
+        "mode": "pactada"
       }
     },
     {
@@ -136,7 +136,7 @@
         ],
         "requirementType": "amount",
         "requirementValue": 11835870,
-        "mode": "sorteo_licitacion"
+        "mode": "pactada"
       }
     },
     {
@@ -220,7 +220,7 @@
         ],
         "requirementType": "amount",
         "requirementValue": 11747970,
-        "mode": "sorteo_licitacion"
+        "mode": "pactada"
       }
     },
     {
