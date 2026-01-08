@@ -1175,223 +1175,245 @@
         </div>
         <button id="vehicleEditorClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
-      <div class="modal-body editor-grid">
-        <aside class="editor-sidebar">
-          <div class="field compact">
-            <label for="vehicleEditorBrandFilter">Filtrar marca</label>
-            <select id="vehicleEditorBrandFilter"></select>
-          </div>
-          <div class="search-field compact">
-            <i class='bx bx-search'></i>
-            <input id="vehicleEditorSearch" placeholder="Buscar modelo" />
-          </div>
-          <div id="vehicleEditorList" class="editor-list"></div>
-          <p id="vehicleEditorEmpty" class="muted tiny hidden">No se encontraron modelos.</p>
-          <div class="actions compact">
-            <button id="addVehicle" class="secondary-btn mini"><i class='bx bx-plus'></i>Agregar modelo</button>
-            <button id="deleteVehicle" class="ghost-btn danger mini"><i class='bx bx-trash'></i>Eliminar</button>
-          </div>
-        </aside>
-        <div class="editor-form">
-          <div class="field">
-            <label for="editorVehicleName">Nombre del modelo</label>
-            <input id="editorVehicleName" placeholder="Ej: Tracker LT 1.2AT" />
-          </div>
-          <div class="form-grid two">
-            <div class="field">
-              <label for="editorBrand">Marca</label>
-              <input id="editorBrand" list="editorBrandList" placeholder="Ej: Renault" />
-              <datalist id="editorBrandList">
-                <option value="Chevrolet"></option>
-                <option value="Renault"></option>
-                <option value="FIAT"></option>
-                <option value="Volkswagen"></option>
-                <option value="Peugeot"></option>
-              </datalist>
-            </div>
-            <div class="field">
-              <label for="editorAllocation">Modalidad de adjudicación</label>
-              <select id="editorAllocation">
-                <option value="ambos">Sorteo y licitación</option>
-                <option value="sorteo">Solo sorteo</option>
-                <option value="licitacion">Solo licitación</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-grid two">
-            <div class="field">
-              <label for="editorWithdrawalInstallments">Cuotas pactadas de retiro</label>
-              <input id="editorWithdrawalInstallments" placeholder="Ej: 4,6,9,12" />
-            </div>
-            <div class="field">
-              <label for="editorWithdrawalRequirement">Requisito de integración (%)</label>
-              <input id="editorWithdrawalRequirement" type="number" min="0" max="100" step="1" placeholder="Ej: 35" />
-            </div>
-          </div>
-          <div class="form-grid three">
-            <div class="field">
-              <label for="editorBasePrice">Precio de lista</label>
-              <div class="money-field">
-                <span class="prefix">$</span>
-                <input id="editorBasePrice" class="money" type="text" inputmode="numeric" />
-              </div>
-            </div>
-            <div class="field">
-              <label for="editorIntegration">Integración</label>
-              <div class="money-field">
-                <span class="prefix">$</span>
-                <input id="editorIntegration" class="money" type="text" inputmode="numeric" />
-              </div>
-            </div>
-            <div class="field">
-              <label for="editorCuotaPura">Cuota pura</label>
-              <div class="money-field">
-                <span class="prefix">$</span>
-                <input id="editorCuotaPura" class="money" type="text" inputmode="numeric" />
-              </div>
-            </div>
-          </div>
-          <div class="form-grid two">
-            <div class="field">
-              <label for="editorPlanLabel">Etiqueta del plan</label>
-              <input id="editorPlanLabel" placeholder="Ej: 80/20 (120 cuotas)" />
-            </div>
-            <div class="field">
-              <label for="editorPlanType">Plan base</label>
-              <select id="editorPlanType">
-                <option value="2a12">2 a 12 (120)</option>
-                <option value="13a21">13 a 21 (120)</option>
-                <option value="22a84">22 a 84 (84)</option>
-                <option value="85a120">85 a 120 (120)</option>
-                <option value="ctapura">Cuota pura (120)</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-grid three">
-            <div class="field">
-              <label for="editorPlanFinanced">Financia empresa (%)</label>
-              <input id="editorPlanFinanced" type="number" min="0" max="100" step="1" placeholder="Ej: 70" />
-            </div>
-            <div class="field">
-              <label for="editorPlanIntegration">Paga cliente (%)</label>
-              <input id="editorPlanIntegration" type="number" min="0" max="100" step="1" placeholder="Ej: 30" />
-            </div>
-            <div class="field readonly">
-              <label>Etiqueta automática</label>
-              <div class="plan-profile-cell readonly">
-                <span class="chip muted" id="editorPlanAutoLabel">Sin esquema definido</span>
-              </div>
-            </div>
-          </div>
-          <div class="field">
-            <label>Planes disponibles</label>
-            <div class="chip-group">
-              <label class="chip-select"><input type="checkbox" data-editor-available value="2a12">2 a 12</label>
-              <label class="chip-select"><input type="checkbox" data-editor-available value="13a21">13 a 21</label>
-              <label class="chip-select"><input type="checkbox" data-editor-available value="22a84">22 a 84</label>
-              <label class="chip-select"><input type="checkbox" data-editor-available value="85a120">85 a 120</label>
-              <label class="chip-select"><input type="checkbox" data-editor-available value="ctapura">Cuota pura</label>
-            </div>
-          </div>
-          <div class="field-group compact">
-            <div class="field-head">
-              <div>
-                <p class="eyebrow">Cuotas por plan</p>
-                <p class="muted tiny">Importes de referencia por tramo.</p>
-              </div>
-            </div>
-            <div class="form-grid two">
-              <div class="field">
-                <label>Cuota 2 a 12</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-plan="2a12" />
+      <div class="modal-body editor-body">
+        <div class="editor-tabs">
+          <button class="tab-btn active" type="button" data-editor-tab="models">Modelos</button>
+          <button class="tab-btn" type="button" data-editor-tab="brands">Gestión de Marcas</button>
+        </div>
+        <div class="editor-tab-panels">
+          <div class="editor-tab-panel active" data-editor-panel="models">
+            <div class="editor-grid">
+              <aside class="editor-sidebar">
+                <div class="search-field compact">
+                  <i class='bx bx-search'></i>
+                  <input id="vehicleEditorSearch" placeholder="Buscar modelo" />
+                </div>
+                <div class="field compact">
+                  <label for="vehicleEditorBrandFilter">Filtrar marca</label>
+                  <select id="vehicleEditorBrandFilter"></select>
+                </div>
+                <div id="vehicleEditorList" class="editor-list"></div>
+                <p id="vehicleEditorEmpty" class="muted tiny hidden">No se encontraron modelos.</p>
+                <div class="actions compact center">
+                  <button id="addVehicle" class="secondary-btn mini"><i class='bx bx-plus'></i>Agregar modelo</button>
+                  <button id="duplicateVehicle" class="ghost-btn mini"><i class='bx bx-copy'></i>Duplicar</button>
+                  <button id="deleteVehicle" class="ghost-btn danger mini"><i class='bx bx-trash'></i>Eliminar</button>
+                </div>
+              </aside>
+              <div class="editor-form">
+                <div class="field">
+                  <label for="editorVehicleName">Nombre del modelo</label>
+                  <input id="editorVehicleName" placeholder="Ej: Tracker LT 1.2AT" />
+                </div>
+                <div class="form-grid two">
+                  <div class="field">
+                    <label for="editorBrand">Marca</label>
+                    <select id="editorBrand"></select>
+                  </div>
+                  <div class="field">
+                    <label for="editorAllocation">Modalidad de adjudicación</label>
+                    <select id="editorAllocation">
+                      <option value="pactada">Cuota Pactada (Llave x llave)</option>
+                      <option value="sorteo_licitacion">Solo Sorteo o Licitación</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid two">
+                  <div class="field">
+                    <label for="editorWithdrawalInstallments">Cuotas pactadas de retiro</label>
+                    <input id="editorWithdrawalInstallments" placeholder="Ej: 4,6,9,12" />
+                  </div>
+                  <div class="field">
+                    <label>Requisito de integración</label>
+                    <div class="inline-field">
+                      <select id="editorWithdrawalRequirementType">
+                        <option value="percent">%</option>
+                        <option value="amount">$</option>
+                      </select>
+                      <input id="editorWithdrawalRequirementPct" type="number" min="0" max="100" step="1" placeholder="Ej: 35" />
+                      <div class="money-field hidden" id="editorWithdrawalRequirementAmountField">
+                        <span class="prefix">$</span>
+                        <input id="editorWithdrawalRequirementAmount" class="money" type="text" inputmode="numeric" placeholder="Ej: 750000" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-grid three">
+                  <div class="field">
+                    <label for="editorBasePrice">Precio de lista</label>
+                    <div class="money-field">
+                      <span class="prefix">$</span>
+                      <input id="editorBasePrice" class="money" type="text" inputmode="numeric" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="editorIntegration">Integración</label>
+                    <div class="money-field">
+                      <span class="prefix">$</span>
+                      <input id="editorIntegration" class="money" type="text" inputmode="numeric" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="editorCuotaPura">Cuota pura</label>
+                    <div class="money-field">
+                      <span class="prefix">$</span>
+                      <input id="editorCuotaPura" class="money" type="text" inputmode="numeric" />
+                    </div>
+                  </div>
+                </div>
+                <div class="form-grid two">
+                  <div class="field">
+                    <label for="editorPlanLabel">Etiqueta del plan</label>
+                    <input id="editorPlanLabel" placeholder="Ej: 80/20 (120 cuotas)" />
+                  </div>
+                  <div class="field">
+                    <label for="editorPlanType">Plan base</label>
+                    <select id="editorPlanType">
+                      <option value="2a12">2 a 12 (120)</option>
+                      <option value="13a21">13 a 21 (120)</option>
+                      <option value="22a84">22 a 84 (84)</option>
+                      <option value="85a120">85 a 120 (120)</option>
+                      <option value="ctapura">Cuota pura (120)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid three">
+                  <div class="field">
+                    <label for="editorPlanFinanced">Financia empresa (%)</label>
+                    <input id="editorPlanFinanced" type="number" min="0" max="100" step="1" placeholder="Ej: 70" />
+                  </div>
+                  <div class="field">
+                    <label for="editorPlanIntegration">Paga cliente (%)</label>
+                    <input id="editorPlanIntegration" type="number" min="0" max="100" step="1" placeholder="Ej: 30" />
+                  </div>
+                  <div class="field readonly">
+                    <label>Etiqueta automática</label>
+                    <div class="plan-profile-cell readonly">
+                      <span class="chip muted" id="editorPlanAutoLabel">Sin esquema definido</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Planes disponibles</label>
+                  <div class="chip-group">
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="2a12">2 a 12</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="13a21">13 a 21</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="22a84">22 a 84</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="85a120">85 a 120</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="ctapura">Cuota pura</label>
+                  </div>
+                </div>
+                <div class="field-group compact">
+                  <div class="field-head">
+                    <div>
+                      <p class="eyebrow">Cuotas por plan</p>
+                      <p class="muted tiny">Importes de referencia por tramo.</p>
+                    </div>
+                  </div>
+                  <div class="form-grid two">
+                    <div class="field">
+                      <label>Cuota 2 a 12</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-plan="2a12" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Cuota 13 a 21</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-plan="13a21" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Cuota 22 a 84</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-plan="22a84" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Cuota 85 a 120</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-plan="85a120" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Cuota pura</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-plan="ctapura" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="field-group compact">
+                  <div class="field-head">
+                    <div>
+                      <p class="eyebrow">Reservas</p>
+                      <p class="muted tiny">Importes de reserva por cuota.</p>
+                    </div>
+                  </div>
+                  <div class="form-grid three">
+                    <div class="field">
+                      <label>Reserva 1 cuota</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-reserva="1" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Reserva 3 cuotas</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-reserva="3" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Reserva 6 cuotas</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-reserva="6" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="field-group compact">
+                  <div class="field-head">
+                    <div>
+                      <p class="eyebrow">Beneficios</p>
+                      <p class="muted tiny">Texto de pactadas y bonificaciones.</p>
+                    </div>
+                  </div>
+                  <div class="field textarea-field">
+                    <label for="editorBenefitPactada">Pactada</label>
+                    <textarea id="editorBenefitPactada" rows="2" placeholder="Ej: Chevroplan pactada cuota nº6"></textarea>
+                  </div>
+                  <div class="field textarea-field">
+                    <label for="editorBenefitBonificacion">Bonificación</label>
+                    <textarea id="editorBenefitBonificacion" rows="2" placeholder="Ej: 50% desc. en las primeras 3 cuotas del seguro"></textarea>
+                  </div>
                 </div>
               </div>
-              <div class="field">
-                <label>Cuota 13 a 21</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-plan="13a21" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Cuota 22 a 84</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-plan="22a84" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Cuota 85 a 120</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-plan="85a120" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Cuota pura</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-plan="ctapura" />
-                </div>
-              </div>
             </div>
           </div>
-          <div class="field-group compact">
-            <div class="field-head">
-              <div>
-                <p class="eyebrow">Reservas</p>
-                <p class="muted tiny">Importes de reserva por cuota.</p>
-              </div>
-            </div>
-            <div class="form-grid three">
-              <div class="field">
-                <label>Reserva 1 cuota</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-reserva="1" />
+          <div class="editor-tab-panel" data-editor-panel="brands">
+            <div class="brand-manager">
+              <div class="brand-manager-head">
+                <div>
+                  <p class="eyebrow">Gestión de Marcas</p>
+                  <p class="muted tiny">Define color y nombre para cada marca disponible.</p>
                 </div>
+                <button id="addBrand" class="secondary-btn mini" type="button"><i class='bx bx-plus'></i>Agregar marca</button>
               </div>
-              <div class="field">
-                <label>Reserva 3 cuotas</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-reserva="3" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Reserva 6 cuotas</label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input class="money" type="text" inputmode="numeric" data-editor-reserva="6" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="field-group compact">
-            <div class="field-head">
-              <div>
-                <p class="eyebrow">Beneficios</p>
-                <p class="muted tiny">Texto de pactadas y bonificaciones.</p>
-              </div>
-            </div>
-            <div class="field textarea-field">
-              <label for="editorBenefitPactada">Pactada</label>
-              <textarea id="editorBenefitPactada" rows="2" placeholder="Ej: Chevroplan pactada cuota nº6"></textarea>
-            </div>
-            <div class="field textarea-field">
-              <label for="editorBenefitBonificacion">Bonificación</label>
-              <textarea id="editorBenefitBonificacion" rows="2" placeholder="Ej: 50% desc. en las primeras 3 cuotas del seguro"></textarea>
+              <div id="brandManagerList" class="brand-manager-list"></div>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-actions">
-        <button id="vehicleEditorCancel" class="ghost-btn">Cerrar</button>
-        <button id="duplicateVehicle" class="ghost-btn"><i class='bx bx-copy'></i>Duplicar</button>
-        <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Exportar precios.json</button>
-        <button id="saveVehicleEditor" class="primary-btn"><i class='bx bx-save'></i>Guardar cambios</button>
+        <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Descargar Archivo de Precios</button>
       </div>
     </div>
   </div>

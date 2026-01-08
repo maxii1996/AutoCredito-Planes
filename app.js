@@ -2,7 +2,12 @@ const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: '
 const number = new Intl.NumberFormat('es-AR');
 const BRANDS = ['Chevrolet', 'Renault', 'FIAT', 'Volkswagen', 'Peugeot'];
 const DEFAULT_BRAND = 'Chevrolet';
-const DEFAULT_WITHDRAWAL = { installments: [], requirementPct: null, mode: 'ambos' };
+const DEFAULT_WITHDRAWAL = { installments: [], requirementType: 'percent', requirementValue: null, mode: 'sorteo_licitacion' };
+const BRAND_COLOR_PALETTE = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6'];
+const defaultBrandSettings = BRANDS.map((brand, index) => ({
+  name: brand,
+  color: BRAND_COLOR_PALETTE[index % BRAND_COLOR_PALETTE.length]
+}));
 
 const panelTitles = {
   dashboard: 'Inicio',
@@ -421,6 +426,73 @@ function normalizeBrand(brand = '') {
   return cleaned || DEFAULT_BRAND;
 }
 
+function normalizeHexColor(color, fallback) {
+  const cleaned = String(color || '').trim();
+  if (/^#([0-9a-f]{3}){1,2}$/i.test(cleaned)) return cleaned;
+  return fallback;
+}
+
+function defaultColorForBrand(brand) {
+  const index = BRANDS.indexOf(brand);
+  if (index >= 0) return BRAND_COLOR_PALETTE[index % BRAND_COLOR_PALETTE.length];
+  const seed = String(brand || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return BRAND_COLOR_PALETTE[seed % BRAND_COLOR_PALETTE.length];
+}
+
+function normalizeBrandSettings(settings = [], list = vehicles) {
+  const map = new Map();
+  defaultBrandSettings.forEach(brand => {
+    const name = normalizeBrand(brand.name);
+    map.set(name, { name, color: normalizeHexColor(brand.color, defaultColorForBrand(name)) });
+  });
+  (settings || []).forEach(brand => {
+    const name = normalizeBrand(brand?.name || brand?.brand);
+    if (!name) return;
+    map.set(name, { name, color: normalizeHexColor(brand?.color, defaultColorForBrand(name)) });
+  });
+  (list || []).forEach(vehicle => {
+    const name = normalizeBrand(vehicle?.brand);
+    if (!map.has(name)) {
+      map.set(name, { name, color: defaultColorForBrand(name) });
+    }
+  });
+  return Array.from(map.values());
+}
+
+function ensureBrandSettings(list = brandSettings, listVehicles = vehicles) {
+  brandSettings = normalizeBrandSettings(list, listVehicles);
+  return brandSettings;
+}
+
+function getBrandSetting(brand) {
+  const normalized = normalizeBrand(brand);
+  return ensureBrandSettings().find(item => item.name === normalized);
+}
+
+function getBrandColor(brand) {
+  return getBrandSetting(brand)?.color || defaultColorForBrand(normalizeBrand(brand));
+}
+
+function toRgba(hex, alpha = 0.2) {
+  const cleaned = hex.replace('#', '');
+  const chunk = cleaned.length === 3
+    ? cleaned.split('').map(ch => ch + ch).join('')
+    : cleaned;
+  const num = parseInt(chunk, 16);
+  if (Number.isNaN(num)) return `rgba(15, 22, 37, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function buildBrandCardStyle(brand) {
+  const color = getBrandColor(brand);
+  const soft = toRgba(color, 0.18);
+  const border = toRgba(color, 0.35);
+  return `--brand-color:${color}; --brand-color-soft:${soft}; --brand-color-border:${border};`;
+}
+
 function normalizePlanProfile(profile = {}, planTypeFallback = '85a120') {
   const financedRaw = Number(profile.financedPct);
   const integrationRaw = Number(profile.integrationPct);
@@ -438,13 +510,24 @@ function normalizeWithdrawal(withdrawal = {}) {
   const installments = Array.isArray(withdrawal.installments)
     ? withdrawal.installments.map(Number).filter(val => Number.isFinite(val) && val > 0)
     : [];
-  const requirementRaw = Number(withdrawal.requirementPct);
-  const requirementPct = Number.isFinite(requirementRaw) ? requirementRaw : null;
-  const allowedModes = ['sorteo', 'licitacion', 'ambos'];
+  const legacyMode = withdrawal.mode;
+  const allowedModes = ['pactada', 'sorteo_licitacion'];
+  let mode = allowedModes.includes(legacyMode) ? legacyMode : 'sorteo_licitacion';
+  if (['ambos', 'sorteo', 'licitacion'].includes(legacyMode)) {
+    mode = 'sorteo_licitacion';
+  }
+  const inferredType = withdrawal.requirementType
+    || (Number.isFinite(Number(withdrawal.requirementAmount)) ? 'amount' : 'percent');
+  const requirementType = inferredType === 'amount' ? 'amount' : 'percent';
+  const requirementRaw = requirementType === 'amount'
+    ? Number(withdrawal.requirementAmount ?? withdrawal.requirementValue)
+    : Number(withdrawal.requirementPct ?? withdrawal.requirementValue);
+  const requirementValue = Number.isFinite(requirementRaw) ? requirementRaw : null;
   return {
     installments,
-    requirementPct,
-    mode: allowedModes.includes(withdrawal.mode) ? withdrawal.mode : 'ambos'
+    requirementType,
+    requirementValue,
+    mode
   };
 }
 
@@ -527,6 +610,7 @@ function syncActiveVehiclesToDraft({ force = false } = {}) {
   if (!force && activePriceSource !== 'local' && !priceDrafts[active.id]) return;
   priceDrafts[active.id] = {
     vehicles: cloneVehicles(vehicles),
+    brandSettings: ensureBrandSettings(),
     updatedAt: new Date().toISOString()
   };
 }
@@ -535,9 +619,11 @@ function syncVehiclesFromDraftOrFallback(tab) {
   const draft = tab ? priceDrafts[tab.id] : null;
   if (draft?.vehicles?.length) {
     vehicles = cloneVehicles(draft.vehicles);
+    brandSettings = normalizeBrandSettings(draft.brandSettings || brandSettings, vehicles);
     activePriceSource = 'local';
   } else {
     vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
+    brandSettings = normalizeBrandSettings(load('brandSettings') || brandSettings, vehicles);
     activePriceSource = 'local';
   }
 }
@@ -767,10 +853,27 @@ function parseWithdrawalInstallments(value = '') {
     .filter(num => Number.isFinite(num) && num > 0);
 }
 
-function formatAllocationMode(mode = 'ambos') {
-  if (mode === 'sorteo') return 'Solo sorteo';
-  if (mode === 'licitacion') return 'Solo licitación';
-  return 'Sorteo y licitación';
+function resolveWithdrawalRequirement(withdrawal = {}, basePrice = 0) {
+  const type = withdrawal.requirementType === 'amount' ? 'amount' : 'percent';
+  const fallbackValue = type === 'amount'
+    ? Number(withdrawal.requirementAmount)
+    : Number(withdrawal.requirementPct);
+  const value = Number.isFinite(withdrawal.requirementValue)
+    ? withdrawal.requirementValue
+    : (Number.isFinite(fallbackValue) ? fallbackValue : null);
+  if (!Number.isFinite(value)) {
+    return { type, value: null, amount: 0, label: 'Sin definir', helper: 'Configura el requisito en el editor' };
+  }
+  if (type === 'amount') {
+    return { type, value, amount: value, label: currency.format(value), helper: 'Monto fijo solicitado' };
+  }
+  const amount = basePrice * value;
+  return { type, value, amount, label: `${Math.round(value * 100)}%`, helper: `Equivale a ${currency.format(amount || 0)}` };
+}
+
+function formatAllocationMode(mode = 'sorteo_licitacion') {
+  if (mode === 'pactada') return 'Cuota Pactada (Llave x llave)';
+  return 'Solo Sorteo o Licitación';
 }
 
 function normalizeExportOptions(options = {}) {
@@ -1167,8 +1270,14 @@ async function applyProfileData(parsed) {
   const legacyTabs = parsed.priceTabs || [];
   const legacyActive = legacyTabs.find(tab => tab.id === activePriceTabId) || legacyTabs[0];
   vehicles = cloneVehicles(legacyActive?.vehicles || parsed.vehicles || vehicles || defaultVehicles);
+  const draftBrandSettings = parsed.priceDrafts?.[activePriceTabId]?.brandSettings;
+  brandSettings = normalizeBrandSettings(parsed.brandSettings || draftBrandSettings || brandSettings, vehicles);
   if (activePriceSource === 'local' && activePriceTabId) {
-    priceDrafts[activePriceTabId] = priceDrafts[activePriceTabId] || { vehicles: cloneVehicles(vehicles), updatedAt: new Date().toISOString() };
+    priceDrafts[activePriceTabId] = priceDrafts[activePriceTabId] || {
+      vehicles: cloneVehicles(vehicles),
+      brandSettings: ensureBrandSettings(),
+      updatedAt: new Date().toISOString()
+    };
   } else if (activePriceTabId) {
     discardPriceDraft(activePriceTabId);
   }
@@ -1215,6 +1324,7 @@ function saveSnapshot() {
   const title = `Snapshot ${new Date().toLocaleString('es-AR')}`;
   const data = {
     vehicles: cloneVehicles(vehicles),
+    brandSettings: ensureBrandSettings(),
     activePriceTabId,
     priceDrafts: JSON.parse(JSON.stringify(priceDrafts || {})),
     templates: ensureTemplateIds(JSON.parse(JSON.stringify(templates))),
@@ -1617,6 +1727,7 @@ let activePriceTabId = load('activePriceTabId') || '';
 let priceDrafts = load('priceDrafts') || {};
 let activePriceSource = 'local';
 let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
+let brandSettings = normalizeBrandSettings(load('brandSettings') || defaultBrandSettings, vehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
@@ -1635,12 +1746,20 @@ let selectedCustomIcon = 'bx-check-circle';
 let activeContextClientId = null;
 let activeScheduleClientId = null;
 let scheduleClockInterval = null;
-let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all' };
+let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab: 'models' };
+let vehicleEditorAutosaveTimer = null;
 
 function migrateLegacyPrices() {
   const legacyVehicles = load('vehicles');
   if (legacyVehicles && !priceDrafts?.legacy) {
-    priceDrafts = { ...priceDrafts, legacy: { vehicles: cloneVehicles(legacyVehicles), updatedAt: new Date().toISOString() } };
+    priceDrafts = {
+      ...priceDrafts,
+      legacy: {
+        vehicles: cloneVehicles(legacyVehicles),
+        brandSettings: normalizeBrandSettings(load('brandSettings') || defaultBrandSettings, legacyVehicles),
+        updatedAt: new Date().toISOString()
+      }
+    };
   }
 }
 
@@ -2478,6 +2597,11 @@ function applyImportedVehicles(data, source = 'archivo', { silentToast = false }
     return false;
   }
   vehicles = parsedVehicles;
+  if (data?.brandSettings) {
+    brandSettings = normalizeBrandSettings(data.brandSettings, vehicles);
+  } else {
+    brandSettings = normalizeBrandSettings(brandSettings, vehicles);
+  }
   activePriceSource = source;
   if (source === 'archivo' || source === 'local') {
     syncActiveVehiclesToDraft({ force: true });
@@ -2559,7 +2683,8 @@ function buildPricePayload() {
     year: active?.year || '',
     tabId: active?.id || '',
     updatedAt: new Date().toISOString(),
-    vehicles: cloneVehicles(vehicles)
+    vehicles: cloneVehicles(vehicles),
+    brandSettings: ensureBrandSettings()
   };
 }
 
@@ -2874,20 +2999,27 @@ function ensureVehicleEditorDefaults(vehicle = {}) {
     },
     withdrawal: {
       installments: normalized.withdrawal?.installments || [],
-      requirementPct: normalized.withdrawal?.requirementPct ?? null,
-      mode: normalized.withdrawal?.mode || 'ambos'
+      requirementType: normalized.withdrawal?.requirementType || 'percent',
+      requirementValue: normalized.withdrawal?.requirementValue ?? null,
+      mode: normalized.withdrawal?.mode || 'sorteo_licitacion'
     }
   };
+}
+
+function scheduleVehicleEditorAutosave() {
+  if (vehicleEditorAutosaveTimer) clearTimeout(vehicleEditorAutosaveTimer);
+  vehicleEditorAutosaveTimer = setTimeout(() => {
+    applyVehicleEditorChanges();
+  }, 250);
 }
 
 function bindVehicleEditor() {
   const modal = document.getElementById('vehicleEditorModal');
   const close = document.getElementById('vehicleEditorClose');
-  const cancel = document.getElementById('vehicleEditorCancel');
-  const save = document.getElementById('saveVehicleEditor');
   const addBtn = document.getElementById('addVehicle');
   const deleteBtn = document.getElementById('deleteVehicle');
   const duplicateBtn = document.getElementById('duplicateVehicle');
+  const addBrandBtn = document.getElementById('addBrand');
   const exportBtn = document.getElementById('exportPricesFromEditor');
   const searchInput = document.getElementById('vehicleEditorSearch');
   const planLabelInput = document.getElementById('editorPlanLabel');
@@ -2895,20 +3027,10 @@ function bindVehicleEditor() {
   const financedInput = document.getElementById('editorPlanFinanced');
   const integrationInput = document.getElementById('editorPlanIntegration');
   const autoLabel = document.getElementById('editorPlanAutoLabel');
+  const requirementTypeSelect = document.getElementById('editorWithdrawalRequirementType');
   if (close && !close.dataset.bound) {
     close.addEventListener('click', () => toggleModal(modal, false));
     close.dataset.bound = 'true';
-  }
-  if (cancel && !cancel.dataset.bound) {
-    cancel.addEventListener('click', () => toggleModal(modal, false));
-    cancel.dataset.bound = 'true';
-  }
-  if (save && !save.dataset.bound) {
-    save.addEventListener('click', () => {
-      applyVehicleEditorChanges();
-      showToast('Catálogo actualizado.', 'success');
-    });
-    save.dataset.bound = 'true';
   }
   if (addBtn && !addBtn.dataset.bound) {
     addBtn.addEventListener('click', () => {
@@ -2985,6 +3107,31 @@ function bindVehicleEditor() {
     });
     searchInput.dataset.bound = 'true';
   }
+  if (requirementTypeSelect && !requirementTypeSelect.dataset.bound) {
+    requirementTypeSelect.addEventListener('change', () => {
+      setWithdrawalRequirementFields({ requirementType: requirementTypeSelect.value });
+      scheduleVehicleEditorAutosave();
+    });
+    requirementTypeSelect.dataset.bound = 'true';
+  }
+  modal?.querySelectorAll('[data-editor-tab]').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener('click', () => setVehicleEditorTab(btn.dataset.editorTab));
+    btn.dataset.bound = 'true';
+  });
+  if (addBrandBtn && !addBrandBtn.dataset.bound) {
+    addBrandBtn.addEventListener('click', () => {
+      addBrandSetting();
+    });
+    addBrandBtn.dataset.bound = 'true';
+  }
+  modal?.querySelectorAll('.editor-form input, .editor-form select, .editor-form textarea').forEach(field => {
+    if (field.dataset.boundAutosave) return;
+    const eventName = field.tagName === 'SELECT' || field.type === 'checkbox' ? 'change' : 'input';
+    field.addEventListener(eventName, scheduleVehicleEditorAutosave);
+    field.addEventListener('blur', scheduleVehicleEditorAutosave);
+    field.dataset.boundAutosave = 'true';
+  });
   const updatePlanAutoLabel = () => {
     const financedPct = parsePercentInput(financedInput?.value);
     const integrationPct = parsePercentInput(integrationInput?.value);
@@ -3009,14 +3156,112 @@ function bindVehicleEditor() {
   updatePlanAutoLabel();
 }
 
+function setVehicleEditorTab(tab = 'models') {
+  const modal = document.getElementById('vehicleEditorModal');
+  if (!modal) return;
+  vehicleEditorState.tab = tab;
+  modal.querySelectorAll('[data-editor-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.editorTab === tab);
+  });
+  modal.querySelectorAll('[data-editor-panel]').forEach(panel => {
+    panel.classList.toggle('active', panel.dataset.editorPanel === tab);
+  });
+}
+
+function handleBrandSettingsChange() {
+  ensureBrandSettings(brandSettings, vehicles);
+  markActiveDraftDirty();
+  persist();
+  renderVehicleEditorBrandFilter();
+  renderVehicleEditorForm();
+  renderVehicleTable();
+}
+
+function addBrandSetting() {
+  const settings = ensureBrandSettings();
+  const baseName = 'Nueva marca';
+  let name = baseName;
+  let index = 1;
+  while (settings.some(item => item.name.toLowerCase() === name.toLowerCase())) {
+    name = `${baseName} ${index}`;
+    index += 1;
+  }
+  const color = defaultColorForBrand(name);
+  brandSettings = [...settings, { name, color }];
+  handleBrandSettingsChange();
+  renderBrandManager();
+  renderEditorBrandSelect(name);
+}
+
+function renderBrandManager() {
+  const list = document.getElementById('brandManagerList');
+  if (!list) return;
+  const settings = ensureBrandSettings();
+  list.innerHTML = settings.map((brand, index) => `
+      <div class="brand-manager-row" data-index="${index}">
+        <input type="text" value="${brand.name}" data-brand-name />
+        <input type="color" value="${brand.color}" data-brand-color />
+        <span class="muted tiny" data-brand-color-label>${brand.color.toUpperCase()}</span>
+      </div>
+    `).join('');
+  list.querySelectorAll('[data-brand-name]').forEach(input => {
+    if (input.dataset.bound) return;
+    input.addEventListener('change', () => {
+      const row = input.closest('.brand-manager-row');
+      const idx = Number(row?.dataset.index);
+      const previous = brandSettings[idx]?.name;
+      const nextName = normalizeBrand(input.value);
+      if (!nextName) {
+        input.value = previous || '';
+        return;
+      }
+      const duplicate = brandSettings.some((item, i) => i !== idx && item.name.toLowerCase() === nextName.toLowerCase());
+      if (duplicate) {
+        showToast('La marca ya existe.', 'error');
+        input.value = previous || '';
+        return;
+      }
+      brandSettings[idx] = { ...brandSettings[idx], name: nextName };
+      vehicles.forEach(vehicle => {
+        if (normalizeBrand(vehicle.brand) === previous) {
+          vehicle.brand = nextName;
+        }
+      });
+      if (vehicleEditorState.brandFilter === previous) {
+        vehicleEditorState.brandFilter = nextName;
+      }
+      if (uiState.vehicleFilters?.brand === previous) {
+        uiState.vehicleFilters.brand = nextName;
+      }
+      handleBrandSettingsChange();
+      renderBrandManager();
+    });
+    input.dataset.bound = 'true';
+  });
+  list.querySelectorAll('[data-brand-color]').forEach(input => {
+    if (input.dataset.bound) return;
+    input.addEventListener('input', () => {
+      const row = input.closest('.brand-manager-row');
+      const idx = Number(row?.dataset.index);
+      const label = row?.querySelector('[data-brand-color-label]');
+      if (label) label.textContent = input.value.toUpperCase();
+      brandSettings[idx] = { ...brandSettings[idx], color: normalizeHexColor(input.value, brandSettings[idx]?.color) };
+      handleBrandSettingsChange();
+    });
+    input.dataset.bound = 'true';
+  });
+}
+
 function openVehicleEditorModal() {
   const modal = document.getElementById('vehicleEditorModal');
   if (!modal) return;
   const searchInput = document.getElementById('vehicleEditorSearch');
   if (searchInput) searchInput.value = vehicleEditorState.search || '';
+  setVehicleEditorTab(vehicleEditorState.tab || 'models');
   renderVehicleEditorBrandFilter();
   renderVehicleEditorList();
   renderVehicleEditorForm();
+  renderBrandManager();
   modal.querySelectorAll('input.money').forEach(input => {
     if (input.dataset.bound) return;
     bindMoneyInput(input, () => {});
@@ -3098,11 +3343,59 @@ function renderVehicleEditorList() {
     `).join('');
   list.querySelectorAll('.editor-item').forEach(btn => {
     btn.addEventListener('click', () => {
+      applyVehicleEditorChanges();
       vehicleEditorState.selectedIndex = Number(btn.dataset.index);
       renderVehicleEditorList();
       renderVehicleEditorForm();
     });
   });
+}
+
+function renderEditorBrandSelect(selectedValue) {
+  const select = document.getElementById('editorBrand');
+  if (!select) return;
+  const settings = ensureBrandSettings();
+  select.innerHTML = settings.map(item => `<option value="${item.name}">${item.name}</option>`).join('');
+  const desired = normalizeBrand(selectedValue || select.value || DEFAULT_BRAND);
+  select.value = settings.some(item => item.name === desired) ? desired : (settings[0]?.name || desired);
+}
+
+function getWithdrawalRequirementNodes() {
+  return {
+    typeSelect: document.getElementById('editorWithdrawalRequirementType'),
+    pctInput: document.getElementById('editorWithdrawalRequirementPct'),
+    amountInput: document.getElementById('editorWithdrawalRequirementAmount'),
+    amountField: document.getElementById('editorWithdrawalRequirementAmountField')
+  };
+}
+
+function setWithdrawalRequirementFields(withdrawal = {}) {
+  const nodes = getWithdrawalRequirementNodes();
+  const type = withdrawal.requirementType === 'amount' ? 'amount' : 'percent';
+  const fallback = type === 'amount' ? withdrawal.requirementAmount : withdrawal.requirementPct;
+  const value = Number.isFinite(withdrawal.requirementValue)
+    ? withdrawal.requirementValue
+    : (Number.isFinite(fallback) ? fallback : null);
+  if (nodes.typeSelect) nodes.typeSelect.value = type;
+  const showAmount = type === 'amount';
+  if (nodes.amountField) nodes.amountField.classList.toggle('hidden', !showAmount);
+  if (nodes.pctInput) nodes.pctInput.classList.toggle('hidden', showAmount);
+  if (showAmount) {
+    if (nodes.amountInput) setMoneyValue(nodes.amountInput, value || 0);
+    if (nodes.pctInput) nodes.pctInput.value = '';
+  } else {
+    if (nodes.pctInput) nodes.pctInput.value = formatPercentInput(value);
+    if (nodes.amountInput) setMoneyValue(nodes.amountInput, 0);
+  }
+}
+
+function readWithdrawalRequirementFields() {
+  const nodes = getWithdrawalRequirementNodes();
+  const type = nodes.typeSelect?.value === 'amount' ? 'amount' : 'percent';
+  if (type === 'amount') {
+    return { type, value: parseMoney(nodes.amountInput?.dataset.raw || nodes.amountInput?.value || 0) };
+  }
+  return { type, value: parsePercentInput(nodes.pctInput?.value) };
 }
 
 function renderVehicleEditorForm() {
@@ -3113,7 +3406,6 @@ function renderVehicleEditorForm() {
     const brandInput = document.getElementById('editorBrand');
     const allocationSelect = document.getElementById('editorAllocation');
     const withdrawalInstallmentsInput = document.getElementById('editorWithdrawalInstallments');
-    const withdrawalRequirementInput = document.getElementById('editorWithdrawalRequirement');
     const basePriceInput = document.getElementById('editorBasePrice');
     const integrationInput = document.getElementById('editorIntegration');
     const cuotaPuraInput = document.getElementById('editorCuotaPura');
@@ -3125,10 +3417,11 @@ function renderVehicleEditorForm() {
     const pactadaInput = document.getElementById('editorBenefitPactada');
     const bonificacionInput = document.getElementById('editorBenefitBonificacion');
     if (nameInput) nameInput.value = emptyForm.name;
+    renderEditorBrandSelect(emptyForm.brand || DEFAULT_BRAND);
     if (brandInput) brandInput.value = emptyForm.brand || DEFAULT_BRAND;
-    if (allocationSelect) allocationSelect.value = emptyForm.withdrawal.mode || 'ambos';
+    if (allocationSelect) allocationSelect.value = emptyForm.withdrawal.mode || 'sorteo_licitacion';
     if (withdrawalInstallmentsInput) withdrawalInstallmentsInput.value = formatWithdrawalInstallments(emptyForm.withdrawal.installments || []);
-    if (withdrawalRequirementInput) withdrawalRequirementInput.value = formatPercentInput(emptyForm.withdrawal.requirementPct);
+    setWithdrawalRequirementFields(emptyForm.withdrawal);
     if (basePriceInput) setMoneyValue(basePriceInput, emptyForm.basePrice);
     if (integrationInput) setMoneyValue(integrationInput, emptyForm.integration);
     if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, emptyForm.cuotaPura);
@@ -3158,7 +3451,6 @@ function renderVehicleEditorForm() {
   const brandInput = document.getElementById('editorBrand');
   const allocationSelect = document.getElementById('editorAllocation');
   const withdrawalInstallmentsInput = document.getElementById('editorWithdrawalInstallments');
-  const withdrawalRequirementInput = document.getElementById('editorWithdrawalRequirement');
   const basePriceInput = document.getElementById('editorBasePrice');
   const integrationInput = document.getElementById('editorIntegration');
   const cuotaPuraInput = document.getElementById('editorCuotaPura');
@@ -3170,10 +3462,11 @@ function renderVehicleEditorForm() {
   const pactadaInput = document.getElementById('editorBenefitPactada');
   const bonificacionInput = document.getElementById('editorBenefitBonificacion');
   if (nameInput) nameInput.value = form.name;
+  renderEditorBrandSelect(form.brand || DEFAULT_BRAND);
   if (brandInput) brandInput.value = form.brand || DEFAULT_BRAND;
-  if (allocationSelect) allocationSelect.value = form.withdrawal.mode || 'ambos';
+  if (allocationSelect) allocationSelect.value = form.withdrawal.mode || 'sorteo_licitacion';
   if (withdrawalInstallmentsInput) withdrawalInstallmentsInput.value = formatWithdrawalInstallments(form.withdrawal.installments || []);
-  if (withdrawalRequirementInput) withdrawalRequirementInput.value = formatPercentInput(form.withdrawal.requirementPct);
+  setWithdrawalRequirementFields(form.withdrawal);
   if (basePriceInput) setMoneyValue(basePriceInput, form.basePrice);
   if (integrationInput) setMoneyValue(integrationInput, form.integration);
   if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, form.cuotaPura);
@@ -3212,7 +3505,6 @@ function applyVehicleEditorChanges() {
   const brandInput = document.getElementById('editorBrand');
   const allocationSelect = document.getElementById('editorAllocation');
   const withdrawalInstallmentsInput = document.getElementById('editorWithdrawalInstallments');
-  const withdrawalRequirementInput = document.getElementById('editorWithdrawalRequirement');
   const basePriceInput = document.getElementById('editorBasePrice');
   const integrationInput = document.getElementById('editorIntegration');
   const cuotaPuraInput = document.getElementById('editorCuotaPura');
@@ -3224,11 +3516,16 @@ function applyVehicleEditorChanges() {
   const bonificacionInput = document.getElementById('editorBenefitBonificacion');
   vehicle.name = nameInput?.value?.trim() || vehicle.name || '';
   vehicle.brand = normalizeBrand(brandInput?.value);
+  ensureBrandSettings(brandSettings, vehicles);
+  const requirement = readWithdrawalRequirementFields();
   vehicle.withdrawal = {
     ...(vehicle.withdrawal || {}),
     installments: parseWithdrawalInstallments(withdrawalInstallmentsInput?.value || ''),
-    requirementPct: parsePercentInput(withdrawalRequirementInput?.value),
-    mode: allocationSelect?.value || vehicle.withdrawal?.mode || 'ambos'
+    requirementType: requirement.type,
+    requirementValue: requirement.value,
+    requirementPct: requirement.type === 'percent' ? requirement.value : null,
+    requirementAmount: requirement.type === 'amount' ? requirement.value : null,
+    mode: allocationSelect?.value || vehicle.withdrawal?.mode || 'sorteo_licitacion'
   };
   vehicle.basePrice = parseMoney(basePriceInput?.dataset.raw || basePriceInput?.value || 0);
   vehicle.integration = parseMoney(integrationInput?.dataset.raw || integrationInput?.value || 0);
@@ -3262,6 +3559,7 @@ function applyVehicleEditorChanges() {
   });
   markActiveDraftDirty();
   persist();
+  renderBrandManager();
   renderVehicleEditorBrandFilter();
   renderVehicleEditorList();
   renderVehicleTable();
@@ -3297,6 +3595,7 @@ function renderVehicleBrandFilterControl() {
 function renderVehicleTable() {
   renderPriceTabs();
   clearPriceAlerts();
+  ensureBrandSettings(brandSettings, vehicles);
   if (activePriceSource === 'servidor') {
     renderPriceAlerts('Precios cargados desde el archivo del mes.', 'success');
   } else if (activePriceSource === 'archivo') {
@@ -3407,9 +3706,11 @@ function renderVehicleTable() {
       <td><span class="muted">${formatWithdrawalInstallments(vehicle.withdrawal?.installments || []) || 'Sin definir'}</span></td>
     `).join('')}</tr>`);
 
-    bodyRows.push(`<tr><td>Requisito de integración (%)</td>${entries.map(({ vehicle }) => `
-      <td><span class="muted">${Number.isFinite(vehicle.withdrawal?.requirementPct) ? `${Math.round(vehicle.withdrawal.requirementPct * 100)}%` : 'Sin definir'}</span></td>
-    `).join('')}</tr>`);
+    bodyRows.push(`<tr><td>Requisito de integración</td>${entries.map(({ vehicle }) => {
+      const requirement = resolveWithdrawalRequirement(vehicle.withdrawal || {}, vehicle.basePrice || 0);
+      const hasValue = Number.isFinite(requirement.value);
+      return `<td><span class="muted">${hasValue ? requirement.label : 'Sin definir'}</span></td>`;
+    }).join('')}</tr>`);
 
     return { head, bodyRows };
   };
@@ -3422,8 +3723,9 @@ function renderVehicleTable() {
   container.innerHTML = brandOrder.map(brand => {
     const entries = grouped[brand] || [];
     const { head, bodyRows } = buildTable(entries);
+    const style = buildBrandCardStyle(brand);
     return `
-      <div class="vehicle-brand-card">
+      <div class="vehicle-brand-card" style="${style}">
         <div class="vehicle-brand-head">
           <div>
             <p class="eyebrow">Marca</p>
@@ -4300,8 +4602,7 @@ function updatePlanSummary() {
   const scheme = projection.scheme || v.planProfile || {};
   const withdrawal = v.withdrawal || {};
   const withdrawalInstallments = formatWithdrawalInstallments(withdrawal.installments || []);
-  const withdrawalRequirementPct = Number.isFinite(withdrawal.requirementPct) ? withdrawal.requirementPct : null;
-  const withdrawalRequirementAmount = withdrawalRequirementPct ? projection.price * withdrawalRequirementPct : 0;
+  const withdrawalRequirement = resolveWithdrawalRequirement(withdrawal, projection.price);
   const planLabelValue = resolveVehiclePlanLabel(v, plan);
   const coverageSegments = (projection.coverageSegments || []).map(seg => ({
     ...seg,
@@ -4333,8 +4634,8 @@ function updatePlanSummary() {
     { label: 'Cuotas pactadas de retiro', value: withdrawalInstallments || 'Sin definir', helper: withdrawalInstallments ? 'Definidas por marca y modelo' : 'Configura las cuotas pactadas en el editor' },
     {
       label: 'Requisito de integración para retiro',
-      value: withdrawalRequirementPct ? `${Math.round(withdrawalRequirementPct * 100)}%` : 'Sin definir',
-      helper: withdrawalRequirementPct ? `Equivale a ${currency.format(withdrawalRequirementAmount || 0)}` : 'Configura el porcentaje en el editor'
+      value: Number.isFinite(withdrawalRequirement.value) ? withdrawalRequirement.label : 'Sin definir',
+      helper: Number.isFinite(withdrawalRequirement.value) ? withdrawalRequirement.helper : 'Configura el requisito en el editor'
     },
     { label: '¿Utiliza llave x llave?', value: tradeIn ? 'Sí' : 'No' },
     { label: 'Valor cotizado por llave x llave', value: tradeIn ? tradeInFormatted : 'Sin usado aplicado' },
@@ -4573,8 +4874,7 @@ function buildQuoteFromForm() {
   const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
   const withdrawal = v.withdrawal || {};
-  const withdrawalRequirementPct = Number.isFinite(withdrawal.requirementPct) ? withdrawal.requirementPct : null;
-  const withdrawalRequirementAmount = withdrawalRequirementPct ? projection.price * withdrawalRequirementPct : 0;
+  const withdrawalRequirement = resolveWithdrawalRequirement(withdrawal, projection.price);
   const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
   const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
   const quote = {
@@ -4609,10 +4909,11 @@ function buildQuoteFromForm() {
     selectedReservation: projection.selectedReservation,
     reservationMode: appliedReservation,
     planProfileLabel: resolveVehiclePlanLabel(v, plan) || 'Personalizar',
-    allocationMode: withdrawal.mode || 'ambos',
+    allocationMode: withdrawal.mode || 'sorteo_licitacion',
     withdrawalInstallments: withdrawal.installments || [],
-    withdrawalRequirementPct,
-    withdrawalRequirementAmount,
+    withdrawalRequirementType: withdrawalRequirement.type,
+    withdrawalRequirementValue: withdrawalRequirement.value,
+    withdrawalRequirementAmount: withdrawalRequirement.amount,
     basePrice: projection.basePrice,
     priceApplied: projection.price,
     baseCuotaPura: projection.baseCatalogCuota,
@@ -4648,8 +4949,11 @@ function buildQuoteSummaryText(quote) {
   const withdrawalInstallments = Array.isArray(quote.withdrawalInstallments) && quote.withdrawalInstallments.length
     ? quote.withdrawalInstallments.join(', ')
     : 'Sin definir';
-  const withdrawalRequirementLabel = quote.withdrawalRequirementPct
-    ? `${Math.round(quote.withdrawalRequirementPct * 100)}% (${currency.format(quote.withdrawalRequirementAmount || 0)})`
+  const requirementValue = Number.isFinite(quote.withdrawalRequirementValue) ? quote.withdrawalRequirementValue : null;
+  const withdrawalRequirementLabel = requirementValue !== null
+    ? (quote.withdrawalRequirementType === 'amount'
+      ? currency.format(requirementValue)
+      : `${Math.round(requirementValue * 100)}% (${currency.format(quote.withdrawalRequirementAmount || 0)})`)
     : 'Sin definir';
   const parts = [
     `Cotización para: ${quote.name}`,
@@ -4660,7 +4964,7 @@ function buildQuoteSummaryText(quote) {
     hasCustomPrice ? `Precio aplicado: ${currency.format(quote.priceApplied || 0)} (ajustado)` : `Precio aplicado: ${currency.format(quote.priceApplied || 0)}`,
     `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
-    `Modalidad de adjudicación: ${formatAllocationMode(quote.allocationMode || 'ambos')}`,
+    `Modalidad de adjudicación: ${formatAllocationMode(quote.allocationMode || 'sorteo_licitacion')}`,
     `Cuotas pactadas de retiro: ${withdrawalInstallments}`,
     `Requisito de integración para retiro: ${withdrawalRequirementLabel}`,
     `Cuota pura estimada: ${cuotaPuraDetalle}`,
@@ -9177,7 +9481,7 @@ function bindProfileActions() {
         message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
         confirmText: 'Exportar',
         onConfirm: () => {
-        const payload = { version: 7, vehicles, priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 7, vehicles, brandSettings: ensureBrandSettings(), priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -9276,6 +9580,7 @@ function persist() {
   syncActiveVehiclesToDraft();
   save('priceDrafts', priceDrafts);
   save('vehicles', vehicles);
+  save('brandSettings', brandSettings);
   save('templates', templates);
   save('clients', clients);
   save('managerClients', managerClients);
@@ -9289,7 +9594,7 @@ function startRealtimePersistence() {
   ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
   setInterval(persistNow, 15000);
   window.addEventListener('storage', (e) => {
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts'].includes(e.key)) {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts', 'brandSettings'].includes(e.key)) {
       syncFromStorage();
     }
   });
@@ -9300,6 +9605,7 @@ function syncFromStorage() {
   activePriceSource = load('activePriceSource') || activePriceSource;
   priceDrafts = load('priceDrafts') || priceDrafts;
   vehicles = cloneVehicles(load('vehicles') || vehicles);
+  brandSettings = normalizeBrandSettings(load('brandSettings') || brandSettings, vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
   clients = load('clients') || clients;
   managerClients = load('managerClients') || managerClients;
