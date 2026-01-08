@@ -1,5 +1,8 @@
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat('es-AR');
+const BRANDS = ['Chevrolet', 'Renault', 'FIAT', 'Volkswagen', 'Peugeot'];
+const DEFAULT_BRAND = 'Chevrolet';
+const DEFAULT_WITHDRAWAL = { installments: [], requirementPct: null, mode: 'ambos' };
 
 const panelTitles = {
   dashboard: 'Inicio',
@@ -38,13 +41,14 @@ const defaultUiState = {
   planDraft: {},
   quoteSearch: '',
   toggles: { showReservations: true, showIntegration: true },
+  vehicleFilters: { brand: 'all' },
   preferences: {
     fontSizes: { ...defaultPreferenceFontSizes },
     phoneDisplay: 'plain',
     contextMenuVisibility: { data: {}, actions: {} }
   },
   globalSettings: {
-    advisorName: 'Chevrolet Argentina',
+    advisorName: 'Planes de Ahorro Argentina',
     clientType: '',
     statusPalette: {
       contacted: { color: '#34d399', opacity: 0.16 },
@@ -59,6 +63,7 @@ const defaultUiState = {
 const novemberVehicles = [
   {
     name: 'NUEVO ONIX 1.0 TURBO LT MT',
+    brand: DEFAULT_BRAND,
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -66,6 +71,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 320051, '13a21': 313692, '22a84': 312912, '85a120': 311352 },
     cuotaPura: 202873,
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
@@ -73,6 +79,7 @@ const novemberVehicles = [
   },
   {
     name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
+    brand: DEFAULT_BRAND,
     basePrice: 30430900,
     integration: 9129270,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
@@ -80,6 +87,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 326758, '13a21': 370922, '22a84': 369946, '85a120': 368971 },
     cuotaPura: 253591,
     reservations: { '1': 1137480, '3': 1478724, '6': 1706220 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -87,6 +95,7 @@ const novemberVehicles = [
   },
   {
     name: 'LA NUEVA MONTANA LT 1.2 AT',
+    brand: DEFAULT_BRAND,
     basePrice: 37808900,
     integration: 11342670,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -94,6 +103,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 397648, '13a21': 389747, '22a84': 388584, '85a120': 388584 },
     cuotaPura: 252059,
     reservations: { '1': 1211400, '3': 1574820, '6': 1817100 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -101,6 +111,7 @@ const novemberVehicles = [
   },
   {
     name: 'LA NUEVA S10 CD 2.8 TD 4x2 WT',
+    brand: DEFAULT_BRAND,
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
@@ -108,6 +119,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
     reservations: { '1': 1825000, '3': 2372500, '6': 2737500 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Acepta llave x llave',
       bonificacion: 'Débito automático obligatorio con TC'
@@ -115,6 +127,7 @@ const novemberVehicles = [
   },
   {
     name: 'NUEVA TRACKER LT 1.2AT',
+    brand: DEFAULT_BRAND,
     basePrice: 37823900,
     integration: 11347170,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -122,6 +135,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 397806, '13a21': 389902, '22a84': 388156, '85a120': 310714 },
     cuotaPura: 252159,
     reservations: { '1': 1211710, '3': 1575223, '6': 1817565 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -129,6 +143,7 @@ const novemberVehicles = [
   },
   {
     name: 'NUEVA SPIN 1.8 LT 5AA MT',
+    brand: DEFAULT_BRAND,
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
@@ -136,6 +151,7 @@ const novemberVehicles = [
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914 },
     cuotaPura: 292641,
     reservations: { '1': 1177600, '3': 1530880, '6': 1766400 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -146,6 +162,7 @@ const novemberVehicles = [
 const decemberVehicles = [
   {
     name: 'NUEVO ONIX 1.0 TURBO LT MT',
+    brand: DEFAULT_BRAND,
     basePrice: 30887900,
     integration: 9266370,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -153,6 +170,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 324858, '13a21': 318403, '22a84': 317611, '85a120': 316027 },
     cuotaPura: 205919,
     reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: 'Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro'
@@ -160,6 +178,7 @@ const decemberVehicles = [
   },
   {
     name: 'NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT',
+    brand: DEFAULT_BRAND,
     basePrice: 30887900,
     integration: 9266370,
     planProfile: { label: '100% (120 cuotas)', planType: '85a120' },
@@ -167,6 +186,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 331665, '13a21': 376492, '22a84': 375502, '85a120': 374512 },
     cuotaPura: 257399,
     reservations: { '1': 1170025, '3': 1521033, '6': 1755038 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -174,6 +194,7 @@ const decemberVehicles = [
   },
   {
     name: 'LA NUEVA MONTANA LT 1.2 AT',
+    brand: DEFAULT_BRAND,
     basePrice: 38489900,
     integration: 11546970,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -181,6 +202,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 404810, '13a21': 396767, '22a84': 395583, '85a120': 395583 },
     cuotaPura: 256599,
     reservations: { '1': 1246142, '3': 1619985, '6': 1869213 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6, llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -188,6 +210,7 @@ const decemberVehicles = [
   },
   {
     name: 'LA NUEVA S10 CD 2.8 TD 4x2 WT',
+    brand: DEFAULT_BRAND,
     basePrice: 48596900,
     integration: 19438760,
     planProfile: { label: '60/40 (84 cuotas)', planType: '22a84' },
@@ -195,6 +218,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 537310, '13a21': 527066, '22a84': 525464 },
     cuotaPura: 347121,
     reservations: { '1': 1900250, '3': 2470325, '6': 2850375 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Acepta llave x llave',
       bonificacion: 'Débito automático obligatorio con TC'
@@ -202,6 +226,7 @@ const decemberVehicles = [
   },
   {
     name: 'NUEVA TRACKER LT 1.2AT',
+    brand: DEFAULT_BRAND,
     basePrice: 38391900,
     integration: 11517570,
     planProfile: { label: '80/20 (120 cuotas)', planType: '85a120' },
@@ -209,6 +234,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 403780, '13a21': 395757, '22a84': 394576, '85a120': 393985 },
     cuotaPura: 255946,
     reservations: { '1': 1246450, '3': 1620385, '6': 1869675 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -216,6 +242,7 @@ const decemberVehicles = [
   },
   {
     name: 'NUEVA SPIN 1.8 LT 5AA MT',
+    brand: DEFAULT_BRAND,
     basePrice: 35116900,
     integration: 10535070,
     planProfile: { label: '70/30 (84 cuotas)', planType: '22a84' },
@@ -223,6 +250,7 @@ const decemberVehicles = [
     shareByPlan: { '2a12': 435603, '13a21': 428039, '22a84': 426914, '85a120': 426914 },
     cuotaPura: 292641,
     reservations: { '1': 1210710, '3': 1573923, '6': 1816065 },
+    withdrawal: { ...DEFAULT_WITHDRAWAL },
     benefits: {
       pactada: 'Chevroplan pactada cuota nº6 , llave x llave',
       bonificacion: '50% desc. en las primeras 3 cuotas del seguro'
@@ -388,15 +416,84 @@ const defaultTemplates = [
   }
 ];
 
+function normalizeBrand(brand = '') {
+  const cleaned = String(brand || '').trim();
+  return cleaned || DEFAULT_BRAND;
+}
+
+function normalizePlanProfile(profile = {}, planTypeFallback = '85a120') {
+  const financedRaw = Number(profile.financedPct);
+  const integrationRaw = Number(profile.integrationPct);
+  const financedPct = Number.isFinite(financedRaw) ? financedRaw : null;
+  const integrationPct = Number.isFinite(integrationRaw) ? integrationRaw : null;
+  return {
+    label: profile.label || '',
+    planType: profile.planType || planTypeFallback,
+    financedPct,
+    integrationPct
+  };
+}
+
+function normalizeWithdrawal(withdrawal = {}) {
+  const installments = Array.isArray(withdrawal.installments)
+    ? withdrawal.installments.map(Number).filter(val => Number.isFinite(val) && val > 0)
+    : [];
+  const requirementRaw = Number(withdrawal.requirementPct);
+  const requirementPct = Number.isFinite(requirementRaw) ? requirementRaw : null;
+  const allowedModes = ['sorteo', 'licitacion', 'ambos'];
+  return {
+    installments,
+    requirementPct,
+    mode: allowedModes.includes(withdrawal.mode) ? withdrawal.mode : 'ambos'
+  };
+}
+
+function normalizeVehicle(vehicle = {}) {
+  const normalized = {
+    ...vehicle,
+    name: vehicle.name || '',
+    brand: normalizeBrand(vehicle.brand),
+    basePrice: Number(vehicle.basePrice || 0),
+    integration: Number(vehicle.integration || 0),
+    cuotaPura: Number(vehicle.cuotaPura || 0),
+    planProfile: normalizePlanProfile(vehicle.planProfile, vehicle.planProfile?.planType || '85a120'),
+    availablePlans: vehicle.availablePlans?.length
+      ? [...vehicle.availablePlans]
+      : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    shareByPlan: {
+      '2a12': Number(vehicle.shareByPlan?.['2a12'] || 0),
+      '13a21': Number(vehicle.shareByPlan?.['13a21'] || 0),
+      '22a84': Number(vehicle.shareByPlan?.['22a84'] || 0),
+      '85a120': Number(vehicle.shareByPlan?.['85a120'] || 0),
+      'ctapura': Number(vehicle.shareByPlan?.['ctapura'] || 0)
+    },
+    reservations: {
+      '1': Number(vehicle.reservations?.['1'] || 0),
+      '3': Number(vehicle.reservations?.['3'] || 0),
+      '6': Number(vehicle.reservations?.['6'] || 0)
+    },
+    benefits: {
+      pactada: vehicle.benefits?.pactada || '',
+      bonificacion: vehicle.benefits?.bonificacion || ''
+    },
+    withdrawal: normalizeWithdrawal(vehicle.withdrawal || DEFAULT_WITHDRAWAL)
+  };
+  return normalized;
+}
+
 function cloneVehicles(list) {
-  return (list || []).map(v => ({
-    ...v,
-    shareByPlan: { ...(v.shareByPlan || {}) },
-    reservations: { ...(v.reservations || {}) },
-    planProfile: { ...(v.planProfile || {}) },
-    benefits: { ...(v.benefits || {}) },
-    availablePlans: v.availablePlans ? [...v.availablePlans] : undefined
-  }));
+  return (list || []).map(v => {
+    const normalized = normalizeVehicle(v);
+    return {
+      ...normalized,
+      shareByPlan: { ...(normalized.shareByPlan || {}) },
+      reservations: { ...(normalized.reservations || {}) },
+      planProfile: { ...(normalized.planProfile || {}) },
+      benefits: { ...(normalized.benefits || {}) },
+      availablePlans: normalized.availablePlans ? [...normalized.availablePlans] : undefined,
+      withdrawal: { ...(normalized.withdrawal || {}) }
+    };
+  });
 }
 
 const PRICE_FILES_ROOT = 'prices_files';
@@ -633,6 +730,47 @@ function parseMoney(raw) {
   const cleaned = String(raw).replace(/[^0-9.-]/g, '');
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
+}
+
+function parsePercentInput(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const num = Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(num)) return null;
+  const clamped = Math.min(Math.max(num, 0), 100);
+  return clamped / 100;
+}
+
+function formatPercentInput(value) {
+  if (!Number.isFinite(value)) return '';
+  return Math.round(value * 100);
+}
+
+function buildPlanLabelFromPercents(financedPct, integrationPct, planType) {
+  if (!Number.isFinite(financedPct) && !Number.isFinite(integrationPct)) return '';
+  const financed = Number.isFinite(financedPct) ? financedPct : Math.max(0, 1 - (integrationPct || 0));
+  const integration = Number.isFinite(integrationPct) ? integrationPct : Math.max(0, 1 - financed);
+  const financedLabel = Math.round(financed * 100);
+  const integrationLabel = Math.round(integration * 100);
+  const total = planTerms[planType] || 120;
+  return `${financedLabel}/${integrationLabel} (${total} cuotas)`;
+}
+
+function formatWithdrawalInstallments(list = []) {
+  if (!Array.isArray(list) || !list.length) return '';
+  return list.join(', ');
+}
+
+function parseWithdrawalInstallments(value = '') {
+  return String(value || '')
+    .split(',')
+    .map(part => Number(part.trim()))
+    .filter(num => Number.isFinite(num) && num > 0);
+}
+
+function formatAllocationMode(mode = 'ambos') {
+  if (mode === 'sorteo') return 'Solo sorteo';
+  if (mode === 'licitacion') return 'Solo licitación';
+  return 'Sorteo y licitación';
 }
 
 function normalizeExportOptions(options = {}) {
@@ -1053,6 +1191,7 @@ async function applyProfileData(parsed) {
   uiState.profileSearch = uiState.profileSearch || '';
   uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
   uiState.preferences = mergePreferences(uiState.preferences);
+  uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicleFilters || {}) };
   selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
   selectedTemplateId = templates[selectedTemplateIndex]?.id;
   planDraftApplied = false;
@@ -1496,7 +1635,7 @@ let selectedCustomIcon = 'bx-check-circle';
 let activeContextClientId = null;
 let activeScheduleClientId = null;
 let scheduleClockInterval = null;
-let vehicleEditorState = { selectedIndex: 0, search: '' };
+let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all' };
 
 function migrateLegacyPrices() {
   const legacyVehicles = load('vehicles');
@@ -1520,6 +1659,7 @@ uiState.quoteSearch = uiState.quoteSearch || '';
 uiState.profileSearch = uiState.profileSearch || '';
 uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
 uiState.preferences = mergePreferences(uiState.preferences);
+uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicleFilters || {}) };
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
 uiState.variableValues = uiState.variableValues || {};
@@ -2702,31 +2842,40 @@ function bindPriceTabControls() {
 }
 
 function ensureVehicleEditorDefaults(vehicle = {}) {
+  const normalized = normalizeVehicle(vehicle);
   return {
-    name: vehicle.name || '',
-    basePrice: Number(vehicle.basePrice || 0),
-    integration: Number(vehicle.integration || 0),
-    cuotaPura: Number(vehicle.cuotaPura || 0),
+    name: normalized.name || '',
+    brand: normalized.brand || DEFAULT_BRAND,
+    basePrice: Number(normalized.basePrice || 0),
+    integration: Number(normalized.integration || 0),
+    cuotaPura: Number(normalized.cuotaPura || 0),
     planProfile: {
-      label: vehicle.planProfile?.label || '',
-      planType: vehicle.planProfile?.planType || '85a120'
+      label: normalized.planProfile?.label || '',
+      planType: normalized.planProfile?.planType || '85a120',
+      financedPct: normalized.planProfile?.financedPct ?? null,
+      integrationPct: normalized.planProfile?.integrationPct ?? null
     },
-    availablePlans: vehicle.availablePlans?.length ? [...vehicle.availablePlans] : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
+    availablePlans: normalized.availablePlans?.length ? [...normalized.availablePlans] : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: {
-      '2a12': Number(vehicle.shareByPlan?.['2a12'] || 0),
-      '13a21': Number(vehicle.shareByPlan?.['13a21'] || 0),
-      '22a84': Number(vehicle.shareByPlan?.['22a84'] || 0),
-      '85a120': Number(vehicle.shareByPlan?.['85a120'] || 0),
-      'ctapura': Number(vehicle.shareByPlan?.['ctapura'] || 0)
+      '2a12': Number(normalized.shareByPlan?.['2a12'] || 0),
+      '13a21': Number(normalized.shareByPlan?.['13a21'] || 0),
+      '22a84': Number(normalized.shareByPlan?.['22a84'] || 0),
+      '85a120': Number(normalized.shareByPlan?.['85a120'] || 0),
+      'ctapura': Number(normalized.shareByPlan?.['ctapura'] || 0)
     },
     reservations: {
-      '1': Number(vehicle.reservations?.['1'] || 0),
-      '3': Number(vehicle.reservations?.['3'] || 0),
-      '6': Number(vehicle.reservations?.['6'] || 0)
+      '1': Number(normalized.reservations?.['1'] || 0),
+      '3': Number(normalized.reservations?.['3'] || 0),
+      '6': Number(normalized.reservations?.['6'] || 0)
     },
     benefits: {
-      pactada: vehicle.benefits?.pactada || '',
-      bonificacion: vehicle.benefits?.bonificacion || ''
+      pactada: normalized.benefits?.pactada || '',
+      bonificacion: normalized.benefits?.bonificacion || ''
+    },
+    withdrawal: {
+      installments: normalized.withdrawal?.installments || [],
+      requirementPct: normalized.withdrawal?.requirementPct ?? null,
+      mode: normalized.withdrawal?.mode || 'ambos'
     }
   };
 }
@@ -2741,6 +2890,11 @@ function bindVehicleEditor() {
   const duplicateBtn = document.getElementById('duplicateVehicle');
   const exportBtn = document.getElementById('exportPricesFromEditor');
   const searchInput = document.getElementById('vehicleEditorSearch');
+  const planLabelInput = document.getElementById('editorPlanLabel');
+  const planTypeSelect = document.getElementById('editorPlanType');
+  const financedInput = document.getElementById('editorPlanFinanced');
+  const integrationInput = document.getElementById('editorPlanIntegration');
+  const autoLabel = document.getElementById('editorPlanAutoLabel');
   if (close && !close.dataset.bound) {
     close.addEventListener('click', () => toggleModal(modal, false));
     close.dataset.bound = 'true';
@@ -2831,6 +2985,28 @@ function bindVehicleEditor() {
     });
     searchInput.dataset.bound = 'true';
   }
+  const updatePlanAutoLabel = () => {
+    const financedPct = parsePercentInput(financedInput?.value);
+    const integrationPct = parsePercentInput(integrationInput?.value);
+    const label = buildPlanLabelFromPercents(financedPct, integrationPct, planTypeSelect?.value);
+    if (autoLabel) autoLabel.textContent = label || 'Sin esquema definido';
+    if (planLabelInput && (financedPct !== null || integrationPct !== null)) {
+      planLabelInput.value = label;
+    }
+  };
+  if (financedInput && !financedInput.dataset.bound) {
+    financedInput.addEventListener('input', updatePlanAutoLabel);
+    financedInput.dataset.bound = 'true';
+  }
+  if (integrationInput && !integrationInput.dataset.bound) {
+    integrationInput.addEventListener('input', updatePlanAutoLabel);
+    integrationInput.dataset.bound = 'true';
+  }
+  if (planTypeSelect && !planTypeSelect.dataset.boundProfile) {
+    planTypeSelect.addEventListener('change', updatePlanAutoLabel);
+    planTypeSelect.dataset.boundProfile = 'true';
+  }
+  updatePlanAutoLabel();
 }
 
 function openVehicleEditorModal() {
@@ -2838,6 +3014,7 @@ function openVehicleEditorModal() {
   if (!modal) return;
   const searchInput = document.getElementById('vehicleEditorSearch');
   if (searchInput) searchInput.value = vehicleEditorState.search || '';
+  renderVehicleEditorBrandFilter();
   renderVehicleEditorList();
   renderVehicleEditorForm();
   modal.querySelectorAll('input.money').forEach(input => {
@@ -2848,17 +3025,61 @@ function openVehicleEditorModal() {
   toggleModal(modal, true);
 }
 
+function getUniqueBrands(list = []) {
+  const set = new Set(list.map(vehicle => normalizeBrand(vehicle.brand)));
+  const sorted = Array.from(set);
+  sorted.sort((a, b) => {
+    const aIndex = BRANDS.indexOf(a);
+    const bIndex = BRANDS.indexOf(b);
+    if (aIndex !== -1 || bIndex !== -1) {
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    }
+    return a.localeCompare(b);
+  });
+  return sorted;
+}
+
+function renderVehicleEditorBrandFilter() {
+  const select = document.getElementById('vehicleEditorBrandFilter');
+  if (!select) return;
+  const brands = getUniqueBrands(vehicles);
+  select.innerHTML = [
+    '<option value="all">Todas las marcas</option>',
+    ...brands.map(brand => `<option value="${brand}">${brand}</option>`)
+  ].join('');
+  const desired = vehicleEditorState.brandFilter || 'all';
+  select.value = brands.includes(desired) || desired === 'all' ? desired : 'all';
+  if (select.value !== desired) {
+    vehicleEditorState.brandFilter = select.value;
+  }
+  if (!select.dataset.bound) {
+    select.addEventListener('change', () => {
+      vehicleEditorState.brandFilter = select.value || 'all';
+      renderVehicleEditorList();
+    });
+    select.dataset.bound = 'true';
+  }
+}
+
 function getFilteredVehicles() {
   const query = (vehicleEditorState.search || '').toLowerCase();
+  const brandFilter = vehicleEditorState.brandFilter || 'all';
   return vehicles
     .map((vehicle, index) => ({ vehicle, index }))
-    .filter(({ vehicle }) => (vehicle.name || '').toLowerCase().includes(query));
+    .filter(({ vehicle }) => {
+      const matchesName = (vehicle.name || '').toLowerCase().includes(query);
+      const matchesBrand = brandFilter === 'all' || normalizeBrand(vehicle.brand) === brandFilter;
+      return matchesName && matchesBrand;
+    });
 }
 
 function renderVehicleEditorList() {
   const list = document.getElementById('vehicleEditorList');
   const empty = document.getElementById('vehicleEditorEmpty');
   if (!list) return;
+  renderVehicleEditorBrandFilter();
   if (vehicleEditorState.selectedIndex >= vehicles.length) {
     vehicleEditorState.selectedIndex = Math.max(0, vehicles.length - 1);
   }
@@ -2872,7 +3093,7 @@ function renderVehicleEditorList() {
   list.innerHTML = filtered.map(({ vehicle, index }) => `
       <button class="editor-item ${index === vehicleEditorState.selectedIndex ? 'active' : ''}" data-index="${index}">
         <strong>${vehicle.name || 'Modelo sin nombre'}</strong>
-        <span class="muted tiny">${vehicle.planProfile?.label || 'Plan sin definir'}</span>
+        <span class="muted tiny">${normalizeBrand(vehicle.brand)} • ${resolveVehiclePlanLabel(vehicle, vehicle.planProfile?.planType) || 'Plan sin definir'}</span>
       </button>
     `).join('');
   list.querySelectorAll('.editor-item').forEach(btn => {
@@ -2889,19 +3110,39 @@ function renderVehicleEditorForm() {
     const emptyForm = ensureVehicleEditorDefaults({});
     vehicleEditorState.selectedIndex = 0;
     const nameInput = document.getElementById('editorVehicleName');
+    const brandInput = document.getElementById('editorBrand');
+    const allocationSelect = document.getElementById('editorAllocation');
+    const withdrawalInstallmentsInput = document.getElementById('editorWithdrawalInstallments');
+    const withdrawalRequirementInput = document.getElementById('editorWithdrawalRequirement');
     const basePriceInput = document.getElementById('editorBasePrice');
     const integrationInput = document.getElementById('editorIntegration');
     const cuotaPuraInput = document.getElementById('editorCuotaPura');
     const planLabelInput = document.getElementById('editorPlanLabel');
     const planTypeSelect = document.getElementById('editorPlanType');
+    const financedInput = document.getElementById('editorPlanFinanced');
+    const integrationPctInput = document.getElementById('editorPlanIntegration');
+    const autoLabel = document.getElementById('editorPlanAutoLabel');
     const pactadaInput = document.getElementById('editorBenefitPactada');
     const bonificacionInput = document.getElementById('editorBenefitBonificacion');
     if (nameInput) nameInput.value = emptyForm.name;
+    if (brandInput) brandInput.value = emptyForm.brand || DEFAULT_BRAND;
+    if (allocationSelect) allocationSelect.value = emptyForm.withdrawal.mode || 'ambos';
+    if (withdrawalInstallmentsInput) withdrawalInstallmentsInput.value = formatWithdrawalInstallments(emptyForm.withdrawal.installments || []);
+    if (withdrawalRequirementInput) withdrawalRequirementInput.value = formatPercentInput(emptyForm.withdrawal.requirementPct);
     if (basePriceInput) setMoneyValue(basePriceInput, emptyForm.basePrice);
     if (integrationInput) setMoneyValue(integrationInput, emptyForm.integration);
     if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, emptyForm.cuotaPura);
     if (planLabelInput) planLabelInput.value = emptyForm.planProfile.label;
     if (planTypeSelect) planTypeSelect.value = emptyForm.planProfile.planType;
+    if (financedInput) financedInput.value = formatPercentInput(emptyForm.planProfile.financedPct);
+    if (integrationPctInput) integrationPctInput.value = formatPercentInput(emptyForm.planProfile.integrationPct);
+    if (autoLabel) {
+      autoLabel.textContent = buildPlanLabelFromPercents(
+        emptyForm.planProfile.financedPct,
+        emptyForm.planProfile.integrationPct,
+        emptyForm.planProfile.planType
+      ) || 'Sin esquema definido';
+    }
     if (pactadaInput) pactadaInput.value = emptyForm.benefits.pactada;
     if (bonificacionInput) bonificacionInput.value = emptyForm.benefits.bonificacion;
     document.querySelectorAll('[data-editor-plan]').forEach(input => setMoneyValue(input, 0));
@@ -2914,19 +3155,39 @@ function renderVehicleEditorForm() {
   const vehicle = vehicles[vehicleEditorState.selectedIndex];
   const form = ensureVehicleEditorDefaults(vehicle);
   const nameInput = document.getElementById('editorVehicleName');
+  const brandInput = document.getElementById('editorBrand');
+  const allocationSelect = document.getElementById('editorAllocation');
+  const withdrawalInstallmentsInput = document.getElementById('editorWithdrawalInstallments');
+  const withdrawalRequirementInput = document.getElementById('editorWithdrawalRequirement');
   const basePriceInput = document.getElementById('editorBasePrice');
   const integrationInput = document.getElementById('editorIntegration');
   const cuotaPuraInput = document.getElementById('editorCuotaPura');
   const planLabelInput = document.getElementById('editorPlanLabel');
   const planTypeSelect = document.getElementById('editorPlanType');
+  const financedInput = document.getElementById('editorPlanFinanced');
+  const integrationPctInput = document.getElementById('editorPlanIntegration');
+  const autoLabel = document.getElementById('editorPlanAutoLabel');
   const pactadaInput = document.getElementById('editorBenefitPactada');
   const bonificacionInput = document.getElementById('editorBenefitBonificacion');
   if (nameInput) nameInput.value = form.name;
+  if (brandInput) brandInput.value = form.brand || DEFAULT_BRAND;
+  if (allocationSelect) allocationSelect.value = form.withdrawal.mode || 'ambos';
+  if (withdrawalInstallmentsInput) withdrawalInstallmentsInput.value = formatWithdrawalInstallments(form.withdrawal.installments || []);
+  if (withdrawalRequirementInput) withdrawalRequirementInput.value = formatPercentInput(form.withdrawal.requirementPct);
   if (basePriceInput) setMoneyValue(basePriceInput, form.basePrice);
   if (integrationInput) setMoneyValue(integrationInput, form.integration);
   if (cuotaPuraInput) setMoneyValue(cuotaPuraInput, form.cuotaPura);
   if (planLabelInput) planLabelInput.value = form.planProfile.label;
   if (planTypeSelect) planTypeSelect.value = form.planProfile.planType;
+  if (financedInput) financedInput.value = formatPercentInput(form.planProfile.financedPct);
+  if (integrationPctInput) integrationPctInput.value = formatPercentInput(form.planProfile.integrationPct);
+  if (autoLabel) {
+    autoLabel.textContent = buildPlanLabelFromPercents(
+      form.planProfile.financedPct,
+      form.planProfile.integrationPct,
+      form.planProfile.planType
+    ) || 'Sin esquema definido';
+  }
   if (pactadaInput) pactadaInput.value = form.benefits.pactada;
   if (bonificacionInput) bonificacionInput.value = form.benefits.bonificacion;
   document.querySelectorAll('[data-editor-plan]').forEach(input => {
@@ -2948,21 +3209,40 @@ function applyVehicleEditorChanges() {
   const vehicle = vehicles[vehicleEditorState.selectedIndex];
   if (!vehicle) return;
   const nameInput = document.getElementById('editorVehicleName');
+  const brandInput = document.getElementById('editorBrand');
+  const allocationSelect = document.getElementById('editorAllocation');
+  const withdrawalInstallmentsInput = document.getElementById('editorWithdrawalInstallments');
+  const withdrawalRequirementInput = document.getElementById('editorWithdrawalRequirement');
   const basePriceInput = document.getElementById('editorBasePrice');
   const integrationInput = document.getElementById('editorIntegration');
   const cuotaPuraInput = document.getElementById('editorCuotaPura');
   const planLabelInput = document.getElementById('editorPlanLabel');
   const planTypeSelect = document.getElementById('editorPlanType');
+  const financedInput = document.getElementById('editorPlanFinanced');
+  const integrationPctInput = document.getElementById('editorPlanIntegration');
   const pactadaInput = document.getElementById('editorBenefitPactada');
   const bonificacionInput = document.getElementById('editorBenefitBonificacion');
   vehicle.name = nameInput?.value?.trim() || vehicle.name || '';
+  vehicle.brand = normalizeBrand(brandInput?.value);
+  vehicle.withdrawal = {
+    ...(vehicle.withdrawal || {}),
+    installments: parseWithdrawalInstallments(withdrawalInstallmentsInput?.value || ''),
+    requirementPct: parsePercentInput(withdrawalRequirementInput?.value),
+    mode: allocationSelect?.value || vehicle.withdrawal?.mode || 'ambos'
+  };
   vehicle.basePrice = parseMoney(basePriceInput?.dataset.raw || basePriceInput?.value || 0);
   vehicle.integration = parseMoney(integrationInput?.dataset.raw || integrationInput?.value || 0);
   vehicle.cuotaPura = parseMoney(cuotaPuraInput?.dataset.raw || cuotaPuraInput?.value || 0);
+  const financedPct = parsePercentInput(financedInput?.value);
+  const integrationPct = parsePercentInput(integrationPctInput?.value);
+  const planType = planTypeSelect?.value || vehicle.planProfile?.planType || '85a120';
+  const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
   vehicle.planProfile = {
     ...(vehicle.planProfile || {}),
-    label: planLabelInput?.value?.trim() || '',
-    planType: planTypeSelect?.value || vehicle.planProfile?.planType || '85a120'
+    label: planLabelInput?.value?.trim() || computedLabel || '',
+    planType,
+    financedPct,
+    integrationPct
   };
   vehicle.benefits = {
     ...(vehicle.benefits || {}),
@@ -2982,9 +3262,36 @@ function applyVehicleEditorChanges() {
   });
   markActiveDraftDirty();
   persist();
+  renderVehicleEditorBrandFilter();
   renderVehicleEditorList();
   renderVehicleTable();
   renderPlanForm();
+}
+
+function renderVehicleBrandFilterControl() {
+  const select = document.getElementById('vehicleBrandFilter');
+  if (!select) return;
+  const brands = getUniqueBrands(vehicles);
+  select.innerHTML = [
+    '<option value="all">Todas las marcas</option>',
+    ...brands.map(brand => `<option value="${brand}">${brand}</option>`)
+  ].join('');
+  const desired = uiState.vehicleFilters?.brand || 'all';
+  select.value = brands.includes(desired) || desired === 'all' ? desired : 'all';
+  if (select.value !== desired) {
+    uiState.vehicleFilters = uiState.vehicleFilters || {};
+    uiState.vehicleFilters.brand = select.value;
+    persist();
+  }
+  if (!select.dataset.bound) {
+    select.addEventListener('change', () => {
+      uiState.vehicleFilters = uiState.vehicleFilters || {};
+      uiState.vehicleFilters.brand = select.value || 'all';
+      persist();
+      renderVehicleTable();
+    });
+    select.dataset.bound = 'true';
+  }
 }
 
 function renderVehicleTable() {
@@ -2999,8 +3306,9 @@ function renderVehicleTable() {
   } else {
     renderPriceAlerts('No hay archivo de precios para este mes, se usan los valores predeterminados.', 'warning');
   }
-  const table = document.getElementById('vehicleTable');
-  if (!table) return;
+  const container = document.getElementById('vehicleTables');
+  if (!container) return;
+  renderVehicleBrandFilterControl();
   const plans = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
   const labels = {
     '2a12': 'Cuota 2 a 12',
@@ -3009,67 +3317,131 @@ function renderVehicleTable() {
     '85a120': 'Cuota 85 a 120',
     'ctapura': 'Cuota pura'
   };
-  const head = `<tr><th>Plan</th>${vehicles.map(v => `<th>${v.name}</th>`).join('')}</tr>`;
-  const bodyRows = [];
+  const brandFilter = uiState.vehicleFilters?.brand || 'all';
+  const filteredVehicles = brandFilter === 'all'
+    ? vehicles.map((vehicle, index) => ({ vehicle, index }))
+    : vehicles
+      .map((vehicle, index) => ({ vehicle, index }))
+      .filter(({ vehicle }) => normalizeBrand(vehicle.brand) === brandFilter);
 
-  bodyRows.push(`<tr><td>Precio de lista</td>${vehicles.map((v, idx) => `
-    <td>
-      <div class="money-field">
-        <span class="prefix">$</span>
-        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-base="true" value="${v.basePrice ? number.format(v.basePrice) : ''}" data-raw="${v.basePrice || ''}" placeholder="$ 0" disabled>
-      </div>
-    </td>`).join('')}</tr>`);
+  const grouped = filteredVehicles.reduce((acc, entry) => {
+    const brand = normalizeBrand(entry.vehicle.brand);
+    if (!acc[brand]) acc[brand] = [];
+    acc[brand].push(entry);
+    return acc;
+  }, {});
 
-  bodyRows.push(`<tr><td>Plan de cuotas</td>${vehicles.map(v => {
-    const currentPlan = v.planProfile?.planType || plans[0];
-    const labelValue = v.planProfile?.label || labels[currentPlan] || 'Plan fijo';
-    const total = planTerms[currentPlan] || planTerms[v.planProfile?.planType] || 120;
-    return `<td>
-      <div class="plan-profile-cell readonly">
-        <span class="chip muted">${labelValue}</span>
-        <small class="muted tiny">${total} cuotas • No editable</small>
-      </div>
-    </td>`;
-  }).join('')}</tr>`);
-
-  plans.forEach(plan => {
-    bodyRows.push(`<tr><td>${labels[plan]}</td>${vehicles.map((v, idx) => {
-      const value = v.shareByPlan[plan] ?? v.cuotaPura;
-      return `
-        <td>
-          <div class="money-field">
-            <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
-          </div>
-        </td>`;
-    }).join('')}</tr>`);
+  const brandOrder = Object.keys(grouped).sort((a, b) => {
+    const aIndex = BRANDS.indexOf(a);
+    const bIndex = BRANDS.indexOf(b);
+    if (aIndex !== -1 || bIndex !== -1) {
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    }
+    return a.localeCompare(b);
   });
 
-  bodyRows.push(`<tr><td>Integración</td>${vehicles.map((v, idx) => {
-    return `<td>
-      <div class="money-field">
-        <span class="prefix">$</span>
-        <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-integration="true" value="${v.integration ? number.format(v.integration) : ''}" data-raw="${v.integration || ''}" placeholder="$ 0" disabled>
-      </div>
-    </td>`;
-  }).join('')}</tr>`);
-
-  ['1', '3', '6'].forEach(res => {
-    bodyRows.push(`<tr><td>Reserva ${res} cuota(s)</td>${vehicles.map((v, idx) => {
-      const value = v.reservations[res];
-      return `<td>
+  const buildTable = (entries = []) => {
+    const head = `<tr><th>Plan</th>${entries.map(({ vehicle }) => `<th>${vehicle.name}</th>`).join('')}</tr>`;
+    const bodyRows = [];
+    bodyRows.push(`<tr><td>Precio de lista</td>${entries.map(({ vehicle, index }) => `
+      <td>
         <div class="money-field">
           <span class="prefix">$</span>
-          <input class="money" type="text" inputmode="numeric" data-vehicle="${idx}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-base="true" value="${vehicle.basePrice ? number.format(vehicle.basePrice) : ''}" data-raw="${vehicle.basePrice || ''}" placeholder="$ 0" disabled>
+        </div>
+      </td>`).join('')}</tr>`);
+
+    bodyRows.push(`<tr><td>Plan de cuotas</td>${entries.map(({ vehicle }) => {
+      const currentPlan = vehicle.planProfile?.planType || plans[0];
+      const labelValue = resolveVehiclePlanLabel(vehicle, currentPlan);
+      const total = planTerms[currentPlan] || planTerms[vehicle.planProfile?.planType] || 120;
+      return `<td>
+        <div class="plan-profile-cell readonly">
+          <span class="chip muted">${labelValue}</span>
+          <small class="muted tiny">${total} cuotas • No editable</small>
         </div>
       </td>`;
     }).join('')}</tr>`);
-  });
 
-  table.querySelector('thead').innerHTML = head;
-  table.querySelector('tbody').innerHTML = bodyRows.join('');
+    plans.forEach(plan => {
+      bodyRows.push(`<tr><td>${labels[plan]}</td>${entries.map(({ vehicle, index }) => {
+        const value = vehicle.shareByPlan[plan] ?? vehicle.cuotaPura;
+        return `
+          <td>
+            <div class="money-field">
+              <span class="prefix">$</span>
+              <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
+            </div>
+          </td>`;
+      }).join('')}</tr>`);
+    });
 
-  table.querySelectorAll('input.money').forEach(inp => {
+    bodyRows.push(`<tr><td>Integración</td>${entries.map(({ vehicle, index }) => {
+      return `<td>
+        <div class="money-field">
+          <span class="prefix">$</span>
+          <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-integration="true" value="${vehicle.integration ? number.format(vehicle.integration) : ''}" data-raw="${vehicle.integration || ''}" placeholder="$ 0" disabled>
+        </div>
+      </td>`;
+    }).join('')}</tr>`);
+
+    ['1', '3', '6'].forEach(res => {
+      bodyRows.push(`<tr><td>Reserva ${res} cuota(s)</td>${entries.map(({ vehicle, index }) => {
+        const value = vehicle.reservations[res];
+        return `<td>
+          <div class="money-field">
+            <span class="prefix">$</span>
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-reserva="${res}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
+          </div>
+        </td>`;
+      }).join('')}</tr>`);
+    });
+
+    bodyRows.push(`<tr><td>Modalidad de adjudicación</td>${entries.map(({ vehicle }) => `
+      <td><span class="muted">${formatAllocationMode(vehicle.withdrawal?.mode)}</span></td>
+    `).join('')}</tr>`);
+
+    bodyRows.push(`<tr><td>Cuotas pactadas de retiro</td>${entries.map(({ vehicle }) => `
+      <td><span class="muted">${formatWithdrawalInstallments(vehicle.withdrawal?.installments || []) || 'Sin definir'}</span></td>
+    `).join('')}</tr>`);
+
+    bodyRows.push(`<tr><td>Requisito de integración (%)</td>${entries.map(({ vehicle }) => `
+      <td><span class="muted">${Number.isFinite(vehicle.withdrawal?.requirementPct) ? `${Math.round(vehicle.withdrawal.requirementPct * 100)}%` : 'Sin definir'}</span></td>
+    `).join('')}</tr>`);
+
+    return { head, bodyRows };
+  };
+
+  if (!brandOrder.length) {
+    container.innerHTML = '<p class="muted">No hay modelos disponibles para esta marca.</p>';
+    return;
+  }
+
+  container.innerHTML = brandOrder.map(brand => {
+    const entries = grouped[brand] || [];
+    const { head, bodyRows } = buildTable(entries);
+    return `
+      <div class="vehicle-brand-card">
+        <div class="vehicle-brand-head">
+          <div>
+            <p class="eyebrow">Marca</p>
+            <h3>${brand}</h3>
+          </div>
+          <span class="muted tiny">${entries.length} modelos</span>
+        </div>
+        <div class="table-wrapper vehicle-table">
+          <table class="vehicle-table-grid">
+            <thead>${head}</thead>
+            <tbody>${bodyRows.join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('input.money').forEach(inp => {
     inp.setAttribute('tabindex', '-1');
   });
 }
@@ -3110,10 +3482,11 @@ function applyPlanDefaultsForModel(modelIdx, { preserveExisting = false, resetMa
     if (resetManual) planSelect.dataset.manual = '';
   }
   if (chip) {
-    chip.textContent = vehicle?.planProfile?.label || planLabel(planType);
+    chip.textContent = resolveVehiclePlanLabel(vehicle, planType);
   }
   if (helper) {
-    const planLabelText = vehicle?.planProfile?.label ? `Plan asignado automáticamente: ${vehicle.planProfile.label}` : 'Plan establecido según el modelo.';
+    const planLabelValue = resolveVehiclePlanLabel(vehicle, planType);
+    const planLabelText = planLabelValue ? `Plan asignado automáticamente: ${planLabelValue}` : 'Plan establecido según el modelo.';
     const benefit = vehicle?.benefits?.bonificacion || '';
     const pactada = vehicle?.benefits?.pactada || '';
     helper.textContent = [planLabelText, 'Esquema fijo por modelo.', benefit, pactada].filter(Boolean).join(' • ');
@@ -3394,6 +3767,32 @@ function rankVehiclesForModel(modelName = '', list = []) {
   }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 }
 
+function buildPlanModelOptions() {
+  const entries = vehicles.map((vehicle, index) => ({ vehicle, index }));
+  const grouped = entries.reduce((acc, entry) => {
+    const brand = normalizeBrand(entry.vehicle.brand);
+    if (!acc[brand]) acc[brand] = [];
+    acc[brand].push(entry);
+    return acc;
+  }, {});
+  const brandOrder = Object.keys(grouped).sort((a, b) => {
+    const aIndex = BRANDS.indexOf(a);
+    const bIndex = BRANDS.indexOf(b);
+    if (aIndex !== -1 || bIndex !== -1) {
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    }
+    return a.localeCompare(b);
+  });
+  return brandOrder.map(brand => {
+    const options = grouped[brand]
+      .map(({ vehicle, index }) => `<option value="${index}">${vehicle.name}</option>`)
+      .join('');
+    return `<optgroup label="${brand}">${options}</optgroup>`;
+  }).join('');
+}
+
 function refreshClientSelectionHint(client) {
   const hint = document.getElementById('selectedClientHint');
   if (!hint) return;
@@ -3409,7 +3808,7 @@ function refreshClientSelectionHint(client) {
 function renderPlanForm() {
   const select = document.getElementById('planModel');
   const currentValue = select.value;
-  select.innerHTML = vehicles.map((v, idx) => `<option value="${idx}">${v.name}</option>`).join('');
+  select.innerHTML = buildPlanModelOptions();
   const desiredValue = uiState.planDraft?.planModel ?? currentValue ?? 0;
   select.value = vehicles[desiredValue] ? desiredValue : 0;
   if (!select.dataset.bound) {
@@ -3549,10 +3948,12 @@ function resolveTotalInstallments(planType, vehiclePlanProfileType) {
 
 function resolvePlanScheme(vehicle) {
   const profile = vehicle?.planProfile || {};
+  const planType = vehicle?.planProfile?.planType;
   if (Number.isFinite(profile.financedPct) || Number.isFinite(profile.integrationPct)) {
     const financedPct = Number.isFinite(profile.financedPct) ? profile.financedPct : Math.max(0, 1 - (profile.integrationPct || 0));
     const integrationPct = Number.isFinite(profile.integrationPct) ? profile.integrationPct : Math.max(0, 1 - financedPct);
-    return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+    const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
+    return { financedPct, integrationPct, label: profile.label || computedLabel || 'Plan personalizado' };
   }
 
   const basePrice = Number(vehicle?.basePrice || 0);
@@ -3560,7 +3961,8 @@ function resolvePlanScheme(vehicle) {
   if (basePrice > 0 && integrationValue > 0) {
     const integrationPct = Math.min(Math.max(integrationValue / basePrice, 0), 1);
     const financedPct = Math.max(1 - integrationPct, 0);
-    return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+    const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
+    return { financedPct, integrationPct, label: profile.label || computedLabel || 'Plan personalizado' };
   }
 
   const label = (profile.label || '').toLowerCase();
@@ -3569,7 +3971,8 @@ function resolvePlanScheme(vehicle) {
     const financedPct = Number(numericMatch[1]) / 100;
     const integrationPct = Number(numericMatch[2]) / 100;
     if (financedPct + integrationPct === 1) {
-      return { financedPct, integrationPct, label: profile.label || 'Plan personalizado' };
+      const computedLabel = buildPlanLabelFromPercents(financedPct, integrationPct, planType);
+      return { financedPct, integrationPct, label: profile.label || computedLabel || 'Plan personalizado' };
     }
   }
   if (label.includes('100')) return { financedPct: 1, integrationPct: 0, label: profile.label || '100% fábrica' };
@@ -3895,6 +4298,11 @@ function updatePlanSummary() {
   const showCustomPrice = customPrice > 0 && projection.basePrice && customPrice !== projection.basePrice;
   const showCuotaAdjustment = showCustomPrice || (tradeIn && projection.aporteInicial > 0) || (projection.priceRatio && projection.priceRatio !== 1) || (versionUpgrade > 0);
   const scheme = projection.scheme || v.planProfile || {};
+  const withdrawal = v.withdrawal || {};
+  const withdrawalInstallments = formatWithdrawalInstallments(withdrawal.installments || []);
+  const withdrawalRequirementPct = Number.isFinite(withdrawal.requirementPct) ? withdrawal.requirementPct : null;
+  const withdrawalRequirementAmount = withdrawalRequirementPct ? projection.price * withdrawalRequirementPct : 0;
+  const planLabelValue = resolveVehiclePlanLabel(v, plan);
   const coverageSegments = (projection.coverageSegments || []).map(seg => ({
     ...seg,
     from: Math.min(seg.from, seg.to),
@@ -3916,10 +4324,18 @@ function updatePlanSummary() {
   const basics = document.getElementById('planBasicsList');
   renderRows(basics, [
     { label: '0Km a adquirir', value: v.name || 'Seleccionar modelo' },
+    { label: 'Marca del vehículo', value: normalizeBrand(v.brand) },
     { label: 'Precio nominal del coche', value: formatAdjustedValue(projection.basePrice, projection.price, showCustomPrice), helper: showCustomPrice ? 'Precio ajustado para la cotización' : 'Valor de catálogo' },
-    { label: 'Tipo de plan', value: v.planProfile?.label ? `${v.planProfile.label} · ${planLabel(plan)}` : planLabel(plan), helper: scheme.label },
+    { label: 'Tipo de plan', value: planLabelValue ? `${planLabelValue} · ${planLabel(plan)}` : planLabel(plan), helper: scheme.label },
     { label: 'Versión seleccionada', value: versionSelection === 'base' ? 'Versión base' : 'Versión mejorada', helper: versionSelection === 'base' ? 'Sin upgrade aplicado' : `Se financian ${currency.format(versionUpgrade || 0)} adicionales` },
     { label: 'Cantidad de cuotas totales del plan', value: projection.totalInstallments || 0 },
+    { label: 'Modalidad de adjudicación', value: formatAllocationMode(withdrawal.mode) },
+    { label: 'Cuotas pactadas de retiro', value: withdrawalInstallments || 'Sin definir', helper: withdrawalInstallments ? 'Definidas por marca y modelo' : 'Configura las cuotas pactadas en el editor' },
+    {
+      label: 'Requisito de integración para retiro',
+      value: withdrawalRequirementPct ? `${Math.round(withdrawalRequirementPct * 100)}%` : 'Sin definir',
+      helper: withdrawalRequirementPct ? `Equivale a ${currency.format(withdrawalRequirementAmount || 0)}` : 'Configura el porcentaje en el editor'
+    },
     { label: '¿Utiliza llave x llave?', value: tradeIn ? 'Sí' : 'No' },
     { label: 'Valor cotizado por llave x llave', value: tradeIn ? tradeInFormatted : 'Sin usado aplicado' },
     { label: 'Cuota pura del catálogo', value: formatAdjustedValue(projection.baseCatalogCuota, projection.cuotaPura, showCuotaAdjustment) }
@@ -4156,12 +4572,16 @@ function buildQuoteFromForm() {
   });
   const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
+  const withdrawal = v.withdrawal || {};
+  const withdrawalRequirementPct = Number.isFinite(withdrawal.requirementPct) ? withdrawal.requirementPct : null;
+  const withdrawalRequirementAmount = withdrawalRequirementPct ? projection.price * withdrawalRequirementPct : 0;
   const name = document.getElementById('clientName').value.trim() || 'Cotización sin nombre';
   const baseQuote = clients.find(c => c.selectedClientId === selectedPlanClientId && c.model === v.name && c.name === name) || {};
   const quote = {
     id: baseQuote.id || `quote-${Date.now()}`,
     name,
     model: v.name,
+    brand: normalizeBrand(v.brand),
     plan,
     cuota,
     tradeIn,
@@ -4185,10 +4605,14 @@ function buildQuoteFromForm() {
     integrationTarget: projection.integrationTarget,
     integrationCovered: projection.integrationCovered,
     integrationRemaining: projection.integrationRemaining,
-    schemeLabel: projection.scheme?.label || v.planProfile?.label || 'Plan',
+    schemeLabel: projection.scheme?.label || resolveVehiclePlanLabel(v, plan) || 'Plan',
     selectedReservation: projection.selectedReservation,
     reservationMode: appliedReservation,
-    planProfileLabel: v.planProfile?.label || 'Personalizar',
+    planProfileLabel: resolveVehiclePlanLabel(v, plan) || 'Personalizar',
+    allocationMode: withdrawal.mode || 'ambos',
+    withdrawalInstallments: withdrawal.installments || [],
+    withdrawalRequirementPct,
+    withdrawalRequirementAmount,
     basePrice: projection.basePrice,
     priceApplied: projection.price,
     baseCuotaPura: projection.baseCatalogCuota,
@@ -4221,14 +4645,24 @@ function buildQuoteSummaryText(quote) {
   const cuotaTramoDetalle = hasCuotaAdjust
     ? `${currency.format(quote.cuotaBase || 0)} → ${currency.format(quote.cuotaAjustada || 0)}`
     : (quote.cuota ? currency.format(quote.cuota) : 'Completar manual');
+  const withdrawalInstallments = Array.isArray(quote.withdrawalInstallments) && quote.withdrawalInstallments.length
+    ? quote.withdrawalInstallments.join(', ')
+    : 'Sin definir';
+  const withdrawalRequirementLabel = quote.withdrawalRequirementPct
+    ? `${Math.round(quote.withdrawalRequirementPct * 100)}% (${currency.format(quote.withdrawalRequirementAmount || 0)})`
+    : 'Sin definir';
   const parts = [
     `Cotización para: ${quote.name}`,
     `Modelo elegido: ${quote.model}`,
+    `Marca: ${quote.brand || 'Sin definir'}`,
     `Versión elegida: ${quote.versionSelection === 'base' ? 'Versión base' : 'Versión mejorada'}`,
     `Precio base catálogo: ${currency.format(quote.basePrice || 0)}`,
     hasCustomPrice ? `Precio aplicado: ${currency.format(quote.priceApplied || 0)} (ajustado)` : `Precio aplicado: ${currency.format(quote.priceApplied || 0)}`,
     `Esquema del plan: ${quote.schemeLabel || quote.planProfileLabel || 'Plan'} · Financia ${currency.format(quote.financedAmount || 0)} · Integra ${currency.format(quote.integrationTarget || 0)}`,
     `Plan establecido: ${planLabel(quote.plan)} (${quote.planProfileLabel || 'Personalizar'})`,
+    `Modalidad de adjudicación: ${formatAllocationMode(quote.allocationMode || 'ambos')}`,
+    `Cuotas pactadas de retiro: ${withdrawalInstallments}`,
+    `Requisito de integración para retiro: ${withdrawalRequirementLabel}`,
     `Cuota pura estimada: ${cuotaPuraDetalle}`,
     `Cuota estimada: ${cuotaTramoDetalle}`,
     `Reservas: 1 cuota ${currency.format(quote.reservation1 || 0)} · 3 cuotas ${currency.format(quote.reservation3 || 0)} (3 de ${cuota3}) · 6 cuotas ${currency.format(quote.reservation6 || 0)} (6 de ${cuota6})`,
@@ -4280,6 +4714,13 @@ function planLabel(key) {
     '85a120': 'Cuota 85 a 120',
     'ctapura': 'Cuota pura'
   }[key] || key;
+}
+
+function resolveVehiclePlanLabel(vehicle, fallbackPlanType) {
+  const profile = vehicle?.planProfile || {};
+  const planType = fallbackPlanType || profile.planType;
+  const computed = buildPlanLabelFromPercents(profile.financedPct, profile.integrationPct, planType);
+  return profile.label || computed || planLabel(planType);
 }
 
 function applyPlanDraft() {
@@ -8864,6 +9305,7 @@ function syncFromStorage() {
   managerClients = load('managerClients') || managerClients;
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
   uiState.preferences = mergePreferences(uiState.preferences);
+  uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicleFilters || {}) };
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };

@@ -35,6 +35,12 @@
       "benefits": {
         "pactada": "Chevroplan pactada cuota nº6, llave x llave",
         "bonificacion": "Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     },
     {
@@ -68,6 +74,12 @@
       "benefits": {
         "pactada": "Chevroplan pactada cuota nº6, llave x llave",
         "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     },
     {
@@ -101,6 +113,12 @@
       "benefits": {
         "pactada": "Chevroplan pactada cuota nº6, llave x llave",
         "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     },
     {
@@ -131,6 +149,12 @@
       "benefits": {
         "pactada": "Acepta llave x llave",
         "bonificacion": "Débito automático obligatorio con TC"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     },
     {
@@ -164,6 +188,12 @@
       "benefits": {
         "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
         "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     },
     {
@@ -195,6 +225,12 @@
       "benefits": {
         "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
         "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     },
     {
@@ -227,6 +263,12 @@
       "benefits": {
         "pactada": "CHEVROPLAN\nPACTADA CUOTA N°6 ,\nLLAVE X LLAVE",
         "bonificacion": "50% DESC. EN LAS\nPRIMERAS 3 CUOTAS DEL\nSEGURO"
+      },
+      "brand": "Chevrolet",
+      "withdrawal": {
+        "installments": [],
+        "requirementPct": null,
+        "mode": "ambos"
       }
     }
   ]

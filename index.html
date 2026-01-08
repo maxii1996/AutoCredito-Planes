@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chevrolet Plan Manager 2025</title>
+  <title>Plan Manager 2025</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
         <div class="brand-icon">🚗</div>
         <div>
           <p class="brand-title">Asesor:</p>
-          <p class="brand-subtitle" id="sidebarAdvisor">Chevrolet Argentina</p>
+          <p class="brand-subtitle" id="sidebarAdvisor">Planes de Ahorro Argentina</p>
         </div>
       </div>
       <nav class="nav">
@@ -183,6 +183,10 @@
             <p class="muted subtle" id="vehicleUpdateTag">Última actualización: Diciembre 2025</p>
           </div>
           <div class="toggles">
+            <div class="field compact">
+              <label for="vehicleBrandFilter">Filtrar por marca</label>
+              <select id="vehicleBrandFilter"></select>
+            </div>
             <button id="viewOnlineFiles" class="ghost-btn" type="button"><i class='bx bx-cloud'></i>Ver archivos online</button>
           </div>
         </div>
@@ -202,12 +206,7 @@
             </div>
           </div>
         </div>
-        <div class="table-wrapper vehicle-table">
-          <table id="vehicleTable">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
-        </div>
+        <div class="vehicle-table-stack" id="vehicleTables"></div>
       </section>
 
       <section id="plans" class="panel">
@@ -1178,6 +1177,10 @@
       </div>
       <div class="modal-body editor-grid">
         <aside class="editor-sidebar">
+          <div class="field compact">
+            <label for="vehicleEditorBrandFilter">Filtrar marca</label>
+            <select id="vehicleEditorBrandFilter"></select>
+          </div>
           <div class="search-field compact">
             <i class='bx bx-search'></i>
             <input id="vehicleEditorSearch" placeholder="Buscar modelo" />
@@ -1193,6 +1196,37 @@
           <div class="field">
             <label for="editorVehicleName">Nombre del modelo</label>
             <input id="editorVehicleName" placeholder="Ej: Tracker LT 1.2AT" />
+          </div>
+          <div class="form-grid two">
+            <div class="field">
+              <label for="editorBrand">Marca</label>
+              <input id="editorBrand" list="editorBrandList" placeholder="Ej: Renault" />
+              <datalist id="editorBrandList">
+                <option value="Chevrolet"></option>
+                <option value="Renault"></option>
+                <option value="FIAT"></option>
+                <option value="Volkswagen"></option>
+                <option value="Peugeot"></option>
+              </datalist>
+            </div>
+            <div class="field">
+              <label for="editorAllocation">Modalidad de adjudicación</label>
+              <select id="editorAllocation">
+                <option value="ambos">Sorteo y licitación</option>
+                <option value="sorteo">Solo sorteo</option>
+                <option value="licitacion">Solo licitación</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid two">
+            <div class="field">
+              <label for="editorWithdrawalInstallments">Cuotas pactadas de retiro</label>
+              <input id="editorWithdrawalInstallments" placeholder="Ej: 4,6,9,12" />
+            </div>
+            <div class="field">
+              <label for="editorWithdrawalRequirement">Requisito de integración (%)</label>
+              <input id="editorWithdrawalRequirement" type="number" min="0" max="100" step="1" placeholder="Ej: 35" />
+            </div>
           </div>
           <div class="form-grid three">
             <div class="field">
@@ -1231,6 +1265,22 @@
                 <option value="85a120">85 a 120 (120)</option>
                 <option value="ctapura">Cuota pura (120)</option>
               </select>
+            </div>
+          </div>
+          <div class="form-grid three">
+            <div class="field">
+              <label for="editorPlanFinanced">Financia empresa (%)</label>
+              <input id="editorPlanFinanced" type="number" min="0" max="100" step="1" placeholder="Ej: 70" />
+            </div>
+            <div class="field">
+              <label for="editorPlanIntegration">Paga cliente (%)</label>
+              <input id="editorPlanIntegration" type="number" min="0" max="100" step="1" placeholder="Ej: 30" />
+            </div>
+            <div class="field readonly">
+              <label>Etiqueta automática</label>
+              <div class="plan-profile-cell readonly">
+                <span class="chip muted" id="editorPlanAutoLabel">Sin esquema definido</span>
+              </div>
             </div>
           </div>
           <div class="field">

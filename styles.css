@@ -386,14 +386,19 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .modal-content.wide { max-width: 720px; }
 #vehicleEditorModal .modal-content.wide { max-width: 860px; }
 .vehicle-table { max-height: min(70vh, 560px); overflow: auto; }
+.vehicle-table-stack { display: grid; gap: 18px; }
+.vehicle-brand-card { background: #0b1120; border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
+.vehicle-brand-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.vehicle-brand-head h3 { margin: 0; }
+.vehicle-brand-head .eyebrow { margin-bottom: 6px; }
 .preview-box { background: #0f1625; border: 1px solid var(--border); border-radius: 14px; padding: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
 .preview-box pre { white-space: pre-wrap; font-family: 'Inter', monospace; margin: 6px 0 0; color: #e2e8f0; }
 
 .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-#vehicleTable { width: 100%; border-collapse: collapse; min-width: 820px; }
-#vehicleTable th, #vehicleTable td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; }
-#vehicleTable thead { background: #101728; }
-#vehicleTable input { width: 100%; }
+.vehicle-table-grid { width: 100%; border-collapse: collapse; min-width: 820px; }
+.vehicle-table-grid th, .vehicle-table-grid td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.vehicle-table-grid thead { background: #101728; }
+.vehicle-table-grid input { width: 100%; }
 .price-tabs { margin: 14px 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); display: grid; gap: 12px; }
 .alert-stack { display: grid; gap: 10px; margin-bottom: 12px; }
 .alert-stack.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
@@ -847,7 +852,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .money-field input { padding-left: 26px; font-weight: 700; letter-spacing: 0.01em; }
 .money-field input:disabled { color: var(--muted); background: #0d1624; border-color: #1b2a3f; cursor: not-allowed; }
 .money { font-variant-numeric: tabular-nums; }
-#vehicleTable td .money-field { margin: 0; }
+.vehicle-table-grid td .money-field { margin: 0; }
 
 .form { display: grid; gap: 10px; }
 .summary { display: grid; gap: 10px; margin-top: 8px; }
