@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-08T18:18:46.756Z",
+  "updatedAt": "2026-01-08T19:15:00.000Z",
   "vehicles": [
     {
       "name": "NUEVO ONIX 1.0 TURBO LT MT",
@@ -563,6 +563,198 @@
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      }
+    },
+    {
+      "name": "TERA TREND 1.6 MSI MT",
+      "brand": "Volkswagen",
+      "basePrice": 36391350,
+      "integration": 10917405,
+      "cuotaPura": 303261,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "shareByPlan": {
+        "2a12": 390100,
+        "13a84": 435289,
+        "85a120": 0,
+        "ctapura": 303261
+      },
+      "reservations": { "1": 1190840, "3": 1548092, "6": 1786260 },
+      "benefits": {
+        "pactada": "ENTREGA PACTADA AUTOAHORRO - CUOTA N° 8, 12 Y 24",
+        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
+      },
+      "withdrawal": {
+        "installments": [8, 12, 24],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "NIVUS TRENDLINE 200 TSI AT",
+      "brand": "Volkswagen",
+      "basePrice": 45775000,
+      "integration": 13732500,
+      "cuotaPura": 381458,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "shareByPlan": {
+        "2a12": 485000,
+        "13a84": 542440,
+        "85a120": 0,
+        "ctapura": 381458
+      },
+      "reservations": { "1": 1348226, "3": 1752694, "6": 2022339 },
+      "benefits": {
+        "pactada": "ENTREGA PACTADA AUTOAHORRO - CUOTA N° 8, 12 Y 24",
+        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
+      },
+      "withdrawal": {
+        "installments": [8, 12, 24],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "T-CROSS TRENDLINE 200 TSI AT",
+      "brand": "Volkswagen",
+      "basePrice": 52851350,
+      "integration": 15855405,
+      "cuotaPura": 440428,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "shareByPlan": {
+        "2a12": 555527,
+        "13a84": 621155,
+        "85a120": 0,
+        "ctapura": 440428
+      },
+      "reservations": { "1": 1383110, "3": 1798043, "6": 2074665 },
+      "benefits": {
+        "pactada": "ENTREGA PACTADA AUTOAHORRO - CUOTA N° 8, 12 Y 24",
+        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
+      },
+      "withdrawal": {
+        "installments": [8, 12, 24],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "NUEVA AMAROK TREND 4X2 MT G2",
+      "brand": "Volkswagen",
+      "basePrice": 58255550,
+      "integration": 23302220,
+      "cuotaPura": 416111,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.6,
+        "integrationPct": 0.4,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "shareByPlan": {
+        "2a12": 555252,
+        "13a84": 592382,
+        "85a120": 0,
+        "ctapura": 416111
+      },
+      "reservations": { "1": 1811306, "3": 2354698, "6": 2716959 },
+      "benefits": {
+        "pactada": "SOLO SORTEO O LICITACION",
+        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
+      },
+      "withdrawal": {
+        "installments": [],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "sorteo_licitacion"
+      }
+    },
+    {
+      "name": "TAOS COMFORTLINE 250 TSI AT",
+      "brand": "Volkswagen",
+      "basePrice": 56942500,
+      "integration": 22777000,
+      "cuotaPura": 406732,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.6,
+        "integrationPct": 0.4,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "shareByPlan": {
+        "2a12": 556700,
+        "13a84": 593274,
+        "85a120": 0,
+        "ctapura": 406732
+      },
+      "reservations": { "1": 2125772, "3": 2763504, "6": 3188658 },
+      "benefits": {
+        "pactada": "SOLO SORTEO O LICITACION",
+        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
+      },
+      "withdrawal": {
+        "installments": [],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "sorteo_licitacion"
+      }
+    },
+    {
+      "name": "VIRTUS MSI MT",
+      "brand": "Volkswagen",
+      "basePrice": 45193800,
+      "integration": 0,
+      "cuotaPura": 538021,
+      "planProfile": {
+        "label": "100% (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 1,
+        "integrationPct": 0,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a84", "ctapura"],
+      "shareByPlan": {
+        "2a12": 584500,
+        "13a84": 722558,
+        "85a120": 0,
+        "ctapura": 538021
+      },
+      "reservations": { "1": 1350674, "3": 1755876, "6": 2026011 },
+      "benefits": {
+        "pactada": "AUTOAHORRO STANDARD",
+        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
+      },
+      "withdrawal": {
+        "installments": [],
+        "requirementType": "percent",
+        "requirementValue": 0,
+        "mode": "sorteo_licitacion"
       }
     }
   ],
