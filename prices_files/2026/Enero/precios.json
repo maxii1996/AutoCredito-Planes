@@ -248,17 +248,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 482258,
-        "13a24": 509653,
-        "25a84": 516841,
+        "13a21": 509653,
+        "22a84": 516841,
+        "85a120": 0,
         "ctapura": 308500
       },
       "reservations": { "1": 1208690, "3": 1571297, "6": 1813035 },
       "benefits": {
         "pactada": "Pactada 4, 6, 9, 12 con 35%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 6, 9, 12],
@@ -280,17 +281,18 @@
         "integrationPct": 0.1,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 615649,
-        "13a24": 615649,
-        "25a84": 643043,
+        "13a21": 615649,
+        "22a84": 643043,
+        "85a120": 0,
         "ctapura": 396643
       },
       "reservations": { "1": 1219400, "3": 1585220, "6": 1829100 },
       "benefits": {
         "pactada": "Pactada 10, 24 y 36 con 10%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [10, 24, 36],
@@ -312,17 +314,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 415761,
-        "13a24": 437799,
-        "25a84": 300232,
+        "13a21": 437799,
+        "22a84": 300232,
+        "85a120": 0,
         "ctapura": 248167
       },
       "reservations": { "1": 1123418, "3": 1460443, "6": 1685127 },
       "benefits": {
         "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 9, 12],
@@ -344,16 +347,18 @@
         "integrationPct": 0.2,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 321246,
-        "25a84": 341278,
+        "13a21": 321246,
+        "22a84": 341278,
+        "85a120": 0,
         "ctapura": 257810
       },
       "reservations": { "1": 1093940, "3": 1422122, "6": 1640910 },
       "benefits": {
         "pactada": "Pactada 6, 9, 12 con 30%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [6, 9, 12],
@@ -375,17 +380,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 409200,
-        "13a24": 430890,
-        "25a84": 295494,
+        "13a21": 430890,
+        "22a84": 295494,
+        "85a120": 0,
         "ctapura": 244250
       },
       "reservations": { "1": 1128518, "3": 1467073, "6": 1692777 },
       "benefits": {
         "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 9, 12],
@@ -407,17 +413,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 523821,
-        "13a24": 551586,
-        "25a84": 378264,
+        "13a21": 551586,
+        "22a84": 378264,
+        "85a120": 0,
         "ctapura": 312667
       },
       "reservations": { "1": 1233272, "3": 1603254, "6": 1849908 },
       "benefits": {
         "pactada": "Pactada 6, 9, 12 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [6, 9, 12],
@@ -439,17 +446,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 511954,
-        "13a24": 539089,
-        "25a84": 369695,
+        "13a21": 539089,
+        "22a84": 369695,
+        "85a120": 0,
         "ctapura": 305583
       },
       "reservations": { "1": 1186760, "3": 1542788, "6": 1780140 },
       "benefits": {
         "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 9, 12],
@@ -471,17 +479,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 615523,
-        "13a24": 650488,
-        "25a84": 659662,
+        "13a21": 650488,
+        "22a84": 659662,
+        "85a120": 0,
         "ctapura": 393750
       },
       "reservations": { "1": 1414118, "3": 1838353, "6": 2121177 },
       "benefits": {
         "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 9, 12],
@@ -503,17 +512,18 @@
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 572111,
-        "13a24": 605640,
-        "25a84": 572111,
+        "13a21": 605640,
+        "22a84": 572111,
+        "85a120": 0,
         "ctapura": 323643
       },
       "reservations": { "1": 1301612, "3": 1692096, "6": 1952418 },
       "benefits": {
         "pactada": "Pactada 4, 9, 12, 24, 36 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 9, 12, 24, 36],
@@ -535,17 +545,18 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["2a12", "13a24", "25a84", "ctapura"],
+      "availablePlans": ["2a12", "13a21", "22a84", "ctapura"],
       "shareByPlan": {
         "2a12": 688995,
-        "13a24": 728134,
-        "25a84": 533219,
+        "13a21": 728134,
+        "22a84": 533219,
+        "85a120": 0,
         "ctapura": 440750
       },
       "reservations": { "1": 1561712, "3": 2030226, "6": 2342568 },
       "benefits": {
         "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": ""
+        "bonificacion": "GASTOS DE RETIRO 13%"
       },
       "withdrawal": {
         "installments": [4, 9, 12],
