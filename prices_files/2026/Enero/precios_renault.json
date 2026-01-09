@@ -40,7 +40,55 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Plan Rombo"
+        "bonificacion": ""
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          6,
+          8,
+          10
+        ],
+        "requirementType": "amount",
+        "requirementValue": 0,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "RENAULT DUSTER INSTENS 1.6 100% 120 CTS",
+      "brand": "Renault",
+      "basePrice": 41420000,
+      "integration": 0,
+      "cuotaPura": 345167,
+      "planProfile": {
+        "label": "100% (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 1,
+        "integrationPct": 0,
+        "maxInstallments": 120
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 441819,
+        "13a21": 442434,
+        "22a84": 411479,
+        "85a120": 411479,
+        "ctapura": 345167
+      },
+      "reservations": {
+        "1": 1205800,
+        "3": 1567540,
+        "6": 1929280
+      },
+      "benefits": {
+        "pactada": "Pactada cuotas 4, 6, 8 y 10",
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -74,9 +122,9 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 630600,
+        "2a12": 671193,
         "13a21": 691625,
-        "22a84": 671193,
+        "22a84": 630600,
         "ctapura": 544375,
         "85a120": 0
       },
@@ -87,7 +135,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Uso Profesional"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -106,7 +154,7 @@
       "brand": "Renault",
       "basePrice": 44630000,
       "integration": 11157500,
-      "cuotaPura": 467124,
+      "cuotaPura": 398482,
       "planProfile": {
         "label": "75/25 (84 cuotas)",
         "planType": "22a84",
@@ -121,10 +169,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 398482,
+        "2a12": 467124,
         "13a21": 445131,
         "22a84": 489800,
-        "ctapura": 467124,
+        "ctapura": 398482,
         "85a120": 0
       },
       "reservations": {
@@ -134,7 +182,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Nuevo Lanzamiento"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -215,9 +263,9 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 480988,
-        "13a21": 709756,
-        "22a84": 472416,
+        "2a12": 709756,
+        "13a21": 472416,
+        "22a84": 480988,
         "ctapura": 382357,
         "85a120": 0
       },
@@ -263,10 +311,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 319287,
+        "2a12": 512814,
         "13a21": 320124,
-        "22a84": 512814,
-        "85a120": 512814,
+        "22a84": 319287,
+        "85a120": 319287,
         "ctapura": 258750
       },
       "reservations": {
@@ -276,7 +324,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Uso Profesional"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -311,10 +359,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 346288,
-        "13a21": 591175,
-        "22a84": 386796,
-        "85a120": 386796,
+        "2a12": 591175,
+        "13a21": 386796,
+        "22a84": 346288,
+        "85a120": 346288,
         "ctapura": 287313
       },
       "reservations": {
@@ -324,7 +372,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Uso Profesional"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -359,10 +407,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 214167,
+        "2a12": 296917,
         "13a21": 204624,
-        "22a84": 296917,
-        "85a120": 296917,
+        "22a84": 214167,
+        "85a120": 214167,
         "ctapura": 212833
       },
       "reservations": {
@@ -372,7 +420,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "12 CTS FIJAS / 6 CTS FIJAS"
+        "bonificacion": "12 CTS FIJAS"
       },
       "withdrawal": {
         "installments": [
@@ -407,10 +455,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 362724,
-        "13a21": 489594,
-        "22a84": 328944,
-        "85a120": 328944,
+        "2a12": 489594,
+        "13a21": 328944,
+        "22a84": 362724,
+        "85a120": 362724,
         "ctapura": 301333
       },
       "reservations": {
@@ -420,7 +468,55 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Plan Rombo"
+        "bonificacion": "6 CTS FIJAS"
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          6,
+          8,
+          10
+        ],
+        "requirementType": "amount",
+        "requirementValue": 0,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "RENAULT KARDIAN EVOLUTION 1.6 M 100% 120 CTS",
+      "brand": "Renault",
+      "basePrice": 36160000,
+      "integration": 0,
+      "cuotaPura": 301333,
+      "planProfile": {
+        "label": "100% (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 1,
+        "integrationPct": 0,
+        "maxInstallments": 120
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 489594,
+        "13a21": 328944,
+        "22a84": 362724,
+        "85a120": 362724,
+        "ctapura": 301333
+      },
+      "reservations": {
+        "1": 1158700,
+        "3": 1506310,
+        "6": 1853920
+      },
+      "benefits": {
+        "pactada": "Pactada cuotas 4, 6, 8 y 10",
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -468,7 +564,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Uso Familiar"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -503,10 +599,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 346288,
-        "13a21": 591175,
-        "22a84": 386796,
-        "85a120": 386796,
+        "2a12": 591175,
+        "13a21": 386796,
+        "22a84": 346288,
+        "85a120": 346288,
         "ctapura": 306467
       },
       "reservations": {
@@ -516,7 +612,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Uso Profesional"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -551,10 +647,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 386796,
+        "2a12": 389151,
         "13a21": 591175,
-        "22a84": 389151,
-        "85a120": 389151,
+        "22a84": 386796,
+        "85a120": 386796,
         "ctapura": 287813
       },
       "reservations": {
@@ -564,7 +660,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Uso Familiar"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -583,7 +679,7 @@
       "brand": "Renault",
       "basePrice": 44630000,
       "integration": 11157500,
-      "cuotaPura": 467124,
+      "cuotaPura": 398482,
       "planProfile": {
         "label": "75/25 (84 cuotas)",
         "planType": "22a84",
@@ -598,10 +694,10 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 398482,
+        "2a12": 467124,
         "13a21": 445131,
         "22a84": 489800,
-        "ctapura": 467124,
+        "ctapura": 398482,
         "85a120": 0
       },
       "reservations": {
@@ -611,7 +707,7 @@
       },
       "benefits": {
         "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "Nuevo Lanzamiento"
+        "bonificacion": ""
       },
       "withdrawal": {
         "installments": [
@@ -646,8 +742,8 @@
         "ctapura"
       ],
       "shareByPlan": {
-        "2a12": 343164,
-        "13a21": 510948,
+        "2a12": 510948,
+        "13a21": 343164,
         "22a84": 378438,
         "85a120": 378438,
         "ctapura": 314667
