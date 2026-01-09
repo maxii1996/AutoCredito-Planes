@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-08T19:30:00.000Z",
+  "updatedAt": "2026-01-09T13:59:55.392Z",
   "vehicles": [
     {
       "name": "RENAULT DUSTER 100% 120 CTS",
@@ -29,7 +29,9 @@
         "13a21": 442434,
         "22a84": 441479,
         "85a120": 441479,
-        "ctapura": 345167
+        "ctapura": 345167,
+        "13a24": 0,
+        "25a84": 0
       },
       "reservations": {
         "1": 1205800,
@@ -75,7 +77,8 @@
         "2a12": 630600,
         "13a21": 691625,
         "22a84": 671193,
-        "ctapura": 544375
+        "ctapura": 544375,
+        "85a120": 0
       },
       "reservations": {
         "1": 1505900,
@@ -121,7 +124,8 @@
         "2a12": 398482,
         "13a21": 445131,
         "22a84": 489800,
-        "ctapura": 467124
+        "ctapura": 467124,
+        "85a120": 0
       },
       "reservations": {
         "1": 1240660,
@@ -167,7 +171,8 @@
         "2a12": 546139,
         "13a21": 320803,
         "22a84": 327578,
-        "ctapura": 302214
+        "ctapura": 302214,
+        "85a120": 0
       },
       "reservations": {
         "1": 1221200,
@@ -213,7 +218,8 @@
         "2a12": 480988,
         "13a21": 709756,
         "22a84": 472416,
-        "ctapura": 382357
+        "ctapura": 382357,
+        "85a120": 0
       },
       "reservations": {
         "1": 1371420,
@@ -595,7 +601,8 @@
         "2a12": 398482,
         "13a21": 445131,
         "22a84": 489800,
-        "ctapura": 467124
+        "ctapura": 467124,
+        "85a120": 0
       },
       "reservations": {
         "1": 1240800,
@@ -670,23 +677,97 @@
   "brandSettings": [
     {
       "name": "Chevrolet",
-      "color": "#ffcf24"
+      "color": "#ffcf24",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 21
+        },
+        {
+          "start": 22,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
     },
     {
       "name": "Renault",
-      "color": "#3b82f6"
+      "color": "#3b82f6",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
     },
     {
       "name": "FIAT",
-      "color": "#ff0a60"
+      "color": "#ff0a60",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
     },
     {
       "name": "Volkswagen",
-      "color": "#c7c7c7"
+      "color": "#c7c7c7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 84
+        }
+      ]
     },
     {
       "name": "Peugeot",
-      "color": "#a855f7"
+      "color": "#a855f7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 25
+        },
+        {
+          "start": 26,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
     }
   ]
 }
