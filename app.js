@@ -554,13 +554,14 @@ function normalizeWithdrawal(withdrawal = {}) {
 }
 
 function normalizeVehicle(vehicle = {}) {
+  const baseCuotaPura = Number(vehicle.cuotaPura || vehicle.shareByPlan?.['ctapura'] || 0);
   const normalized = {
     ...vehicle,
     name: vehicle.name || '',
     brand: normalizeBrand(vehicle.brand),
     basePrice: Number(vehicle.basePrice || 0),
     integration: Number(vehicle.integration || 0),
-    cuotaPura: Number(vehicle.cuotaPura || 0),
+    cuotaPura: baseCuotaPura,
     planProfile: normalizePlanProfile(vehicle.planProfile, vehicle.planProfile?.planType || '85a120'),
     availablePlans: vehicle.availablePlans?.length
       ? [...vehicle.availablePlans]
@@ -570,7 +571,7 @@ function normalizeVehicle(vehicle = {}) {
       '13a21': Number(vehicle.shareByPlan?.['13a21'] || 0),
       '22a84': Number(vehicle.shareByPlan?.['22a84'] || 0),
       '85a120': Number(vehicle.shareByPlan?.['85a120'] || 0),
-      'ctapura': Number(vehicle.shareByPlan?.['ctapura'] || 0)
+      'ctapura': Number(vehicle.shareByPlan?.['ctapura'] || baseCuotaPura || 0)
     },
     reservations: {
       '1': Number(vehicle.reservations?.['1'] || 0),
@@ -604,9 +605,22 @@ function cloneVehicles(list) {
 const PRICE_FILES_ROOT = 'prices_files';
 const ONLINE_FILES_ROOT = 'prices_img';
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const BRAND_FILE_PREFIX = 'precios_';
 
 function buildPriceTabId(year, month) {
   return `${year}-${String(month || '').trim().toLowerCase()}`;
+}
+
+function buildBrandFileToken(brand = '') {
+  return normalizeBrand(brand).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function buildBrandPriceFileName(brand = '') {
+  return `${BRAND_FILE_PREFIX}${buildBrandFileToken(brand)}.json`;
+}
+
+function getBrandPriceFileCandidates(folder = '') {
+  return BRANDS.map(brand => `${folder}/${buildBrandPriceFileName(brand)}`);
 }
 
 function buildPriceTabLabel(year, month) {
@@ -683,6 +697,23 @@ async function checkPriceFileExists(path) {
   }
 }
 
+async function resolvePriceFilePaths(tab) {
+  if (!tab?.folder && !tab?.pricePath) return [];
+  const folder = tab?.folder || '';
+  if (folder) {
+    const candidates = getBrandPriceFileCandidates(folder);
+    const checks = await Promise.all(candidates.map(async candidate => {
+      const exists = await checkPriceFileExists(candidate);
+      return exists ? candidate : null;
+    }));
+    const matches = checks.filter(Boolean);
+    if (matches.length) return matches;
+  }
+  const fallback = tab?.pricePath || (folder ? `${folder}/precios.json` : '');
+  if (fallback && await checkPriceFileExists(fallback)) return [fallback];
+  return [];
+}
+
 async function discoverPriceTabs() {
   const manifest = await fetchJsonIfExists(`${PRICE_FILES_ROOT}/manifest.json`);
   if (manifest?.entries?.length) {
@@ -695,8 +726,8 @@ async function discoverPriceTabs() {
         pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
         files: entry.files || []
       });
-      const exists = await checkPriceFileExists(tab.pricePath);
-      return exists ? tab : null;
+      const paths = await resolvePriceFilePaths(tab);
+      return paths.length ? tab : null;
     }));
     return checks.filter(Boolean);
   }
@@ -714,8 +745,8 @@ async function discoverPriceTabs() {
       });
     });
     const checks = await Promise.all(entries.map(async tab => {
-      const exists = await checkPriceFileExists(tab.pricePath);
-      return exists ? tab : null;
+      const paths = await resolvePriceFilePaths(tab);
+      return paths.length ? tab : null;
     }));
     return checks.filter(Boolean);
   }
@@ -730,15 +761,16 @@ async function discoverPriceTabs() {
   years.forEach(year => {
     MONTH_NAMES.forEach(month => {
       const pricePath = `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`;
-      checks.push(checkPriceFileExists(pricePath).then(exists => {
-        if (!exists) return null;
-        return ensurePriceTabDefaults({
-          id: buildPriceTabId(year, month),
-          year,
-          month,
-          folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
-          pricePath
-        });
+      const tab = ensurePriceTabDefaults({
+        id: buildPriceTabId(year, month),
+        year,
+        month,
+        folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
+        pricePath
+      });
+      checks.push(resolvePriceFilePaths(tab).then(paths => {
+        if (!paths.length) return null;
+        return tab;
       }));
     });
   });
@@ -2573,6 +2605,7 @@ function renderPriceTabs() {
 }
 
 function getPriceFilePath(tab = getActivePriceTab()) {
+  if (tab?.folder) return `${tab.folder}/${BRAND_FILE_PREFIX}[marca].json`;
   return tab?.pricePath || '';
 }
 
@@ -2642,6 +2675,31 @@ function applyImportedVehicles(data, source = 'archivo', { silentToast = false }
   return true;
 }
 
+function extractVehiclesFromPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.vehicles)) return payload.vehicles;
+  return [];
+}
+
+function mergePricePayloads(payloads = []) {
+  const vehicles = payloads.flatMap(payload => extractVehiclesFromPayload(payload));
+  const base = payloads.find(payload => payload && !Array.isArray(payload)) || {};
+  const updatedAt = payloads.reduce((latest, payload) => {
+    const value = payload?.updatedAt;
+    if (!value) return latest;
+    if (!latest) return value;
+    return new Date(value) > new Date(latest) ? value : latest;
+  }, base.updatedAt || '');
+  return {
+    month: base.month || '',
+    year: base.year || '',
+    tabId: base.tabId || '',
+    updatedAt,
+    vehicles,
+    brandSettings: base.brandSettings || []
+  };
+}
+
 function markActiveDraftDirty() {
   activePriceSource = 'local';
   syncActiveVehiclesToDraft({ force: true });
@@ -2672,27 +2730,30 @@ async function loadPricesFromServer({ silent = false, forceServer = false } = {}
     renderPriceTabs();
     return draft;
   }
-  const path = getPriceFilePath(active);
-  if (!path) {
-    if (!silent) renderPriceAlerts('No hay archivo de precios para este mes.', 'warning');
+  const paths = await resolvePriceFilePaths(active);
+  if (!paths.length) {
+    if (!silent) renderPriceAlerts('No hay archivos de precios para este mes.', 'warning');
     return null;
   }
   try {
-    const response = await fetch(path, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const payloads = await Promise.all(paths.map(async path => {
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    }));
+    const data = mergePricePayloads(payloads);
     applyImportedVehicles(data, 'servidor', { silentToast: silent });
-    renderPriceAlerts(`Precios cargados desde ${path}`, 'success');
-    updatePriceImportStatuses({ server: `Cargado desde ${path}` });
+    renderPriceAlerts(`Precios cargados desde ${paths.join(', ')}`, 'success');
+    updatePriceImportStatuses({ server: `Cargado desde ${paths.join(', ')}` });
     renderPriceTabs();
     return data;
   } catch (err) {
     activePriceSource = activePriceSource || 'predeterminado';
     syncVehiclesFromDraftOrFallback(active);
     if (!silent) {
-      renderPriceAlerts('No hay archivo de precios para este mes, se usan valores locales.', 'warning');
-      showToast('No se encontró precios.json en la carpeta del mes.', 'warning');
-      updatePriceImportStatuses({ server: 'No se encontró precios.json' });
+      renderPriceAlerts('No hay archivos de precios para este mes, se usan valores locales.', 'warning');
+      showToast('No se encontraron archivos de precios en la carpeta del mes.', 'warning');
+      updatePriceImportStatuses({ server: 'No se encontraron archivos de precios' });
     }
     renderPriceTabs();
     return null;
@@ -2711,18 +2772,31 @@ function buildPricePayload() {
   };
 }
 
-function downloadPriceFile() {
-  const payload = buildPricePayload();
+function downloadJsonFile(payload, filename) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'precios.json';
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  showToast('precios.json descargado', 'success');
+}
+
+function downloadPriceFile() {
+  const payload = buildPricePayload();
+  const grouped = payload.vehicles.reduce((acc, vehicle) => {
+    const brand = normalizeBrand(vehicle.brand);
+    if (!acc[brand]) acc[brand] = [];
+    acc[brand].push(vehicle);
+    return acc;
+  }, {});
+  Object.entries(grouped).forEach(([brand, vehiclesList]) => {
+    const filePayload = { ...payload, vehicles: vehiclesList };
+    downloadJsonFile(filePayload, buildBrandPriceFileName(brand));
+  });
+  showToast('Archivos de precios por marca descargados', 'success');
 }
 
 function copyPriceJson() {
@@ -2851,7 +2925,7 @@ function bindPriceImportActions() {
   if (exportBtn && !exportBtn.dataset.bound) {
     exportBtn.addEventListener('click', () => {
       downloadPriceFile();
-      showToast('Exporta el archivo en la carpeta del mes como precios.json', 'info');
+      showToast('Exporta los archivos en la carpeta del mes como precios_[marca].json', 'info');
     });
     exportBtn.dataset.bound = 'true';
   }
@@ -3368,7 +3442,7 @@ function renderVehicleEditorList() {
   }
   if (empty) empty.classList.add('hidden');
   list.innerHTML = filtered.map(({ vehicle, index }) => `
-      <button class="editor-item ${index === vehicleEditorState.selectedIndex ? 'active' : ''}" data-index="${index}">
+      <button class="editor-item ${index === vehicleEditorState.selectedIndex ? 'active' : ''}" data-index="${index}" style="${buildBrandCardStyle(vehicle.brand)}">
         <strong>${vehicle.name || 'Modelo sin nombre'}</strong>
         <span class="muted tiny">${normalizeBrand(vehicle.brand)} • ${resolveVehiclePlanLabel(vehicle, vehicle.planProfile?.planType) || 'Plan sin definir'}</span>
       </button>
@@ -3587,6 +3661,7 @@ function applyVehicleEditorChanges() {
   };
   vehicle.availablePlans = availablePlans;
   vehicle.shareByPlan = vehicle.shareByPlan || {};
+  vehicle.shareByPlan.ctapura = vehicle.cuotaPura;
   document.querySelectorAll('[data-editor-plan]').forEach(input => {
     const planKey = input.dataset.editorPlan;
     vehicle.shareByPlan[planKey] = parseMoney(input.dataset.raw || input.value || 0);
@@ -3642,7 +3717,7 @@ function renderVehicleTable() {
   } else if (activePriceSource === 'local') {
     renderPriceAlerts('Precios editados localmente para este mes.', 'success');
   } else {
-    renderPriceAlerts('No hay archivo de precios para este mes, se usan los valores predeterminados.', 'warning');
+    renderPriceAlerts('No hay archivos de precios para este mes, se usan los valores predeterminados.', 'warning');
   }
   const container = document.getElementById('vehicleTables');
   if (!container) return;

@@ -1097,7 +1097,7 @@
         <div>
           <p class="eyebrow">Precios del mes</p>
           <h3>Importar o exportar valores</h3>
-          <p class="muted tiny">Sincroniza con precios.json del mes o carga un archivo manual.</p>
+          <p class="muted tiny">Sincroniza con precios_[marca].json del mes o carga un archivo manual.</p>
         </div>
         <button id="priceImportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
@@ -1106,7 +1106,7 @@
           <div class="card-head compact">
             <p class="eyebrow">Carga automática</p>
             <h4>Desde la carpeta del mes</h4>
-            <p class="muted tiny">Busca precios.json dentro de la carpeta activa.</p>
+            <p class="muted tiny">Busca precios_[marca].json dentro de la carpeta activa.</p>
           </div>
           <p class="muted tiny" id="serverPricePath">Ruta: -</p>
           <div class="actions compact">
@@ -1117,7 +1117,7 @@
         <div class="card ghost">
           <div class="card-head compact">
             <p class="eyebrow">Importación manual</p>
-            <h4>Sube un precios.json</h4>
+            <h4>Sube un archivo de precios</h4>
             <p class="muted tiny">Usa un archivo compatible generado por la plataforma.</p>
           </div>
           <div class="upload-box" id="priceUploadBox">
@@ -1135,10 +1135,10 @@
           <div class="card-head compact">
             <p class="eyebrow">Respaldo inmediato</p>
             <h4>Exportar precios actuales</h4>
-            <p class="muted tiny">Descarga precios.json listo para subir al servidor.</p>
+            <p class="muted tiny">Descarga los precios_[marca].json listos para subir al servidor.</p>
           </div>
           <div class="actions compact">
-            <button id="downloadPriceFile" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar precios.json</button>
+            <button id="downloadPriceFile" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar precios por marca</button>
             <button id="copyPriceJson" class="ghost-btn" type="button"><i class='bx bx-copy'></i>Copiar JSON</button>
           </div>
           <p class="muted tiny" id="exportPriceHint">Incluye todos los importes editados.</p>
@@ -1155,10 +1155,10 @@
         <div>
           <p class="eyebrow">Modo editor</p>
           <h3>Gestión de modelos y valores</h3>
-          <p class="muted tiny">Edita el catálogo actual y exporta precios.json cuando termines.</p>
+          <p class="muted tiny">Edita el catálogo actual y exporta precios_[marca].json cuando termines.</p>
         </div>
         <div class="editor-head-actions">
-          <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Descargar Archivo de Precios</button>
+          <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Descargar Archivos de Precios</button>
           <button id="vehicleEditorClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
         </div>
       </div>
@@ -1321,13 +1321,6 @@
                       <div class="money-field">
                         <span class="prefix">$</span>
                         <input class="money" type="text" inputmode="numeric" data-editor-plan="85a120" />
-                      </div>
-                    </div>
-                    <div class="field">
-                      <label>Cuota pura</label>
-                      <div class="money-field">
-                        <span class="prefix">$</span>
-                        <input class="money" type="text" inputmode="numeric" data-editor-plan="ctapura" />
                       </div>
                     </div>
                   </div>
