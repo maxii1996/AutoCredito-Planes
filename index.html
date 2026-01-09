@@ -1294,36 +1294,7 @@
                       <p class="muted tiny">Importes de referencia por tramo.</p>
                     </div>
                   </div>
-                  <div class="form-grid two">
-                    <div class="field">
-                      <label>Cuota 2 a 12</label>
-                      <div class="money-field">
-                        <span class="prefix">$</span>
-                        <input class="money" type="text" inputmode="numeric" data-editor-plan="2a12" />
-                      </div>
-                    </div>
-                    <div class="field">
-                      <label>Cuota 13 a 21</label>
-                      <div class="money-field">
-                        <span class="prefix">$</span>
-                        <input class="money" type="text" inputmode="numeric" data-editor-plan="13a21" />
-                      </div>
-                    </div>
-                    <div class="field">
-                      <label>Cuota 22 a 84</label>
-                      <div class="money-field">
-                        <span class="prefix">$</span>
-                        <input class="money" type="text" inputmode="numeric" data-editor-plan="22a84" />
-                      </div>
-                    </div>
-                    <div class="field">
-                      <label>Cuota 85 a 120</label>
-                      <div class="money-field">
-                        <span class="prefix">$</span>
-                        <input class="money" type="text" inputmode="numeric" data-editor-plan="85a120" />
-                      </div>
-                    </div>
-                  </div>
+                  <div class="form-grid two" id="editorPlanRanges"></div>
                 </div>
                 <div class="field-group compact">
                   <div class="field-head">
@@ -1380,7 +1351,7 @@
               <div class="brand-manager-head">
                 <div>
                   <p class="eyebrow">Gestión de Marcas</p>
-                  <p class="muted tiny">Define color y nombre para cada marca disponible.</p>
+                  <p class="muted tiny">Define color, nombre y esquema de cuotas para cada marca disponible.</p>
                 </div>
                 <button id="addBrand" class="secondary-btn mini" type="button"><i class='bx bx-plus'></i>Agregar marca</button>
               </div>

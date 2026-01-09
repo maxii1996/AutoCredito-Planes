@@ -4,9 +4,32 @@ const BRANDS = ['Chevrolet', 'Renault', 'FIAT', 'Volkswagen', 'Peugeot'];
 const DEFAULT_BRAND = 'Chevrolet';
 const DEFAULT_WITHDRAWAL = { installments: [], requirementType: 'percent', requirementValue: null, mode: 'sorteo_licitacion' };
 const BRAND_COLOR_PALETTE = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6'];
+const DEFAULT_PLAN_SCHEME = [
+  { start: 2, end: 12 },
+  { start: 13, end: 21 },
+  { start: 22, end: 84 },
+  { start: 85, end: 120 }
+];
+const BRAND_PLAN_SCHEMES = {
+  FIAT: [
+    { start: 2, end: 12 },
+    { start: 13, end: 24 },
+    { start: 25, end: 84 }
+  ],
+  Volkswagen: [
+    { start: 2, end: 12 },
+    { start: 13, end: 84 }
+  ],
+  Renault: [
+    { start: 2, end: 12 },
+    { start: 13, end: 24 },
+    { start: 25, end: 84 }
+  ]
+};
 const defaultBrandSettings = BRANDS.map((brand, index) => ({
   name: brand,
-  color: BRAND_COLOR_PALETTE[index % BRAND_COLOR_PALETTE.length]
+  color: BRAND_COLOR_PALETTE[index % BRAND_COLOR_PALETTE.length],
+  planScheme: BRAND_PLAN_SCHEMES[brand] || DEFAULT_PLAN_SCHEME
 }));
 
 const panelTitles = {
@@ -445,6 +468,29 @@ function normalizeBrand(brand = '') {
   return cleaned || DEFAULT_BRAND;
 }
 
+function normalizePlanScheme(scheme = []) {
+  const normalized = (scheme || []).map(item => {
+    const startRaw = item?.start ?? item?.from ?? item?.cuotaInicial;
+    const endRaw = item?.end ?? item?.to ?? item?.cuotaFinal;
+    const start = Number(startRaw);
+    const end = Number(endRaw);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    if (start <= 0 || end <= 0) return null;
+    const safeStart = Math.round(start);
+    const safeEnd = Math.round(end);
+    return safeStart <= safeEnd ? { start: safeStart, end: safeEnd } : { start: safeEnd, end: safeStart };
+  }).filter(Boolean);
+  if (normalized.length) {
+    return normalized.slice(0, 5);
+  }
+  return DEFAULT_PLAN_SCHEME.map(range => ({ ...range }));
+}
+
+function resolveBrandPlanScheme(brandName, scheme) {
+  const fallback = BRAND_PLAN_SCHEMES[brandName] || DEFAULT_PLAN_SCHEME;
+  return normalizePlanScheme(scheme || fallback);
+}
+
 function normalizeHexColor(color, fallback) {
   const cleaned = String(color || '').trim();
   if (/^#([0-9a-f]{3}){1,2}$/i.test(cleaned)) return cleaned;
@@ -462,17 +508,29 @@ function normalizeBrandSettings(settings = [], list = vehicles) {
   const map = new Map();
   defaultBrandSettings.forEach(brand => {
     const name = normalizeBrand(brand.name);
-    map.set(name, { name, color: normalizeHexColor(brand.color, defaultColorForBrand(name)) });
+    map.set(name, {
+      name,
+      color: normalizeHexColor(brand.color, defaultColorForBrand(name)),
+      planScheme: resolveBrandPlanScheme(name, brand.planScheme)
+    });
   });
   (settings || []).forEach(brand => {
     const name = normalizeBrand(brand?.name || brand?.brand);
     if (!name) return;
-    map.set(name, { name, color: normalizeHexColor(brand?.color, defaultColorForBrand(name)) });
+    map.set(name, {
+      name,
+      color: normalizeHexColor(brand?.color, defaultColorForBrand(name)),
+      planScheme: resolveBrandPlanScheme(name, brand?.planScheme)
+    });
   });
   (list || []).forEach(vehicle => {
     const name = normalizeBrand(vehicle?.brand);
     if (!map.has(name)) {
-      map.set(name, { name, color: defaultColorForBrand(name) });
+      map.set(name, {
+        name,
+        color: defaultColorForBrand(name),
+        planScheme: resolveBrandPlanScheme(name)
+      });
     }
   });
   return Array.from(map.values());
@@ -492,6 +550,40 @@ function getBrandColor(brand) {
   return getBrandSetting(brand)?.color || defaultColorForBrand(normalizeBrand(brand));
 }
 
+function getBrandPlanScheme(brand) {
+  const normalized = normalizeBrand(brand);
+  return getBrandSetting(normalized)?.planScheme || resolveBrandPlanScheme(normalized);
+}
+
+function buildPlanRangeKey(range) {
+  return `${range.start}a${range.end}`;
+}
+
+function planLabelFromKey(key) {
+  if (key === 'ctapura') return 'Cuota pura';
+  const match = String(key || '').match(/^(\d+)\s*a\s*(\d+)$/i);
+  if (match) {
+    return `Cuota ${match[1]} a ${match[2]}`;
+  }
+  return key || 'Plan';
+}
+
+function getPlanRangesForBrand(brand, totalInstallments) {
+  const scheme = getBrandPlanScheme(brand);
+  return scheme.map(range => {
+    const from = Math.max(range.start, PLAN_START_INSTALLMENT);
+    const to = Number.isFinite(Number(totalInstallments))
+      ? Math.min(range.end, Number(totalInstallments))
+      : range.end;
+    return {
+      key: buildPlanRangeKey(range),
+      from,
+      to,
+      label: planLabelFromKey(buildPlanRangeKey(range))
+    };
+  }).filter(range => range.from <= range.to);
+}
+
 function toRgba(hex, alpha = 0.2) {
   const cleaned = hex.replace('#', '');
   const chunk = cleaned.length === 3
@@ -507,8 +599,8 @@ function toRgba(hex, alpha = 0.2) {
 
 function buildBrandCardStyle(brand) {
   const color = getBrandColor(brand);
-  const soft = toRgba(color, 0.18);
-  const border = toRgba(color, 0.35);
+  const soft = toRgba(color, 0.12);
+  const border = toRgba(color, 0.28);
   return `--brand-color:${color}; --brand-color-soft:${soft}; --brand-color-border:${border};`;
 }
 
@@ -555,6 +647,7 @@ function normalizeWithdrawal(withdrawal = {}) {
 
 function normalizeVehicle(vehicle = {}) {
   const baseCuotaPura = Number(vehicle.cuotaPura || vehicle.shareByPlan?.['ctapura'] || 0);
+  const rawShareByPlan = { ...(vehicle.shareByPlan || {}) };
   const normalized = {
     ...vehicle,
     name: vehicle.name || '',
@@ -567,11 +660,12 @@ function normalizeVehicle(vehicle = {}) {
       ? [...vehicle.availablePlans]
       : ['2a12', '13a21', '22a84', '85a120', 'ctapura'],
     shareByPlan: {
-      '2a12': Number(vehicle.shareByPlan?.['2a12'] || 0),
-      '13a21': Number(vehicle.shareByPlan?.['13a21'] || 0),
-      '22a84': Number(vehicle.shareByPlan?.['22a84'] || 0),
-      '85a120': Number(vehicle.shareByPlan?.['85a120'] || 0),
-      'ctapura': Number(vehicle.shareByPlan?.['ctapura'] || baseCuotaPura || 0)
+      ...rawShareByPlan,
+      '2a12': Number(rawShareByPlan?.['2a12'] || 0),
+      '13a21': Number(rawShareByPlan?.['13a21'] || 0),
+      '22a84': Number(rawShareByPlan?.['22a84'] || 0),
+      '85a120': Number(rawShareByPlan?.['85a120'] || 0),
+      'ctapura': Number(rawShareByPlan?.['ctapura'] || baseCuotaPura || 0)
     },
     reservations: {
       '1': Number(vehicle.reservations?.['1'] || 0),
@@ -3110,6 +3204,7 @@ function ensureVehicleEditorDefaults(vehicle = {}) {
     },
     availablePlans,
     shareByPlan: {
+      ...(normalized.shareByPlan || {}),
       '2a12': Number(normalized.shareByPlan?.['2a12'] || 0),
       '13a21': Number(normalized.shareByPlan?.['13a21'] || 0),
       '22a84': Number(normalized.shareByPlan?.['22a84'] || 0),
@@ -3156,6 +3251,7 @@ function bindVehicleEditor() {
   const integrationInput = document.getElementById('editorPlanIntegration');
   const autoLabel = document.getElementById('editorPlanAutoLabel');
   const requirementTypeSelect = document.getElementById('editorWithdrawalRequirementType');
+  const brandSelect = document.getElementById('editorBrand');
   if (close && !close.dataset.bound) {
     close.addEventListener('click', () => toggleModal(modal, false));
     close.dataset.bound = 'true';
@@ -3242,6 +3338,19 @@ function bindVehicleEditor() {
     });
     requirementTypeSelect.dataset.bound = 'true';
   }
+  if (brandSelect && !brandSelect.dataset.boundScheme) {
+    brandSelect.addEventListener('change', () => {
+      const maxInstallments = resolveMaxInstallments(maxInstallmentsInput?.value, '85a120');
+      renderEditorPlanRanges({ brand: brandSelect.value }, maxInstallments);
+      document.querySelectorAll('#editorPlanRanges input.money').forEach(input => {
+        if (input.dataset.bound) return;
+        bindMoneyInput(input, () => {});
+        input.dataset.bound = 'true';
+      });
+      scheduleVehicleEditorAutosave();
+    });
+    brandSelect.dataset.boundScheme = 'true';
+  }
   modal?.querySelectorAll('[data-editor-tab]').forEach(btn => {
     if (btn.dataset.bound) return;
     btn.addEventListener('click', () => setVehicleEditorTab(btn.dataset.editorTab));
@@ -3317,10 +3426,43 @@ function addBrandSetting() {
     index += 1;
   }
   const color = defaultColorForBrand(name);
-  brandSettings = [...settings, { name, color }];
+  brandSettings = [...settings, { name, color, planScheme: resolveBrandPlanScheme(name) }];
   handleBrandSettingsChange();
   renderBrandManager();
   renderEditorBrandSelect(name);
+}
+
+const PLAN_SCHEME_SLOTS = 5;
+const PLAN_SCHEME_OPTIONS = Array.from({ length: 119 }, (_, idx) => idx + 2);
+
+function buildInstallmentOptions(selectedValue) {
+  const selected = Number(selectedValue);
+  return PLAN_SCHEME_OPTIONS.map(option => (
+    `<option value="${option}" ${option === selected ? 'selected' : ''}>${option}</option>`
+  )).join('');
+}
+
+function buildPlanSchemeSlots(scheme = []) {
+  const normalized = normalizePlanScheme(scheme);
+  const slots = Array.from({ length: PLAN_SCHEME_SLOTS }, (_, idx) => normalized[idx] || null);
+  return slots.map(slot => ({
+    start: slot?.start ?? '',
+    end: slot?.end ?? ''
+  }));
+}
+
+function readPlanSchemeFromRow(row) {
+  const slots = [];
+  for (let idx = 0; idx < PLAN_SCHEME_SLOTS; idx += 1) {
+    const startSelect = row?.querySelector(`[data-plan-start="${idx}"]`);
+    const endSelect = row?.querySelector(`[data-plan-end="${idx}"]`);
+    const start = Number(startSelect?.value);
+    const end = Number(endSelect?.value);
+    if (Number.isFinite(start) && Number.isFinite(end)) {
+      slots.push({ start, end });
+    }
+  }
+  return normalizePlanScheme(slots);
 }
 
 function renderBrandManager() {
@@ -3329,9 +3471,32 @@ function renderBrandManager() {
   const settings = ensureBrandSettings();
   list.innerHTML = settings.map((brand, index) => `
       <div class="brand-manager-row" data-index="${index}">
-        <input type="text" value="${brand.name}" data-brand-name />
-        <input type="color" value="${brand.color}" data-brand-color />
-        <span class="muted tiny" data-brand-color-label>${brand.color.toUpperCase()}</span>
+        <div class="brand-manager-main">
+          <input type="text" value="${brand.name}" data-brand-name />
+          <input type="color" value="${brand.color}" data-brand-color />
+          <span class="muted tiny" data-brand-color-label>${brand.color.toUpperCase()}</span>
+        </div>
+        <div class="brand-scheme">
+          <p class="muted tiny">Esquema de cuotas por tramos</p>
+          <div class="brand-scheme-grid">
+            ${buildPlanSchemeSlots(brand.planScheme).map((slot, slotIndex) => `
+              <div class="brand-scheme-row">
+                <span class="muted tiny">Tramo ${slotIndex + 1}</span>
+                <div class="inline-field scheme-field">
+                  <select data-plan-start="${slotIndex}">
+                    <option value="">Cuota inicial</option>
+                    ${buildInstallmentOptions(slot.start)}
+                  </select>
+                  <span class="muted tiny">a</span>
+                  <select data-plan-end="${slotIndex}">
+                    <option value="">Cuota final</option>
+                    ${buildInstallmentOptions(slot.end)}
+                  </select>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
       </div>
     `).join('');
   list.querySelectorAll('[data-brand-name]').forEach(input => {
@@ -3351,7 +3516,7 @@ function renderBrandManager() {
         input.value = previous || '';
         return;
       }
-      brandSettings[idx] = { ...brandSettings[idx], name: nextName };
+      brandSettings[idx] = { ...brandSettings[idx], name: nextName, planScheme: resolveBrandPlanScheme(nextName, brandSettings[idx]?.planScheme) };
       vehicles.forEach(vehicle => {
         if (normalizeBrand(vehicle.brand) === previous) {
           vehicle.brand = nextName;
@@ -3379,6 +3544,20 @@ function renderBrandManager() {
       handleBrandSettingsChange();
     });
     input.dataset.bound = 'true';
+  });
+  list.querySelectorAll('.brand-manager-row').forEach(row => {
+    row.querySelectorAll('select[data-plan-start], select[data-plan-end]').forEach(select => {
+      if (select.dataset.bound) return;
+      select.addEventListener('change', () => {
+        const idx = Number(row.dataset.index);
+        brandSettings[idx] = {
+          ...brandSettings[idx],
+          planScheme: readPlanSchemeFromRow(row)
+        };
+        handleBrandSettingsChange();
+      });
+      select.dataset.bound = 'true';
+    });
   });
 }
 
@@ -3465,12 +3644,43 @@ function renderVehicleEditorList() {
     return;
   }
   if (empty) empty.classList.add('hidden');
-  list.innerHTML = filtered.map(({ vehicle, index }) => `
-      <button class="editor-item ${index === vehicleEditorState.selectedIndex ? 'active' : ''}" data-index="${index}" style="${buildBrandCardStyle(vehicle.brand)}">
-        <strong>${vehicle.name || 'Modelo sin nombre'}</strong>
-        <span class="muted tiny">${normalizeBrand(vehicle.brand)} • ${resolveVehiclePlanLabel(vehicle, vehicle.planProfile?.planType) || 'Plan sin definir'}</span>
-      </button>
-    `).join('');
+  const grouped = filtered.reduce((acc, entry) => {
+    const brand = normalizeBrand(entry.vehicle.brand);
+    if (!acc[brand]) acc[brand] = [];
+    acc[brand].push(entry);
+    return acc;
+  }, {});
+  const brandOrder = Object.keys(grouped).sort((a, b) => {
+    const aIndex = BRANDS.indexOf(a);
+    const bIndex = BRANDS.indexOf(b);
+    if (aIndex !== -1 || bIndex !== -1) {
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    }
+    return a.localeCompare(b);
+  });
+  list.innerHTML = brandOrder.map(brand => {
+    const entries = grouped[brand] || [];
+    const style = buildBrandCardStyle(brand);
+    return `
+      <div class="editor-brand-group">
+        <div class="editor-brand-head" style="${style}">
+          <span class="editor-brand-count">(${entries.length})</span>
+          <span class="editor-brand-name">${brand}</span>
+          <i class='bx bx-chevron-down'></i>
+        </div>
+        <div class="editor-brand-items">
+          ${entries.map(({ vehicle, index }) => `
+            <button class="editor-item ${index === vehicleEditorState.selectedIndex ? 'active' : ''}" data-index="${index}" style="${buildBrandCardStyle(vehicle.brand)}">
+              <strong>${vehicle.name || 'Modelo sin nombre'}</strong>
+              <span class="muted tiny">${normalizeBrand(vehicle.brand)} • ${resolveVehiclePlanLabel(vehicle, vehicle.planProfile?.planType) || 'Plan sin definir'}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
   list.querySelectorAll('.editor-item').forEach(btn => {
     btn.addEventListener('click', () => {
       applyVehicleEditorChanges();
@@ -3497,6 +3707,25 @@ function getWithdrawalRequirementNodes() {
     amountInput: document.getElementById('editorWithdrawalRequirementAmount'),
     amountField: document.getElementById('editorWithdrawalRequirementAmountField')
   };
+}
+
+function renderEditorPlanRanges(vehicle, totalInstallments) {
+  const container = document.getElementById('editorPlanRanges');
+  if (!container) return;
+  const ranges = getPlanRangesForBrand(normalizeBrand(vehicle?.brand || DEFAULT_BRAND), totalInstallments);
+  if (!ranges.length) {
+    container.innerHTML = '<p class="muted tiny">No hay tramos definidos para esta marca.</p>';
+    return;
+  }
+  container.innerHTML = ranges.map(range => `
+      <div class="field">
+        <label>${range.label}</label>
+        <div class="money-field">
+          <span class="prefix">$</span>
+          <input class="money" type="text" inputmode="numeric" data-editor-plan="${range.key}" />
+        </div>
+      </div>
+    `).join('');
 }
 
 function setWithdrawalRequirementFields(withdrawal = {}) {
@@ -3569,6 +3798,12 @@ function renderVehicleEditorForm() {
     }
     if (pactadaInput) pactadaInput.value = emptyForm.benefits.pactada;
     if (bonificacionInput) bonificacionInput.value = emptyForm.benefits.bonificacion;
+    renderEditorPlanRanges(emptyForm, emptyForm.planProfile.maxInstallments);
+    document.querySelectorAll('#editorPlanRanges input.money').forEach(input => {
+      if (input.dataset.bound) return;
+      bindMoneyInput(input, () => {});
+      input.dataset.bound = 'true';
+    });
     document.querySelectorAll('[data-editor-plan]').forEach(input => setMoneyValue(input, 0));
     document.querySelectorAll('[data-editor-reserva]').forEach(input => setMoneyValue(input, 0));
     document.querySelectorAll('[data-editor-available]').forEach(input => {
@@ -3616,6 +3851,12 @@ function renderVehicleEditorForm() {
   }
   if (pactadaInput) pactadaInput.value = form.benefits.pactada;
   if (bonificacionInput) bonificacionInput.value = form.benefits.bonificacion;
+  renderEditorPlanRanges(form, form.planProfile.maxInstallments);
+  document.querySelectorAll('#editorPlanRanges input.money').forEach(input => {
+    if (input.dataset.bound) return;
+    bindMoneyInput(input, () => {});
+    input.dataset.bound = 'true';
+  });
   document.querySelectorAll('[data-editor-plan]').forEach(input => {
     const planKey = input.dataset.editorPlan;
     const value = form.shareByPlan[planKey] || 0;
@@ -3741,6 +3982,16 @@ function buildBrandSummaryList(list = vehicles) {
     .map(([brand, count]) => `${brand} (${count} elementos)`);
 }
 
+function formatVehicleNameForTable(name) {
+  const clean = String(name || '').trim();
+  if (!clean) return 'Modelo sin nombre';
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length <= 4 || clean.length <= 28) return clean;
+  const firstLine = words.slice(0, 4).join(' ');
+  const rest = words.slice(4).join(' ');
+  return `${firstLine}<br><span class="vehicle-name-sub">${rest}</span>`;
+}
+
 function renderVehicleTable() {
   renderPriceTabs();
   clearPriceAlerts();
@@ -3757,14 +4008,6 @@ function renderVehicleTable() {
   const container = document.getElementById('vehicleTables');
   if (!container) return;
   renderVehicleBrandFilterControl();
-  const plans = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
-  const labels = {
-    '2a12': 'Cuota 2 a 12',
-    '13a21': 'Cuota 13 a 21',
-    '22a84': 'Cuota 22 a 84',
-    '85a120': 'Cuota 85 a 120',
-    'ctapura': 'Cuota pura'
-  };
   const brandFilter = uiState.vehicleFilters?.brand || 'all';
   const filteredVehicles = brandFilter === 'all'
     ? vehicles.map((vehicle, index) => ({ vehicle, index }))
@@ -3790,8 +4033,8 @@ function renderVehicleTable() {
     return a.localeCompare(b);
   });
 
-  const buildTable = (entries = []) => {
-    const head = `<tr><th>Plan</th>${entries.map(({ vehicle }) => `<th>${vehicle.name}</th>`).join('')}</tr>`;
+  const buildTable = (entries = [], planRanges = []) => {
+    const head = `<tr><th>Plan</th>${entries.map(({ vehicle }) => `<th><span class="vehicle-name">${formatVehicleNameForTable(vehicle.name)}</span></th>`).join('')}</tr>`;
     const bodyRows = [];
     bodyRows.push(`<tr><td>Precio de lista</td>${entries.map(({ vehicle, index }) => `
       <td>
@@ -3813,18 +4056,29 @@ function renderVehicleTable() {
       </td>`;
     }).join('')}</tr>`);
 
-    plans.forEach(plan => {
-      bodyRows.push(`<tr><td>${labels[plan]}</td>${entries.map(({ vehicle, index }) => {
-        const value = vehicle.shareByPlan[plan] ?? vehicle.cuotaPura;
+    planRanges.forEach(range => {
+      bodyRows.push(`<tr><td>${range.label}</td>${entries.map(({ vehicle, index }) => {
+        const value = vehicle.shareByPlan[range.key] ?? vehicle.cuotaPura;
         return `
           <td>
             <div class="money-field">
               <span class="prefix">$</span>
-              <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-plan="${plan}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
+              <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-plan="${range.key}" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
             </div>
           </td>`;
       }).join('')}</tr>`);
     });
+
+    bodyRows.push(`<tr><td>${planLabelFromKey('ctapura')}</td>${entries.map(({ vehicle, index }) => {
+      const value = vehicle.shareByPlan.ctapura ?? vehicle.cuotaPura;
+      return `
+        <td>
+          <div class="money-field">
+            <span class="prefix">$</span>
+            <input class="money" type="text" inputmode="numeric" data-vehicle="${index}" data-plan="ctapura" value="${value ? number.format(value) : ''}" data-raw="${value || ''}" placeholder="$ 0" disabled>
+          </div>
+        </td>`;
+    }).join('')}</tr>`);
 
     bodyRows.push(`<tr><td>Integración</td>${entries.map(({ vehicle, index }) => {
       return `<td>
@@ -3871,7 +4125,8 @@ function renderVehicleTable() {
 
   container.innerHTML = brandOrder.map(brand => {
     const entries = grouped[brand] || [];
-    const { head, bodyRows } = buildTable(entries);
+    const planRanges = getPlanRangesForBrand(brand);
+    const { head, bodyRows } = buildTable(entries, planRanges);
     const style = buildBrandCardStyle(brand);
     return `
       <div class="vehicle-brand-card" style="${style}">
@@ -4530,12 +4785,10 @@ function buildCoverageSegments(totalInstallments, cuotaPura, contributions = [],
 }
 
 
-function rangeKeyForInstallment(i, totalInstallments) {
-  if (i <= 12) return '2a12';
-  if (i <= 21) return '13a21';
-  if (totalInstallments <= 84) return '22a84';
-  if (i <= 84) return '22a84';
-  return '85a120';
+function rangeKeyForInstallment(i, planRanges = [], fallbackKey) {
+  const match = (planRanges || []).find(range => i >= range.from && i <= range.to);
+  if (match?.key) return match.key;
+  return fallbackKey;
 }
 
 function buildInstallmentSchedule({
@@ -4544,7 +4797,8 @@ function buildInstallmentSchedule({
   totalInstallments,
   coverageSegments = [],
   cuotaPura,
-  planType
+  planType,
+  planRanges = []
 }) {
   const amountsByRange = {};
   const coverageMap = {};
@@ -4559,7 +4813,7 @@ function buildInstallmentSchedule({
 
   const entries = [];
   for (let i = PLAN_START_INSTALLMENT; i <= totalInstallments; i++) {
-    const rangeKey = rangeKeyForInstallment(i, totalInstallments);
+    const rangeKey = rangeKeyForInstallment(i, planRanges, planType);
     const baseAmount = vehicle?.shareByPlan?.[rangeKey]
       ?? vehicle?.shareByPlan?.[planType]
       ?? vehicle?.cuotaPura
@@ -4622,13 +4876,15 @@ function computePaymentProjection({ vehicle, planType, tradeInValue = 0, tradeIn
 
   const outstanding = Math.max(outstandingBeforeAdvance - additionalAdvance, 0);
   const coverage = buildCoverageSegments(totalInstallments, baseCatalogCuota, contributions, outstanding, { advancePayments });
+  const planRanges = getPlanRangesForBrand(vehicle?.brand || DEFAULT_BRAND, totalInstallments);
   const schedule = buildInstallmentSchedule({
     vehicle,
     priceRatio,
     totalInstallments,
     coverageSegments: coverage.segments,
     cuotaPura: baseCatalogCuota,
-    planType
+    planType,
+    planRanges
   });
   const cuotaAjustada = schedule.nextInstallmentAmount || baseCatalogCuota;
   const remainingInstallments = coverage.remainingInstallments || schedule.remainingInstallments;
@@ -4780,14 +5036,9 @@ function updatePlanSummary() {
     { label: 'Monto para adelantar cuotas', value: advancePayments && advanceAmount ? currency.format(advanceAmount) : 'Sin adelantos cargados', helper: advancePayments ? 'Se usa la cuota pura para descontar las últimas cuotas.' : 'Activa adelantos para usar un monto adicional.' }
   ]);
 
-  const rangeLimits = {
-    '2a12': { from: 2, to: 12 },
-    '13a21': { from: 13, to: 21 },
-    '22a84': { from: 22, to: 84 },
-    '85a120': { from: 85, to: 120 },
-    'ctapura': { from: PLAN_START_INSTALLMENT, to: projection.totalInstallments || 120 }
-  };
-  const rangeOrder = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
+  const planRanges = getPlanRangesForBrand(v.brand, projection.totalInstallments);
+  const pureRange = { key: 'ctapura', from: PLAN_START_INSTALLMENT, to: projection.totalInstallments || 120, label: planLabelFromKey('ctapura') };
+  const activeKey = planRanges.some(range => range.key === plan) ? plan : (planRanges[0]?.key || 'ctapura');
   const describeCoverage = (from, to) => {
     const notes = coverageSegments.filter(seg => {
       const overlapFrom = Math.max(from, seg.from);
@@ -4804,16 +5055,16 @@ function updatePlanSummary() {
   };
   const rangeList = document.getElementById('planRangeList');
   if (rangeList) {
-    rangeList.innerHTML = rangeOrder.filter(key => v.shareByPlan?.[key] || key === plan || key === 'ctapura').map(key => {
-      const limits = rangeLimits[key];
-      const label = planLabel(key);
-      const baseAmount = key === 'ctapura'
+    const ranges = [...planRanges, pureRange];
+    rangeList.innerHTML = ranges.filter(range => v.shareByPlan?.[range.key] || range.key === plan || range.key === 'ctapura').map(range => {
+      const label = range.label || planLabelFromKey(range.key);
+      const baseAmount = range.key === 'ctapura'
         ? (projection.baseCatalogCuota || v.shareByPlan?.ctapura || projection.baseCatalogCuota)
-        : (projection.rangeAmounts?.[key] ?? v.shareByPlan?.[key] ?? cuotaBase);
-      const amount = key === plan ? projection.cuotaAjustada || baseAmount : baseAmount;
-      const status = limits ? describeCoverage(limits.from, limits.to) : 'Pendiente de pago';
+        : (projection.rangeAmounts?.[range.key] ?? v.shareByPlan?.[range.key] ?? cuotaBase);
+      const amount = range.key === activeKey ? projection.cuotaAjustada || baseAmount : baseAmount;
+      const status = describeCoverage(range.from, range.to);
       return `
-        <div class="range-card" data-active="${plan === key}">
+        <div class="range-card" data-active="${activeKey === range.key}">
           <h5>${label}</h5>
           <div class="amount">${currency.format(amount || 0)}</div>
           <div class="status">${status}</div>
@@ -4982,7 +5233,9 @@ function buildQuoteFromForm() {
     advancePayments,
     advanceAmount
   });
-  const cuotaBase = plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota);
+  const cuotaBase = plan === 'ctapura'
+    ? projection.baseCatalogCuota
+    : (projection.rangeAmounts?.[plan] ?? v.shareByPlan?.[plan] ?? projection.baseCatalogCuota);
   const cuota = projection.cuotaAjustada;
   const withdrawal = v.withdrawal || {};
   const withdrawalRequirement = resolveWithdrawalRequirement(withdrawal, projection.price);
@@ -5026,7 +5279,9 @@ function buildQuoteFromForm() {
     basePrice: projection.basePrice,
     priceApplied: projection.price,
     baseCuotaPura: projection.baseCatalogCuota,
-    cuotaBase: plan === 'ctapura' ? projection.baseCatalogCuota : (v.shareByPlan[plan] ?? projection.baseCatalogCuota),
+    cuotaBase: plan === 'ctapura'
+      ? projection.baseCatalogCuota
+      : (projection.rangeAmounts?.[plan] ?? v.shareByPlan?.[plan] ?? projection.baseCatalogCuota),
     cuotaAjustada: projection.cuotaAjustada,
     priceRatio: projection.priceRatio,
     startInstallment: projection.startInstallment,
@@ -5119,13 +5374,7 @@ function applyQuoteToForm(quote) {
 }
 
 function planLabel(key) {
-  return {
-    '2a12': 'Cuota 2 a 12',
-    '13a21': 'Cuota 13 a 21',
-    '22a84': 'Cuota 22 a 84',
-    '85a120': 'Cuota 85 a 120',
-    'ctapura': 'Cuota pura'
-  }[key] || key;
+  return planLabelFromKey(key);
 }
 
 function resolveVehiclePlanLabel(vehicle, fallbackPlanType) {
