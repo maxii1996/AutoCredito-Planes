@@ -2,32 +2,26 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-09T13:59:55.392Z",
+  "updatedAt": "2026-01-09T15:10:18.634Z",
   "vehicles": [
     {
-      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (70/30)",
+      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 70/30)",
       "brand": "FIAT",
       "basePrice": 37020000,
       "integration": 12957000,
       "cuotaPura": 308500,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 482258,
-        "13a21": 509653,
-        "22a84": 516841,
-        "85a120": 0,
+        "13a24": 509653,
+        "25a84": 516841,
         "ctapura": 308500
       },
       "reservations": {
@@ -35,46 +29,31 @@
         "3": 1571297,
         "6": 1813035
       },
-      "benefits": {
-        "pactada": "Pactada 4, 6, 9, 12 con 35%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          6,
-          9,
-          12
-        ],
+        "installments": [4, 6, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.35,
         "mode": "pactada"
       }
     },
     {
-      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (90/10)",
+      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 90/10)",
       "brand": "FIAT",
       "basePrice": 37020000,
       "integration": 3702000,
       "cuotaPura": 396643,
       "planProfile": {
         "label": "90/10 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.9,
         "integrationPct": 0.1,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 615649,
-        "13a21": 0,
-        "22a84": 643043,
-        "85a120": 0,
+        "13a24": 615649,
+        "25a84": 643043,
         "ctapura": 396643
       },
       "reservations": {
@@ -82,16 +61,8 @@
         "3": 1585220,
         "6": 1829100
       },
-      "benefits": {
-        "pactada": "Pactada 10, 24 y 36 con 10%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          10,
-          24,
-          36
-        ],
+        "installments": [10, 24, 36],
         "requirementType": "percent",
         "requirementValue": 0.1,
         "mode": "pactada"
@@ -105,22 +76,16 @@
       "cuotaPura": 248167,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 415761,
-        "13a21": 437799,
-        "22a84": 300232,
-        "85a120": 0,
+        "13a24": 437799,
+        "25a84": 300232,
         "ctapura": 248167
       },
       "reservations": {
@@ -128,16 +93,8 @@
         "3": 1460443,
         "6": 1685127
       },
-      "benefits": {
-        "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          9,
-          12
-        ],
+        "installments": [4, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -151,22 +108,16 @@
       "cuotaPura": 257810,
       "planProfile": {
         "label": "80/20 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.8,
         "integrationPct": 0.2,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 321246,
-        "13a21": 0,
-        "22a84": 341278,
-        "85a120": 0,
+        "13a24": 321246,
+        "25a84": 341278,
         "ctapura": 257810
       },
       "reservations": {
@@ -174,16 +125,8 @@
         "3": 1422122,
         "6": 1640910
       },
-      "benefits": {
-        "pactada": "Pactada 6, 9, 12 con 30%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          6,
-          9,
-          12
-        ],
+        "installments": [6, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.3,
         "mode": "pactada"
@@ -197,22 +140,16 @@
       "cuotaPura": 244250,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 409200,
-        "13a21": 430890,
-        "22a84": 295494,
-        "85a120": 0,
+        "13a24": 430890,
+        "25a84": 295494,
         "ctapura": 244250
       },
       "reservations": {
@@ -220,16 +157,8 @@
         "3": 1467073,
         "6": 1692777
       },
-      "benefits": {
-        "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          9,
-          12
-        ],
+        "installments": [4, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -243,22 +172,16 @@
       "cuotaPura": 312667,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 523821,
-        "13a21": 551586,
-        "22a84": 378264,
-        "85a120": 0,
+        "13a24": 551586,
+        "25a84": 378264,
         "ctapura": 312667
       },
       "reservations": {
@@ -266,16 +189,8 @@
         "3": 1603254,
         "6": 1849908
       },
-      "benefits": {
-        "pactada": "Pactada 6, 9, 12 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          6,
-          9,
-          12
-        ],
+        "installments": [6, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -289,22 +204,16 @@
       "cuotaPura": 305583,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 511954,
-        "13a21": 539089,
-        "22a84": 369695,
-        "85a120": 0,
+        "13a24": 539089,
+        "25a84": 369695,
         "ctapura": 305583
       },
       "reservations": {
@@ -312,16 +221,8 @@
         "3": 1542788,
         "6": 1780140
       },
-      "benefits": {
-        "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          9,
-          12
-        ],
+        "installments": [4, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -335,22 +236,16 @@
       "cuotaPura": 393750,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 615523,
-        "13a21": 650488,
-        "22a84": 659662,
-        "85a120": 0,
+        "13a24": 650488,
+        "25a84": 659662,
         "ctapura": 393750
       },
       "reservations": {
@@ -358,16 +253,8 @@
         "3": 1838353,
         "6": 2121177
       },
-      "benefits": {
-        "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          9,
-          12
-        ],
+        "installments": [4, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -381,22 +268,16 @@
       "cuotaPura": 323643,
       "planProfile": {
         "label": "60/40 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.6,
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 572111,
-        "13a21": 605640,
-        "22a84": 572111,
-        "85a120": 0,
+        "13a24": 605640,
+        "25a84": 572111,
         "ctapura": 323643
       },
       "reservations": {
@@ -404,18 +285,8 @@
         "3": 1692096,
         "6": 1952418
       },
-      "benefits": {
-        "pactada": "Pactada 4, 9, 12, 24, 36 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          9,
-          12,
-          24,
-          36
-        ],
+        "installments": [4, 9, 12, 24, 36],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -429,22 +300,16 @@
       "cuotaPura": 440750,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "25a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["25a84"],
       "shareByPlan": {
         "2a12": 688995,
-        "13a21": 728134,
-        "22a84": 533219,
-        "85a120": 0,
+        "13a24": 728134,
+        "25a84": 533219,
         "ctapura": 440750
       },
       "reservations": {
@@ -452,16 +317,8 @@
         "3": 2030226,
         "6": 2342568
       },
-      "benefits": {
-        "pactada": "Pactada 4, 9, 12 con 40%",
-        "bonificacion": "GASTOS DE RETIRO 13%"
-      },
       "withdrawal": {
-        "installments": [
-          4,
-          9,
-          12
-        ],
+        "installments": [4, 9, 12],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
@@ -470,97 +327,12 @@
   ],
   "brandSettings": [
     {
-      "name": "Chevrolet",
-      "color": "#ffcf24",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 21
-        },
-        {
-          "start": 22,
-          "end": 84
-        },
-        {
-          "start": 85,
-          "end": 120
-        }
-      ]
-    },
-    {
-      "name": "Renault",
-      "color": "#3b82f6",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 24
-        },
-        {
-          "start": 25,
-          "end": 84
-        }
-      ]
-    },
-    {
       "name": "FIAT",
       "color": "#ff0a60",
       "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 24
-        },
-        {
-          "start": 25,
-          "end": 84
-        }
-      ]
-    },
-    {
-      "name": "Volkswagen",
-      "color": "#c7c7c7",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 84
-        }
-      ]
-    },
-    {
-      "name": "Peugeot",
-      "color": "#a855f7",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 25
-        },
-        {
-          "start": 26,
-          "end": 84
-        },
-        {
-          "start": 85,
-          "end": 120
-        }
+        { "start": 2, "end": 12 },
+        { "start": 13, "end": 24 },
+        { "start": 25, "end": 84 }
       ]
     }
   ]
