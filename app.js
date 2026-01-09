@@ -2609,10 +2609,20 @@ function getPriceFilePath(tab = getActivePriceTab()) {
   return tab?.pricePath || '';
 }
 
+function getActivePriceMonthLabel(tab = getActivePriceTab()) {
+  if (!tab) return 'Mes sin definir';
+  const month = tab.month || tab.label || 'Mes sin definir';
+  const year = tab.year ? ` ${tab.year}` : '';
+  return `${month}${year}`.trim();
+}
+
 function getActivePriceStatus() {
-  if (activePriceSource === 'servidor') return 'Precios cargados desde archivo del mes';
-  if (activePriceSource === 'archivo') return 'Precios cargados manualmente';
-  if (activePriceSource === 'local') return 'Precios editados localmente';
+  const monthLabel = getActivePriceMonthLabel();
+  if (activePriceSource === 'servidor') {
+    return `Marcas de precios detectadas en servidor para el mes de: ${monthLabel}`;
+  }
+  if (activePriceSource === 'archivo') return `Precios cargados manualmente para el mes de: ${monthLabel}`;
+  if (activePriceSource === 'local') return `Precios editados localmente para el mes de: ${monthLabel}`;
   return 'Precios en modo local';
 }
 
@@ -2631,6 +2641,20 @@ function renderPriceAlerts(message, type = 'warning') {
 function clearPriceAlerts() {
   const stack = document.getElementById('priceAlerts');
   if (stack) stack.innerHTML = '';
+}
+
+function renderPriceBrandSummary(list = []) {
+  const stack = document.getElementById('priceAlerts');
+  if (!stack) return;
+  if (!list.length) {
+    renderPriceAlerts('No se detectaron marcas en el archivo del mes.', 'warning');
+    return;
+  }
+  stack.innerHTML = `
+    <div class="brand-summary">
+      ${list.map(item => `<span class="brand-pill">${item}</span>`).join('')}
+    </div>
+  `;
 }
 
 function updatePriceContextTag() {
@@ -3706,12 +3730,23 @@ function renderVehicleBrandFilterControl() {
   }
 }
 
+function buildBrandSummaryList(list = vehicles) {
+  const grouped = list.reduce((acc, vehicle) => {
+    const brand = normalizeBrand(vehicle.brand) || 'Sin marca';
+    acc[brand] = (acc[brand] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(grouped)
+    .sort((a, b) => a[0].localeCompare(b[0], 'es', { sensitivity: 'base' }))
+    .map(([brand, count]) => `${brand} (${count} elementos)`);
+}
+
 function renderVehicleTable() {
   renderPriceTabs();
   clearPriceAlerts();
   ensureBrandSettings(brandSettings, vehicles);
   if (activePriceSource === 'servidor') {
-    renderPriceAlerts('Precios cargados desde el archivo del mes.', 'success');
+    renderPriceBrandSummary(buildBrandSummaryList(vehicles));
   } else if (activePriceSource === 'archivo') {
     renderPriceAlerts('Precios cargados manualmente desde un archivo.', 'success');
   } else if (activePriceSource === 'local') {

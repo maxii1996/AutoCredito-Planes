@@ -394,15 +394,15 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .modal-content.wide { max-width: 720px; }
 #vehicleEditorModal .modal-content.wide { max-width: 1280px; }
 .vehicle-table {
-  --vehicle-visible-cols: 5;
-  --vehicle-plan-col: 180px;
-  --vehicle-model-col: 200px;
+  --vehicle-visible-cols: 6;
+  --vehicle-plan-col: 200px;
+  --vehicle-model-col: 220px;
   max-height: min(70vh, 560px);
   max-width: min(100%, calc(var(--vehicle-plan-col) + (var(--vehicle-model-col) * var(--vehicle-visible-cols))));
   overflow: auto;
 }
 .vehicle-table-stack { display: grid; gap: 18px; }
-.vehicle-brand-card { background: #0b1120; border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
+.vehicle-brand-card { background: #0b1120; border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); width: 100%; max-width: 100%; overflow: hidden; }
 .vehicle-brand-card { background: linear-gradient(135deg, var(--brand-color-soft, #0b1120), #0b1120 65%); border-color: var(--brand-color-border, var(--border)); }
 .vehicle-brand-card h3 { color: var(--brand-color, var(--text)); }
 .vehicle-brand-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -411,8 +411,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .preview-box { background: #0f1625; border: 1px solid var(--border); border-radius: 14px; padding: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); }
 .preview-box pre { white-space: pre-wrap; font-family: 'Inter', monospace; margin: 6px 0 0; color: #e2e8f0; }
 
-.table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.vehicle-table-grid { width: max-content; border-collapse: collapse; min-width: 100%; }
+.table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; max-width: 100%; }
+.vehicle-table-grid { width: 100%; border-collapse: collapse; min-width: max-content; }
 .vehicle-table-grid th, .vehicle-table-grid td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; min-width: var(--vehicle-model-col); }
 .vehicle-table-grid th:first-child, .vehicle-table-grid td:first-child { min-width: var(--vehicle-plan-col); }
 .vehicle-table-grid thead { background: #101728; }
@@ -420,6 +420,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .price-tabs { margin: 14px 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow); display: grid; gap: 12px; }
 .alert-stack { display: grid; gap: 10px; margin-bottom: 12px; }
 .alert-stack.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.brand-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.brand-pill { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.28); background: rgba(15, 23, 42, 0.7); color: var(--text); font-size: 13px; font-weight: 600; letter-spacing: 0.2px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
 .alert-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(255, 199, 0, 0.12), rgba(255, 149, 0, 0.18)); border: 1px solid rgba(255, 149, 0, 0.3); color: #b45309; font-weight: 600; }
 .alert-stack.compact .alert-card { padding: 8px 10px; font-size: 12px; gap: 8px; border-radius: 10px; box-shadow: none; }
 .alert-card .icon { font-size: 22px; }
