@@ -2,17 +2,17 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-09T13:59:55.392Z",
+  "updatedAt": "2026-01-09T14:34:48.505Z",
   "vehicles": [
     {
-      "name": "RENAULT DUSTER 100% 120 CTS",
+      "name": "DUSTER",
       "brand": "Renault",
       "basePrice": 41420000,
-      "integration": 0,
+      "integration": 15242500,
       "cuotaPura": 345167,
       "planProfile": {
-        "label": "100% (120 cuotas)",
-        "planType": "85a120",
+        "label": "100/0 (120 cuotas)",
+        "planType": "22a84",
         "financedPct": 1,
         "integrationPct": 0,
         "maxInstallments": 120
@@ -26,12 +26,12 @@
       ],
       "shareByPlan": {
         "2a12": 441819,
-        "13a21": 442434,
-        "22a84": 441479,
-        "85a120": 441479,
+        "13a21": 691625,
+        "22a84": 630600,
         "ctapura": 345167,
-        "13a24": 0,
-        "25a84": 0
+        "85a120": 441479,
+        "13a24": 442434,
+        "25a84": 441479
       },
       "reservations": {
         "1": 1205800,
@@ -39,71 +39,18 @@
         "6": 1929280
       },
       "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
+        "pactada": "Sin Retiro Asignado",
         "bonificacion": ""
       },
       "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
+        "installments": [],
         "requirementType": "amount",
         "requirementValue": 0,
-        "mode": "pactada"
+        "mode": "sorteo_licitacion"
       }
     },
     {
-      "name": "RENAULT DUSTER INSTENS 1.6 100% 120 CTS",
-      "brand": "Renault",
-      "basePrice": 41420000,
-      "integration": 0,
-      "cuotaPura": 345167,
-      "planProfile": {
-        "label": "100% (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 1,
-        "integrationPct": 0,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 441819,
-        "13a21": 442434,
-        "22a84": 411479,
-        "85a120": 411479,
-        "ctapura": 345167
-      },
-      "reservations": {
-        "1": 1205800,
-        "3": 1567540,
-        "6": 1929280
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 0,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT MASTER 2.3 DCI 75/25",
+      "name": "MASTER 2.3 DCI",
       "brand": "Renault",
       "basePrice": 60970000,
       "integration": 15242500,
@@ -116,17 +63,16 @@
         "maxInstallments": 84
       },
       "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
+        "22a84"
       ],
       "shareByPlan": {
         "2a12": 671193,
-        "13a21": 691625,
-        "22a84": 630600,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0,
         "ctapura": 544375,
-        "85a120": 0
+        "13a24": 691625,
+        "25a84": 630600
       },
       "reservations": {
         "1": 1505900,
@@ -146,626 +92,6 @@
         ],
         "requirementType": "amount",
         "requirementValue": 15242500,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KARDIAN 75/25 84 CTS",
-      "brand": "Renault",
-      "basePrice": 44630000,
-      "integration": 11157500,
-      "cuotaPura": 398482,
-      "planProfile": {
-        "label": "75/25 (84 cuotas)",
-        "planType": "22a84",
-        "financedPct": 0.75,
-        "integrationPct": 0.25,
-        "maxInstallments": 84
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 467124,
-        "13a21": 445131,
-        "22a84": 489800,
-        "ctapura": 398482,
-        "85a120": 0
-      },
-      "reservations": {
-        "1": 1240660,
-        "3": 1612858,
-        "6": 1985056
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 11157500,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT OROCH EMOTION 1.6 60/40",
-      "brand": "Renault",
-      "basePrice": 42310000,
-      "integration": 16924000,
-      "cuotaPura": 302214,
-      "planProfile": {
-        "label": "60/40 (84 cuotas)",
-        "planType": "22a84",
-        "financedPct": 0.6,
-        "integrationPct": 0.4,
-        "maxInstallments": 84
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 546139,
-        "13a21": 320803,
-        "22a84": 327578,
-        "ctapura": 302214,
-        "85a120": 0
-      },
-      "reservations": {
-        "1": 1221200,
-        "3": 1587560,
-        "6": 1953920
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "12 CTS FIJAS"
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 16924000,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT ARKANA E-TECH HYBRIDA 60/40",
-      "brand": "Renault",
-      "basePrice": 53530000,
-      "integration": 21412000,
-      "cuotaPura": 382357,
-      "planProfile": {
-        "label": "60/40 (84 cuotas)",
-        "planType": "22a84",
-        "financedPct": 0.6,
-        "integrationPct": 0.4,
-        "maxInstallments": 84
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 709756,
-        "13a21": 472416,
-        "22a84": 480988,
-        "ctapura": 382357,
-        "85a120": 0
-      },
-      "reservations": {
-        "1": 1371420,
-        "3": 1782846,
-        "6": 2194272
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "6 CTS FIJAS"
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 21412000,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KANGOO EXPRESS/2 AA 75/25",
-      "brand": "Renault",
-      "basePrice": 41400000,
-      "integration": 10350000,
-      "cuotaPura": 258750,
-      "planProfile": {
-        "label": "75/25 (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 0.75,
-        "integrationPct": 0.25,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 512814,
-        "13a21": 320124,
-        "22a84": 319287,
-        "85a120": 319287,
-        "ctapura": 258750
-      },
-      "reservations": {
-        "1": 1210980,
-        "3": 1574274,
-        "6": 1937568
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 10350000,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KANGOO EXPRESS/5 AA 75/25",
-      "brand": "Renault",
-      "basePrice": 45970000,
-      "integration": 11492500,
-      "cuotaPura": 287313,
-      "planProfile": {
-        "label": "75/25 (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 0.75,
-        "integrationPct": 0.25,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 591175,
-        "13a21": 386796,
-        "22a84": 346288,
-        "85a120": 346288,
-        "ctapura": 287313
-      },
-      "reservations": {
-        "1": 1262220,
-        "3": 1640886,
-        "6": 2019552
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 11492500,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KWID ICONIC BI-TONO 100%",
-      "brand": "Renault",
-      "basePrice": 25540000,
-      "integration": 0,
-      "cuotaPura": 212833,
-      "planProfile": {
-        "label": "100% (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 1,
-        "integrationPct": 0,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 296917,
-        "13a21": 204624,
-        "22a84": 214167,
-        "85a120": 214167,
-        "ctapura": 212833
-      },
-      "reservations": {
-        "1": 1019460,
-        "3": 1325298,
-        "6": 1631136
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "12 CTS FIJAS"
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 0,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KARDIAN EVOLUTION 100%",
-      "brand": "Renault",
-      "basePrice": 36160000,
-      "integration": 0,
-      "cuotaPura": 301333,
-      "planProfile": {
-        "label": "100% (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 1,
-        "integrationPct": 0,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 489594,
-        "13a21": 328944,
-        "22a84": 362724,
-        "85a120": 362724,
-        "ctapura": 301333
-      },
-      "reservations": {
-        "1": 1154700,
-        "3": 1501110,
-        "6": 1847520
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "6 CTS FIJAS"
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 0,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KARDIAN EVOLUTION 1.6 M 100% 120 CTS",
-      "brand": "Renault",
-      "basePrice": 36160000,
-      "integration": 0,
-      "cuotaPura": 301333,
-      "planProfile": {
-        "label": "100% (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 1,
-        "integrationPct": 0,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 489594,
-        "13a21": 328944,
-        "22a84": 362724,
-        "85a120": 362724,
-        "ctapura": 301333
-      },
-      "reservations": {
-        "1": 1158700,
-        "3": 1506310,
-        "6": 1853920
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 0,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KANGOO STEPWAY 80/20",
-      "brand": "Renault",
-      "basePrice": 46050000,
-      "integration": 9210000,
-      "cuotaPura": 307000,
-      "planProfile": {
-        "label": "80/20 (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 0.8,
-        "integrationPct": 0.2,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 437100,
-        "13a21": 436062,
-        "22a84": 380998,
-        "85a120": 380998,
-        "ctapura": 307000
-      },
-      "reservations": {
-        "1": 1247520,
-        "3": 1621776,
-        "6": 1996032
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 9210000,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KANGOO EXPRESS/5 AA 80/20",
-      "brand": "Renault",
-      "basePrice": 45970000,
-      "integration": 9194000,
-      "cuotaPura": 306467,
-      "planProfile": {
-        "label": "80/20 (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 0.8,
-        "integrationPct": 0.2,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 591175,
-        "13a21": 386796,
-        "22a84": 346288,
-        "85a120": 346288,
-        "ctapura": 306467
-      },
-      "reservations": {
-        "1": 1269600,
-        "3": 1650480,
-        "6": 2031360
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 9194000,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KANGOO STEPWAY 75/25",
-      "brand": "Renault",
-      "basePrice": 46050000,
-      "integration": 11512500,
-      "cuotaPura": 287813,
-      "planProfile": {
-        "label": "75/25 (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 0.75,
-        "integrationPct": 0.25,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 389151,
-        "13a21": 591175,
-        "22a84": 386796,
-        "85a120": 386796,
-        "ctapura": 287813
-      },
-      "reservations": {
-        "1": 1247800,
-        "3": 1622140,
-        "6": 1996480
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 11512500,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KARDIAN ICONIC 200 EDC 75/25",
-      "brand": "Renault",
-      "basePrice": 44630000,
-      "integration": 11157500,
-      "cuotaPura": 398482,
-      "planProfile": {
-        "label": "75/25 (84 cuotas)",
-        "planType": "22a84",
-        "financedPct": 0.75,
-        "integrationPct": 0.25,
-        "maxInstallments": 84
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 467124,
-        "13a21": 445131,
-        "22a84": 489800,
-        "ctapura": 398482,
-        "85a120": 0
-      },
-      "reservations": {
-        "1": 1240800,
-        "3": 1613040,
-        "6": 1985280
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": ""
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 11157500,
-        "mode": "pactada"
-      }
-    },
-    {
-      "name": "RENAULT KARDIAN ICONIC 200 EDC 100%",
-      "brand": "Renault",
-      "basePrice": 37760000,
-      "integration": 0,
-      "cuotaPura": 314667,
-      "planProfile": {
-        "label": "100% (120 cuotas)",
-        "planType": "85a120",
-        "financedPct": 1,
-        "integrationPct": 0,
-        "maxInstallments": 120
-      },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "85a120",
-        "ctapura"
-      ],
-      "shareByPlan": {
-        "2a12": 510948,
-        "13a21": 343164,
-        "22a84": 378438,
-        "85a120": 378438,
-        "ctapura": 314667
-      },
-      "reservations": {
-        "1": 1240800,
-        "3": 1613040,
-        "6": 1985280
-      },
-      "benefits": {
-        "pactada": "Pactada cuotas 4, 6, 8 y 10",
-        "bonificacion": "5 CTS FIJAS"
-      },
-      "withdrawal": {
-        "installments": [
-          4,
-          6,
-          8,
-          10
-        ],
-        "requirementType": "amount",
-        "requirementValue": 0,
         "mode": "pactada"
       }
     }
@@ -808,6 +134,10 @@
         {
           "start": 25,
           "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
         }
       ]
     },
