@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-09T13:59:55.392Z",
+  "updatedAt": "2026-01-09T15:38:39.864Z",
   "vehicles": [
     {
       "name": "TERA TREND 1.6 MSI MT",
@@ -12,22 +12,15 @@
       "cuotaPura": 303261,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "13a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["13a84"],
       "shareByPlan": {
         "2a12": 390100,
-        "13a21": 435289,
-        "22a84": 435289,
-        "85a120": 0,
+        "13a84": 435289,
         "ctapura": 303261
       },
       "reservations": {
@@ -35,18 +28,10 @@
         "3": 1548092,
         "6": 1786260
       },
-      "benefits": {
-        "pactada": "ENTREGA PACTADA AUTOAHORRO - CUOTA N° 8, 12 Y 24",
-        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
-      },
       "withdrawal": {
-        "installments": [
-          8,
-          12,
-          24
-        ],
-        "requirementType": "percent",
-        "requirementValue": 0.3,
+        "installments": [8, 12, 24],
+        "requirementType": "amount",
+        "requirementValue": 10917405,
         "mode": "pactada"
       }
     },
@@ -58,22 +43,15 @@
       "cuotaPura": 381458,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "13a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["13a84"],
       "shareByPlan": {
         "2a12": 485000,
-        "13a21": 542440,
-        "22a84": 542440,
-        "85a120": 0,
+        "13a84": 542440,
         "ctapura": 381458
       },
       "reservations": {
@@ -81,18 +59,10 @@
         "3": 1752694,
         "6": 2022339
       },
-      "benefits": {
-        "pactada": "ENTREGA PACTADA AUTOAHORRO - CUOTA N° 8, 12 Y 24",
-        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
-      },
       "withdrawal": {
-        "installments": [
-          8,
-          12,
-          24
-        ],
-        "requirementType": "percent",
-        "requirementValue": 0.3,
+        "installments": [8, 12, 24],
+        "requirementType": "amount",
+        "requirementValue": 13732500,
         "mode": "pactada"
       }
     },
@@ -104,22 +74,15 @@
       "cuotaPura": 440428,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "13a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["13a84"],
       "shareByPlan": {
         "2a12": 555527,
-        "13a21": 621155,
-        "22a84": 621155,
-        "85a120": 0,
+        "13a84": 621155,
         "ctapura": 440428
       },
       "reservations": {
@@ -127,18 +90,10 @@
         "3": 1798043,
         "6": 2074665
       },
-      "benefits": {
-        "pactada": "ENTREGA PACTADA AUTOAHORRO - CUOTA N° 8, 12 Y 24",
-        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
-      },
       "withdrawal": {
-        "installments": [
-          8,
-          12,
-          24
-        ],
-        "requirementType": "percent",
-        "requirementValue": 0.3,
+        "installments": [8, 12, 24],
+        "requirementType": "amount",
+        "requirementValue": 15855405,
         "mode": "pactada"
       }
     },
@@ -150,22 +105,15 @@
       "cuotaPura": 416111,
       "planProfile": {
         "label": "60/40 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "13a84",
         "financedPct": 0.6,
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["13a84"],
       "shareByPlan": {
         "2a12": 555252,
-        "13a21": 592382,
-        "22a84": 592382,
-        "85a120": 0,
+        "13a84": 592382,
         "ctapura": 416111
       },
       "reservations": {
@@ -173,14 +121,10 @@
         "3": 2354698,
         "6": 2716959
       },
-      "benefits": {
-        "pactada": "SOLO SORTEO O LICITACION",
-        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
-      },
       "withdrawal": {
-        "installments": [],
-        "requirementType": "percent",
-        "requirementValue": 0.4,
+        "installments": [8, 12, 24],
+        "requirementType": "amount",
+        "requirementValue": 23302220,
         "mode": "sorteo_licitacion"
       }
     },
@@ -192,22 +136,15 @@
       "cuotaPura": 406732,
       "planProfile": {
         "label": "60/40 (84 cuotas)",
-        "planType": "22a84",
+        "planType": "13a84",
         "financedPct": 0.6,
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["13a84"],
       "shareByPlan": {
         "2a12": 556700,
-        "13a21": 593274,
-        "22a84": 593274,
-        "85a120": 0,
+        "13a84": 593274,
         "ctapura": 406732
       },
       "reservations": {
@@ -215,14 +152,10 @@
         "3": 2763504,
         "6": 3188658
       },
-      "benefits": {
-        "pactada": "SOLO SORTEO O LICITACION",
-        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
-      },
       "withdrawal": {
-        "installments": [],
-        "requirementType": "percent",
-        "requirementValue": 0.4,
+        "installments": [8, 12, 24],
+        "requirementType": "amount",
+        "requirementValue": 22777000,
         "mode": "sorteo_licitacion"
       }
     },
@@ -230,26 +163,19 @@
       "name": "VIRTUS MSI MT",
       "brand": "Volkswagen",
       "basePrice": 45193800,
-      "integration": 0,
+      "integration": 45193800,
       "cuotaPura": 538021,
       "planProfile": {
         "label": "100% (84 cuotas)",
-        "planType": "22a84",
+        "planType": "13a84",
         "financedPct": 1,
         "integrationPct": 0,
         "maxInstallments": 84
       },
-      "availablePlans": [
-        "2a12",
-        "13a21",
-        "22a84",
-        "ctapura"
-      ],
+      "availablePlans": ["13a84"],
       "shareByPlan": {
         "2a12": 584500,
-        "13a21": 722558,
-        "22a84": 722558,
-        "85a120": 0,
+        "13a84": 722558,
         "ctapura": 538021
       },
       "reservations": {
@@ -257,112 +183,12 @@
         "3": 1755876,
         "6": 2026011
       },
-      "benefits": {
-        "pactada": "AUTOAHORRO STANDARD",
-        "bonificacion": "GASTOS DE RETIRO 12% (ALRA SUR) / 15% (STRIANESE)"
-      },
       "withdrawal": {
         "installments": [],
-        "requirementType": "percent",
+        "requirementType": "none",
         "requirementValue": 0,
         "mode": "sorteo_licitacion"
       }
-    }
-  ],
-  "brandSettings": [
-    {
-      "name": "Chevrolet",
-      "color": "#ffcf24",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 21
-        },
-        {
-          "start": 22,
-          "end": 84
-        },
-        {
-          "start": 85,
-          "end": 120
-        }
-      ]
-    },
-    {
-      "name": "Renault",
-      "color": "#3b82f6",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 24
-        },
-        {
-          "start": 25,
-          "end": 84
-        }
-      ]
-    },
-    {
-      "name": "FIAT",
-      "color": "#ff0a60",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 24
-        },
-        {
-          "start": 25,
-          "end": 84
-        }
-      ]
-    },
-    {
-      "name": "Volkswagen",
-      "color": "#c7c7c7",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 84
-        }
-      ]
-    },
-    {
-      "name": "Peugeot",
-      "color": "#a855f7",
-      "planScheme": [
-        {
-          "start": 2,
-          "end": 12
-        },
-        {
-          "start": 13,
-          "end": 25
-        },
-        {
-          "start": 26,
-          "end": 84
-        },
-        {
-          "start": 85,
-          "end": 120
-        }
-      ]
     }
   ]
 }
