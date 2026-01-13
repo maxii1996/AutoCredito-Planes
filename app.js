@@ -2365,6 +2365,21 @@ function bindQuoteGenerator() {
   if (!panel || panel.dataset.bound) return;
   panel.dataset.bound = 'true';
 
+  const activateQuoteTab = (targetId) => {
+    const tabs = panel.querySelectorAll('.quote-tab');
+    const panels = panel.querySelectorAll('.quote-tab-panel');
+    tabs.forEach(tab => {
+      const isActive = tab.dataset.tabTarget === targetId;
+      tab.classList.toggle('active', isActive);
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    panels.forEach(tabPanel => tabPanel.classList.toggle('active', tabPanel.id === targetId));
+    const panelScroll = panel.querySelector('.quote-tabs-panels');
+    if (panelScroll) {
+      panelScroll.scrollTop = 0;
+    }
+  };
+
   panel.addEventListener('input', (event) => {
     const target = event.target;
     if (target.matches('[data-quote-field]') && !target.classList.contains('money')) {
@@ -2386,6 +2401,12 @@ function bindQuoteGenerator() {
   });
 
   panel.addEventListener('click', (event) => {
+    const tabButton = event.target.closest('.quote-tab');
+    if (tabButton) {
+      activateQuoteTab(tabButton.dataset.tabTarget);
+      return;
+    }
+
     const autoFieldBtn = event.target.closest('[data-auto-field]');
     if (autoFieldBtn) {
       const fieldPath = autoFieldBtn.dataset.autoField;

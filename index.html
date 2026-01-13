@@ -415,252 +415,282 @@
               <p class="eyebrow">Panel de control</p>
               <h3>Datos principales</h3>
             </div>
-            <div class="form-grid two">
-              <div class="field">
-                <label for="quoteNumber">Cotización #</label>
-                <div class="auto-row">
-                  <input id="quoteNumber" data-quote-field="meta.quoteNumber" placeholder="00000000" />
-                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteNumber" type="button">Auto</button>
-                </div>
+            <div class="quote-tabs">
+              <div class="quote-tabs-nav" role="tablist" aria-label="Secciones de la cotización">
+                <button class="quote-tab active" id="quote-tab-btn-main" type="button" data-tab-target="quote-tab-main" role="tab" aria-selected="true" aria-controls="quote-tab-main">Datos principales</button>
+                <button class="quote-tab" id="quote-tab-btn-client" type="button" data-tab-target="quote-tab-client" role="tab" aria-selected="false" aria-controls="quote-tab-client">Datos cliente</button>
+                <button class="quote-tab" id="quote-tab-btn-vehicle" type="button" data-tab-target="quote-tab-vehicle" role="tab" aria-selected="false" aria-controls="quote-tab-vehicle">Vehículo usado</button>
+                <button class="quote-tab" id="quote-tab-btn-new-vehicle" type="button" data-tab-target="quote-tab-new-vehicle" role="tab" aria-selected="false" aria-controls="quote-tab-new-vehicle">Nuevo vehículo</button>
+                <button class="quote-tab" id="quote-tab-btn-payments" type="button" data-tab-target="quote-tab-payments" role="tab" aria-selected="false" aria-controls="quote-tab-payments">Esquema de pagos</button>
+                <button class="quote-tab" id="quote-tab-btn-notes" type="button" data-tab-target="quote-tab-notes" role="tab" aria-selected="false" aria-controls="quote-tab-notes">Notas</button>
+                <button class="quote-tab" id="quote-tab-btn-visibility" type="button" data-tab-target="quote-tab-visibility" role="tab" aria-selected="false" aria-controls="quote-tab-visibility">Visibilidad</button>
+                <button class="quote-tab" id="quote-tab-btn-storage" type="button" data-tab-target="quote-tab-storage" role="tab" aria-selected="false" aria-controls="quote-tab-storage">Guardar y cargar</button>
               </div>
-              <div class="field">
-                <label for="quoteDate">Fecha de Cotización</label>
-                <div class="auto-row">
-                  <input id="quoteDate" data-quote-field="meta.quoteDate" placeholder="dd/mm/aaaa" />
-                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteDate" type="button">Auto</button>
-                </div>
-              </div>
-              <div class="field">
-                <label for="quoteExpiry">Vencimiento</label>
-                <div class="auto-row">
-                  <input id="quoteExpiry" data-quote-field="meta.quoteExpiry" placeholder="dd/mm/aaaa" />
-                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteExpiry" type="button">Auto</button>
-                </div>
-              </div>
-              <div class="field">
-                <label for="quoteAdvisor">Asesor Comercial</label>
-                <div class="auto-row">
-                  <input id="quoteAdvisor" data-quote-field="meta.advisor" placeholder="Nombre del asesor" />
-                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.advisor" type="button">Auto</button>
-                </div>
-              </div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Datos Cliente</p>
-                  <p class="muted tiny">Completa manualmente o usa automático.</p>
-                </div>
-                <div class="actions compact">
-                  <button class="ghost-btn mini auto-btn" data-auto-fill="client" type="button">Auto cliente</button>
-                </div>
-              </div>
-              <div class="form-grid two">
-                <div class="field">
-                  <label for="clientFullName">Nombre</label>
-                  <div class="auto-row">
-                    <input id="clientFullName" data-quote-field="client.name" placeholder="Nombre completo" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.name" type="button">Auto</button>
+              <div class="quote-tabs-panels">
+                <section class="quote-tab-panel active" id="quote-tab-main" role="tabpanel" aria-labelledby="quote-tab-btn-main">
+                  <div class="form-grid two">
+                    <div class="field">
+                      <label for="quoteNumber">Cotización #</label>
+                      <div class="auto-row">
+                        <input id="quoteNumber" data-quote-field="meta.quoteNumber" placeholder="00000000" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteNumber" type="button">Auto</button>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="quoteDate">Fecha de Cotización</label>
+                      <div class="auto-row">
+                        <input id="quoteDate" data-quote-field="meta.quoteDate" placeholder="dd/mm/aaaa" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteDate" type="button">Auto</button>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="quoteExpiry">Vencimiento</label>
+                      <div class="auto-row">
+                        <input id="quoteExpiry" data-quote-field="meta.quoteExpiry" placeholder="dd/mm/aaaa" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteExpiry" type="button">Auto</button>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="quoteAdvisor">Asesor Comercial</label>
+                      <div class="auto-row">
+                        <input id="quoteAdvisor" data-quote-field="meta.advisor" placeholder="Nombre del asesor" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.advisor" type="button">Auto</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="clientDni">DNI</label>
-                  <div class="auto-row">
-                    <input id="clientDni" data-quote-field="client.dni" placeholder="00.000.000" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.dni" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-client" role="tabpanel" aria-labelledby="quote-tab-btn-client">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Datos Cliente</p>
+                        <p class="muted tiny">Completa manualmente o usa automático.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-fill="client" type="button">Auto cliente</button>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="clientFullName">Nombre</label>
+                        <div class="auto-row">
+                          <input id="clientFullName" data-quote-field="client.name" placeholder="Nombre completo" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.name" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="clientDni">DNI</label>
+                        <div class="auto-row">
+                          <input id="clientDni" data-quote-field="client.dni" placeholder="00.000.000" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.dni" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="clientCuil">CUIL</label>
+                        <div class="auto-row">
+                          <input id="clientCuil" data-quote-field="client.cuil" placeholder="20-00000000-0" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.cuil" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="clientCel">CEL</label>
+                        <div class="auto-row">
+                          <input id="clientCel" data-quote-field="client.cel" placeholder="+54 9 11 0000 0000" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.cel" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="clientProvince">Provincia</label>
+                        <div class="auto-row">
+                          <input id="clientProvince" data-quote-field="client.province" placeholder="Provincia" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.province" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="clientCity">Localidad</label>
+                        <div class="auto-row">
+                          <input id="clientCity" data-quote-field="client.city" placeholder="Localidad" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.city" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="clientPostal">CP</label>
+                        <div class="auto-row">
+                          <input id="clientPostal" data-quote-field="client.postalCode" placeholder="0000" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.postalCode" type="button">Auto</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="clientCuil">CUIL</label>
-                  <div class="auto-row">
-                    <input id="clientCuil" data-quote-field="client.cuil" placeholder="20-00000000-0" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.cuil" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-vehicle" role="tabpanel" aria-labelledby="quote-tab-btn-vehicle">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Datos Vehículo</p>
+                        <p class="muted tiny">Vehículo a entregar y valores de referencia.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-fill="vehicle" type="button">Auto vehículo</button>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="vehicleTradeIn">Detalle del usado</label>
+                        <input id="vehicleTradeIn" data-quote-field="vehicle.tradeIn" placeholder="Descripción del usado" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleBrand">Marca</label>
+                        <div class="auto-row">
+                          <input id="vehicleBrand" data-quote-field="vehicle.brand" placeholder="Marca" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.brand" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="vehicleModel">Modelo y Versión</label>
+                        <div class="auto-row">
+                          <input id="vehicleModel" data-quote-field="vehicle.model" placeholder="Modelo y versión" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.model" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="vehicleYear">Año</label>
+                        <input id="vehicleYear" data-quote-field="vehicle.year" placeholder="2024" />
+                      </div>
+                      <div class="field">
+                        <label for="vehiclePlate">Patente</label>
+                        <input id="vehiclePlate" data-quote-field="vehicle.plate" placeholder="ABC123" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleKms">Kms</label>
+                        <input id="vehicleKms" data-quote-field="vehicle.kms" placeholder="0 km" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleFactoryPrice">Precio cotizado por Fábrica</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="vehicleFactoryPrice" class="money" type="text" inputmode="numeric" data-quote-field="vehicle.factoryPrice" placeholder="0" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="clientCel">CEL</label>
-                  <div class="auto-row">
-                    <input id="clientCel" data-quote-field="client.cel" placeholder="+54 9 11 0000 0000" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.cel" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-new-vehicle" role="tabpanel" aria-labelledby="quote-tab-btn-new-vehicle">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Datos nuevo Vehículo</p>
+                        <p class="muted tiny">Información del 0km.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-fill="newVehicle" type="button">Auto 0km</button>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="newVehicleBrand">Marca</label>
+                        <div class="auto-row">
+                          <input id="newVehicleBrand" data-quote-field="newVehicle.brand" placeholder="Marca" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.brand" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="newVehicleModel">Modelo y Versión</label>
+                        <div class="auto-row">
+                          <input id="newVehicleModel" data-quote-field="newVehicle.model" placeholder="Modelo y versión" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.model" type="button">Auto</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="clientProvince">Provincia</label>
-                  <div class="auto-row">
-                    <input id="clientProvince" data-quote-field="client.province" placeholder="Provincia" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.province" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-payments" role="tabpanel" aria-labelledby="quote-tab-btn-payments">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Esquema de pagos</p>
+                        <p class="muted tiny">Agrega o edita tramos según tu propuesta.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-payments type="button">Auto esquema</button>
+                        <button class="secondary-btn mini" id="addPaymentRow" type="button"><i class='bx bx-plus'></i>Agregar cuota</button>
+                      </div>
+                    </div>
+                    <div id="paymentRows" class="payment-rows"></div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="clientCity">Localidad</label>
-                  <div class="auto-row">
-                    <input id="clientCity" data-quote-field="client.city" placeholder="Localidad" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.city" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-tab-btn-notes">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Notas</p>
+                        <p class="muted tiny">Información adicional del documento.</p>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="quoteNotes">Notas y aclaraciones</label>
+                      <textarea id="quoteNotes" data-quote-field="notes" rows="4" placeholder="Escribe el detalle que quieras imprimir."></textarea>
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="clientPostal">CP</label>
-                  <div class="auto-row">
-                    <input id="clientPostal" data-quote-field="client.postalCode" placeholder="0000" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="client.postalCode" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-visibility" role="tabpanel" aria-labelledby="quote-tab-btn-visibility">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Visibilidad de campos</p>
+                        <p class="muted tiny">Oculta lo que no quieras mostrar en la cotización.</p>
+                      </div>
+                    </div>
+                    <div class="visibility-grid">
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteNumber" checked> Cotización #</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteDate" checked> Fecha de cotización</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteExpiry" checked> Vencimiento</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.advisor" checked> Asesor comercial</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.name" checked> Nombre del cliente</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.dni" checked> DNI</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.cuil" checked> CUIL</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.cel" checked> Celular</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.location" checked> Provincia y localidad</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.postalCode" checked> Código postal</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.title" checked> Título vehículo a entregar</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.tradeIn" checked> Detalle del usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.brand" checked> Marca usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.model" checked> Modelo y versión usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.year" checked> Año usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.plate" checked> Patente usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.kms" checked> Kms usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.factoryPrice" checked> Precio fábrica usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.section" checked> Datos nuevo vehículo</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.brand" checked> Marca 0km</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.model" checked> Modelo y versión 0km</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="payments" checked> Esquema de pagos</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="notes" checked> Notas</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="benefits" checked> Beneficios adicionales</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="footer" checked> Texto legal final</label>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Datos Vehículo</p>
-                  <p class="muted tiny">Vehículo a entregar y valores de referencia.</p>
-                </div>
-                <div class="actions compact">
-                  <button class="ghost-btn mini auto-btn" data-auto-fill="vehicle" type="button">Auto vehículo</button>
-                </div>
-              </div>
-              <div class="form-grid two">
-                <div class="field">
-                  <label for="vehicleTradeIn">Detalle del usado</label>
-                  <input id="vehicleTradeIn" data-quote-field="vehicle.tradeIn" placeholder="Descripción del usado" />
-                </div>
-                <div class="field">
-                  <label for="vehicleBrand">Marca</label>
-                  <div class="auto-row">
-                    <input id="vehicleBrand" data-quote-field="vehicle.brand" placeholder="Marca" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.brand" type="button">Auto</button>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-storage" role="tabpanel" aria-labelledby="quote-tab-btn-storage">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Guardar y cargar</p>
+                        <p class="muted tiny">Administra cotizaciones guardadas.</p>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="quoteGeneratorSavedList">Cotizaciones guardadas</label>
+                        <select id="quoteGeneratorSavedList"></select>
+                      </div>
+                      <div class="field action-stack">
+                        <button id="quoteGeneratorLoad" class="secondary-btn mini" type="button"><i class='bx bx-folder-open'></i>Cargar</button>
+                        <button id="quoteGeneratorDelete" class="ghost-btn mini danger" type="button"><i class='bx bx-trash'></i>Eliminar</button>
+                        <button id="quoteGeneratorReset" class="ghost-btn mini" type="button"><i class='bx bx-eraser'></i>Limpiar</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <label for="vehicleModel">Modelo y Versión</label>
-                  <div class="auto-row">
-                    <input id="vehicleModel" data-quote-field="vehicle.model" placeholder="Modelo y versión" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.model" type="button">Auto</button>
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="vehicleYear">Año</label>
-                  <input id="vehicleYear" data-quote-field="vehicle.year" placeholder="2024" />
-                </div>
-                <div class="field">
-                  <label for="vehiclePlate">Patente</label>
-                  <input id="vehiclePlate" data-quote-field="vehicle.plate" placeholder="ABC123" />
-                </div>
-                <div class="field">
-                  <label for="vehicleKms">Kms</label>
-                  <input id="vehicleKms" data-quote-field="vehicle.kms" placeholder="0 km" />
-                </div>
-                <div class="field">
-                  <label for="vehicleFactoryPrice">Precio cotizado por Fábrica</label>
-                  <div class="money-field">
-                    <span class="prefix">$</span>
-                    <input id="vehicleFactoryPrice" class="money" type="text" inputmode="numeric" data-quote-field="vehicle.factoryPrice" placeholder="0" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Datos nuevo Vehículo</p>
-                  <p class="muted tiny">Información del 0km.</p>
-                </div>
-                <div class="actions compact">
-                  <button class="ghost-btn mini auto-btn" data-auto-fill="newVehicle" type="button">Auto 0km</button>
-                </div>
-              </div>
-              <div class="form-grid two">
-                <div class="field">
-                  <label for="newVehicleBrand">Marca</label>
-                  <div class="auto-row">
-                    <input id="newVehicleBrand" data-quote-field="newVehicle.brand" placeholder="Marca" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.brand" type="button">Auto</button>
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="newVehicleModel">Modelo y Versión</label>
-                  <div class="auto-row">
-                    <input id="newVehicleModel" data-quote-field="newVehicle.model" placeholder="Modelo y versión" />
-                    <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.model" type="button">Auto</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Esquema de pagos</p>
-                  <p class="muted tiny">Agrega o edita tramos según tu propuesta.</p>
-                </div>
-                <div class="actions compact">
-                  <button class="ghost-btn mini auto-btn" data-auto-payments type="button">Auto esquema</button>
-                  <button class="secondary-btn mini" id="addPaymentRow" type="button"><i class='bx bx-plus'></i>Agregar cuota</button>
-                </div>
-              </div>
-              <div id="paymentRows" class="payment-rows"></div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Notas</p>
-                  <p class="muted tiny">Información adicional del documento.</p>
-                </div>
-              </div>
-              <div class="field">
-                <label for="quoteNotes">Notas y aclaraciones</label>
-                <textarea id="quoteNotes" data-quote-field="notes" rows="4" placeholder="Escribe el detalle que quieras imprimir."></textarea>
-              </div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Visibilidad de campos</p>
-                  <p class="muted tiny">Oculta lo que no quieras mostrar en la cotización.</p>
-                </div>
-              </div>
-              <div class="visibility-grid">
-                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteNumber" checked> Cotización #</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteDate" checked> Fecha de cotización</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteExpiry" checked> Vencimiento</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.advisor" checked> Asesor comercial</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="client.name" checked> Nombre del cliente</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="client.dni" checked> DNI</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="client.cuil" checked> CUIL</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="client.cel" checked> Celular</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="client.location" checked> Provincia y localidad</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="client.postalCode" checked> Código postal</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.title" checked> Título vehículo a entregar</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.tradeIn" checked> Detalle del usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.brand" checked> Marca usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.model" checked> Modelo y versión usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.year" checked> Año usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.plate" checked> Patente usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.kms" checked> Kms usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.factoryPrice" checked> Precio fábrica usado</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.section" checked> Datos nuevo vehículo</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.brand" checked> Marca 0km</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.model" checked> Modelo y versión 0km</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="payments" checked> Esquema de pagos</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="notes" checked> Notas</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="benefits" checked> Beneficios adicionales</label>
-                <label class="check-pill"><input type="checkbox" data-visibility-field="footer" checked> Texto legal final</label>
-              </div>
-            </div>
-            <div class="field-group compact">
-              <div class="field-head">
-                <div>
-                  <p class="eyebrow">Guardar y cargar</p>
-                  <p class="muted tiny">Administra cotizaciones guardadas.</p>
-                </div>
-              </div>
-              <div class="form-grid two">
-                <div class="field">
-                  <label for="quoteGeneratorSavedList">Cotizaciones guardadas</label>
-                  <select id="quoteGeneratorSavedList"></select>
-                </div>
-                <div class="field action-stack">
-                  <button id="quoteGeneratorLoad" class="secondary-btn mini" type="button"><i class='bx bx-folder-open'></i>Cargar</button>
-                  <button id="quoteGeneratorDelete" class="ghost-btn mini danger" type="button"><i class='bx bx-trash'></i>Eliminar</button>
-                  <button id="quoteGeneratorReset" class="ghost-btn mini" type="button"><i class='bx bx-eraser'></i>Limpiar</button>
-                </div>
+                </section>
               </div>
             </div>
           </aside>
