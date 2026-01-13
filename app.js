@@ -5490,17 +5490,17 @@ function updateQuoteGeneratorPreview() {
     const bonified = draft.bonifiedPayments || {};
     const bonifiedCards = [
       {
-        title: '1 pago bonificado',
+        title: 'Opción 1: 1 Pago Bonificado',
         data: bonified.one || {}
       },
       {
-        title: '3 pagos bonificados',
+        title: 'Opción 2: 3 cuotas sin interes',
         data: bonified.three || {}
       }
     ].filter(item => item.data && (item.data.fakeOriginal || item.data.bonification || item.data.amount));
     bonifiedContainer.innerHTML = bonifiedCards.length ? `
       <div class="bonified-group">
-        <div class="bonified-group-title">Cuota 1</div>
+        <div class="bonified-group-title"><strong>Cuota 1</strong></div>
         <div class="bonified-group-grid">
           ${bonifiedCards.map(card => `
             <div class="bonified-card">
@@ -5572,141 +5572,34 @@ async function exportQuoteGenerator(format) {
         showToast('No se encontró la librería de PDF.', 'error');
         return;
       }
+      if (!window.html2canvas) {
+        showToast('No se encontró la librería para exportar PDF.', 'error');
+        return;
+      }
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 16;
-      const maxWidth = pageWidth - margin * 2;
-      let cursorY = 20;
+      const margin = 8;
+      const canvas = await window.html2canvas(preview, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true
+      });
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgData = canvas.toDataURL('image/png');
+      let position = margin;
+      let heightLeft = imgHeight;
 
-      const visibility = draft.visibility || {};
-      const isVisible = key => visibility?.[key] !== false;
-      const lineHeight = 6;
-      const addLine = (text, { size = 11, bold = false, color = [30, 41, 59] } = {}) => {
-        pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-        pdf.setFontSize(size);
-        pdf.setTextColor(...color);
-        const paragraphs = String(text || '').split('\n');
-        paragraphs.forEach((paragraph, index) => {
-          const lines = pdf.splitTextToSize(paragraph || ' ', maxWidth);
-          lines.forEach(line => {
-            if (cursorY + lineHeight > pageHeight - margin) {
-              pdf.addPage();
-              cursorY = margin;
-            }
-            pdf.text(line, margin, cursorY);
-            cursorY += lineHeight;
-          });
-          if (index < paragraphs.length - 1) {
-            cursorY += 2;
-          }
-        });
-      };
-      const addSection = (title) => {
-        cursorY += 2;
-        addLine(title, { size: 12, bold: true, color: [15, 23, 42] });
-        cursorY += 1;
-      };
-      const addRow = (label, value) => {
-        addLine(`${label} ${value}`);
-      };
-      const addSpacer = () => { cursorY += 4; };
-      const formatMoney = value => formatQuotePreviewMoney(value);
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight - margin * 2;
 
-      addLine(`Cotización ${draft.meta?.quoteNumber ? `#${draft.meta.quoteNumber}` : ''}`, { size: 15, bold: true, color: [29, 78, 216] });
-      if (isVisible('meta.quoteDate')) addRow('Fecha de Cotización:', draft.meta?.quoteDate || '--/--/----');
-      if (isVisible('meta.quoteExpiry')) addRow('Vencimiento:', draft.meta?.quoteExpiry || '--/--/----');
-      if (isVisible('meta.advisor')) addRow('Asesor Comercial:', draft.meta?.advisor || '-');
-      addSpacer();
-
-      if (draft.preQuote?.enabled && isVisible('preQuote')) {
-        addSection('Modo Pre Cotización');
-        addLine(draft.preQuote?.message || DEFAULT_PREQUOTE_MESSAGE, { size: 10, color: [30, 58, 138] });
-        addSpacer();
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = margin - (imgHeight - heightLeft);
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight - margin * 2;
       }
-
-      addSection('Datos Cliente');
-      if (isVisible('client.name')) addRow('Nombre:', draft.client?.name || '-');
-      if (isVisible('client.dni')) addRow('DNI:', draft.client?.dni || '-');
-      if (isVisible('client.cuil')) addRow('CUIL:', draft.client?.cuil || '-');
-      if (isVisible('client.cel')) addRow('Celular:', draft.client?.cel || '-');
-      if (isVisible('client.location')) {
-        const location = [draft.client?.province, draft.client?.city].filter(Boolean).join(' - ') || '-';
-        addRow('Provincia y localidad:', location);
-      }
-      if (isVisible('client.postalCode')) addRow('Código postal:', draft.client?.postalCode || '-');
-      addSpacer();
-
-      addSection('Datos Vehículo');
-      if (isVisible('vehicle.title')) {
-        addLine('Vehículo a entregar', { bold: true });
-      }
-      if (isVisible('vehicle.brand')) addRow('Marca:', draft.vehicle?.brand || '-');
-      if (isVisible('vehicle.model')) addRow('Modelo y Versión:', draft.vehicle?.model || '-');
-      if (isVisible('vehicle.year')) addRow('Año:', draft.vehicle?.year || '-');
-      if (isVisible('vehicle.plate')) addRow('Patente:', draft.vehicle?.plate || '-');
-      if (isVisible('vehicle.kms')) addRow('Kms:', draft.vehicle?.kms || '-');
-      if (isVisible('vehicle.factoryPrice')) {
-        const label = (draft.vehicle?.factoryPriceLabel || DEFAULT_FACTORY_PRICE_LABEL).trim() || DEFAULT_FACTORY_PRICE_LABEL;
-        addRow(`${label}:`, formatMoney(draft.vehicle?.factoryPrice));
-      }
-      addSpacer();
-
-      if (isVisible('newVehicle.section')) {
-        addSection('Datos nuevo Vehículo');
-        if (isVisible('newVehicle.brand')) addRow('Marca:', draft.newVehicle?.brand || '-');
-        if (isVisible('newVehicle.model')) addRow('Modelo y Versión:', draft.newVehicle?.model || '-');
-        addSpacer();
-      }
-
-      if (isVisible('payments')) {
-        addSection('Esquema de pagos');
-        const bonified = draft.bonifiedPayments || {};
-        const bonifiedCards = [
-          { label: '1 pago bonificado', data: bonified.one || {} },
-          { label: '3 pagos bonificados', data: bonified.three || {} }
-        ];
-        const hasBonified = bonifiedCards.some(card => card.data.fakeOriginal || card.data.bonification || card.data.amount);
-        if (hasBonified) {
-          addLine('Cuota 1', { bold: true });
-          bonifiedCards.forEach(card => {
-            if (card.data.fakeOriginal || card.data.bonification || card.data.amount) {
-              addLine(card.label, { bold: true });
-              addRow('Valor Original:', formatMoney(card.data.fakeOriginal));
-              addRow('Bonif.:', formatMoney(card.data.bonification));
-              addRow('A pagar:', formatMoney(card.data.amount));
-            }
-          });
-        }
-        (draft.payments || []).forEach(row => {
-          if (!row?.label && !row?.amount && !row?.detail) return;
-          addLine(`${row.label || 'Cuota'}: ${formatMoney(row.amount)}`, { bold: true });
-          if (row.detail) addLine(row.detail, { size: 10, color: [100, 116, 139] });
-        });
-        addSpacer();
-      }
-
-      if (isVisible('notes')) {
-        addSection('Notas y aclaraciones');
-        addLine(draft.notes || '-', { size: 10 });
-        addSpacer();
-      }
-
-      if (isVisible('benefits')) {
-        addSection('Beneficios adicionales otorgados');
-        const benefits = (draft.benefitsText || '').split('\n').map(line => line.trim()).filter(Boolean);
-        if (!benefits.length) {
-          addLine('-', { size: 10 });
-        } else {
-          benefits.forEach(item => addLine(`• ${item}`, { size: 10 }));
-        }
-        addSpacer();
-      }
-
-      if (isVisible('footer')) {
-        addLine(draft.footerNote || DEFAULT_QUOTE_FOOTER, { size: 9, color: [71, 85, 105] });
-      }
-
       pdf.save(`cotizacion-${fileLabel}.pdf`);
       return;
     }
