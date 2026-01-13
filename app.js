@@ -5256,10 +5256,7 @@ async function exportQuoteGenerator(format) {
   const overlay = document.getElementById('quoteExportOverlay');
   try {
     if (overlay) overlay.classList.remove('hidden');
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    await new Promise(resolve => setTimeout(resolve, 160));
-    const exportScale = format === 'pdf' ? 1.5 : 2;
-    const canvas = await window.html2canvas(preview, { scale: exportScale, backgroundColor: '#ffffff' });
+    const canvas = await window.html2canvas(preview, { scale: 2, backgroundColor: '#ffffff' });
     const draft = getQuoteGeneratorDraft();
     const fileLabel = draft.meta?.quoteNumber || Date.now();
     if (format === 'png') {
@@ -5274,8 +5271,8 @@ async function exportQuoteGenerator(format) {
       showToast('No se encontró la librería de PDF.', 'error');
       return;
     }
-    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
-    const imgData = canvas.toDataURL('image/jpeg', 0.82);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgData = canvas.toDataURL('image/png');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const imgProps = pdf.getImageProperties(imgData);
@@ -5283,7 +5280,7 @@ async function exportQuoteGenerator(format) {
     const imgWidth = imgProps.width * ratio;
     const imgHeight = imgProps.height * ratio;
     const x = (pageWidth - imgWidth) / 2;
-    pdf.addImage(imgData, 'JPEG', x, 0, imgWidth, imgHeight, undefined, 'FAST');
+    pdf.addImage(imgData, 'PNG', x, 0, imgWidth, imgHeight);
     pdf.save(`cotizacion-${fileLabel}.pdf`);
   } catch (err) {
     console.error('Error exportando cotización:', err);
