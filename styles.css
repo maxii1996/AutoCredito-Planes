@@ -59,6 +59,7 @@ body.menu-collapsed .brand { flex-direction: column; align-items: center; gap: 6
 body.menu-collapsed .brand-icon { margin: 0 auto; }
 body.menu-collapsed .nav { align-items: center; width: 100%; gap: 12px; }
 body.menu-collapsed .nav-link { justify-content: center; padding: 10px; width: 100%; }
+body.menu-collapsed .nav-submenu { display: none; }
 body.menu-collapsed .sidebar-foot { display: none; }
 
 .sidebar {
@@ -93,6 +94,26 @@ body.menu-collapsed .sidebar-foot { display: none; }
 }
 .nav-link.active, .nav-link:hover { background: #192132; border-color: #2f394d; transform: translateX(3px); }
 .nav-link i { font-size: 18px; }
+.nav-group { display: grid; gap: 8px; }
+.nav-group.is-hidden { display: none; }
+.nav-link-submenu { justify-content: space-between; }
+.nav-link-submenu .bx-chevron-down { font-size: 16px; opacity: 0.7; margin-left: auto; }
+.nav-submenu { display: grid; gap: 6px; padding-left: 12px; }
+.nav-sublink {
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.nav-sublink:hover, .nav-sublink.active { background: #192132; border-color: #2f394d; transform: translateX(2px); }
+.nav-sublink-title { font-weight: 600; font-size: 13px; }
+.nav-sublink-meta { color: var(--muted); font-size: 11px; }
 
 .sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
 .mini { color: var(--muted); font-size: 12px; margin: 0; }
@@ -234,8 +255,8 @@ button, .icon-btn { cursor: pointer; }
 .bonified-bonification-field { display: none; }
 .auto-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 .auto-btn { white-space: nowrap; }
-.bonified-options { display: grid; gap: 12px; padding: 12px; border-radius: 16px; border: 1px dashed #cbd5f5; background: #ffffff; }
-.bonified-option { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: #ffffff; }
+.bonified-options { display: grid; gap: 12px; padding: 12px; border-radius: 16px; border: 1px dashed #cbd5f5; background: rgba(15, 23, 42, 0.35); }
+.bonified-option { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: rgba(15, 23, 42, 0.55); }
 .payment-rows { display: grid; gap: 12px; }
 .payment-row { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(15, 23, 42, 0.45); }
 .payment-row .row-actions { display: flex; justify-content: flex-end; }

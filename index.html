@@ -31,6 +31,10 @@
         <button class="nav-link" data-target="scheduledClients"><i class='bx bx-calendar-check'></i><span class="label"> Clientes Programados</span></button>
         <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
         <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
+        <div class="nav-group is-hidden" id="myQuotesNav">
+          <button class="nav-link nav-link-submenu" data-target="quoteGenerator" id="myQuotesToggle"><i class='bx bx-folder'></i><span class="label"> Mis Cotizaciones</span><i class='bx bx-chevron-down'></i></button>
+          <div class="nav-submenu" id="myQuotesList"></div>
+        </div>
         <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
       </nav>
      
@@ -220,7 +224,7 @@
           </div>
           <div class="actions">
             <button id="saveClient" class="primary-btn"><i class='bx bx-save'></i>Guardar cotización</button>
-            <button id="openQuoteGenerator" class="secondary-btn" data-jump="quoteGenerator" type="button"><i class='bx bx-file'></i>Generar una Cotización</button>
+            <button id="addQuoteToMyQuotes" class="secondary-btn" type="button"><i class='bx bx-file'></i>Agregar a "Mis Cotizaciones"</button>
             <button id="copyQuote" class="secondary-btn" type="button"><i class='bx bx-copy'></i>Copiar cotización</button>
             <button id="openQuoteModal" class="ghost-btn" type="button"><i class='bx bx-archive'></i>Ver cotizaciones guardadas</button>
           </div>
@@ -402,11 +406,12 @@
       <section id="quoteGenerator" class="panel">
         <div class="panel-head">
           <div>
-            <h2>Generar una Cotización</h2>
+            <h2>Mis Cotizaciones</h2>
           </div>
           <div class="actions">
             <button class="ghost-btn" data-jump="plans" type="button"><i class='bx bx-arrow-back'></i>Volver a Cotizaciones</button>
             <button id="quoteGeneratorSave" class="primary-btn" type="button"><i class='bx bx-save'></i>Guardar</button>
+            <button id="quoteGeneratorDeleteActive" class="ghost-btn danger" type="button"><i class='bx bx-trash'></i>Eliminar esta cotización</button>
             <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>Exportar PDF</button>
             <button id="quoteGeneratorExportPng" class="ghost-btn" type="button"><i class='bx bx-image'></i>Exportar PNG</button>
           </div>
@@ -629,6 +634,30 @@
                   </div>
                 </section>
                 <section class="quote-tab-panel" id="quote-tab-payments" role="tabpanel" aria-labelledby="quote-tab-btn-payments">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Cuota pura</p>
+                        <p class="muted tiny">Valor base que se imprime como una cuota adicional.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-cuota-pura type="button">Auto cuota pura</button>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="quoteCuotaPuraAmount">Monto</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="quoteCuotaPuraAmount" class="money" type="text" inputmode="numeric" data-quote-field="cuotaPura.amount" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="quoteCuotaPuraDetail">Detalle</label>
+                        <input id="quoteCuotaPuraDetail" data-quote-field="cuotaPura.detail" placeholder="Ej: Cuota pura base del plan" />
+                      </div>
+                    </div>
+                  </div>
                   <div class="field-group compact">
                     <div class="field-head">
                       <div>

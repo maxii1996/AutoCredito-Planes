@@ -11,8 +11,8 @@ const DEFAULT_PLAN_SCHEME = [
   { start: 85, end: 120 }
 ];
 const DEFAULT_QUOTE_PAYMENTS = [
-  { label: 'Cuota 2 - 12', amount: null, pureAmount: null, detail: '' },
-  { label: 'Cuota 13 - 84', amount: null, pureAmount: null, detail: '' }
+  { label: 'Cuota 2 - 12', amount: null, detail: '' },
+  { label: 'Cuota 13 - 84', amount: null, detail: '' }
 ];
 const DEFAULT_QUOTE_BENEFITS = [
   'Descuento en el seguro del 0km',
@@ -82,7 +82,7 @@ const panelTitles = {
   templates: 'Plantillas',
   vehicles: 'Autos y Valores',
   plans: 'Cotizaciones',
-  quoteGenerator: 'Generar una Cotización',
+  quoteGenerator: 'Mis Cotizaciones',
   clientManager: 'Gestor de Clientes',
   scheduledClients: 'Clientes Programados'
 };
@@ -1545,6 +1545,7 @@ async function applyProfileData(parsed) {
   renderTemplates();
   renderPlanForm();
   renderQuoteGeneratorForm();
+  renderQuoteNavigation();
   renderClients();
   renderClientManager();
   renderScheduledClients();
@@ -1681,6 +1682,10 @@ function buildQuoteGeneratorDraft({ blank = false } = {}) {
       model: ''
     },
     payments: DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row })),
+    cuotaPura: {
+      amount: null,
+      detail: ''
+    },
     bonifiedPayments: {
       one: { ...DEFAULT_BONIFIED_PAYMENT },
       three: { ...DEFAULT_BONIFIED_PAYMENT }
@@ -1723,10 +1728,19 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
     ? draft.payments.map(row => ({
       label: row?.label || '',
       amount: Number.isFinite(row?.amount) ? row.amount : parseMoney(row?.amount),
-      pureAmount: Number.isFinite(row?.pureAmount) ? row.pureAmount : parseMoney(row?.pureAmount),
       detail: row?.detail || ''
     }))
     : base.payments.map(row => ({ ...row }));
+  const legacyPureAmount = Array.isArray(draft.payments)
+    ? draft.payments.map(row => parseMoney(row?.pureAmount || 0)).find(value => value > 0)
+    : null;
+  const cuotaPuraAmount = Number.isFinite(draft?.cuotaPura?.amount)
+    ? draft.cuotaPura.amount
+    : parseMoney(draft?.cuotaPura?.amount);
+  const cuotaPura = {
+    amount: cuotaPuraAmount || legacyPureAmount || null,
+    detail: draft?.cuotaPura?.detail || ''
+  };
   const mergedNotes = [draft.notes, draft.advisorNotes].filter(Boolean).join('\n');
   const visibility = { ...base.visibility, ...(draft.visibility || {}) };
   const benefitsText = Array.isArray(draft.benefitsText)
@@ -1748,6 +1762,7 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
     },
     newVehicle: { ...base.newVehicle, ...(draft.newVehicle || {}) },
     payments,
+    cuotaPura,
     bonifiedPayments: {
       one: normalizeBonified(draft?.bonifiedPayments?.one),
       three: normalizeBonified(draft?.bonifiedPayments?.three)
@@ -1778,6 +1793,75 @@ function getQuoteGeneratorDraft() {
   return uiState.quoteGenerator.draft;
 }
 
+function resolveQuoteGeneratorName(draft = {}) {
+  const clientName = (draft.client?.name || '').trim();
+  const quoteNumber = (draft.meta?.quoteNumber || '').trim();
+  if (clientName && quoteNumber) return `${clientName} · #${quoteNumber}`;
+  if (clientName) return clientName;
+  if (quoteNumber) return `Cotización #${quoteNumber}`;
+  return 'Cotización sin título';
+}
+
+function upsertGeneratedQuote(draft, id) {
+  const payload = {
+    id,
+    name: resolveQuoteGeneratorName(draft),
+    updatedAt: new Date().toISOString(),
+    draft: normalizeQuoteGeneratorDraft(draft)
+  };
+  const existingIndex = generatedQuotes.findIndex(item => item.id === id);
+  if (existingIndex !== -1) {
+    generatedQuotes[existingIndex] = payload;
+  } else {
+    generatedQuotes.unshift(payload);
+  }
+  return payload;
+}
+
+function syncQuoteGeneratorEntry({ createIfMissing = false } = {}) {
+  const selectedId = uiState.quoteGenerator?.selectedId;
+  if (!selectedId && !createIfMissing) return null;
+  const id = selectedId || `qg-${Date.now()}`;
+  const payload = upsertGeneratedQuote(getQuoteGeneratorDraft(), id);
+  uiState.quoteGenerator.selectedId = payload.id;
+  return payload;
+}
+
+function loadQuoteGeneratorEntry(id) {
+  const entry = generatedQuotes.find(item => item.id === id);
+  if (!entry) return;
+  uiState.quoteGenerator.selectedId = entry.id;
+  commitQuoteGeneratorDraft(entry.draft, { refreshForm: true });
+  renderQuoteNavigation();
+}
+
+function createQuoteGeneratorEntry(draft = buildQuoteGeneratorDraft({ blank: true })) {
+  const payload = upsertGeneratedQuote(draft, `qg-${Date.now()}`);
+  uiState.quoteGenerator.selectedId = payload.id;
+  uiState.quoteGenerator.draft = payload.draft;
+  uiState.quoteGenerator.hasSession = quoteDraftHasContent(payload.draft);
+  persist();
+  renderQuoteGeneratorSavedList();
+  renderQuoteNavigation();
+  return payload;
+}
+
+function deleteQuoteGeneratorEntry(id) {
+  const wasActive = uiState.quoteGenerator?.selectedId === id;
+  generatedQuotes = generatedQuotes.filter(item => item.id !== id);
+  if (wasActive) {
+    uiState.quoteGenerator.selectedId = null;
+    if (generatedQuotes.length) {
+      loadQuoteGeneratorEntry(generatedQuotes[0].id);
+    } else {
+      resetQuoteGeneratorDraft();
+    }
+  }
+  persist();
+  renderQuoteGeneratorSavedList();
+  renderQuoteNavigation();
+}
+
 function quoteDraftHasContent(draft = {}) {
   const hasText = value => String(value || '').trim().length > 0;
   const hasMoney = value => Number.isFinite(value) ? value > 0 : parseMoney(value) > 0;
@@ -1806,7 +1890,9 @@ function quoteDraftHasContent(draft = {}) {
     draft.notes
   ].some(hasText)
     || hasMoney(vehicle.factoryPrice)
-    || payments.some(row => hasText(row?.label) || hasText(row?.detail) || hasMoney(row?.amount) || hasMoney(row?.pureAmount))
+    || payments.some(row => hasText(row?.label) || hasText(row?.detail) || hasMoney(row?.amount))
+    || hasMoney(draft?.cuotaPura?.amount)
+    || hasText(draft?.cuotaPura?.detail)
     || hasMoney(bonified?.one?.fakeOriginal)
     || hasMoney(bonified?.one?.bonification)
     || hasMoney(bonified?.one?.amount)
@@ -1843,7 +1929,10 @@ function commitQuoteGeneratorDraft(draft, { refreshForm = false } = {}) {
   ensureQuoteGeneratorState();
   uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(draft);
   uiState.quoteGenerator.hasSession = quoteDraftHasContent(uiState.quoteGenerator.draft);
+  syncQuoteGeneratorEntry({ createIfMissing: uiState.quoteGenerator.hasSession });
   persist();
+  renderQuoteGeneratorSavedList();
+  renderQuoteNavigation();
   updateQuoteGeneratorPreview();
   if (refreshForm) {
     renderQuoteGeneratorForm();
@@ -1999,13 +2088,11 @@ function buildQuoteGeneratorAutoPayments(quote) {
     advancePayments: quote.advancePayments || false,
     advanceAmount: quote.advanceAmount || 0
   });
-  const cuotaPura = resolveQuoteGeneratorCuotaPura(quote, { vehicle: { model: quote.model } });
   planRanges.forEach(range => {
     const amount = projection.rangeAmounts?.[range.key] ?? vehicle?.shareByPlan?.[range.key] ?? projection.baseCatalogCuota ?? 0;
     payments.push({
       label: `Cuota ${range.from}-${range.to}`,
       amount,
-      pureAmount: cuotaPura || projection.baseCatalogCuota || null,
       detail: ''
     });
   });
@@ -2017,9 +2104,6 @@ function applyQuoteGeneratorAutoFill({ scope = 'all' } = {}) {
   const draft = scope === 'all'
     ? buildQuoteGeneratorDraft({ blank: true })
     : JSON.parse(JSON.stringify(getQuoteGeneratorDraft()));
-  if (scope === 'all' && uiState.quoteGenerator) {
-    uiState.quoteGenerator.selectedId = null;
-  }
   if (scope === 'all' || scope === 'meta') {
     Object.entries(source.fields).forEach(([path, value]) => {
       if (path.startsWith('meta.') && value) {
@@ -2050,6 +2134,10 @@ function applyQuoteGeneratorAutoFill({ scope = 'all' } = {}) {
   }
   if (scope === 'all' || scope === 'payments') {
     draft.payments = buildQuoteGeneratorAutoPayments(source.quote);
+    draft.cuotaPura = {
+      amount: resolveQuoteGeneratorCuotaPura(source.quote, draft) || draft?.cuotaPura?.amount || null,
+      detail: draft?.cuotaPura?.detail || ''
+    };
     applyQuoteGeneratorBonifiedDefaults(draft, { force: true });
   }
   if (scope === 'all') {
@@ -2453,6 +2541,7 @@ async function init() {
     await initializePriceTabs();
     setupScrollLockObserver();
     bindNavigation();
+    bindQuoteNavigation();
     bindProfileActions();
     bindSettingsMenu();
     bindPreferencesPanel();
@@ -2491,6 +2580,7 @@ async function init() {
     bindScheduleModal();
     bindActionCustomizer();
     bindCustomContextMenu();
+    bindQuoteCreation();
     startContactLogTicker();
     startScheduleClock();
     startRealtimePersistence();
@@ -2506,6 +2596,21 @@ function bindNavigation() {
       e.preventDefault();
       activatePanel(btn.dataset.target);
     });
+  });
+}
+
+function bindQuoteNavigation() {
+  const group = document.getElementById('myQuotesNav');
+  const list = document.getElementById('myQuotesList');
+  if (!group || !list || group.dataset.bound) return;
+  group.dataset.bound = 'true';
+  list.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-quote-id]');
+    if (!target) return;
+    const id = target.dataset.quoteId;
+    if (!id) return;
+    loadQuoteGeneratorEntry(id);
+    activatePanel('quoteGenerator');
   });
 }
 
@@ -2535,17 +2640,36 @@ function bindQuickLinks() {
   document.querySelectorAll('[data-jump]').forEach(btn => btn.addEventListener('click', () => activatePanel(btn.dataset.jump)));
 }
 
+function bindQuoteCreation() {
+  const addBtn = document.getElementById('addQuoteToMyQuotes');
+  if (!addBtn || addBtn.dataset.bound) return;
+  addBtn.dataset.bound = 'true';
+  addBtn.addEventListener('click', () => {
+    ensureQuoteGeneratorState();
+    const draft = buildQuoteGeneratorDraft({ blank: true });
+    createQuoteGeneratorEntry(draft);
+    applyQuoteGeneratorAutoFill({ scope: 'all' });
+    activatePanel('quoteGenerator');
+    showToast('Cotización agregada a "Mis Cotizaciones".', 'success');
+  });
+}
+
 function openQuoteGeneratorPanel() {
   ensureQuoteGeneratorState();
-  renderQuoteGeneratorForm();
-  const draft = getQuoteGeneratorDraft();
-  if (uiState.quoteGenerator?.hasSession && quoteDraftHasContent(draft)) {
-    showQuoteRestoreModal({
-      onContinue: () => commitQuoteGeneratorDraft(draft, { refreshForm: true }),
-      onReload: () => applyQuoteGeneratorAutoFill({ scope: 'all' }),
-      onReset: () => resetQuoteGeneratorDraft()
-    });
+  const selectedId = uiState.quoteGenerator?.selectedId;
+  if (selectedId) {
+    const entry = generatedQuotes.find(item => item.id === selectedId);
+    if (entry) {
+      commitQuoteGeneratorDraft(entry.draft, { refreshForm: true });
+      return;
+    }
   }
+  if (generatedQuotes.length) {
+    uiState.quoteGenerator.selectedId = generatedQuotes[0].id;
+    commitQuoteGeneratorDraft(generatedQuotes[0].draft, { refreshForm: true });
+    return;
+  }
+  renderQuoteGeneratorForm();
 }
 
 function bindQuoteGenerator() {
@@ -2659,6 +2783,22 @@ function bindQuoteGenerator() {
       return;
     }
 
+    const autoCuotaPuraBtn = event.target.closest('[data-auto-cuota-pura]');
+    if (autoCuotaPuraBtn) {
+      const draft = getQuoteGeneratorDraft();
+      const source = buildQuoteGeneratorAutoSource();
+      const autoAmount = resolveQuoteGeneratorCuotaPura(source.quote, draft);
+      if (!autoAmount) {
+        showToast('No hay datos automáticos para la cuota pura.', 'error');
+        return;
+      }
+      draft.cuotaPura = { ...(draft.cuotaPura || {}), amount: autoAmount };
+      commitQuoteGeneratorDraft(draft);
+      const input = document.querySelector('[data-quote-field="cuotaPura.amount"]');
+      if (input) setMoneyValue(input, autoAmount);
+      return;
+    }
+
     const editTarget = event.target.closest('[data-quote-edit]');
     if (editTarget) {
       activateQuoteTab('quote-tab-extras');
@@ -2679,12 +2819,9 @@ function bindQuoteGenerator() {
   if (addPaymentBtn) {
     addPaymentBtn.addEventListener('click', () => {
       const draft = getQuoteGeneratorDraft();
-      const source = buildQuoteGeneratorAutoSource();
-      const pureAmount = resolveQuoteGeneratorCuotaPura(source.quote, draft);
       draft.payments.push({
         label: `Cuota ${draft.payments.length + 1}`,
         amount: null,
-        pureAmount: pureAmount || null,
         detail: ''
       });
       commitQuoteGeneratorDraft(draft, { refreshForm: true });
@@ -2694,21 +2831,11 @@ function bindQuoteGenerator() {
   const saveBtn = document.getElementById('quoteGeneratorSave');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      const draft = getQuoteGeneratorDraft();
-      const selectedId = uiState.quoteGenerator?.selectedId || null;
-      const id = selectedId || `qg-${Date.now()}`;
-      const name = draft.client?.name || `Cotización ${draft.meta?.quoteNumber || ''}`;
-      const payload = { id, name, updatedAt: new Date().toISOString(), draft };
-      const existingIndex = generatedQuotes.findIndex(item => item.id === id);
-      if (existingIndex !== -1) {
-        generatedQuotes[existingIndex] = payload;
-      } else {
-        generatedQuotes.unshift(payload);
-      }
-      uiState.quoteGenerator.selectedId = id;
+      syncQuoteGeneratorEntry({ createIfMissing: true });
       persist();
       renderQuoteGeneratorSavedList();
-      showToast('Cotización guardada en el sistema.', 'success');
+      renderQuoteNavigation();
+      showToast('Cotización actualizada en Mis Cotizaciones.', 'success');
     });
   }
 
@@ -2726,8 +2853,7 @@ function bindQuoteGenerator() {
         showToast('No se encontró la cotización seleccionada.', 'error');
         return;
       }
-      uiState.quoteGenerator.selectedId = found.id;
-      commitQuoteGeneratorDraft(found.draft, { refreshForm: true });
+      loadQuoteGeneratorEntry(found.id);
       showToast('Cotización cargada.', 'success');
     });
   }
@@ -2746,10 +2872,27 @@ function bindQuoteGenerator() {
         message: 'Se eliminará la cotización guardada seleccionada.',
         confirmText: 'Eliminar',
         onConfirm: () => {
-          generatedQuotes = generatedQuotes.filter(item => item.id !== selectedId);
-          uiState.quoteGenerator.selectedId = null;
-          persist();
-          renderQuoteGeneratorSavedList();
+          deleteQuoteGeneratorEntry(selectedId);
+          showToast('Cotización eliminada.', 'success');
+        }
+      });
+    });
+  }
+
+  const deleteActiveBtn = document.getElementById('quoteGeneratorDeleteActive');
+  if (deleteActiveBtn) {
+    deleteActiveBtn.addEventListener('click', () => {
+      const selectedId = uiState.quoteGenerator?.selectedId;
+      if (!selectedId) {
+        showToast('No hay una cotización activa para eliminar.', 'error');
+        return;
+      }
+      confirmAction({
+        title: 'Eliminar esta cotización',
+        message: 'Se eliminará la cotización activa de tu lista de Mis Cotizaciones.',
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          deleteQuoteGeneratorEntry(selectedId);
           showToast('Cotización eliminada.', 'success');
         }
       });
@@ -2764,8 +2907,10 @@ function bindQuoteGenerator() {
   const select = document.getElementById('quoteGeneratorSavedList');
   if (select) {
     select.addEventListener('change', () => {
-      uiState.quoteGenerator.selectedId = select.value || null;
-      persist();
+      const selectedId = select.value || null;
+      if (selectedId) {
+        loadQuoteGeneratorEntry(selectedId);
+      }
     });
   }
 
@@ -5356,7 +5501,7 @@ function renderQuoteGeneratorPayments(draft) {
   if (!rows) return;
   rows.innerHTML = (draft.payments || []).map((row, index) => `
     <div class="payment-row">
-      <div class="form-grid three">
+      <div class="form-grid two">
         <div class="field">
           <label>Detalle</label>
           <input type="text" value="${row.label || ''}" data-payment-field="label" data-payment-index="${index}" placeholder="Ej: Cuota 2 - 12" />
@@ -5366,13 +5511,6 @@ function renderQuoteGeneratorPayments(draft) {
           <div class="money-field">
             <span class="prefix">$</span>
             <input class="money" type="text" inputmode="numeric" data-payment-field="amount" data-payment-index="${index}" value="${row.amount ? number.format(row.amount) : ''}" />
-          </div>
-        </div>
-        <div class="field">
-          <label>Cuota pura (opcional)</label>
-          <div class="money-field">
-            <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-payment-field="pureAmount" data-payment-index="${index}" value="${row.pureAmount ? number.format(row.pureAmount) : ''}" />
           </div>
         </div>
       </div>
@@ -5413,11 +5551,32 @@ function renderQuoteGeneratorSavedList() {
   select.innerHTML = generatedQuotes.map(item => `
     <option value="${item.id}">${item.name || `Cotización ${item.draft?.meta?.quoteNumber || ''}`}</option>
   `).join('');
-  if (uiState.quoteGenerator?.selectedId) {
-    select.value = uiState.quoteGenerator.selectedId;
-  } else {
-    select.value = generatedQuotes[0]?.id || '';
+  if (!uiState.quoteGenerator?.selectedId && generatedQuotes[0]) {
+    uiState.quoteGenerator.selectedId = generatedQuotes[0].id;
   }
+  select.value = uiState.quoteGenerator?.selectedId || generatedQuotes[0]?.id || '';
+}
+
+function renderQuoteNavigation() {
+  const group = document.getElementById('myQuotesNav');
+  const list = document.getElementById('myQuotesList');
+  if (!group || !list) return;
+  if (!generatedQuotes.length) {
+    group.classList.add('is-hidden');
+    list.innerHTML = '';
+    return;
+  }
+  group.classList.remove('is-hidden');
+  list.innerHTML = generatedQuotes.map(item => {
+    const isActive = item.id === uiState.quoteGenerator?.selectedId;
+    const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('es-AR') : '';
+    return `
+      <button class="nav-sublink${isActive ? ' active' : ''}" type="button" data-quote-id="${item.id}">
+        <span class="nav-sublink-title">${item.name || 'Cotización'}</span>
+        <span class="nav-sublink-meta">${updatedAt}</span>
+      </button>
+    `;
+  }).join('');
 }
 
 function renderQuoteGeneratorForm() {
@@ -5451,6 +5610,7 @@ function renderQuoteGeneratorForm() {
   });
   renderQuoteGeneratorPayments(draft);
   renderQuoteGeneratorSavedList();
+  renderQuoteNavigation();
   renderQuoteGeneratorBrandSuggestions();
   updateQuoteGeneratorPreview();
 }
@@ -5557,20 +5717,24 @@ function updateQuoteGeneratorPreview() {
 
   const paymentList = document.getElementById('previewPaymentList');
   if (paymentList) {
-    if (!draft.payments || !draft.payments.length) {
-      paymentList.innerHTML = '<p class="muted">Sin cuotas cargadas.</p>';
-    } else {
-      paymentList.innerHTML = draft.payments.map(row => `
-        <div class="quote-payment-row">
-          <div>
-            <strong>${row.label || 'Cuota'}</strong>
-            ${row.detail ? `<div class="muted tiny">${row.detail}</div>` : ''}
-            ${parseMoney(row.pureAmount || 0) > 0 ? `<div class="muted tiny">Cuota pura: ${formatQuotePreviewMoney(row.pureAmount)}</div>` : ''}
-          </div>
-          <span>${formatQuotePreviewMoney(row.amount)}</span>
+    const cuotaPura = draft.cuotaPura || {};
+    const rows = [
+      ...(draft.payments || []),
+      {
+        label: 'Cuota pura',
+        amount: cuotaPura.amount,
+        detail: cuotaPura.detail
+      }
+    ];
+    paymentList.innerHTML = rows.length ? rows.map(row => `
+      <div class="quote-payment-row">
+        <div>
+          <strong>${row.label || 'Cuota'}</strong>
+          ${row.detail ? `<div class="muted tiny">${row.detail}</div>` : ''}
         </div>
-      `).join('');
-    }
+        <span>${formatQuotePreviewMoney(row.amount)}</span>
+      </div>
+    `).join('') : '<p class="muted">Sin cuotas cargadas.</p>';
   }
 
   const notesEl = document.querySelector('#previewNotes p');
@@ -5668,32 +5832,27 @@ function buildQuoteGeneratorPdfDocument(draft) {
     const bonification = parseMoney(item.data?.bonification || 0);
     return original > 0 || amount > 0 || bonification > 0;
   });
-  const hasCuotaPura = (draft.payments || []).some(row => parseMoney(row?.pureAmount || 0) > 0);
+  const cuotaPura = draft.cuotaPura || {};
+  const paymentRows = [
+    ...(draft.payments || []),
+    {
+      label: 'Cuota pura',
+      amount: cuotaPura.amount,
+      detail: cuotaPura.detail
+    }
+  ];
   const paymentTable = {
     table: {
       headerRows: 1,
-      widths: hasCuotaPura ? ['*', 'auto', 'auto'] : ['*', 'auto'],
+      widths: ['*', 'auto'],
       body: [
-        hasCuotaPura
-          ? [
-            { text: 'Detalle', bold: true, color: '#334155' },
-            { text: 'Monto', bold: true, color: '#334155', alignment: 'right' },
-            { text: 'Cuota pura', bold: true, color: '#334155', alignment: 'right' }
-          ]
-          : [
-            { text: 'Detalle', bold: true, color: '#334155' },
-            { text: 'Monto', bold: true, color: '#334155', alignment: 'right' }
-          ],
-        ...(draft.payments || []).map(row => {
+        [
+          { text: 'Detalle', bold: true, color: '#334155' },
+          { text: 'Monto', bold: true, color: '#334155', alignment: 'right' }
+        ],
+        ...paymentRows.map(row => {
           const detailStack = [row.label || 'Cuota'];
           if (row.detail) detailStack.push({ text: row.detail, fontSize: 8, color: '#64748b' });
-          if (hasCuotaPura) {
-            return [
-              { stack: detailStack },
-              { text: formatMoney(row.amount), alignment: 'right' },
-              { text: formatMoney(row.pureAmount), alignment: 'right' }
-            ];
-          }
           return [
             { stack: detailStack },
             { text: formatMoney(row.amount), alignment: 'right' }
@@ -11230,6 +11389,7 @@ function syncFromStorage() {
   if (document.getElementById('quoteGenerator')?.classList.contains('active')) {
     renderQuoteGeneratorForm();
   }
+  renderQuoteNavigation();
   renderClients();
   renderClientManager();
   renderGlobalSettings();
