@@ -2,27 +2,32 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-09T15:10:18.634Z",
+  "updatedAt": "2026-01-13T19:24:01.775Z",
   "vehicles": [
     {
       "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 70/30)",
       "brand": "FIAT",
       "basePrice": 37020000,
-      "integration": 12957000,
+      "integration": 0,
       "cuotaPura": 308500,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "25a84",
+        "planType": "22a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "22a84"
+      ],
       "shareByPlan": {
         "2a12": 482258,
         "13a24": 509653,
         "25a84": 516841,
-        "ctapura": 308500
+        "ctapura": 308500,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1208690,
@@ -30,31 +35,45 @@
         "6": 1813035
       },
       "withdrawal": {
-        "installments": [4, 6, 9, 12],
+        "installments": [
+          2,
+          4,
+          9,
+          12
+        ],
         "requirementType": "percent",
-        "requirementValue": 0.35,
+        "requirementValue": 0.3,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
       "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 90/10)",
       "brand": "FIAT",
       "basePrice": 37020000,
-      "integration": 3702000,
+      "integration": 0,
       "cuotaPura": 396643,
       "planProfile": {
         "label": "90/10 (84 cuotas)",
-        "planType": "25a84",
+        "planType": "22a84",
         "financedPct": 0.9,
         "integrationPct": 0.1,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "22a84"
+      ],
       "shareByPlan": {
         "2a12": 615649,
         "13a24": 615649,
         "25a84": 643043,
-        "ctapura": 396643
+        "ctapura": 396643,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1219400,
@@ -62,10 +81,18 @@
         "6": 1829100
       },
       "withdrawal": {
-        "installments": [10, 24, 36],
+        "installments": [
+          10,
+          24,
+          36
+        ],
         "requirementType": "percent",
-        "requirementValue": 0.1,
+        "requirementValue": 0.2,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -81,12 +108,17 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 415761,
         "13a24": 437799,
         "25a84": 300232,
-        "ctapura": 248167
+        "ctapura": 248167,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1123418,
@@ -94,10 +126,18 @@
         "6": 1685127
       },
       "withdrawal": {
-        "installments": [4, 9, 12],
+        "installments": [
+          4,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -113,12 +153,17 @@
         "integrationPct": 0.2,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 321246,
         "13a24": 321246,
         "25a84": 341278,
-        "ctapura": 257810
+        "ctapura": 257810,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1093940,
@@ -126,10 +171,18 @@
         "6": 1640910
       },
       "withdrawal": {
-        "installments": [6, 9, 12],
+        "installments": [
+          6,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.3,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -145,12 +198,17 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 409200,
         "13a24": 430890,
         "25a84": 295494,
-        "ctapura": 244250
+        "ctapura": 244250,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1128518,
@@ -158,10 +216,18 @@
         "6": 1692777
       },
       "withdrawal": {
-        "installments": [4, 9, 12],
+        "installments": [
+          4,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -177,12 +243,17 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 523821,
         "13a24": 551586,
         "25a84": 378264,
-        "ctapura": 312667
+        "ctapura": 312667,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1233272,
@@ -190,10 +261,18 @@
         "6": 1849908
       },
       "withdrawal": {
-        "installments": [6, 9, 12],
+        "installments": [
+          6,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -209,12 +288,17 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 511954,
         "13a24": 539089,
         "25a84": 369695,
-        "ctapura": 305583
+        "ctapura": 305583,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1186760,
@@ -222,10 +306,18 @@
         "6": 1780140
       },
       "withdrawal": {
-        "installments": [4, 9, 12],
+        "installments": [
+          4,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -241,12 +333,17 @@
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 615523,
         "13a24": 650488,
         "25a84": 659662,
-        "ctapura": 393750
+        "ctapura": 393750,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1414118,
@@ -254,10 +351,18 @@
         "6": 2121177
       },
       "withdrawal": {
-        "installments": [4, 9, 12],
+        "installments": [
+          4,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -273,12 +378,17 @@
         "integrationPct": 0.4,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "25a84"
+      ],
       "shareByPlan": {
         "2a12": 572111,
         "13a24": 605640,
         "25a84": 572111,
-        "ctapura": 323643
+        "ctapura": 323643,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1301612,
@@ -286,10 +396,20 @@
         "6": 1952418
       },
       "withdrawal": {
-        "installments": [4, 9, 12, 24, 36],
+        "installments": [
+          4,
+          9,
+          12,
+          24,
+          36
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     },
     {
@@ -300,17 +420,22 @@
       "cuotaPura": 440750,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
-        "planType": "25a84",
+        "planType": "22a84",
         "financedPct": 0.7,
         "integrationPct": 0.3,
         "maxInstallments": 84
       },
-      "availablePlans": ["25a84"],
+      "availablePlans": [
+        "22a84"
+      ],
       "shareByPlan": {
         "2a12": 688995,
         "13a24": 728134,
         "25a84": 533219,
-        "ctapura": 440750
+        "ctapura": 440750,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
       },
       "reservations": {
         "1": 1561712,
@@ -318,21 +443,159 @@
         "6": 2342568
       },
       "withdrawal": {
-        "installments": [4, 9, 12],
+        "installments": [
+          4,
+          9,
+          12
+        ],
         "requirementType": "percent",
         "requirementValue": 0.4,
         "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 80/20)",
+      "brand": "FIAT",
+      "basePrice": 37020000,
+      "integration": 0,
+      "cuotaPura": 352571,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 515948,
+        "13a24": 545343,
+        "25a84": 422627,
+        "ctapura": 352571,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1208690,
+        "3": 1571297,
+        "6": 1813035
+      },
+      "withdrawal": {
+        "installments": [
+          6,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.2,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
       }
     }
   ],
   "brandSettings": [
     {
+      "name": "Chevrolet",
+      "color": "#ffcf24",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 21
+        },
+        {
+          "start": 22,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    },
+    {
+      "name": "Renault",
+      "color": "#3b82f6",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
       "name": "FIAT",
       "color": "#ff0a60",
       "planScheme": [
-        { "start": 2, "end": 12 },
-        { "start": 13, "end": 24 },
-        { "start": 25, "end": 84 }
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Volkswagen",
+      "color": "#c7c7c7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Peugeot",
+      "color": "#a855f7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 25
+        },
+        {
+          "start": 26,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
       ]
     }
   ]
