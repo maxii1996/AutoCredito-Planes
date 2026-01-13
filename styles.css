@@ -174,6 +174,55 @@ button, .icon-btn { cursor: pointer; }
 .quote-layout { display: grid; grid-template-columns: minmax(280px, 24vw) 1fr; gap: 16px; align-items: start; }
 .quote-details { display: grid; gap: 16px; }
 .quote-form { position: sticky; top: 20px; align-self: start; }
+.quote-generator-layout { display: grid; grid-template-columns: minmax(320px, 360px) 1fr; gap: 18px; align-items: start; }
+.quote-generator-form { position: sticky; top: 20px; max-height: calc(100vh - 140px); overflow: auto; }
+.quote-generator-preview { display: grid; gap: 16px; }
+.quote-preview-shell { display: flex; justify-content: center; align-items: flex-start; }
+.quote-preview {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 2px solid #cbd5f5;
+  border-radius: 12px;
+  padding: 28px;
+  width: min(210mm, 100%);
+  min-height: 297mm;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+  display: grid;
+  gap: 16px;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.quote-preview h3 { margin: 0 0 6px; font-size: 22px; }
+.quote-preview h4 { margin: 0 0 8px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; color: #334155; }
+.quote-preview .muted { color: #64748b; }
+.quote-preview-header { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+.quote-preview-meta { display: grid; gap: 4px; font-size: 14px; color: #334155; }
+.quote-preview-section { display: grid; gap: 8px; }
+.quote-preview-grid { display: grid; gap: 6px 20px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); font-size: 14px; }
+.quote-preview-divider { border-top: 1px dashed #94a3b8; margin: 4px 0; }
+.quote-preview-payments { display: grid; gap: 10px; }
+.quote-payment-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; }
+.quote-payment-row span { color: #475569; }
+.quote-preview-notes { min-height: 60px; padding: 10px 12px; border: 1px dashed #cbd5f5; border-radius: 10px; background: #ffffff; }
+.quote-preview-notes p { margin: 0 0 6px; font-size: 14px; color: #475569; white-space: pre-wrap; }
+.note-lines { display: grid; gap: 10px; }
+.note-lines span { border-bottom: 1px dashed #cbd5f5; height: 12px; display: block; }
+.quote-preview-list { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: #334155; font-size: 14px; }
+.quote-preview-footer { font-size: 12px; color: #475569; border-top: 1px dashed #94a3b8; padding-top: 10px; }
+.auto-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.auto-btn { white-space: nowrap; }
+.payment-rows { display: grid; gap: 12px; }
+.payment-row { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(15, 23, 42, 0.45); }
+.payment-row .row-actions { display: flex; justify-content: flex-end; }
+.action-stack { display: grid; gap: 8px; align-content: start; }
+.quote-preview .quote-preview-header h3 span { color: #1d4ed8; }
+.quote-preview .quote-preview-header h3::after { content: ''; display: block; width: 60px; height: 3px; background: #1d4ed8; border-radius: 4px; margin-top: 6px; }
+.quote-preview .quote-preview-header .muted { font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .quote-generator-layout { grid-template-columns: 1fr; }
+  .quote-generator-form { position: static; max-height: none; }
+  .quote-preview { width: 100%; min-height: auto; }
+}
 .picker-row.dense { gap: 8px; }
 .form-grid { display: grid; gap: 10px; }
 .form-grid.two { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }

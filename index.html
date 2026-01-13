@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -216,6 +218,7 @@
           </div>
           <div class="actions">
             <button id="saveClient" class="primary-btn"><i class='bx bx-save'></i>Guardar cotización</button>
+            <button id="openQuoteGenerator" class="secondary-btn" data-jump="quoteGenerator" type="button"><i class='bx bx-file'></i>Generar una Cotización</button>
             <button id="copyQuote" class="secondary-btn" type="button"><i class='bx bx-copy'></i>Copiar cotización</button>
             <button id="openQuoteModal" class="ghost-btn" type="button"><i class='bx bx-archive'></i>Ver cotizaciones guardadas</button>
           </div>
@@ -391,6 +394,332 @@
                 <div id="planCoverageList" class="coverage-grid"></div>
               </div>
             </section>
+          </div>
+        </div>
+      </section>
+      <section id="quoteGenerator" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Documento oficial tamaño A4</p>
+            <h2>Generar una Cotización</h2>
+            <p class="muted subtle">Completa los datos, controla el resultado en tiempo real y exporta en PDF o PNG.</p>
+          </div>
+          <div class="actions">
+            <button class="ghost-btn" data-jump="plans" type="button"><i class='bx bx-arrow-back'></i>Volver a Cotizaciones</button>
+            <button id="quoteGeneratorSave" class="primary-btn" type="button"><i class='bx bx-save'></i>Guardar</button>
+            <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>Exportar PDF</button>
+            <button id="quoteGeneratorExportPng" class="ghost-btn" type="button"><i class='bx bx-image'></i>Exportar PNG</button>
+          </div>
+        </div>
+        <div class="quote-generator-layout">
+          <aside class="card quote-generator-form" id="quoteGeneratorForm">
+            <div class="card-head compact">
+              <p class="eyebrow">Panel de control</p>
+              <h3>Datos principales</h3>
+            </div>
+            <div class="form-grid two">
+              <div class="field">
+                <label for="quoteNumber">Cotización #</label>
+                <div class="auto-row">
+                  <input id="quoteNumber" data-quote-field="meta.quoteNumber" placeholder="00000000" />
+                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteNumber" type="button">Auto</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="quoteDate">Fecha de Cotización</label>
+                <div class="auto-row">
+                  <input id="quoteDate" data-quote-field="meta.quoteDate" placeholder="dd/mm/aaaa" />
+                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteDate" type="button">Auto</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="quoteExpiry">Vencimiento</label>
+                <div class="auto-row">
+                  <input id="quoteExpiry" data-quote-field="meta.quoteExpiry" placeholder="dd/mm/aaaa" />
+                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteExpiry" type="button">Auto</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="quoteAdvisor">Asesor Comercial</label>
+                <div class="auto-row">
+                  <input id="quoteAdvisor" data-quote-field="meta.advisor" placeholder="Nombre del asesor" />
+                  <button class="ghost-btn mini auto-btn" data-auto-field="meta.advisor" type="button">Auto</button>
+                </div>
+              </div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Datos Cliente</p>
+                  <p class="muted tiny">Completa manualmente o usa automático.</p>
+                </div>
+                <div class="actions compact">
+                  <button class="ghost-btn mini auto-btn" data-auto-fill="client" type="button">Auto cliente</button>
+                </div>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="clientFullName">Nombre</label>
+                  <div class="auto-row">
+                    <input id="clientFullName" data-quote-field="client.name" placeholder="Nombre completo" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.name" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clientDni">DNI</label>
+                  <div class="auto-row">
+                    <input id="clientDni" data-quote-field="client.dni" placeholder="00.000.000" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.dni" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clientCuil">CUIL</label>
+                  <div class="auto-row">
+                    <input id="clientCuil" data-quote-field="client.cuil" placeholder="20-00000000-0" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.cuil" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clientCel">CEL</label>
+                  <div class="auto-row">
+                    <input id="clientCel" data-quote-field="client.cel" placeholder="+54 9 11 0000 0000" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.cel" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clientProvince">Provincia</label>
+                  <div class="auto-row">
+                    <input id="clientProvince" data-quote-field="client.province" placeholder="Provincia" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.province" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clientCity">Localidad</label>
+                  <div class="auto-row">
+                    <input id="clientCity" data-quote-field="client.city" placeholder="Localidad" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.city" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clientPostal">CP</label>
+                  <div class="auto-row">
+                    <input id="clientPostal" data-quote-field="client.postalCode" placeholder="0000" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="client.postalCode" type="button">Auto</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Datos Vehículo</p>
+                  <p class="muted tiny">Vehículo a entregar y valores de referencia.</p>
+                </div>
+                <div class="actions compact">
+                  <button class="ghost-btn mini auto-btn" data-auto-fill="vehicle" type="button">Auto vehículo</button>
+                </div>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="vehicleTradeIn">Vehículo a entregar</label>
+                  <input id="vehicleTradeIn" data-quote-field="vehicle.tradeIn" placeholder="Descripción del usado" />
+                </div>
+                <div class="field">
+                  <label for="vehicleBrand">Marca</label>
+                  <div class="auto-row">
+                    <input id="vehicleBrand" data-quote-field="vehicle.brand" placeholder="Marca" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.brand" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="vehicleModel">Modelo y Versión</label>
+                  <div class="auto-row">
+                    <input id="vehicleModel" data-quote-field="vehicle.model" placeholder="Modelo y versión" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.model" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="vehicleYear">Año</label>
+                  <input id="vehicleYear" data-quote-field="vehicle.year" placeholder="2024" />
+                </div>
+                <div class="field">
+                  <label for="vehiclePlate">Patente</label>
+                  <input id="vehiclePlate" data-quote-field="vehicle.plate" placeholder="ABC123" />
+                </div>
+                <div class="field">
+                  <label for="vehicleKms">Kms</label>
+                  <input id="vehicleKms" data-quote-field="vehicle.kms" placeholder="0 km" />
+                </div>
+                <div class="field">
+                  <label for="vehicleFactoryPrice">Precio cotizado por Fábrica</label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="vehicleFactoryPrice" class="money" type="text" inputmode="numeric" data-quote-field="vehicle.factoryPrice" placeholder="0" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Datos nuevo Vehículo</p>
+                  <p class="muted tiny">Información del 0km.</p>
+                </div>
+                <div class="actions compact">
+                  <button class="ghost-btn mini auto-btn" data-auto-fill="newVehicle" type="button">Auto 0km</button>
+                </div>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="newVehicleBrand">Marca</label>
+                  <div class="auto-row">
+                    <input id="newVehicleBrand" data-quote-field="newVehicle.brand" placeholder="Marca" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.brand" type="button">Auto</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="newVehicleModel">Modelo y Versión</label>
+                  <div class="auto-row">
+                    <input id="newVehicleModel" data-quote-field="newVehicle.model" placeholder="Modelo y versión" />
+                    <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.model" type="button">Auto</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Esquema de pagos</p>
+                  <p class="muted tiny">Agrega o edita tramos según tu propuesta.</p>
+                </div>
+                <div class="actions compact">
+                  <button class="ghost-btn mini auto-btn" data-auto-payments type="button">Auto esquema</button>
+                  <button class="secondary-btn mini" id="addPaymentRow" type="button"><i class='bx bx-plus'></i>Agregar cuota</button>
+                </div>
+              </div>
+              <div id="paymentRows" class="payment-rows"></div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Notas</p>
+                  <p class="muted tiny">Información adicional del documento.</p>
+                </div>
+              </div>
+              <div class="field">
+                <label for="quoteNotes">Notas y aclaraciones</label>
+                <textarea id="quoteNotes" data-quote-field="notes" rows="3" placeholder="Escribe las notas que quieras imprimir."></textarea>
+              </div>
+              <div class="field">
+                <label for="advisorNotes">Notas del asesor</label>
+                <textarea id="advisorNotes" data-quote-field="advisorNotes" rows="3" placeholder="Comentarios del asesor."></textarea>
+              </div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Guardar y cargar</p>
+                  <p class="muted tiny">Administra cotizaciones guardadas.</p>
+                </div>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="quoteGeneratorSavedList">Cotizaciones guardadas</label>
+                  <select id="quoteGeneratorSavedList"></select>
+                </div>
+                <div class="field action-stack">
+                  <button id="quoteGeneratorLoad" class="secondary-btn mini" type="button"><i class='bx bx-folder-open'></i>Cargar</button>
+                  <button id="quoteGeneratorDelete" class="ghost-btn mini danger" type="button"><i class='bx bx-trash'></i>Eliminar</button>
+                  <button id="quoteGeneratorReset" class="ghost-btn mini" type="button"><i class='bx bx-eraser'></i>Limpiar</button>
+                </div>
+              </div>
+            </div>
+          </aside>
+          <div class="quote-generator-preview card">
+            <div class="quote-preview-shell">
+              <div class="quote-preview" id="quotePreview">
+                <div class="quote-preview-header">
+                  <div>
+                    <h3>Cotización <span id="previewQuoteNumber">00000000</span></h3>
+                    <p class="muted">Documento comercial oficial</p>
+                  </div>
+                  <div class="quote-preview-meta">
+                    <div><strong>Fecha de Cotización:</strong> <span id="previewQuoteDate">--/--/----</span></div>
+                    <div><strong>Vencimiento:</strong> <span id="previewQuoteExpiry">--/--/----</span></div>
+                    <div><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
+                  </div>
+                </div>
+                <div class="quote-preview-section">
+                  <h4>Datos Cliente</h4>
+                  <div class="quote-preview-grid">
+                    <div><strong>Nombre:</strong> <span id="previewClientName">-</span></div>
+                    <div><strong>DNI:</strong> <span id="previewClientDni">-</span></div>
+                    <div><strong>CUIL:</strong> <span id="previewClientCuil">-</span></div>
+                    <div><strong>CEL:</strong> <span id="previewClientCel">-</span></div>
+                    <div><strong>PROV. y LOCALIDAD:</strong> <span id="previewClientLocation">-</span></div>
+                    <div><strong>CP:</strong> <span id="previewClientPostal">-</span></div>
+                  </div>
+                </div>
+                <div class="quote-preview-divider"></div>
+                <div class="quote-preview-section">
+                  <h4>Datos Vehículo</h4>
+                  <div class="quote-preview-grid">
+                    <div><strong>Vehículo a entregar:</strong> <span id="previewVehicleTradeIn">-</span></div>
+                    <div><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
+                    <div><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
+                    <div><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
+                    <div><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
+                    <div><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
+                    <div><strong>Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
+                  </div>
+                </div>
+                <div class="quote-preview-divider"></div>
+                <div class="quote-preview-section">
+                  <h4>Datos nuevo Vehículo</h4>
+                  <div class="quote-preview-grid">
+                    <div><strong>Marca:</strong> <span id="previewNewVehicleBrand">-</span></div>
+                    <div><strong>Modelo y Versión:</strong> <span id="previewNewVehicleModel">-</span></div>
+                  </div>
+                </div>
+                <div class="quote-preview-divider"></div>
+                <div class="quote-preview-section">
+                  <h4>Esquema de pagos</h4>
+                  <div id="previewPaymentList" class="quote-preview-payments"></div>
+                </div>
+                <div class="quote-preview-section">
+                  <h4>Notas y aclaraciones</h4>
+                  <div class="quote-preview-notes" id="previewNotes">
+                    <p></p>
+                    <div class="note-lines">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="quote-preview-section">
+                  <h4>Notas del asesor</h4>
+                  <div class="quote-preview-notes" id="previewAdvisorNotes">
+                    <p></p>
+                    <div class="note-lines">
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="quote-preview-section">
+                  <h4>Benef. Adicionales otorgados</h4>
+                  <ul class="quote-preview-list">
+                    <li>Descuento en el seguro del 0km</li>
+                    <li>Elección del Color de la unidad</li>
+                    <li>40-50% Descuento en servicio post venta para accesorios</li>
+                  </ul>
+                </div>
+                <div class="quote-preview-footer">
+                  Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

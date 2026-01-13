@@ -10,6 +10,11 @@ const DEFAULT_PLAN_SCHEME = [
   { start: 22, end: 84 },
   { start: 85, end: 120 }
 ];
+const DEFAULT_QUOTE_PAYMENTS = [
+  { label: 'Cuota 1 (1 pago)', amount: null, detail: '' },
+  { label: 'Cuota 1 (3 pagos)', amount: null, detail: '3x' },
+  { label: 'Cuota 2 - X', amount: null, detail: '' }
+];
 const BRAND_PLAN_SCHEMES = {
   FIAT: [
     { start: 2, end: 12 },
@@ -37,6 +42,7 @@ const panelTitles = {
   templates: 'Plantillas',
   vehicles: 'Autos y Valores',
   plans: 'Cotizaciones',
+  quoteGenerator: 'Generar una Cotización',
   clientManager: 'Gestor de Clientes',
   scheduledClients: 'Clientes Programados'
 };
@@ -74,6 +80,10 @@ const defaultUiState = {
     fontSizes: { ...defaultPreferenceFontSizes },
     phoneDisplay: 'plain',
     contextMenuVisibility: { data: {}, actions: {} }
+  },
+  quoteGenerator: {
+    draft: null,
+    selectedId: null
   },
   globalSettings: {
     advisorName: 'Planes de Ahorro Argentina',
@@ -1435,6 +1445,7 @@ async function applyProfileData(parsed) {
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
   clients = parsed.clients || [];
   managerClients = parsed.managerClients || [];
+  generatedQuotes = parsed.generatedQuotes || [];
   snapshots = parsed.snapshots || [];
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
   clientManagerState = { ...defaultClientManagerState, ...(parsed.clientManagerState || {}) };
@@ -1462,6 +1473,7 @@ async function applyProfileData(parsed) {
   renderVehicleTable();
   renderTemplates();
   renderPlanForm();
+  renderQuoteGeneratorForm();
   renderClients();
   renderClientManager();
   renderScheduledClients();
@@ -1554,6 +1566,236 @@ function setMoneyValue(el, value) {
   const numeric = parseMoney(value);
   el.dataset.raw = numeric ? String(Math.trunc(numeric)) : '';
   el.value = numeric ? number.format(numeric) : '';
+}
+
+function generateQuoteNumber() {
+  return String(Math.floor(10000000 + Math.random() * 90000000));
+}
+
+function buildQuoteGeneratorDraft({ blank = false } = {}) {
+  const advisorName = uiState?.globalSettings?.advisorName || '';
+  return {
+    meta: {
+      quoteNumber: generateQuoteNumber(),
+      quoteDate: blank ? '' : new Date().toLocaleDateString('es-AR'),
+      quoteExpiry: blank ? '' : '',
+      advisor: blank ? '' : advisorName
+    },
+    client: {
+      name: '',
+      dni: '',
+      cuil: '',
+      cel: '',
+      province: '',
+      city: '',
+      postalCode: ''
+    },
+    vehicle: {
+      tradeIn: '',
+      brand: '',
+      model: '',
+      year: '',
+      plate: '',
+      kms: '',
+      factoryPrice: null
+    },
+    newVehicle: {
+      brand: '',
+      model: ''
+    },
+    payments: DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row })),
+    notes: '',
+    advisorNotes: ''
+  };
+}
+
+function normalizeQuoteGeneratorDraft(draft = {}) {
+  const base = buildQuoteGeneratorDraft({ blank: true });
+  const meta = { ...base.meta, ...(draft.meta || {}) };
+  if (!meta.quoteNumber) meta.quoteNumber = generateQuoteNumber();
+  const payments = Array.isArray(draft.payments) && draft.payments.length
+    ? draft.payments.map(row => ({
+      label: row?.label || '',
+      amount: Number.isFinite(row?.amount) ? row.amount : parseMoney(row?.amount),
+      detail: row?.detail || ''
+    }))
+    : base.payments.map(row => ({ ...row }));
+  return {
+    meta,
+    client: { ...base.client, ...(draft.client || {}) },
+    vehicle: { ...base.vehicle, ...(draft.vehicle || {}), factoryPrice: Number.isFinite(draft?.vehicle?.factoryPrice) ? draft.vehicle.factoryPrice : parseMoney(draft?.vehicle?.factoryPrice) },
+    newVehicle: { ...base.newVehicle, ...(draft.newVehicle || {}) },
+    payments,
+    notes: draft.notes || '',
+    advisorNotes: draft.advisorNotes || ''
+  };
+}
+
+function ensureQuoteGeneratorState() {
+  if (!uiState.quoteGenerator) {
+    uiState.quoteGenerator = { draft: null, selectedId: null };
+  }
+  if (!uiState.quoteGenerator.draft) {
+    uiState.quoteGenerator.draft = buildQuoteGeneratorDraft({ blank: true });
+  }
+  uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(uiState.quoteGenerator.draft);
+}
+
+function getQuoteGeneratorDraft() {
+  ensureQuoteGeneratorState();
+  return uiState.quoteGenerator.draft;
+}
+
+function setNestedValue(target, path, value) {
+  const keys = String(path || '').split('.');
+  if (!keys.length) return;
+  let current = target;
+  keys.slice(0, -1).forEach(key => {
+    if (!current[key] || typeof current[key] !== 'object') {
+      current[key] = {};
+    }
+    current = current[key];
+  });
+  current[keys[keys.length - 1]] = value;
+}
+
+function getNestedValue(target, path) {
+  return String(path || '')
+    .split('.')
+    .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), target);
+}
+
+function commitQuoteGeneratorDraft(draft, { refreshForm = false } = {}) {
+  ensureQuoteGeneratorState();
+  uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(draft);
+  persist();
+  updateQuoteGeneratorPreview();
+  if (refreshForm) {
+    renderQuoteGeneratorForm();
+  }
+}
+
+function updateQuoteGeneratorField(path, value) {
+  const draft = getQuoteGeneratorDraft();
+  setNestedValue(draft, path, value);
+  commitQuoteGeneratorDraft(draft);
+}
+
+function updateQuoteGeneratorPayment(index, field, value) {
+  const draft = getQuoteGeneratorDraft();
+  if (!draft.payments[index]) return;
+  draft.payments[index][field] = value;
+  commitQuoteGeneratorDraft(draft);
+}
+
+function formatQuotePreviewValue(value) {
+  if (value === undefined || value === null || value === '') return '-';
+  return value;
+}
+
+function formatQuotePreviewMoney(value) {
+  if (value === undefined || value === null || value === '') return '-';
+  const numeric = parseMoney(value);
+  return currency.format(numeric || 0);
+}
+
+function buildQuoteGeneratorAutoSource() {
+  let latestQuote = clients?.[0];
+  if (!latestQuote) {
+    try {
+      latestQuote = buildQuoteFromForm();
+    } catch (err) {
+      latestQuote = null;
+    }
+  }
+  const today = new Date();
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + 7);
+  return {
+    quote: latestQuote,
+    fields: {
+      'meta.quoteDate': today.toLocaleDateString('es-AR'),
+      'meta.quoteExpiry': expiry.toLocaleDateString('es-AR'),
+      'meta.advisor': uiState?.globalSettings?.advisorName || '',
+      'client.name': latestQuote?.name || '',
+      'vehicle.brand': latestQuote?.brand || '',
+      'vehicle.model': latestQuote?.model || '',
+      'vehicle.factoryPrice': latestQuote?.basePrice || latestQuote?.priceApplied || null,
+      'vehicle.tradeIn': latestQuote?.tradeIn ? 'Entrega llave por llave' : '',
+      'newVehicle.brand': latestQuote?.brand || '',
+      'newVehicle.model': latestQuote?.model || ''
+    }
+  };
+}
+
+function buildQuoteGeneratorAutoPayments(quote) {
+  if (!quote) return DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row }));
+  const payments = [];
+  if (quote.reservation1) {
+    payments.push({ label: 'Cuota 1 (1 pago)', amount: quote.reservation1, detail: '' });
+  }
+  if (quote.reservation3) {
+    const each = quote.reservation3 / 3;
+    payments.push({ label: 'Cuota 1 (3 pagos)', amount: quote.reservation3, detail: `3x ${currency.format(each || 0)}` });
+  }
+  if (quote.reservation6) {
+    const each = quote.reservation6 / 6;
+    payments.push({ label: 'Cuota 1 (6 pagos)', amount: quote.reservation6, detail: `6x ${currency.format(each || 0)}` });
+  }
+  if (quote.cuota) {
+    payments.push({ label: 'Cuota mensual estimada', amount: quote.cuota, detail: quote.remainingInstallments ? `${quote.remainingInstallments} cuotas` : '' });
+  }
+  return payments.length ? payments : DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row }));
+}
+
+function applyQuoteGeneratorAutoFill({ scope = 'all' } = {}) {
+  const source = buildQuoteGeneratorAutoSource();
+  const draft = scope === 'all'
+    ? buildQuoteGeneratorDraft({ blank: true })
+    : JSON.parse(JSON.stringify(getQuoteGeneratorDraft()));
+  if (scope === 'all' && uiState.quoteGenerator) {
+    uiState.quoteGenerator.selectedId = null;
+  }
+  if (scope === 'all' || scope === 'meta') {
+    Object.entries(source.fields).forEach(([path, value]) => {
+      if (path.startsWith('meta.') && value) {
+        setNestedValue(draft, path, value);
+      }
+    });
+  }
+  if (scope === 'all' || scope === 'client') {
+    Object.entries(source.fields).forEach(([path, value]) => {
+      if (path.startsWith('client.') && value) {
+        setNestedValue(draft, path, value);
+      }
+    });
+  }
+  if (scope === 'all' || scope === 'vehicle') {
+    Object.entries(source.fields).forEach(([path, value]) => {
+      if (path.startsWith('vehicle.') && value !== null && value !== undefined && value !== '') {
+        setNestedValue(draft, path, value);
+      }
+    });
+  }
+  if (scope === 'all' || scope === 'newVehicle') {
+    Object.entries(source.fields).forEach(([path, value]) => {
+      if (path.startsWith('newVehicle.') && value) {
+        setNestedValue(draft, path, value);
+      }
+    });
+  }
+  if (scope === 'all' || scope === 'payments') {
+    draft.payments = buildQuoteGeneratorAutoPayments(source.quote);
+  }
+  commitQuoteGeneratorDraft(draft, { refreshForm: true });
+}
+
+function resetQuoteGeneratorDraft() {
+  const draft = buildQuoteGeneratorDraft({ blank: true });
+  if (uiState.quoteGenerator) {
+    uiState.quoteGenerator.selectedId = null;
+  }
+  commitQuoteGeneratorDraft(draft, { refreshForm: true });
 }
 
 function extractVariables(body = '') {
@@ -1882,6 +2124,7 @@ let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
+let generatedQuotes = load('generatedQuotes') || [];
 let selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
 let planDraftApplied = false;
 let lastPlanProjection = null;
@@ -1969,6 +2212,7 @@ async function init() {
     bindQuoteModal();
     bindResourceButtons();
     attachPlanListeners();
+    bindQuoteGenerator();
     attachTemplateActions();
     bindPriceTabControls();
     bindPriceImportActions();
@@ -2005,6 +2249,9 @@ function activatePanel(targetId) {
   if (targetId === 'plans') {
     updatePlanSummary();
   }
+  if (targetId === 'quoteGenerator') {
+    openQuoteGeneratorPanel();
+  }
   if (targetId === 'scheduledClients') {
     renderScheduledClients();
   }
@@ -2018,6 +2265,183 @@ function updateSectionTitle(targetId) {
 
 function bindQuickLinks() {
   document.querySelectorAll('[data-jump]').forEach(btn => btn.addEventListener('click', () => activatePanel(btn.dataset.jump)));
+}
+
+function openQuoteGeneratorPanel() {
+  ensureQuoteGeneratorState();
+  renderQuoteGeneratorForm();
+  confirmAction({
+    title: '¿Quieres utilizar los datos de la última cotización?',
+    message: 'Podemos autocompletar el documento con la última cotización guardada.',
+    confirmText: 'Sí',
+    cancelText: 'No',
+    onConfirm: () => applyQuoteGeneratorAutoFill({ scope: 'all' }),
+    onCancel: () => resetQuoteGeneratorDraft()
+  });
+}
+
+function bindQuoteGenerator() {
+  const panel = document.getElementById('quoteGenerator');
+  if (!panel || panel.dataset.bound) return;
+  panel.dataset.bound = 'true';
+
+  panel.addEventListener('input', (event) => {
+    const target = event.target;
+    if (target.matches('[data-quote-field]') && !target.classList.contains('money')) {
+      updateQuoteGeneratorField(target.dataset.quoteField, target.value);
+    }
+    if (target.matches('[data-payment-field][data-payment-index]') && !target.classList.contains('money')) {
+      updateQuoteGeneratorPayment(Number(target.dataset.paymentIndex), target.dataset.paymentField, target.value);
+    }
+  });
+
+  panel.addEventListener('click', (event) => {
+    const autoFieldBtn = event.target.closest('[data-auto-field]');
+    if (autoFieldBtn) {
+      const fieldPath = autoFieldBtn.dataset.autoField;
+      if (fieldPath === 'meta.quoteNumber') {
+        updateQuoteGeneratorField(fieldPath, generateQuoteNumber());
+        const input = document.querySelector(`[data-quote-field="${fieldPath}"]`);
+        if (input) input.value = getQuoteGeneratorDraft().meta.quoteNumber;
+        return;
+      }
+      const source = buildQuoteGeneratorAutoSource();
+      const value = source.fields[fieldPath];
+      if (value !== undefined && value !== null && value !== '') {
+        updateQuoteGeneratorField(fieldPath, value);
+        const input = document.querySelector(`[data-quote-field="${fieldPath}"]`);
+        if (input) {
+          if (input.classList.contains('money')) {
+            setMoneyValue(input, value);
+          } else {
+            input.value = value;
+          }
+        }
+      } else {
+        showToast('No hay datos automáticos para ese campo.', 'error');
+      }
+      return;
+    }
+
+    const autoFillBtn = event.target.closest('[data-auto-fill]');
+    if (autoFillBtn) {
+      const scope = autoFillBtn.dataset.autoFill;
+      applyQuoteGeneratorAutoFill({ scope });
+      return;
+    }
+
+    if (event.target.closest('[data-auto-payments]')) {
+      applyQuoteGeneratorAutoFill({ scope: 'payments' });
+      return;
+    }
+
+    const removeBtn = event.target.closest('[data-remove-payment]');
+    if (removeBtn) {
+      const index = Number(removeBtn.dataset.removePayment);
+      const draft = getQuoteGeneratorDraft();
+      draft.payments.splice(index, 1);
+      commitQuoteGeneratorDraft(draft, { refreshForm: true });
+      return;
+    }
+  });
+
+  const addPaymentBtn = document.getElementById('addPaymentRow');
+  if (addPaymentBtn) {
+    addPaymentBtn.addEventListener('click', () => {
+      const draft = getQuoteGeneratorDraft();
+      draft.payments.push({ label: `Cuota ${draft.payments.length + 1}`, amount: null, detail: '' });
+      commitQuoteGeneratorDraft(draft, { refreshForm: true });
+    });
+  }
+
+  const saveBtn = document.getElementById('quoteGeneratorSave');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      const draft = getQuoteGeneratorDraft();
+      const selectedId = uiState.quoteGenerator?.selectedId || null;
+      const id = selectedId || `qg-${Date.now()}`;
+      const name = draft.client?.name || `Cotización ${draft.meta?.quoteNumber || ''}`;
+      const payload = { id, name, updatedAt: new Date().toISOString(), draft };
+      const existingIndex = generatedQuotes.findIndex(item => item.id === id);
+      if (existingIndex !== -1) {
+        generatedQuotes[existingIndex] = payload;
+      } else {
+        generatedQuotes.unshift(payload);
+      }
+      uiState.quoteGenerator.selectedId = id;
+      persist();
+      renderQuoteGeneratorSavedList();
+      showToast('Cotización guardada en el sistema.', 'success');
+    });
+  }
+
+  const loadBtn = document.getElementById('quoteGeneratorLoad');
+  if (loadBtn) {
+    loadBtn.addEventListener('click', () => {
+      const select = document.getElementById('quoteGeneratorSavedList');
+      const selectedId = select?.value;
+      if (!selectedId) {
+        showToast('Selecciona una cotización para cargar.', 'error');
+        return;
+      }
+      const found = generatedQuotes.find(item => item.id === selectedId);
+      if (!found) {
+        showToast('No se encontró la cotización seleccionada.', 'error');
+        return;
+      }
+      uiState.quoteGenerator.selectedId = found.id;
+      commitQuoteGeneratorDraft(found.draft, { refreshForm: true });
+      showToast('Cotización cargada.', 'success');
+    });
+  }
+
+  const deleteBtn = document.getElementById('quoteGeneratorDelete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      const select = document.getElementById('quoteGeneratorSavedList');
+      const selectedId = select?.value;
+      if (!selectedId) {
+        showToast('Selecciona una cotización para eliminar.', 'error');
+        return;
+      }
+      confirmAction({
+        title: 'Eliminar cotización',
+        message: 'Se eliminará la cotización guardada seleccionada.',
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          generatedQuotes = generatedQuotes.filter(item => item.id !== selectedId);
+          uiState.quoteGenerator.selectedId = null;
+          persist();
+          renderQuoteGeneratorSavedList();
+          showToast('Cotización eliminada.', 'success');
+        }
+      });
+    });
+  }
+
+  const resetBtn = document.getElementById('quoteGeneratorReset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => resetQuoteGeneratorDraft());
+  }
+
+  const select = document.getElementById('quoteGeneratorSavedList');
+  if (select) {
+    select.addEventListener('change', () => {
+      uiState.quoteGenerator.selectedId = select.value || null;
+      persist();
+    });
+  }
+
+  const exportPdfBtn = document.getElementById('quoteGeneratorExportPdf');
+  if (exportPdfBtn) {
+    exportPdfBtn.addEventListener('click', () => exportQuoteGenerator('pdf'));
+  }
+  const exportPngBtn = document.getElementById('quoteGeneratorExportPng');
+  if (exportPngBtn) {
+    exportPngBtn.addEventListener('click', () => exportQuoteGenerator('png'));
+  }
+
+  renderQuoteGeneratorForm();
 }
 
 function bindSidebarToggle() {
@@ -4588,6 +5012,175 @@ function renderPlanForm() {
   toggleAdvanceAmountField();
   updateIntegrationDetails(Number(select.value || 0));
   updatePlanSummary();
+}
+
+function renderQuoteGeneratorPayments(draft) {
+  const rows = document.getElementById('paymentRows');
+  if (!rows) return;
+  rows.innerHTML = (draft.payments || []).map((row, index) => `
+    <div class="payment-row">
+      <div class="form-grid two">
+        <div class="field">
+          <label>Detalle</label>
+          <input type="text" value="${row.label || ''}" data-payment-field="label" data-payment-index="${index}" placeholder="Ej: Cuota 1 (1 pago)" />
+        </div>
+        <div class="field">
+          <label>Monto</label>
+          <div class="money-field">
+            <span class="prefix">$</span>
+            <input class="money" type="text" inputmode="numeric" data-payment-field="amount" data-payment-index="${index}" value="${row.amount ? number.format(row.amount) : ''}" />
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Detalle extra</label>
+        <input type="text" value="${row.detail || ''}" data-payment-field="detail" data-payment-index="${index}" placeholder="Ej: 3x $120.000" />
+      </div>
+      <div class="row-actions">
+        <button class="ghost-btn mini danger" type="button" data-remove-payment="${index}"><i class='bx bx-trash'></i>Quitar</button>
+      </div>
+    </div>
+  `).join('');
+
+  rows.querySelectorAll('input.money').forEach(input => {
+    if (input.dataset.bound) return;
+    const index = Number(input.dataset.paymentIndex);
+    bindMoneyInput(input, value => updateQuoteGeneratorPayment(index, 'amount', value));
+    input.dataset.bound = 'true';
+  });
+}
+
+function renderQuoteGeneratorSavedList() {
+  const select = document.getElementById('quoteGeneratorSavedList');
+  if (!select) return;
+  if (!generatedQuotes.length) {
+    select.innerHTML = '<option value="">Sin cotizaciones guardadas</option>';
+    select.value = '';
+    return;
+  }
+  select.innerHTML = generatedQuotes.map(item => `
+    <option value="${item.id}">${item.name || `Cotización ${item.draft?.meta?.quoteNumber || ''}`}</option>
+  `).join('');
+  if (uiState.quoteGenerator?.selectedId) {
+    select.value = uiState.quoteGenerator.selectedId;
+  } else {
+    select.value = generatedQuotes[0]?.id || '';
+  }
+}
+
+function renderQuoteGeneratorForm() {
+  ensureQuoteGeneratorState();
+  const draft = getQuoteGeneratorDraft();
+  document.querySelectorAll('#quoteGeneratorForm [data-quote-field]').forEach(input => {
+    const path = input.dataset.quoteField;
+    const value = getNestedValue(draft, path);
+    if (input.classList.contains('money')) {
+      setMoneyValue(input, value);
+      if (!input.dataset.bound) {
+        bindMoneyInput(input, newValue => updateQuoteGeneratorField(path, newValue));
+        input.dataset.bound = 'true';
+      }
+    } else {
+      input.value = value ?? '';
+    }
+  });
+  renderQuoteGeneratorPayments(draft);
+  renderQuoteGeneratorSavedList();
+  updateQuoteGeneratorPreview();
+}
+
+function updateQuoteGeneratorPreview() {
+  const draft = getQuoteGeneratorDraft();
+  const meta = draft.meta || {};
+  const client = draft.client || {};
+  const vehicle = draft.vehicle || {};
+  const newVehicle = draft.newVehicle || {};
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = formatQuotePreviewValue(value);
+  };
+  setText('previewQuoteNumber', meta.quoteNumber ? `#${meta.quoteNumber}` : '--------');
+  setText('previewQuoteDate', meta.quoteDate || '--/--/----');
+  setText('previewQuoteExpiry', meta.quoteExpiry || '--/--/----');
+  setText('previewQuoteAdvisor', meta.advisor || '-');
+  setText('previewClientName', client.name);
+  setText('previewClientDni', client.dni);
+  setText('previewClientCuil', client.cuil);
+  setText('previewClientCel', client.cel);
+  const location = [client.province, client.city].filter(Boolean).join(' - ');
+  setText('previewClientLocation', location || '-');
+  setText('previewClientPostal', client.postalCode);
+  setText('previewVehicleTradeIn', vehicle.tradeIn);
+  setText('previewVehicleBrand', vehicle.brand);
+  setText('previewVehicleModel', vehicle.model);
+  setText('previewVehicleYear', vehicle.year);
+  setText('previewVehiclePlate', vehicle.plate);
+  setText('previewVehicleKms', vehicle.kms);
+  const factoryEl = document.getElementById('previewVehicleFactoryPrice');
+  if (factoryEl) factoryEl.textContent = formatQuotePreviewMoney(vehicle.factoryPrice);
+  setText('previewNewVehicleBrand', newVehicle.brand);
+  setText('previewNewVehicleModel', newVehicle.model);
+
+  const paymentList = document.getElementById('previewPaymentList');
+  if (paymentList) {
+    if (!draft.payments || !draft.payments.length) {
+      paymentList.innerHTML = '<p class="muted">Sin cuotas cargadas.</p>';
+    } else {
+      paymentList.innerHTML = draft.payments.map(row => `
+        <div class="quote-payment-row">
+          <div>
+            <strong>${row.label || 'Cuota'}</strong>
+            ${row.detail ? `<div class="muted tiny">${row.detail}</div>` : ''}
+          </div>
+          <span>${formatQuotePreviewMoney(row.amount)}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  const notesEl = document.querySelector('#previewNotes p');
+  if (notesEl) notesEl.textContent = draft.notes || '';
+  const advisorNotesEl = document.querySelector('#previewAdvisorNotes p');
+  if (advisorNotesEl) advisorNotesEl.textContent = draft.advisorNotes || '';
+}
+
+async function exportQuoteGenerator(format) {
+  const preview = document.getElementById('quotePreview');
+  if (!preview || !window.html2canvas) {
+    showToast('No se pudo generar la exportación.', 'error');
+    return;
+  }
+  try {
+    const canvas = await window.html2canvas(preview, { scale: 2, backgroundColor: '#ffffff' });
+    const draft = getQuoteGeneratorDraft();
+    const fileLabel = draft.meta?.quoteNumber || Date.now();
+    if (format === 'png') {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `cotizacion-${fileLabel}.png`;
+      link.click();
+      return;
+    }
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) {
+      showToast('No se encontró la librería de PDF.', 'error');
+      return;
+    }
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgData = canvas.toDataURL('image/png');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgProps = pdf.getImageProperties(imgData);
+    const ratio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
+    const imgWidth = imgProps.width * ratio;
+    const imgHeight = imgProps.height * ratio;
+    const x = (pageWidth - imgWidth) / 2;
+    pdf.addImage(imgData, 'PNG', x, 0, imgWidth, imgHeight);
+    pdf.save(`cotizacion-${fileLabel}.pdf`);
+  } catch (err) {
+    console.error('Error exportando cotización:', err);
+    showToast('No se pudo exportar la cotización.', 'error');
+  }
 }
 
 function calculateReservationsFromBase(multiplier) {
@@ -9830,7 +10423,7 @@ function bindProfileActions() {
         message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
         confirmText: 'Exportar',
         onConfirm: () => {
-        const payload = { version: 7, vehicles, brandSettings: ensureBrandSettings(), priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots };
+        const payload = { version: 7, vehicles, brandSettings: ensureBrandSettings(), priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots, generatedQuotes };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -9934,6 +10527,7 @@ function persist() {
   save('clients', clients);
   save('managerClients', managerClients);
   save('uiState', uiState);
+  save('generatedQuotes', generatedQuotes);
   save('clientManagerState', clientManagerState);
   save('snapshots', snapshots);
 }
@@ -9943,7 +10537,7 @@ function startRealtimePersistence() {
   ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
   setInterval(persistNow, 15000);
   window.addEventListener('storage', (e) => {
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts', 'brandSettings'].includes(e.key)) {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(e.key)) {
       syncFromStorage();
     }
   });
@@ -9959,6 +10553,7 @@ function syncFromStorage() {
   clients = load('clients') || clients;
   managerClients = load('managerClients') || managerClients;
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
+  generatedQuotes = load('generatedQuotes') || generatedQuotes;
   uiState.preferences = mergePreferences(uiState.preferences);
   uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicleFilters || {}) };
   clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
@@ -9978,6 +10573,9 @@ function syncFromStorage() {
   renderTemplates();
   renderVehicleTable();
   renderPlanForm();
+  if (document.getElementById('quoteGenerator')?.classList.contains('active')) {
+    renderQuoteGeneratorForm();
+  }
   renderClients();
   renderClientManager();
   renderGlobalSettings();
@@ -10012,6 +10610,7 @@ function clearStorage() {
       templates = ensureTemplateIds([...defaultTemplates]);
       clients = [];
       managerClients = [];
+      generatedQuotes = [];
       snapshots = [];
       uiState = {
         ...defaultUiState,
