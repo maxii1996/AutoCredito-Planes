@@ -31,10 +31,7 @@
         <button class="nav-link" data-target="scheduledClients"><i class='bx bx-calendar-check'></i><span class="label"> Clientes Programados</span></button>
         <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
         <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
-        <div class="nav-group is-hidden" id="myQuotesNav">
-          <button class="nav-link nav-link-submenu" data-target="quoteGenerator" id="myQuotesToggle"><i class='bx bx-folder'></i><span class="label"> Mis Cotizaciones</span><i class='bx bx-chevron-down'></i></button>
-          <div class="nav-submenu" id="myQuotesList"></div>
-        </div>
+        <button class="nav-link" data-target="quoteGenerator" id="myQuotesToggle"><i class='bx bx-folder'></i><span class="label"> Mis Cotizaciones</span></button>
         <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
       </nav>
      
@@ -403,21 +400,45 @@
           </div>
         </div>
       </section>
-      <section id="quoteGenerator" class="panel">
+      <section id="quoteGenerator" class="panel quote-generator-panel" data-view="hub">
         <div class="panel-head">
           <div>
             <h2>Mis Cotizaciones</h2>
           </div>
           <div class="actions">
             <button class="ghost-btn" data-jump="plans" type="button"><i class='bx bx-arrow-back'></i>Volver a Cotizaciones</button>
+            <button id="quoteGeneratorBack" class="ghost-btn" type="button"><i class='bx bx-list-ul'></i>Volver a Mis Cotizaciones</button>
             <button id="quoteGeneratorSave" class="primary-btn" type="button"><i class='bx bx-save'></i>Guardar</button>
             <button id="quoteGeneratorDeleteActive" class="ghost-btn danger" type="button"><i class='bx bx-trash'></i>Eliminar esta cotización</button>
             <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>Exportar PDF</button>
             <button id="quoteGeneratorExportPng" class="ghost-btn" type="button"><i class='bx bx-image'></i>Exportar PNG</button>
           </div>
         </div>
-        <div class="quote-generator-layout">
-          <aside class="card quote-generator-form" id="quoteGeneratorForm">
+        <div class="quote-generator-shell">
+          <section class="quote-generator-hub" id="quoteGeneratorHub">
+            <div class="card quote-hub-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Mis Cotizaciones</p>
+                  <h3>Gestiona tus cotizaciones</h3>
+                </div>
+                <div class="actions">
+                  <button id="quoteGeneratorCreate" class="primary-btn" type="button"><i class='bx bx-plus'></i>Nueva cotización</button>
+                </div>
+              </div>
+              <div class="quote-hub-empty" id="quoteGeneratorEmpty">
+                <i class='bx bx-folder-open'></i>
+                <div>
+                  <h4>No tienes actualmente ninguna Cotización abierta</h4>
+                  <p class="muted">Crea una nueva cotización o importa una existente para comenzar.</p>
+                </div>
+              </div>
+              <div class="quote-hub-list" id="quoteGeneratorList"></div>
+            </div>
+          </section>
+          <section class="quote-generator-workspace is-hidden" id="quoteGeneratorWorkspace">
+            <div class="quote-generator-layout">
+              <aside class="card quote-generator-form" id="quoteGeneratorForm">
             <div class="card-head compact">
               <p class="eyebrow">Panel de control</p>
               <h3>Datos principales</h3>
@@ -860,11 +881,11 @@
                 </section>
               </div>
             </div>
-            <datalist id="quoteBrandSuggestions"></datalist>
-          </aside>
-          <div class="quote-generator-preview card">
-            <div class="quote-preview-shell">
-                <div class="quote-preview" id="quotePreview">
+                <datalist id="quoteBrandSuggestions"></datalist>
+              </aside>
+              <div class="quote-generator-preview card">
+                <div class="quote-preview-shell">
+                  <div class="quote-preview" id="quotePreview">
                   <div class="quote-preview-header">
                     <div>
                       <h3 data-quote-visible="meta.quoteNumber">Cotización <span id="previewQuoteNumber">00000000</span></h3>
@@ -914,11 +935,11 @@
                     </div>
                   </div>
                   <div class="quote-preview-divider"></div>
-                  <div class="quote-preview-section" data-quote-visible="payments">
-                    <h4>Esquema de pagos</h4>
-                    <div id="previewBonifiedPayments" class="quote-preview-bonified"></div>
-                    <div id="previewPaymentList" class="quote-preview-payments"></div>
-                  </div>
+                    <div class="quote-preview-section" data-quote-visible="payments">
+                      <h4>Esquema de pagos</h4>
+                      <div id="previewBonifiedPayments" class="quote-preview-bonified"></div>
+                      <div id="previewPaymentList" class="quote-preview-payments"></div>
+                    </div>
                   <div class="quote-preview-section" data-quote-visible="notes">
                     <h4>Notas y aclaraciones</h4>
                     <div class="quote-preview-notes" id="previewNotes">
@@ -938,7 +959,9 @@
                   </div>
                 </div>
               </div>
+            </div>
           </div>
+          </section>
         </div>
       </section>
       <section id="clientManager" class="panel">

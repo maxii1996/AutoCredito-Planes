@@ -124,7 +124,8 @@ const defaultUiState = {
   quoteGenerator: {
     draft: null,
     selectedId: null,
-    hasSession: false
+    hasSession: false,
+    view: 'hub'
   },
   globalSettings: {
     advisorName: 'Planes de Ahorro Argentina',
@@ -1777,13 +1778,16 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
 
 function ensureQuoteGeneratorState() {
   if (!uiState.quoteGenerator) {
-    uiState.quoteGenerator = { draft: null, selectedId: null, hasSession: false };
+    uiState.quoteGenerator = { draft: null, selectedId: null, hasSession: false, view: 'hub' };
   }
   if (!uiState.quoteGenerator.draft) {
     uiState.quoteGenerator.draft = buildQuoteGeneratorDraft({ blank: true });
   }
   if (typeof uiState.quoteGenerator.hasSession !== 'boolean') {
     uiState.quoteGenerator.hasSession = false;
+  }
+  if (!uiState.quoteGenerator.view) {
+    uiState.quoteGenerator.view = 'hub';
   }
   uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(uiState.quoteGenerator.draft);
 }
@@ -1802,10 +1806,20 @@ function resolveQuoteGeneratorName(draft = {}) {
   return 'Cotización sin título';
 }
 
+function resolveQuoteGeneratorDisplayName(entry = {}) {
+  const alias = (entry.alias || '').trim();
+  if (alias) return alias;
+  if (entry.name) return entry.name;
+  const fallbackNumber = entry.draft?.meta?.quoteNumber || '';
+  return fallbackNumber ? `Cotización #${fallbackNumber}` : 'Cotización sin título';
+}
+
 function upsertGeneratedQuote(draft, id) {
+  const existingEntry = generatedQuotes.find(item => item.id === id);
   const payload = {
     id,
     name: resolveQuoteGeneratorName(draft),
+    alias: existingEntry?.alias || '',
     updatedAt: new Date().toISOString(),
     draft: normalizeQuoteGeneratorDraft(draft)
   };
@@ -1832,6 +1846,7 @@ function loadQuoteGeneratorEntry(id) {
   if (!entry) return;
   uiState.quoteGenerator.selectedId = entry.id;
   commitQuoteGeneratorDraft(entry.draft, { refreshForm: true });
+  setQuoteGeneratorView('workspace');
   renderQuoteNavigation();
 }
 
@@ -1840,9 +1855,11 @@ function createQuoteGeneratorEntry(draft = buildQuoteGeneratorDraft({ blank: tru
   uiState.quoteGenerator.selectedId = payload.id;
   uiState.quoteGenerator.draft = payload.draft;
   uiState.quoteGenerator.hasSession = quoteDraftHasContent(payload.draft);
+  setQuoteGeneratorView('workspace');
   persist();
   renderQuoteGeneratorSavedList();
   renderQuoteNavigation();
+  renderQuoteGeneratorHub();
   return payload;
 }
 
@@ -1851,15 +1868,23 @@ function deleteQuoteGeneratorEntry(id) {
   generatedQuotes = generatedQuotes.filter(item => item.id !== id);
   if (wasActive) {
     uiState.quoteGenerator.selectedId = null;
-    if (generatedQuotes.length) {
-      loadQuoteGeneratorEntry(generatedQuotes[0].id);
-    } else {
-      resetQuoteGeneratorDraft();
-    }
+    resetQuoteGeneratorDraft();
+    setQuoteGeneratorView('hub');
   }
   persist();
   renderQuoteGeneratorSavedList();
   renderQuoteNavigation();
+  renderQuoteGeneratorHub();
+}
+
+function updateQuoteGeneratorAlias(id, alias) {
+  const entry = generatedQuotes.find(item => item.id === id);
+  if (!entry) return;
+  entry.alias = alias.trim();
+  entry.updatedAt = new Date().toISOString();
+  persist();
+  renderQuoteGeneratorSavedList();
+  renderQuoteGeneratorHub();
 }
 
 function quoteDraftHasContent(draft = {}) {
@@ -1933,6 +1958,7 @@ function commitQuoteGeneratorDraft(draft, { refreshForm = false } = {}) {
   persist();
   renderQuoteGeneratorSavedList();
   renderQuoteNavigation();
+  renderQuoteGeneratorHub();
   updateQuoteGeneratorPreview();
   if (refreshForm) {
     renderQuoteGeneratorForm();
@@ -2594,6 +2620,9 @@ function bindNavigation() {
   document.querySelectorAll('.nav-link').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
+      if (btn.dataset.target === 'quoteGenerator') {
+        setQuoteGeneratorView('hub');
+      }
       activatePanel(btn.dataset.target);
     });
   });
@@ -2656,20 +2685,20 @@ function bindQuoteCreation() {
 
 function openQuoteGeneratorPanel() {
   ensureQuoteGeneratorState();
-  const selectedId = uiState.quoteGenerator?.selectedId;
-  if (selectedId) {
-    const entry = generatedQuotes.find(item => item.id === selectedId);
-    if (entry) {
-      commitQuoteGeneratorDraft(entry.draft, { refreshForm: true });
-      return;
+  updateQuoteGeneratorView();
+  if (uiState.quoteGenerator?.view === 'workspace') {
+    const selectedId = uiState.quoteGenerator?.selectedId;
+    if (selectedId) {
+      const entry = generatedQuotes.find(item => item.id === selectedId);
+      if (entry) {
+        commitQuoteGeneratorDraft(entry.draft, { refreshForm: true });
+        return;
+      }
     }
-  }
-  if (generatedQuotes.length) {
-    uiState.quoteGenerator.selectedId = generatedQuotes[0].id;
-    commitQuoteGeneratorDraft(generatedQuotes[0].draft, { refreshForm: true });
+    renderQuoteGeneratorForm();
     return;
   }
-  renderQuoteGeneratorForm();
+  renderQuoteGeneratorHub();
 }
 
 function bindQuoteGenerator() {
@@ -2815,6 +2844,68 @@ function bindQuoteGenerator() {
     }
   });
 
+  const backBtn = document.getElementById('quoteGeneratorBack');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      setQuoteGeneratorView('hub');
+      renderQuoteGeneratorHub();
+    });
+  }
+
+  const createBtn = document.getElementById('quoteGeneratorCreate');
+  if (createBtn) {
+    createBtn.addEventListener('click', () => {
+      createQuoteGeneratorEntry(buildQuoteGeneratorDraft({ blank: true }));
+      renderQuoteGeneratorForm();
+      showToast('Nueva cotización creada.', 'success');
+    });
+  }
+
+  const hubList = document.getElementById('quoteGeneratorList');
+  if (hubList && !hubList.dataset.bound) {
+    hubList.dataset.bound = 'true';
+    hubList.addEventListener('click', (event) => {
+      const openBtn = event.target.closest('[data-quote-open]');
+      const deleteBtn = event.target.closest('[data-quote-delete]');
+      const item = event.target.closest('.quote-hub-item');
+      if (deleteBtn) {
+        const id = deleteBtn.dataset.quoteDelete;
+        confirmAction({
+          title: 'Eliminar cotización',
+          message: 'Se eliminará la cotización seleccionada de tu lista.',
+          confirmText: 'Eliminar',
+          onConfirm: () => {
+            deleteQuoteGeneratorEntry(id);
+            showToast('Cotización eliminada.', 'success');
+          }
+        });
+        return;
+      }
+      if (openBtn) {
+        loadQuoteGeneratorEntry(openBtn.dataset.quoteOpen);
+        return;
+      }
+      if (item && !event.target.closest('[data-quote-alias]')) {
+        const id = item.dataset.quoteId;
+        if (id) loadQuoteGeneratorEntry(id);
+      }
+    });
+
+    hubList.addEventListener('change', (event) => {
+      const input = event.target.closest('[data-quote-alias]');
+      if (!input) return;
+      updateQuoteGeneratorAlias(input.dataset.quoteAlias, input.value || '');
+    });
+
+    hubList.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      const input = event.target.closest('[data-quote-alias]');
+      if (!input) return;
+      event.preventDefault();
+      input.blur();
+    });
+  }
+
   const addPaymentBtn = document.getElementById('addPaymentRow');
   if (addPaymentBtn) {
     addPaymentBtn.addEventListener('click', () => {
@@ -2924,6 +3015,8 @@ function bindQuoteGenerator() {
   }
 
   renderQuoteGeneratorForm();
+  renderQuoteGeneratorHub();
+  updateQuoteGeneratorView();
 }
 
 function bindSidebarToggle() {
@@ -5540,6 +5633,64 @@ function renderQuoteGeneratorBrandSuggestions() {
   datalist.innerHTML = brands.map(brand => `<option value="${brand}"></option>`).join('');
 }
 
+function setQuoteGeneratorView(view) {
+  ensureQuoteGeneratorState();
+  uiState.quoteGenerator.view = view;
+  updateQuoteGeneratorView();
+}
+
+function updateQuoteGeneratorView() {
+  const panel = document.getElementById('quoteGenerator');
+  const hub = document.getElementById('quoteGeneratorHub');
+  const workspace = document.getElementById('quoteGeneratorWorkspace');
+  if (!panel || !hub || !workspace) return;
+  const view = uiState.quoteGenerator?.view || 'hub';
+  panel.dataset.view = view;
+  hub.classList.toggle('is-hidden', view !== 'hub');
+  workspace.classList.toggle('is-hidden', view !== 'workspace');
+}
+
+function renderQuoteGeneratorHub() {
+  const list = document.getElementById('quoteGeneratorList');
+  const emptyState = document.getElementById('quoteGeneratorEmpty');
+  if (!list || !emptyState) return;
+  if (!generatedQuotes.length) {
+    list.innerHTML = '';
+    emptyState.classList.remove('is-hidden');
+    return;
+  }
+  emptyState.classList.add('is-hidden');
+  list.innerHTML = generatedQuotes.map(item => {
+    const alias = (item.alias || '').trim();
+    const displayName = resolveQuoteGeneratorDisplayName(item);
+    const updatedAt = item.updatedAt
+      ? new Date(item.updatedAt).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    const quoteNumber = item.draft?.meta?.quoteNumber ? `#${item.draft.meta.quoteNumber}` : '';
+    const isActive = item.id === uiState.quoteGenerator?.selectedId;
+    const metaBits = [
+      quoteNumber ? `Cotización ${quoteNumber}` : '',
+      updatedAt ? `Actualizado ${updatedAt}` : ''
+    ].filter(Boolean);
+    return `
+      <div class="quote-hub-item${isActive ? ' active' : ''}" data-quote-id="${item.id}">
+        <div class="quote-hub-main">
+          <div class="quote-hub-title">
+            <input class="quote-hub-alias" data-quote-alias="${item.id}" value="${alias}" placeholder="${displayName}" />
+            <div class="quote-hub-meta">
+              ${metaBits.map(text => `<span>${text}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="quote-hub-actions">
+          <button class="secondary-btn mini" type="button" data-quote-open="${item.id}"><i class='bx bx-folder-open'></i>Abrir</button>
+          <button class="ghost-btn mini danger" type="button" data-quote-delete="${item.id}"><i class='bx bx-trash'></i>Eliminar</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderQuoteGeneratorSavedList() {
   const select = document.getElementById('quoteGeneratorSavedList');
   if (!select) return;
@@ -5549,12 +5700,9 @@ function renderQuoteGeneratorSavedList() {
     return;
   }
   select.innerHTML = generatedQuotes.map(item => `
-    <option value="${item.id}">${item.name || `Cotización ${item.draft?.meta?.quoteNumber || ''}`}</option>
+    <option value="${item.id}">${resolveQuoteGeneratorDisplayName(item)}</option>
   `).join('');
-  if (!uiState.quoteGenerator?.selectedId && generatedQuotes[0]) {
-    uiState.quoteGenerator.selectedId = generatedQuotes[0].id;
-  }
-  select.value = uiState.quoteGenerator?.selectedId || generatedQuotes[0]?.id || '';
+  select.value = uiState.quoteGenerator?.selectedId || '';
 }
 
 function renderQuoteNavigation() {
