@@ -20,6 +20,7 @@ const DEFAULT_QUOTE_BENEFITS = [
   '40-50% Descuento en servicio post venta para accesorios'
 ];
 const DEFAULT_QUOTE_FOOTER = 'Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota';
+const DEFAULT_FACTORY_PRICE_LABEL = 'Precio cotizado por Fábrica';
 const DEFAULT_PREQUOTE_MESSAGE = 'Esta cotización debe ser validada y confirmada con el sector correspondiente.\nFavor de enviar las fotos del vehículo al asesor para obtener los datos finales.';
 const DEFAULT_BONIFIED_PAYMENT = {
   fakeOriginal: null,
@@ -27,7 +28,6 @@ const DEFAULT_BONIFIED_PAYMENT = {
   concept: '',
   amount: null
 };
-const NOTE_LINE_COUNT = 6;
 const DEFAULT_QUOTE_VISIBILITY = {
   'meta.quoteNumber': true,
   'meta.quoteDate': true,
@@ -40,7 +40,6 @@ const DEFAULT_QUOTE_VISIBILITY = {
   'client.location': true,
   'client.postalCode': true,
   'vehicle.title': true,
-  'vehicle.tradeIn': true,
   'vehicle.brand': true,
   'vehicle.model': true,
   'vehicle.year': true,
@@ -1674,7 +1673,8 @@ function buildQuoteGeneratorDraft({ blank = false } = {}) {
       year: '',
       plate: '',
       kms: '',
-      factoryPrice: null
+      factoryPrice: null,
+      factoryPriceLabel: DEFAULT_FACTORY_PRICE_LABEL
     },
     newVehicle: {
       brand: '',
@@ -1700,13 +1700,25 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
   const base = buildQuoteGeneratorDraft({ blank: true });
   const meta = { ...base.meta, ...(draft.meta || {}) };
   if (!meta.quoteNumber) meta.quoteNumber = generateQuoteNumber(draft?.client?.dni);
-  const normalizeBonified = (source = {}) => ({
-    ...DEFAULT_BONIFIED_PAYMENT,
-    ...source,
-    fakeOriginal: Number.isFinite(source?.fakeOriginal) ? source.fakeOriginal : parseMoney(source?.fakeOriginal),
-    bonification: Number.isFinite(source?.bonification) ? source.bonification : parseMoney(source?.bonification),
-    amount: Number.isFinite(source?.amount) ? source.amount : parseMoney(source?.amount)
-  });
+  const normalizeBonified = (source = {}) => {
+    const hasInput = value => value !== undefined && value !== null && value !== '';
+    const fakeOriginal = Number.isFinite(source?.fakeOriginal) ? source.fakeOriginal : parseMoney(source?.fakeOriginal);
+    const bonification = Number.isFinite(source?.bonification) ? source.bonification : parseMoney(source?.bonification);
+    let amount = Number.isFinite(source?.amount) ? source.amount : parseMoney(source?.amount);
+    if (!hasInput(source?.amount) && hasInput(source?.bonification) && (fakeOriginal > 0 || bonification > 0)) {
+      amount = Math.max(0, fakeOriginal - bonification);
+    }
+    const resolvedBonification = (fakeOriginal > 0 || amount > 0)
+      ? Math.max(0, fakeOriginal - amount)
+      : null;
+    return {
+      ...DEFAULT_BONIFIED_PAYMENT,
+      ...source,
+      fakeOriginal,
+      bonification: resolvedBonification,
+      amount
+    };
+  };
   const payments = Array.isArray(draft.payments) && draft.payments.length
     ? draft.payments.map(row => ({
       label: row?.label || '',
@@ -1727,7 +1739,12 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
   return {
     meta,
     client: { ...base.client, ...(draft.client || {}) },
-    vehicle: { ...base.vehicle, ...(draft.vehicle || {}), factoryPrice: Number.isFinite(draft?.vehicle?.factoryPrice) ? draft.vehicle.factoryPrice : parseMoney(draft?.vehicle?.factoryPrice) },
+    vehicle: {
+      ...base.vehicle,
+      ...(draft.vehicle || {}),
+      factoryPrice: Number.isFinite(draft?.vehicle?.factoryPrice) ? draft.vehicle.factoryPrice : parseMoney(draft?.vehicle?.factoryPrice),
+      factoryPriceLabel: (draft?.vehicle?.factoryPriceLabel || '').trim() || DEFAULT_FACTORY_PRICE_LABEL
+    },
     newVehicle: { ...base.newVehicle, ...(draft.newVehicle || {}) },
     payments,
     bonifiedPayments: {
@@ -1832,19 +1849,25 @@ function commitQuoteGeneratorDraft(draft, { refreshForm = false } = {}) {
   }
 }
 
+function recalculateBonifiedPayment(draft, key) {
+  const bonified = draft.bonifiedPayments?.[key] || {};
+  const fakeOriginal = parseMoney(bonified.fakeOriginal || 0);
+  const amount = parseMoney(bonified.amount || 0);
+  if (fakeOriginal > 0 || amount > 0) {
+    bonified.bonification = Math.max(0, fakeOriginal - amount);
+  } else {
+    bonified.bonification = null;
+  }
+  draft.bonifiedPayments = { ...draft.bonifiedPayments, [key]: bonified };
+}
+
 function updateQuoteGeneratorField(path, value) {
   const draft = getQuoteGeneratorDraft();
   setNestedValue(draft, path, value);
   if (path.startsWith('bonifiedPayments.')) {
     const [, key, field] = path.split('.');
-    if (field === 'fakeOriginal' || field === 'bonification') {
-      const bonified = draft.bonifiedPayments?.[key] || {};
-      const fakeOriginal = parseMoney(bonified.fakeOriginal || 0);
-      const bonification = parseMoney(bonified.bonification || 0);
-      if (fakeOriginal > 0 || bonification > 0) {
-        bonified.amount = Math.max(0, fakeOriginal - bonification);
-        draft.bonifiedPayments[key] = bonified;
-      }
+    if (field === 'fakeOriginal' || field === 'amount' || field === 'bonification') {
+      recalculateBonifiedPayment(draft, key);
     }
   }
   if (path === 'vehicle.model' || path === 'newVehicle.model') {
@@ -1943,6 +1966,7 @@ function applyQuoteGeneratorBonifiedDefaults(draft, { force = false } = {}) {
     if (autoAmount && (force || !current.amount)) {
       current.amount = autoAmount;
       draft.bonifiedPayments[kind] = current;
+      recalculateBonifiedPayment(draft, kind);
     }
   });
 }
@@ -2618,6 +2642,7 @@ function bindQuoteGenerator() {
         ...draft.bonifiedPayments,
         [kind]: { ...draft.bonifiedPayments?.[kind], amount: autoAmount }
       };
+      recalculateBonifiedPayment(draft, kind);
       commitQuoteGeneratorDraft(draft);
       const input = document.querySelector(`[data-quote-field="bonifiedPayments.${kind}.amount"]`);
       if (input) setMoneyValue(input, autoAmount);
@@ -5438,10 +5463,8 @@ function updateQuoteGeneratorPreview() {
   const location = [client.province, client.city].filter(Boolean).join(' - ');
   setText('previewClientLocation', location || '-');
   setText('previewClientPostal', client.postalCode);
-  const vehicleTitle = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
-  setText('previewVehicleTitle', vehicleTitle ? `Vehículo a entregar: ${vehicleTitle}` : 'Vehículo a entregar: -');
-  const vehicleSubtitle = [vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ');
-  setText('previewVehicleSubtitle', vehicleSubtitle || '-');
+  const vehicleTitleEl = document.getElementById('previewVehicleTitle');
+  if (vehicleTitleEl) vehicleTitleEl.textContent = 'Vehículo a entregar';
   setText('previewVehicleBrand', vehicle.brand);
   setText('previewVehicleModel', vehicle.model);
   setText('previewVehicleYear', vehicle.year);
@@ -5449,6 +5472,11 @@ function updateQuoteGeneratorPreview() {
   setText('previewVehicleKms', vehicle.kms);
   const factoryEl = document.getElementById('previewVehicleFactoryPrice');
   if (factoryEl) factoryEl.textContent = formatQuotePreviewMoney(vehicle.factoryPrice);
+  const factoryLabelEl = document.getElementById('previewVehicleFactoryLabel');
+  if (factoryLabelEl) {
+    const label = (vehicle.factoryPriceLabel || DEFAULT_FACTORY_PRICE_LABEL).trim() || DEFAULT_FACTORY_PRICE_LABEL;
+    factoryLabelEl.textContent = `${label}:`;
+  }
   setText('previewNewVehicleBrand', newVehicle.brand);
   setText('previewNewVehicleModel', newVehicle.model);
   const preQuoteEl = document.getElementById('previewPreQuote');
@@ -5470,16 +5498,23 @@ function updateQuoteGeneratorPreview() {
         data: bonified.three || {}
       }
     ].filter(item => item.data && (item.data.fakeOriginal || item.data.bonification || item.data.amount));
-    bonifiedContainer.innerHTML = bonifiedCards.length ? bonifiedCards.map(card => `
-      <div class="bonified-card">
-        <h5>${card.title}</h5>
-        <div class="bonified-grid">
-          <div><span>Valor original (falso):</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
-          <div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>
-          <div><span>A pagar:</span> ${formatQuotePreviewMoney(card.data.amount)}</div>
+    bonifiedContainer.innerHTML = bonifiedCards.length ? `
+      <div class="bonified-group">
+        <div class="bonified-group-title">Cuota 1</div>
+        <div class="bonified-group-grid">
+          ${bonifiedCards.map(card => `
+            <div class="bonified-card">
+              <h5>${card.title}</h5>
+              <div class="bonified-grid">
+                <div><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
+                <div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>
+                <div><span>A pagar:</span> ${formatQuotePreviewMoney(card.data.amount)}</div>
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
-    `).join('') : '<p class="muted">Sin bonificaciones configuradas.</p>';
+    ` : '<p class="muted">Sin bonificaciones configuradas.</p>';
   }
 
   const paymentList = document.getElementById('previewPaymentList');
@@ -5501,10 +5536,6 @@ function updateQuoteGeneratorPreview() {
 
   const notesEl = document.querySelector('#previewNotes p');
   if (notesEl) notesEl.textContent = draft.notes || '';
-  const noteLinesEl = document.getElementById('previewNoteLines');
-  if (noteLinesEl) {
-    noteLinesEl.innerHTML = Array.from({ length: NOTE_LINE_COUNT }).map(() => '<span></span>').join('');
-  }
 
   const benefitsList = document.getElementById('previewBenefitsList');
   if (benefitsList) {
@@ -5608,19 +5639,17 @@ async function exportQuoteGenerator(format) {
 
       addSection('Datos Vehículo');
       if (isVisible('vehicle.title')) {
-        const title = [draft.vehicle?.brand, draft.vehicle?.model].filter(Boolean).join(' ') || '-';
-        addRow('Vehículo a entregar:', title);
-      }
-      if (isVisible('vehicle.tradeIn')) {
-        const subtitle = [draft.vehicle?.brand, draft.vehicle?.model, draft.vehicle?.year].filter(Boolean).join(' ') || '-';
-        addRow('Detalle del usado:', subtitle);
+        addLine('Vehículo a entregar', { bold: true });
       }
       if (isVisible('vehicle.brand')) addRow('Marca:', draft.vehicle?.brand || '-');
       if (isVisible('vehicle.model')) addRow('Modelo y Versión:', draft.vehicle?.model || '-');
       if (isVisible('vehicle.year')) addRow('Año:', draft.vehicle?.year || '-');
       if (isVisible('vehicle.plate')) addRow('Patente:', draft.vehicle?.plate || '-');
       if (isVisible('vehicle.kms')) addRow('Kms:', draft.vehicle?.kms || '-');
-      if (isVisible('vehicle.factoryPrice')) addRow('Precio cotizado por Fábrica:', formatMoney(draft.vehicle?.factoryPrice));
+      if (isVisible('vehicle.factoryPrice')) {
+        const label = (draft.vehicle?.factoryPriceLabel || DEFAULT_FACTORY_PRICE_LABEL).trim() || DEFAULT_FACTORY_PRICE_LABEL;
+        addRow(`${label}:`, formatMoney(draft.vehicle?.factoryPrice));
+      }
       addSpacer();
 
       if (isVisible('newVehicle.section')) {
@@ -5633,17 +5662,22 @@ async function exportQuoteGenerator(format) {
       if (isVisible('payments')) {
         addSection('Esquema de pagos');
         const bonified = draft.bonifiedPayments || {};
-        [
+        const bonifiedCards = [
           { label: '1 pago bonificado', data: bonified.one || {} },
           { label: '3 pagos bonificados', data: bonified.three || {} }
-        ].forEach(card => {
-          if (card.data.fakeOriginal || card.data.bonification || card.data.amount) {
-            addLine(card.label, { bold: true });
-            addRow('Valor original (falso):', formatMoney(card.data.fakeOriginal));
-            addRow('Bonif.:', formatMoney(card.data.bonification));
-            addRow('A pagar:', formatMoney(card.data.amount));
-          }
-        });
+        ];
+        const hasBonified = bonifiedCards.some(card => card.data.fakeOriginal || card.data.bonification || card.data.amount);
+        if (hasBonified) {
+          addLine('Cuota 1', { bold: true });
+          bonifiedCards.forEach(card => {
+            if (card.data.fakeOriginal || card.data.bonification || card.data.amount) {
+              addLine(card.label, { bold: true });
+              addRow('Valor Original:', formatMoney(card.data.fakeOriginal));
+              addRow('Bonif.:', formatMoney(card.data.bonification));
+              addRow('A pagar:', formatMoney(card.data.amount));
+            }
+          });
+        }
         (draft.payments || []).forEach(row => {
           if (!row?.label && !row?.amount && !row?.detail) return;
           addLine(`${row.label || 'Cuota'}: ${formatMoney(row.amount)}`, { bold: true });

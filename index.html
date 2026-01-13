@@ -584,7 +584,11 @@
                         <input id="vehicleKms" data-quote-field="vehicle.kms" placeholder="0 km" />
                       </div>
                       <div class="field">
-                        <label for="vehicleFactoryPrice">Precio cotizado por Fábrica</label>
+                        <label for="vehicleFactoryPriceLabel">Texto del precio cotizado</label>
+                        <input id="vehicleFactoryPriceLabel" data-quote-field="vehicle.factoryPriceLabel" placeholder="Precio cotizado por Fábrica" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleFactoryPrice">Monto del precio cotizado</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="vehicleFactoryPrice" class="money" type="text" inputmode="numeric" data-quote-field="vehicle.factoryPrice" placeholder="0" />
@@ -646,7 +650,7 @@
                     </div>
                     <div class="form-grid two">
                       <div class="field">
-                        <label for="bonifiedOneOriginal">Valor original (falso)</label>
+                        <label for="bonifiedOneOriginal">Valor Original</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="bonifiedOneOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.fakeOriginal" placeholder="0" />
@@ -656,7 +660,7 @@
                         <label for="bonifiedOneDiscount">Bonif.</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
-                          <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" />
+                          <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" readonly />
                         </div>
                       </div>
                       <div class="field">
@@ -684,7 +688,7 @@
                     </div>
                     <div class="form-grid two">
                       <div class="field">
-                        <label for="bonifiedThreeOriginal">Valor original (falso)</label>
+                        <label for="bonifiedThreeOriginal">Valor Original</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="bonifiedThreeOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.fakeOriginal" placeholder="0" />
@@ -694,7 +698,7 @@
                         <label for="bonifiedThreeDiscount">Bonif.</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
-                          <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" />
+                          <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" readonly />
                         </div>
                       </div>
                       <div class="field">
@@ -785,7 +789,6 @@
                       <label class="check-pill"><input type="checkbox" data-visibility-field="client.location" checked> Provincia y localidad</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="client.postalCode" checked> Código postal</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.title" checked> Título vehículo a entregar</label>
-                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.tradeIn" checked> Detalle del usado</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.brand" checked> Marca usado</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.model" checked> Modelo y versión usado</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.year" checked> Año usado</label>
@@ -861,15 +864,14 @@
                   <div class="quote-preview-divider"></div>
                   <div class="quote-preview-section">
                     <h4>Datos Vehículo</h4>
-                    <div class="quote-preview-title" id="previewVehicleTitle" data-quote-visible="vehicle.title">Vehículo a entregar: -</div>
-                    <div class="quote-preview-subtitle" data-quote-visible="vehicle.tradeIn">Detalle del usado: <span id="previewVehicleSubtitle">-</span></div>
+                    <div class="quote-preview-title" id="previewVehicleTitle" data-quote-visible="vehicle.title">Vehículo a entregar</div>
                     <div class="quote-preview-grid">
                       <div data-quote-visible="vehicle.brand"><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
                       <div data-quote-visible="vehicle.model"><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
                       <div data-quote-visible="vehicle.year"><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
                       <div data-quote-visible="vehicle.plate"><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
                       <div data-quote-visible="vehicle.kms"><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
-                      <div class="quote-preview-row spaced" data-quote-visible="vehicle.factoryPrice"><strong>Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
+                      <div class="quote-preview-row spaced" data-quote-visible="vehicle.factoryPrice"><strong id="previewVehicleFactoryLabel">Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
                     </div>
                   </div>
                   <div class="quote-preview-divider"></div>
@@ -890,7 +892,6 @@
                     <h4>Notas y aclaraciones</h4>
                     <div class="quote-preview-notes" id="previewNotes">
                       <p></p>
-                      <div class="note-lines" id="previewNoteLines"></div>
                     </div>
                   </div>
                   <div class="quote-preview-section" data-quote-visible="benefits">
