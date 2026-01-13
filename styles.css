@@ -178,9 +178,10 @@ button, .icon-btn { cursor: pointer; }
 .quote-generator-form { position: sticky; top: 18px; max-height: calc(100vh - 140px); overflow: hidden; }
 .quote-generator-preview { display: grid; gap: 16px; }
 .quote-preview-shell { display: flex; justify-content: center; align-items: flex-start; }
-.quote-tabs { display: grid; grid-template-columns: minmax(160px, 34%) 1fr; gap: 14px; }
-.quote-tabs-nav { display: grid; gap: 8px; padding: 10px; border-radius: 14px; background: rgba(15, 23, 42, 0.45); border: 1px solid var(--border); max-height: calc(100vh - 240px); overflow-y: auto; }
-.quote-tab { border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 10px; font-weight: 600; text-align: left; transition: all 0.2s ease; }
+.quote-tabs { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.quote-tabs-nav { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; border-radius: 14px; background: rgba(15, 23, 42, 0.45); border: 1px solid var(--border); justify-content: flex-start; align-items: center; }
+.quote-tab { border: 1px solid transparent; background: transparent; color: var(--muted); width: 48px; height: 48px; padding: 0; border-radius: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; text-align: center; transition: all 0.2s ease; }
+.quote-tab i { font-size: 20px; }
 .quote-tab:hover { background: rgba(129, 140, 248, 0.12); color: #e2e8f0; border-color: rgba(129, 140, 248, 0.3); }
 .quote-tab.active { background: rgba(99, 102, 241, 0.22); border-color: rgba(129, 140, 248, 0.55); color: #e2e8f0; box-shadow: 0 10px 18px rgba(15, 23, 42, 0.4); }
 .quote-tabs-panels { max-height: calc(100vh - 240px); overflow-y: auto; padding-right: 4px; display: grid; gap: 12px; }
@@ -232,7 +233,7 @@ button, .icon-btn { cursor: pointer; }
   .quote-generator-layout { grid-template-columns: 1fr; }
   .quote-generator-form { position: static; max-height: none; overflow: visible; }
   .quote-tabs { grid-template-columns: 1fr; }
-  .quote-tabs-nav { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); max-height: none; }
+  .quote-tabs-nav { max-height: none; }
   .quote-tabs-panels { max-height: none; overflow: visible; }
   .quote-preview { width: 100%; min-height: auto; }
 }
