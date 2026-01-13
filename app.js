@@ -1988,40 +1988,9 @@ function recalculateBonifiedPayment(draft, key) {
   draft.bonifiedPayments = { ...draft.bonifiedPayments, [key]: bonified };
 }
 
-function formatDni(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
-  if (!digits) return '';
-  return number.format(Number(digits));
-}
-
-function formatCuil(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
-  if (!digits) return '';
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 10) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`;
-}
-
-function formatCell(value, { forcePrefix = false } = {}) {
-  const raw = String(value || '').trim();
-  if (!raw) return forcePrefix ? '+54 ' : '';
-  if (raw.startsWith('+54')) {
-    const rest = raw.replace(/^\+54\s*/, '');
-    return `+54 ${rest}`.trim();
-  }
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) return forcePrefix ? '+54 ' : '';
-  const withoutPrefix = digits.startsWith('54') ? digits.slice(2) : digits;
-  return `+54 ${withoutPrefix}`.trim();
-}
-
 function updateQuoteGeneratorField(path, value) {
   const draft = getQuoteGeneratorDraft();
-  let nextValue = value;
-  if (path === 'client.dni') nextValue = formatDni(value);
-  if (path === 'client.cuil') nextValue = formatCuil(value);
-  if (path === 'client.cel') nextValue = formatCell(value);
-  setNestedValue(draft, path, nextValue);
+  setNestedValue(draft, path, value);
   if (path.startsWith('bonifiedPayments.')) {
     const [, key, field] = path.split('.');
     if (field === 'fakeOriginal' || field === 'amount' || field === 'bonification') {
@@ -2763,47 +2732,13 @@ function bindQuoteGenerator() {
     }
   };
 
-  const focusQuoteField = (path) => {
-    if (!path) return;
-    const input = panel.querySelector(`[data-quote-field="${path}"]`);
-    if (!input) return;
-    const tabPanel = input.closest('.quote-tab-panel');
-    if (tabPanel) activateQuoteTab(tabPanel.id);
-    input.focus({ preventScroll: true });
-    if (typeof input.select === 'function') input.select();
-    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
   panel.addEventListener('input', (event) => {
     const target = event.target;
     if (target.matches('[data-quote-field]') && !target.classList.contains('money')) {
-      let nextValue = target.value;
-      if (target.id === 'clientDni') {
-        nextValue = formatDni(nextValue);
-        target.value = nextValue;
-      }
-      if (target.id === 'clientCuil') {
-        nextValue = formatCuil(nextValue);
-        target.value = nextValue;
-      }
-      if (target.id === 'clientCel') {
-        nextValue = formatCell(nextValue);
-        target.value = nextValue;
-      }
-      updateQuoteGeneratorField(target.dataset.quoteField, nextValue);
+      updateQuoteGeneratorField(target.dataset.quoteField, target.value);
     }
     if (target.matches('[data-payment-field][data-payment-index]') && !target.classList.contains('money')) {
       updateQuoteGeneratorPayment(Number(target.dataset.paymentIndex), target.dataset.paymentField, target.value);
-    }
-  });
-
-  panel.addEventListener('focusin', (event) => {
-    const target = event.target;
-    if (target.id !== 'clientCel') return;
-    if (!target.value) {
-      const nextValue = formatCell(target.value, { forcePrefix: true });
-      target.value = nextValue;
-      updateQuoteGeneratorField(target.dataset.quoteField, nextValue);
     }
   });
 
@@ -2983,6 +2918,17 @@ function bindQuoteGenerator() {
     });
   }
 
+  const saveBtn = document.getElementById('quoteGeneratorSave');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      syncQuoteGeneratorEntry({ createIfMissing: true });
+      persist();
+      renderQuoteGeneratorSavedList();
+      renderQuoteNavigation();
+      showToast('Cotización actualizada en Mis Cotizaciones.', 'success');
+    });
+  }
+
   const loadBtn = document.getElementById('quoteGeneratorLoad');
   if (loadBtn) {
     loadBtn.addEventListener('click', () => {
@@ -3055,16 +3001,6 @@ function bindQuoteGenerator() {
       if (selectedId) {
         loadQuoteGeneratorEntry(selectedId);
       }
-    });
-  }
-
-  const preview = document.getElementById('quotePreview');
-  if (preview && !preview.dataset.bound) {
-    preview.dataset.bound = 'true';
-    preview.addEventListener('click', (event) => {
-      const target = event.target.closest('[data-focus-field]');
-      if (!target) return;
-      focusQuoteField(target.dataset.focusField);
     });
   }
 
@@ -5853,9 +5789,9 @@ function updateQuoteGeneratorPreview() {
   setText('previewQuoteExpiry', meta.quoteExpiry || '--/--/----');
   setText('previewQuoteAdvisor', meta.advisor || '-');
   setText('previewClientName', client.name);
-  setText('previewClientDni', formatDni(client.dni));
-  setText('previewClientCuil', formatCuil(client.cuil));
-  setText('previewClientCel', formatCell(client.cel));
+  setText('previewClientDni', client.dni);
+  setText('previewClientCuil', client.cuil);
+  setText('previewClientCel', client.cel);
   const location = [client.province, client.city].filter(Boolean).join(' - ');
   setText('previewClientLocation', location || '-');
   setText('previewClientPostal', client.postalCode);

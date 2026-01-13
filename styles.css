@@ -186,7 +186,6 @@ button, .icon-btn { cursor: pointer; }
 .panel { display: none; margin-top: 24px; min-width: 0; }
 .panel.active { display: block; }
 .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
-.is-hidden { display: none !important; }
 
 .grid { display: grid; gap: 16px; }
 .grid.stats { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
@@ -214,17 +213,10 @@ button, .icon-btn { cursor: pointer; }
 .quote-hub-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 12px; }
 .quote-hub-actions { display: grid; gap: 8px; align-content: center; }
 .quote-hub-actions .ghost-btn { justify-content: center; }
+.quote-generator-panel[data-view="hub"] #quoteGeneratorSave,
 .quote-generator-panel[data-view="hub"] #quoteGeneratorDeleteActive,
 .quote-generator-panel[data-view="hub"] #quoteGeneratorExportPdf,
 .quote-generator-panel[data-view="hub"] #quoteGeneratorExportPng { display: none; }
-.export-actions { display: inline-flex; gap: 8px; padding: 6px; border-radius: 999px; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(148, 163, 184, 0.3); }
-.export-actions .secondary-btn,
-.export-actions .ghost-btn { border-radius: 999px; }
-.field.required label { display: flex; align-items: center; gap: 8px; }
-.field.required .required-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px; background: rgba(248, 113, 113, 0.18); color: #fecaca; border: 1px solid rgba(248, 113, 113, 0.4); }
-.field.required input:placeholder-shown,
-.field.required select:placeholder-shown,
-.field.required textarea:placeholder-shown { border-color: rgba(248, 113, 113, 0.6); box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2); background: rgba(248, 113, 113, 0.06); }
 .quote-generator-panel[data-view="workspace"] #quoteGeneratorHub { display: none; }
 .quote-generator-panel[data-view="workspace"] #quoteGeneratorWorkspace { display: block; }
 .quote-generator-form { position: sticky; top: 18px; max-height: calc(100vh - 1px); overflow: hidden; }
@@ -262,8 +254,6 @@ button, .icon-btn { cursor: pointer; }
 .quote-preview-subtitle { font-size: 13px; color: #64748b; }
 .quote-preview-title-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .quote-preview-grid { display: grid; gap: 6px 20px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); font-size: 14px; }
-.quote-preview [data-focus-field] { cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px; transition: background 0.2s ease, box-shadow 0.2s ease; }
-.quote-preview [data-focus-field]:hover { background: rgba(148, 163, 184, 0.2); box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35); }
 .quote-preview-divider { border-top: 1px dashed #94a3b8; margin: 4px 0; }
 .quote-preview-payments { display: grid; gap: 10px; }
 .quote-payment-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff; }
