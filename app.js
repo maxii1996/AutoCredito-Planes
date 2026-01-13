@@ -5958,17 +5958,40 @@ function buildQuoteGeneratorPdfDocument(draft) {
     if (value === undefined || value === null || value === '') return '-';
     return currency.format(parseMoney(value) || 0);
   };
-  const buildKeyValueTable = rows => ({
-    table: {
-      widths: ['*', '*'],
-      body: rows.map(([label, value]) => [
-        { text: label, bold: true, color: '#334155' },
-        { text: formatValue(value), color: '#0f172a' }
-      ])
-    },
-    layout: 'noBorders',
-    margin: [0, 4, 0, 8]
-  });
+  const buildInfoGrid = rows => {
+    if (!rows.length) return null;
+    const body = [];
+    for (let i = 0; i < rows.length; i += 2) {
+      const left = rows[i];
+      const right = rows[i + 1];
+      body.push([
+        left
+          ? {
+              stack: [
+                { text: `${left[0]}:`, style: 'gridLabel' },
+                { text: formatValue(left[1]), style: 'gridValue' }
+              ]
+            }
+          : '',
+        right
+          ? {
+              stack: [
+                { text: `${right[0]}:`, style: 'gridLabel' },
+                { text: formatValue(right[1]), style: 'gridValue' }
+              ]
+            }
+          : ''
+      ]);
+    }
+    return {
+      table: {
+        widths: ['*', '*'],
+        body
+      },
+      layout: 'noBorders',
+      margin: [0, 2, 0, 8]
+    };
+  };
   const bonified = draft.bonifiedPayments || {};
   const bonifiedCards = [
     { title: 'Opción 1: 1 Pago Bonificado', data: bonified.one || {} },
@@ -5988,6 +6011,10 @@ function buildQuoteGeneratorPdfDocument(draft) {
       detail: cuotaPura.detail
     }
   ];
+  const benefits = (draft.benefitsText || '')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
   const paymentTable = {
     table: {
       headerRows: 1,
@@ -6039,19 +6066,48 @@ function buildQuoteGeneratorPdfDocument(draft) {
     isVisible('newVehicle.brand') ? ['Marca', draft.newVehicle?.brand] : null,
     isVisible('newVehicle.model') ? ['Modelo y versión', draft.newVehicle?.model] : null
   ].filter(Boolean);
+  const estimateLines = (draft.notes || '').split('\n').filter(line => line.trim()).length || 1;
+  const densityScore = metaRows.length
+    + clientRows.length
+    + vehicleRows.length
+    + newVehicleRows.length
+    + paymentRows.length
+    + bonifiedCards.length * 2
+    + estimateLines
+    + Math.max(benefits.length, 1)
+    + (isVisible('footer') ? 1 : 0);
+  let scale = 1;
+  if (densityScore > 24) scale = 0.95;
+  if (densityScore > 30) scale = 0.9;
+  if (densityScore > 36) scale = 0.85;
+  if (densityScore > 44) scale = 0.8;
+  const scaledMargin = Math.max(14, Math.round(28 * scale));
   const content = [
     {
       columns: [
-        { text: 'Cotización', style: 'title' },
-        isVisible('meta.quoteNumber') ? { text: `#${draft.meta?.quoteNumber || '--------'}`, alignment: 'right', style: 'titleAccent' } : {}
+        {
+          stack: [
+            { text: 'Cotización', style: 'title' },
+            isVisible('meta.quoteNumber') ? { text: `#${draft.meta?.quoteNumber || '--------'}`, style: 'titleAccent' } : {}
+          ].filter(Boolean)
+        },
+        metaRows.length
+          ? {
+              stack: metaRows.map(([label, value]) => ({
+                text: [
+                  { text: `${label}: `, bold: true },
+                  { text: formatValue(value) }
+                ],
+                style: 'metaRow'
+              })),
+              alignment: 'right'
+            }
+          : {}
       ],
-      margin: [0, 0, 0, 4]
+      columnGap: 12,
+      margin: [0, 0, 0, 6]
     }
   ];
-  if (metaRows.length) {
-    content.push({ text: 'Datos de Cotización', style: 'sectionTitle' });
-    content.push(buildKeyValueTable(metaRows));
-  }
   if (draft.preQuote?.enabled && isVisible('preQuote')) {
     content.push({
       text: draft.preQuote?.message || DEFAULT_PREQUOTE_MESSAGE,
@@ -6060,15 +6116,18 @@ function buildQuoteGeneratorPdfDocument(draft) {
   }
   if (clientRows.length) {
     content.push({ text: 'Datos Cliente', style: 'sectionTitle' });
-    content.push(buildKeyValueTable(clientRows));
+    const grid = buildInfoGrid(clientRows);
+    if (grid) content.push(grid);
   }
   if (vehicleRows.length) {
     content.push({ text: 'Datos Vehículo', style: 'sectionTitle' });
-    content.push(buildKeyValueTable(vehicleRows));
+    const grid = buildInfoGrid(vehicleRows);
+    if (grid) content.push(grid);
   }
   if (isVisible('newVehicle.section') && newVehicleRows.length) {
     content.push({ text: 'Datos nuevo Vehículo', style: 'sectionTitle' });
-    content.push(buildKeyValueTable(newVehicleRows));
+    const grid = buildInfoGrid(newVehicleRows);
+    if (grid) content.push(grid);
   }
   if (isVisible('payments')) {
     content.push({ text: 'Esquema de pagos', style: 'sectionTitle' });
@@ -6104,14 +6163,10 @@ function buildQuoteGeneratorPdfDocument(draft) {
     content.push({ text: 'Notas y aclaraciones', style: 'sectionTitle' });
     content.push({
       text: draft.notes || '-',
-      margin: [0, 2, 0, 8]
+      style: 'notes'
     });
   }
   if (isVisible('benefits')) {
-    const benefits = (draft.benefitsText || '')
-      .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean);
     content.push({ text: 'Benef. Adicionales otorgados', style: 'sectionTitle' });
     content.push({
       ul: benefits.length ? benefits : ['-'],
@@ -6126,20 +6181,24 @@ function buildQuoteGeneratorPdfDocument(draft) {
   }
   return {
     pageSize: 'A4',
-    pageMargins: [24, 24, 24, 24],
+    pageMargins: [scaledMargin, scaledMargin, scaledMargin, scaledMargin],
     defaultStyle: {
-      fontSize: 9,
+      fontSize: Math.max(8, Math.round(10 * scale)),
       color: '#0f172a',
-      lineHeight: 1.15
+      lineHeight: 1.2
     },
     styles: {
-      title: { fontSize: 16, bold: true, color: '#1d4ed8' },
-      titleAccent: { fontSize: 14, bold: true, color: '#1d4ed8' },
-      sectionTitle: { fontSize: 10, bold: true, color: '#334155', margin: [0, 8, 0, 4] },
-      alert: { fontSize: 9, color: '#1e3a8a', fillColor: '#eef2ff', margin: [0, 6, 0, 8] },
-      footer: { fontSize: 8, color: '#475569', margin: [0, 6, 0, 0] }
+      title: { fontSize: Math.round(18 * scale), bold: true, color: '#1d4ed8', margin: [0, 0, 0, 2] },
+      titleAccent: { fontSize: Math.round(14 * scale), bold: true, color: '#1d4ed8' },
+      metaRow: { fontSize: Math.max(8, Math.round(10 * scale)), color: '#334155', margin: [0, 0, 0, 2] },
+      sectionTitle: { fontSize: Math.round(11 * scale), bold: true, color: '#334155', margin: [0, 6, 0, 4] },
+      gridLabel: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#64748b', margin: [0, 0, 0, 2] },
+      gridValue: { fontSize: Math.max(8, Math.round(10 * scale)), color: '#0f172a' },
+      alert: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#1e3a8a', fillColor: '#eef2ff', margin: [0, 6, 0, 8] },
+      notes: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#475569', margin: [0, 2, 0, 8] },
+      footer: { fontSize: Math.max(7, Math.round(8 * scale)), color: '#475569', margin: [0, 6, 0, 0] }
     },
-    content
+    content: [{ stack: content, unbreakable: true }]
   };
 }
 
