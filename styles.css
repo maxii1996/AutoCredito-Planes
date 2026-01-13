@@ -203,6 +203,11 @@ button, .icon-btn { cursor: pointer; }
 .quote-hub-card { display: grid; gap: 18px; }
 .quote-hub-empty { display: flex; align-items: center; gap: 18px; padding: 18px; border-radius: 16px; border: 1px dashed rgba(148, 163, 184, 0.35); background: rgba(15, 23, 42, 0.4); color: #e2e8f0; }
 .quote-hub-empty i { font-size: 28px; color: #94a3b8; }
+.quote-hub-empty.is-hidden { display: none; }
+.quote-export-actions { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(15, 23, 42, 0.55); }
+.quote-export-actions .export-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; }
+.quote-preview [data-focus-target] { cursor: pointer; border-radius: 10px; padding: 6px 8px; transition: background 0.2s ease, color 0.2s ease; }
+.quote-preview [data-focus-target]:hover { background: rgba(56, 189, 248, 0.12); color: #e2e8f0; }
 .quote-hub-list { display: grid; gap: 12px; }
 .quote-hub-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 16px; border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(15, 23, 42, 0.6); box-shadow: 0 12px 22px rgba(15, 23, 42, 0.35); }
 .quote-hub-item.active { border-color: rgba(129, 140, 248, 0.6); box-shadow: 0 16px 28px rgba(37, 99, 235, 0.25); }
@@ -213,10 +218,8 @@ button, .icon-btn { cursor: pointer; }
 .quote-hub-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 12px; }
 .quote-hub-actions { display: grid; gap: 8px; align-content: center; }
 .quote-hub-actions .ghost-btn { justify-content: center; }
-.quote-generator-panel[data-view="hub"] #quoteGeneratorSave,
 .quote-generator-panel[data-view="hub"] #quoteGeneratorDeleteActive,
-.quote-generator-panel[data-view="hub"] #quoteGeneratorExportPdf,
-.quote-generator-panel[data-view="hub"] #quoteGeneratorExportPng { display: none; }
+.quote-generator-panel[data-view="hub"] .quote-export-actions { display: none; }
 .quote-generator-panel[data-view="workspace"] #quoteGeneratorHub { display: none; }
 .quote-generator-panel[data-view="workspace"] #quoteGeneratorWorkspace { display: block; }
 .quote-generator-form { position: sticky; top: 18px; max-height: calc(100vh - 1px); overflow: hidden; }
@@ -460,6 +463,10 @@ button, .icon-btn { cursor: pointer; }
 .textarea-shell { position: relative; }
 .textarea-shell textarea { min-height: 180px; padding-bottom: 38px; }
 .field { display: grid; gap: 6px; }
+.field.is-required label::after { content: "Obligatorio"; display: inline-flex; align-items: center; margin-left: 8px; padding: 2px 6px; border-radius: 999px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(248, 113, 113, 0.18); color: #fecaca; border: 1px solid rgba(248, 113, 113, 0.35); }
+.field.is-required input,
+.field.is-required textarea,
+.field.is-required select { border-color: rgba(248, 113, 113, 0.55); box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2); }
 .field.inline { grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }
 .field.inline-variable input { background: #0f1625; }
 .field-group { display: grid; gap: 10px; border: 1px solid var(--border); padding: 12px; border-radius: 12px; background: #0f1625; }

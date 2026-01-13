@@ -1988,9 +1988,74 @@ function recalculateBonifiedPayment(draft, key) {
   draft.bonifiedPayments = { ...draft.bonifiedPayments, [key]: bonified };
 }
 
+function formatDniValue(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function formatCuilValue(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  if (!digits) return '';
+  const part1 = digits.slice(0, 2);
+  const part2 = digits.slice(2, 10);
+  const part3 = digits.slice(10, 11);
+  let formatted = part1;
+  if (part2) formatted += `-${part2}`;
+  if (part3) formatted += `-${part3}`;
+  return formatted;
+}
+
+function formatPhoneValue(value) {
+  const raw = String(value || '');
+  if (!raw.trim()) return '';
+  if (raw.trim().startsWith('+54')) return raw.trim();
+  const withoutPrefix = raw.replace(/^\+?54\s*/i, '').trim();
+  return `+54 ${withoutPrefix}`.trim();
+}
+
+function normalizeQuoteGeneratorFieldValue(path, value) {
+  if (path === 'client.dni') return formatDniValue(value);
+  if (path === 'client.cuil') return formatCuilValue(value);
+  if (path === 'client.cel') return formatPhoneValue(value);
+  return value ?? '';
+}
+
+function setQuoteGeneratorActiveTab(targetId) {
+  const panel = document.getElementById('quoteGenerator');
+  if (!panel) return;
+  const tabs = panel.querySelectorAll('.quote-tab');
+  const panels = panel.querySelectorAll('.quote-tab-panel');
+  tabs.forEach(tab => {
+    const isActive = tab.dataset.tabTarget === targetId;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  panels.forEach(tabPanel => tabPanel.classList.toggle('active', tabPanel.id === targetId));
+  const panelScroll = panel.querySelector('.quote-tabs-panels');
+  if (panelScroll) {
+    panelScroll.scrollTop = 0;
+  }
+}
+
+function focusQuoteGeneratorField(targetId, tabId) {
+  if (tabId) {
+    setQuoteGeneratorActiveTab(tabId);
+  }
+  requestAnimationFrame(() => {
+    const input = document.getElementById(targetId);
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    if (typeof input.select === 'function') {
+      input.select();
+    }
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
+
 function updateQuoteGeneratorField(path, value) {
   const draft = getQuoteGeneratorDraft();
-  setNestedValue(draft, path, value);
+  setNestedValue(draft, path, normalizeQuoteGeneratorFieldValue(path, value));
   if (path.startsWith('bonifiedPayments.')) {
     const [, key, field] = path.split('.');
     if (field === 'fakeOriginal' || field === 'amount' || field === 'bonification') {
@@ -2717,28 +2782,25 @@ function bindQuoteGenerator() {
   if (!panel || panel.dataset.bound) return;
   panel.dataset.bound = 'true';
 
-  const activateQuoteTab = (targetId) => {
-    const tabs = panel.querySelectorAll('.quote-tab');
-    const panels = panel.querySelectorAll('.quote-tab-panel');
-    tabs.forEach(tab => {
-      const isActive = tab.dataset.tabTarget === targetId;
-      tab.classList.toggle('active', isActive);
-      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    });
-    panels.forEach(tabPanel => tabPanel.classList.toggle('active', tabPanel.id === targetId));
-    const panelScroll = panel.querySelector('.quote-tabs-panels');
-    if (panelScroll) {
-      panelScroll.scrollTop = 0;
-    }
-  };
-
   panel.addEventListener('input', (event) => {
     const target = event.target;
     if (target.matches('[data-quote-field]') && !target.classList.contains('money')) {
-      updateQuoteGeneratorField(target.dataset.quoteField, target.value);
+      const normalizedValue = normalizeQuoteGeneratorFieldValue(target.dataset.quoteField, target.value);
+      if (target.value !== normalizedValue) {
+        target.value = normalizedValue;
+      }
+      updateQuoteGeneratorField(target.dataset.quoteField, normalizedValue);
     }
     if (target.matches('[data-payment-field][data-payment-index]') && !target.classList.contains('money')) {
       updateQuoteGeneratorPayment(Number(target.dataset.paymentIndex), target.dataset.paymentField, target.value);
+    }
+  });
+
+  panel.addEventListener('focusin', (event) => {
+    const target = event.target;
+    if (target?.id === 'clientCel' && !target.value.trim()) {
+      target.value = '+54 ';
+      updateQuoteGeneratorField('client.cel', target.value);
     }
   });
 
@@ -2756,9 +2818,14 @@ function bindQuoteGenerator() {
   });
 
   panel.addEventListener('click', (event) => {
+    const previewTarget = event.target.closest('[data-focus-target]');
+    if (previewTarget && previewTarget.closest('#quotePreview')) {
+      focusQuoteGeneratorField(previewTarget.dataset.focusTarget, previewTarget.dataset.focusTab);
+      return;
+    }
     const tabButton = event.target.closest('.quote-tab');
     if (tabButton) {
-      activateQuoteTab(tabButton.dataset.tabTarget);
+      setQuoteGeneratorActiveTab(tabButton.dataset.tabTarget);
       return;
     }
 
@@ -2774,13 +2841,14 @@ function bindQuoteGenerator() {
       const source = buildQuoteGeneratorAutoSource();
       const value = source.fields[fieldPath];
       if (value !== undefined && value !== null && value !== '') {
-        updateQuoteGeneratorField(fieldPath, value);
+        const normalizedValue = normalizeQuoteGeneratorFieldValue(fieldPath, value);
+        updateQuoteGeneratorField(fieldPath, normalizedValue);
         const input = document.querySelector(`[data-quote-field="${fieldPath}"]`);
         if (input) {
           if (input.classList.contains('money')) {
-            setMoneyValue(input, value);
+            setMoneyValue(input, normalizedValue);
           } else {
-            input.value = value;
+            input.value = normalizedValue;
           }
         }
       } else {
@@ -2841,7 +2909,7 @@ function bindQuoteGenerator() {
 
     const editTarget = event.target.closest('[data-quote-edit]');
     if (editTarget) {
-      activateQuoteTab('quote-tab-extras');
+      setQuoteGeneratorActiveTab('quote-tab-extras');
       return;
     }
 
@@ -5748,7 +5816,8 @@ function renderQuoteGeneratorForm() {
         input.dataset.bound = 'true';
       }
     } else {
-      input.value = value ?? '';
+      const normalizedValue = normalizeQuoteGeneratorFieldValue(path, value ?? '');
+      input.value = normalizedValue ?? '';
     }
   });
   document.querySelectorAll('#quoteGeneratorForm [data-visibility-field]').forEach(input => {
@@ -5789,9 +5858,9 @@ function updateQuoteGeneratorPreview() {
   setText('previewQuoteExpiry', meta.quoteExpiry || '--/--/----');
   setText('previewQuoteAdvisor', meta.advisor || '-');
   setText('previewClientName', client.name);
-  setText('previewClientDni', client.dni);
-  setText('previewClientCuil', client.cuil);
-  setText('previewClientCel', client.cel);
+  setText('previewClientDni', formatDniValue(client.dni));
+  setText('previewClientCuil', formatCuilValue(client.cuil));
+  setText('previewClientCel', formatPhoneValue(client.cel));
   const location = [client.province, client.city].filter(Boolean).join(' - ');
   setText('previewClientLocation', location || '-');
   setText('previewClientPostal', client.postalCode);

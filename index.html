@@ -406,10 +406,12 @@
             <h2>Mis Cotizaciones</h2>
           </div>
           <div class="actions">
-            <button id="quoteGeneratorSave" class="primary-btn" type="button"><i class='bx bx-save'></i>Guardar</button>
             <button id="quoteGeneratorDeleteActive" class="ghost-btn danger" type="button"><i class='bx bx-trash'></i>Eliminar esta cotización</button>
-            <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>Exportar PDF</button>
-            <button id="quoteGeneratorExportPng" class="ghost-btn" type="button"><i class='bx bx-image'></i>Exportar PNG</button>
+            <div class="quote-export-actions">
+              <span class="export-label">Exportar</span>
+              <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>PDF</button>
+              <button id="quoteGeneratorExportPng" class="ghost-btn" type="button"><i class='bx bx-image'></i>PNG</button>
+            </div>
           </div>
         </div>
         <div class="quote-generator-shell">
@@ -477,14 +479,14 @@
               <div class="quote-tabs-panels">
                 <section class="quote-tab-panel active" id="quote-tab-main" role="tabpanel" aria-labelledby="quote-tab-btn-main">
                   <div class="form-grid two">
-                    <div class="field">
+                    <div class="field is-required">
                       <label for="quoteNumber">Cotización #</label>
                       <div class="auto-row">
                         <input id="quoteNumber" data-quote-field="meta.quoteNumber" placeholder="00000000" />
                         <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteNumber" type="button">Auto</button>
                       </div>
                     </div>
-                    <div class="field">
+                    <div class="field is-required">
                       <label for="quoteDate">Fecha de Cotización</label>
                       <div class="auto-row">
                         <input id="quoteDate" data-quote-field="meta.quoteDate" placeholder="dd/mm/aaaa" />
@@ -498,7 +500,7 @@
                         <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteExpiry" type="button">Auto</button>
                       </div>
                     </div>
-                    <div class="field">
+                    <div class="field is-required">
                       <label for="quoteAdvisor">Asesor Comercial</label>
                       <div class="auto-row">
                         <input id="quoteAdvisor" data-quote-field="meta.advisor" placeholder="Nombre del asesor" />
@@ -519,49 +521,49 @@
                       </div>
                     </div>
                     <div class="form-grid two">
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientFullName">Nombre</label>
                         <div class="auto-row">
                           <input id="clientFullName" data-quote-field="client.name" placeholder="Nombre completo" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="client.name" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientDni">DNI</label>
                         <div class="auto-row">
-                          <input id="clientDni" data-quote-field="client.dni" placeholder="00.000.000" />
+                          <input id="clientDni" data-quote-field="client.dni" placeholder="00.000.000" inputmode="numeric" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="client.dni" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientCuil">CUIL</label>
                         <div class="auto-row">
-                          <input id="clientCuil" data-quote-field="client.cuil" placeholder="20-00000000-0" />
+                          <input id="clientCuil" data-quote-field="client.cuil" placeholder="20-00000000-0" inputmode="numeric" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="client.cuil" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientCel">CEL</label>
                         <div class="auto-row">
                           <input id="clientCel" data-quote-field="client.cel" placeholder="+54 9 11 0000 0000" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="client.cel" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientProvince">Provincia</label>
                         <div class="auto-row">
                           <input id="clientProvince" data-quote-field="client.province" placeholder="Provincia" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="client.province" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientCity">Localidad</label>
                         <div class="auto-row">
                           <input id="clientCity" data-quote-field="client.city" placeholder="Localidad" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="client.city" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="clientPostal">CP</label>
                         <div class="auto-row">
                           <input id="clientPostal" data-quote-field="client.postalCode" placeholder="0000" />
@@ -583,14 +585,14 @@
                       </div>
                     </div>
                     <div class="form-grid two">
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="vehicleBrand">Marca</label>
                         <div class="auto-row">
                           <input id="vehicleBrand" list="quoteBrandSuggestions" data-quote-field="vehicle.brand" placeholder="Marca" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.brand" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="vehicleModel">Modelo y Versión</label>
                         <div class="auto-row">
                           <input id="vehicleModel" data-quote-field="vehicle.model" placeholder="Modelo y versión" />
@@ -635,14 +637,14 @@
                       </div>
                     </div>
                     <div class="form-grid two">
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="newVehicleBrand">Marca</label>
                         <div class="auto-row">
                           <input id="newVehicleBrand" list="quoteBrandSuggestions" data-quote-field="newVehicle.brand" placeholder="Marca" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.brand" type="button">Auto</button>
                         </div>
                       </div>
-                      <div class="field">
+                      <div class="field is-required">
                         <label for="newVehicleModel">Modelo y Versión</label>
                         <div class="auto-row">
                           <input id="newVehicleModel" data-quote-field="newVehicle.model" placeholder="Modelo y versión" />
@@ -886,12 +888,12 @@
                   <div class="quote-preview" id="quotePreview">
                   <div class="quote-preview-header">
                     <div>
-                      <h3 data-quote-visible="meta.quoteNumber">Cotización <span id="previewQuoteNumber">00000000</span></h3>
+                      <h3 data-quote-visible="meta.quoteNumber" data-focus-target="quoteNumber" data-focus-tab="quote-tab-main">Cotización <span id="previewQuoteNumber">00000000</span></h3>
                     </div>
                     <div class="quote-preview-meta">
-                      <div data-quote-visible="meta.quoteDate"><strong>Fecha de Cotización:</strong> <span id="previewQuoteDate">--/--/----</span></div>
-                      <div data-quote-visible="meta.quoteExpiry"><strong>Vencimiento:</strong> <span id="previewQuoteExpiry">--/--/----</span></div>
-                      <div data-quote-visible="meta.advisor"><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
+                      <div data-quote-visible="meta.quoteDate" data-focus-target="quoteDate" data-focus-tab="quote-tab-main"><strong>Fecha de Cotización:</strong> <span id="previewQuoteDate">--/--/----</span></div>
+                      <div data-quote-visible="meta.quoteExpiry" data-focus-target="quoteExpiry" data-focus-tab="quote-tab-main"><strong>Vencimiento:</strong> <span id="previewQuoteExpiry">--/--/----</span></div>
+                      <div data-quote-visible="meta.advisor" data-focus-target="quoteAdvisor" data-focus-tab="quote-tab-main"><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
                     </div>
                   </div>
                   <div class="quote-preview-alert" id="previewPreQuote" data-quote-visible="preQuote">
@@ -903,12 +905,12 @@
                   <div class="quote-preview-section">
                     <h4>Datos Cliente</h4>
                     <div class="quote-preview-grid">
-                      <div data-quote-visible="client.name"><strong>Nombre:</strong> <span id="previewClientName">-</span></div>
-                      <div data-quote-visible="client.dni"><strong>DNI:</strong> <span id="previewClientDni">-</span></div>
-                      <div data-quote-visible="client.cuil"><strong>CUIL:</strong> <span id="previewClientCuil">-</span></div>
-                      <div data-quote-visible="client.cel"><strong>CEL:</strong> <span id="previewClientCel">-</span></div>
-                      <div data-quote-visible="client.location"><strong>PROV. y LOCALIDAD:</strong> <span id="previewClientLocation">-</span></div>
-                      <div data-quote-visible="client.postalCode"><strong>CP:</strong> <span id="previewClientPostal">-</span></div>
+                      <div data-quote-visible="client.name" data-focus-target="clientFullName" data-focus-tab="quote-tab-client"><strong>Nombre:</strong> <span id="previewClientName">-</span></div>
+                      <div data-quote-visible="client.dni" data-focus-target="clientDni" data-focus-tab="quote-tab-client"><strong>DNI:</strong> <span id="previewClientDni">-</span></div>
+                      <div data-quote-visible="client.cuil" data-focus-target="clientCuil" data-focus-tab="quote-tab-client"><strong>CUIL:</strong> <span id="previewClientCuil">-</span></div>
+                      <div data-quote-visible="client.cel" data-focus-target="clientCel" data-focus-tab="quote-tab-client"><strong>CEL:</strong> <span id="previewClientCel">-</span></div>
+                      <div data-quote-visible="client.location" data-focus-target="clientProvince" data-focus-tab="quote-tab-client"><strong>PROV. y LOCALIDAD:</strong> <span id="previewClientLocation">-</span></div>
+                      <div data-quote-visible="client.postalCode" data-focus-target="clientPostal" data-focus-tab="quote-tab-client"><strong>CP:</strong> <span id="previewClientPostal">-</span></div>
                     </div>
                   </div>
                   <div class="quote-preview-divider"></div>
@@ -916,20 +918,20 @@
                     <h4>Datos Vehículo</h4>
                     <div class="quote-preview-title" id="previewVehicleTitle" data-quote-visible="vehicle.title">Vehículo a entregar</div>
                     <div class="quote-preview-grid">
-                      <div data-quote-visible="vehicle.brand"><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
-                      <div data-quote-visible="vehicle.model"><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
-                      <div data-quote-visible="vehicle.year"><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
-                      <div data-quote-visible="vehicle.plate"><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
-                      <div data-quote-visible="vehicle.kms"><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
-                      <div class="quote-preview-row spaced" data-quote-visible="vehicle.factoryPrice"><strong id="previewVehicleFactoryLabel">Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
+                      <div data-quote-visible="vehicle.brand" data-focus-target="vehicleBrand" data-focus-tab="quote-tab-vehicle"><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
+                      <div data-quote-visible="vehicle.model" data-focus-target="vehicleModel" data-focus-tab="quote-tab-vehicle"><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
+                      <div data-quote-visible="vehicle.year" data-focus-target="vehicleYear" data-focus-tab="quote-tab-vehicle"><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
+                      <div data-quote-visible="vehicle.plate" data-focus-target="vehiclePlate" data-focus-tab="quote-tab-vehicle"><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
+                      <div data-quote-visible="vehicle.kms" data-focus-target="vehicleKms" data-focus-tab="quote-tab-vehicle"><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
+                      <div class="quote-preview-row spaced" data-quote-visible="vehicle.factoryPrice" data-focus-target="vehicleFactoryPrice" data-focus-tab="quote-tab-vehicle"><strong id="previewVehicleFactoryLabel">Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
                     </div>
                   </div>
                   <div class="quote-preview-divider"></div>
                   <div class="quote-preview-section" data-quote-visible="newVehicle.section">
                     <h4>Datos nuevo Vehículo</h4>
                     <div class="quote-preview-grid">
-                      <div data-quote-visible="newVehicle.brand"><strong>Marca:</strong> <span id="previewNewVehicleBrand">-</span></div>
-                      <div data-quote-visible="newVehicle.model"><strong>Modelo y Versión:</strong> <span id="previewNewVehicleModel">-</span></div>
+                      <div data-quote-visible="newVehicle.brand" data-focus-target="newVehicleBrand" data-focus-tab="quote-tab-new-vehicle"><strong>Marca:</strong> <span id="previewNewVehicleBrand">-</span></div>
+                      <div data-quote-visible="newVehicle.model" data-focus-target="newVehicleModel" data-focus-tab="quote-tab-new-vehicle"><strong>Modelo y Versión:</strong> <span id="previewNewVehicleModel">-</span></div>
                     </div>
                   </div>
                   <div class="quote-preview-divider"></div>
