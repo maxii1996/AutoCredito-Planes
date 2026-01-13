@@ -175,7 +175,7 @@ button, .icon-btn { cursor: pointer; }
 .quote-details { display: grid; gap: 16px; }
 .quote-form { position: sticky; top: 20px; align-self: start; }
 .quote-generator-layout { display: grid; grid-template-columns: minmax(320px, 380px) 1fr; gap: 18px; align-items: start; }
-.quote-generator-form { position: sticky; top: 18px; max-height: calc(100vh - 140px); overflow: hidden; }
+.quote-generator-form { position: sticky; top: 18px; max-height: calc(100vh - 1px); overflow: hidden; }
 .quote-generator-preview { display: grid; gap: 16px; }
 .quote-preview-shell { display: flex; justify-content: center; align-items: flex-start; }
 .quote-tabs { display: grid; grid-template-columns: 1fr; gap: 14px; }
