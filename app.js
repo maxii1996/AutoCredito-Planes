@@ -5992,8 +5992,8 @@ async function exportQuoteGenerator(format) {
     showToast('No se pudo generar la exportación.', 'error');
     return;
   }
-  if (format === 'png' && !window.html2canvas) {
-    showToast('No se encontró la librería para exportar PNG.', 'error');
+  if (!window.html2canvas) {
+    showToast('No se encontró la librería para exportar.', 'error');
     return;
   }
   const overlay = document.getElementById('quoteExportOverlay');
@@ -6005,19 +6005,62 @@ async function exportQuoteGenerator(format) {
     }
     const draft = getQuoteGeneratorDraft();
     const fileLabel = draft.meta?.quoteNumber || Date.now();
+    
     if (format === 'pdf') {
-      if (!window.pdfMake) {
+      // Usar html2canvas + jsPDF para PDF (más compatible en GitHub Pages)
+      if (!window.jspdf?.jsPDF) {
         showToast('No se encontró la librería para exportar PDF.', 'error');
         return;
       }
-      const docDefinition = buildQuoteGeneratorPdfDocument(draft);
-      window.pdfMake.createPdf(docDefinition).download(`cotizacion-${fileLabel}.pdf`);
-      return;
+      try {
+        const scale = 2;
+        const canvas = await window.html2canvas(preview, { scale, backgroundColor: '#ffffff', useCORS: true, allowTaint: true });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+        
+        const imgWidth = 210 - 20; // A4 width minus margins
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= 277; // A4 height minus margins
+        
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+          heightLeft -= 277;
+        }
+        
+        pdf.save(`cotizacion-${fileLabel}.pdf`);
+        return;
+      } catch (err) {
+        console.error('Error con html2canvas para PDF:', err);
+        // Fallback a pdfMake si html2canvas falla
+        if (window.pdfMake && window.pdfMake.vfs) {
+          try {
+            const docDefinition = buildQuoteGeneratorPdfDocument(draft);
+            window.pdfMake.createPdf(docDefinition).download(`cotizacion-${fileLabel}.pdf`);
+            return;
+          } catch (pdfMakeErr) {
+            console.error('Error con pdfMake:', pdfMakeErr);
+            throw new Error('No se pudo generar el PDF');
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
-    const scale = 2;
-    const canvas = await window.html2canvas(preview, { scale, backgroundColor: '#ffffff' });
     if (format === 'png') {
+      const scale = 2;
+      const canvas = await window.html2canvas(preview, { scale, backgroundColor: '#ffffff', useCORS: true, allowTaint: true });
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
       link.download = `cotizacion-${fileLabel}.png`;
