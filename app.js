@@ -11,10 +11,36 @@ const DEFAULT_PLAN_SCHEME = [
   { start: 85, end: 120 }
 ];
 const DEFAULT_QUOTE_PAYMENTS = [
-  { label: 'Cuota 1 (1 pago)', amount: null, detail: '' },
-  { label: 'Cuota 1 (3 pagos)', amount: null, detail: '3x' },
-  { label: 'Cuota 2 - X', amount: null, detail: '' }
+  { label: 'Cuota 1 (1 o 3 pagos)', amount: null, detail: '1 pago: - · 3 pagos: -' },
+  { label: 'Cuota 2 - 12', amount: null, detail: '' }
 ];
+const DEFAULT_QUOTE_VISIBILITY = {
+  'meta.quoteNumber': true,
+  'meta.quoteDate': true,
+  'meta.quoteExpiry': true,
+  'meta.advisor': true,
+  'client.name': true,
+  'client.dni': true,
+  'client.cuil': true,
+  'client.cel': true,
+  'client.location': true,
+  'client.postalCode': true,
+  'vehicle.title': true,
+  'vehicle.tradeIn': true,
+  'vehicle.brand': true,
+  'vehicle.model': true,
+  'vehicle.year': true,
+  'vehicle.plate': true,
+  'vehicle.kms': true,
+  'vehicle.factoryPrice': true,
+  'newVehicle.section': true,
+  'newVehicle.brand': true,
+  'newVehicle.model': true,
+  payments: true,
+  notes: true,
+  benefits: true,
+  footer: true
+};
 const BRAND_PLAN_SCHEMES = {
   FIAT: [
     { start: 2, end: 12 },
@@ -1568,8 +1594,13 @@ function setMoneyValue(el, value) {
   el.value = numeric ? number.format(numeric) : '';
 }
 
-function generateQuoteNumber() {
-  return String(Math.floor(10000000 + Math.random() * 90000000));
+function generateQuoteNumber(dni = '', date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  const dniDigits = String(dni || '').replace(/\D/g, '');
+  const lastTwo = dniDigits.slice(-2).padStart(2, '0');
+  const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+  return `${month}${year}${lastTwo}${random}`;
 }
 
 function buildQuoteGeneratorDraft({ blank = false } = {}) {
@@ -1605,14 +1636,14 @@ function buildQuoteGeneratorDraft({ blank = false } = {}) {
     },
     payments: DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row })),
     notes: '',
-    advisorNotes: ''
+    visibility: { ...DEFAULT_QUOTE_VISIBILITY }
   };
 }
 
 function normalizeQuoteGeneratorDraft(draft = {}) {
   const base = buildQuoteGeneratorDraft({ blank: true });
   const meta = { ...base.meta, ...(draft.meta || {}) };
-  if (!meta.quoteNumber) meta.quoteNumber = generateQuoteNumber();
+  if (!meta.quoteNumber) meta.quoteNumber = generateQuoteNumber(draft?.client?.dni);
   const payments = Array.isArray(draft.payments) && draft.payments.length
     ? draft.payments.map(row => ({
       label: row?.label || '',
@@ -1620,14 +1651,16 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
       detail: row?.detail || ''
     }))
     : base.payments.map(row => ({ ...row }));
+  const mergedNotes = [draft.notes, draft.advisorNotes].filter(Boolean).join('\n');
+  const visibility = { ...base.visibility, ...(draft.visibility || {}) };
   return {
     meta,
     client: { ...base.client, ...(draft.client || {}) },
     vehicle: { ...base.vehicle, ...(draft.vehicle || {}), factoryPrice: Number.isFinite(draft?.vehicle?.factoryPrice) ? draft.vehicle.factoryPrice : parseMoney(draft?.vehicle?.factoryPrice) },
     newVehicle: { ...base.newVehicle, ...(draft.newVehicle || {}) },
     payments,
-    notes: draft.notes || '',
-    advisorNotes: draft.advisorNotes || ''
+    notes: mergedNotes || '',
+    visibility
   };
 }
 
@@ -1699,6 +1732,15 @@ function formatQuotePreviewMoney(value) {
   return currency.format(numeric || 0);
 }
 
+function resolveQuoteGeneratorClient(latestQuote) {
+  const selectedId = selectedPlanClientId || latestQuote?.selectedClientId || uiState?.planDraft?.selectedClientId || null;
+  if (selectedId) {
+    const found = managerClients.find(client => client.id === selectedId);
+    if (found) return found;
+  }
+  return managerClients[0] || null;
+}
+
 function buildQuoteGeneratorAutoSource() {
   let latestQuote = clients?.[0];
   if (!latestQuote) {
@@ -1711,17 +1753,28 @@ function buildQuoteGeneratorAutoSource() {
   const today = new Date();
   const expiry = new Date();
   expiry.setDate(expiry.getDate() + 7);
+  const clientData = resolveQuoteGeneratorClient(latestQuote);
+  const clientName = clientData?.name || latestQuote?.name || '';
+  const clientDni = clientData?.document || '';
+  const clientCuil = clientData?.cuit || '';
   return {
     quote: latestQuote,
     fields: {
+      'meta.quoteNumber': generateQuoteNumber(clientDni),
       'meta.quoteDate': today.toLocaleDateString('es-AR'),
       'meta.quoteExpiry': expiry.toLocaleDateString('es-AR'),
       'meta.advisor': uiState?.globalSettings?.advisorName || '',
-      'client.name': latestQuote?.name || '',
+      'client.name': clientName,
+      'client.dni': clientDni,
+      'client.cuil': clientCuil,
+      'client.cel': clientData?.phone || '',
+      'client.province': clientData?.province || '',
+      'client.city': clientData?.city || '',
+      'client.postalCode': clientData?.postalCode || '',
       'vehicle.brand': latestQuote?.brand || '',
       'vehicle.model': latestQuote?.model || '',
       'vehicle.factoryPrice': latestQuote?.basePrice || latestQuote?.priceApplied || null,
-      'vehicle.tradeIn': latestQuote?.tradeIn ? 'Entrega llave por llave' : '',
+      'vehicle.tradeIn': '',
       'newVehicle.brand': latestQuote?.brand || '',
       'newVehicle.model': latestQuote?.model || ''
     }
@@ -1731,20 +1784,47 @@ function buildQuoteGeneratorAutoSource() {
 function buildQuoteGeneratorAutoPayments(quote) {
   if (!quote) return DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row }));
   const payments = [];
-  if (quote.reservation1) {
-    payments.push({ label: 'Cuota 1 (1 pago)', amount: quote.reservation1, detail: '' });
+  if (quote.reservation1 || quote.reservation3) {
+    const cuota3 = quote.reservation3 ? quote.reservation3 / 3 : 0;
+    const detailParts = [];
+    if (quote.reservation1) {
+      detailParts.push(`1 pago: ${currency.format(quote.reservation1 || 0)}`);
+    }
+    if (quote.reservation3) {
+      detailParts.push(`3 pagos: 3x ${currency.format(cuota3 || 0)}`);
+    }
+    payments.push({
+      label: 'Cuota 1 (1 o 3 pagos)',
+      amount: quote.reservation1 || quote.reservation3 || 0,
+      detail: detailParts.join(' · ')
+    });
   }
-  if (quote.reservation3) {
-    const each = quote.reservation3 / 3;
-    payments.push({ label: 'Cuota 1 (3 pagos)', amount: quote.reservation3, detail: `3x ${currency.format(each || 0)}` });
-  }
-  if (quote.reservation6) {
-    const each = quote.reservation6 / 6;
-    payments.push({ label: 'Cuota 1 (6 pagos)', amount: quote.reservation6, detail: `6x ${currency.format(each || 0)}` });
-  }
-  if (quote.cuota) {
-    payments.push({ label: 'Cuota mensual estimada', amount: quote.cuota, detail: quote.remainingInstallments ? `${quote.remainingInstallments} cuotas` : '' });
-  }
+  const vehicle = vehicles.find(v => (v.name || '').toLowerCase() === (quote.model || '').toLowerCase()) || vehicles[0];
+  const planRanges = getPlanRangesForBrand(vehicle?.brand || quote.brand || DEFAULT_BRAND, quote.totalInstallments || resolveTotalInstallments(quote.plan, vehicle?.planProfile?.planType, vehicle?.planProfile?.maxInstallments));
+  const reservations = {
+    '1': quote.reservation1 || vehicle?.reservations?.['1'] || 0,
+    '3': quote.reservation3 || vehicle?.reservations?.['3'] || 0,
+    '6': 0
+  };
+  const projection = computePaymentProjection({
+    vehicle,
+    planType: quote.plan || getPlanTypeForVehicle(vehicle),
+    tradeInValue: quote.tradeInValue || 0,
+    tradeInEnabled: quote.tradeIn || false,
+    reservations,
+    appliedReservation: quote.appliedReservation || '1',
+    customPrice: quote.priceApplied || quote.customPrice || 0,
+    advancePayments: quote.advancePayments || false,
+    advanceAmount: quote.advanceAmount || 0
+  });
+  planRanges.forEach(range => {
+    const amount = projection.rangeAmounts?.[range.key] ?? vehicle?.shareByPlan?.[range.key] ?? projection.baseCatalogCuota ?? 0;
+    payments.push({
+      label: `Cuota ${range.from}-${range.to}`,
+      amount,
+      detail: ''
+    });
+  });
   return payments.length ? payments : DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row }));
 }
 
@@ -2295,12 +2375,22 @@ function bindQuoteGenerator() {
     }
   });
 
+  panel.addEventListener('change', (event) => {
+    const target = event.target;
+    if (target.matches('[data-visibility-field]')) {
+      const draft = getQuoteGeneratorDraft();
+      draft.visibility = { ...DEFAULT_QUOTE_VISIBILITY, ...(draft.visibility || {}) };
+      draft.visibility[target.dataset.visibilityField] = target.checked;
+      commitQuoteGeneratorDraft(draft);
+    }
+  });
+
   panel.addEventListener('click', (event) => {
     const autoFieldBtn = event.target.closest('[data-auto-field]');
     if (autoFieldBtn) {
       const fieldPath = autoFieldBtn.dataset.autoField;
       if (fieldPath === 'meta.quoteNumber') {
-        updateQuoteGeneratorField(fieldPath, generateQuoteNumber());
+        updateQuoteGeneratorField(fieldPath, generateQuoteNumber(getQuoteGeneratorDraft()?.client?.dni));
         const input = document.querySelector(`[data-quote-field="${fieldPath}"]`);
         if (input) input.value = getQuoteGeneratorDraft().meta.quoteNumber;
         return;
@@ -5084,9 +5174,21 @@ function renderQuoteGeneratorForm() {
       input.value = value ?? '';
     }
   });
+  document.querySelectorAll('#quoteGeneratorForm [data-visibility-field]').forEach(input => {
+    const key = input.dataset.visibilityField;
+    input.checked = draft.visibility?.[key] !== false;
+  });
   renderQuoteGeneratorPayments(draft);
   renderQuoteGeneratorSavedList();
   updateQuoteGeneratorPreview();
+}
+
+function applyQuoteGeneratorVisibility(visibility = {}) {
+  document.querySelectorAll('#quotePreview [data-quote-visible]').forEach(el => {
+    const key = el.dataset.quoteVisible;
+    const shouldShow = visibility?.[key] !== false;
+    el.classList.toggle('is-hidden', !shouldShow);
+  });
 }
 
 function updateQuoteGeneratorPreview() {
@@ -5110,6 +5212,8 @@ function updateQuoteGeneratorPreview() {
   const location = [client.province, client.city].filter(Boolean).join(' - ');
   setText('previewClientLocation', location || '-');
   setText('previewClientPostal', client.postalCode);
+  const vehicleTitle = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
+  setText('previewVehicleTitle', vehicleTitle ? `Vehículo a entregar: ${vehicleTitle}` : 'Vehículo a entregar: -');
   setText('previewVehicleTradeIn', vehicle.tradeIn);
   setText('previewVehicleBrand', vehicle.brand);
   setText('previewVehicleModel', vehicle.model);
@@ -5140,8 +5244,7 @@ function updateQuoteGeneratorPreview() {
 
   const notesEl = document.querySelector('#previewNotes p');
   if (notesEl) notesEl.textContent = draft.notes || '';
-  const advisorNotesEl = document.querySelector('#previewAdvisorNotes p');
-  if (advisorNotesEl) advisorNotesEl.textContent = draft.advisorNotes || '';
+  applyQuoteGeneratorVisibility(draft.visibility || {});
 }
 
 async function exportQuoteGenerator(format) {
@@ -5150,7 +5253,9 @@ async function exportQuoteGenerator(format) {
     showToast('No se pudo generar la exportación.', 'error');
     return;
   }
+  const overlay = document.getElementById('quoteExportOverlay');
   try {
+    if (overlay) overlay.classList.remove('hidden');
     const canvas = await window.html2canvas(preview, { scale: 2, backgroundColor: '#ffffff' });
     const draft = getQuoteGeneratorDraft();
     const fileLabel = draft.meta?.quoteNumber || Date.now();
@@ -5180,6 +5285,8 @@ async function exportQuoteGenerator(format) {
   } catch (err) {
     console.error('Error exportando cotización:', err);
     showToast('No se pudo exportar la cotización.', 'error');
+  } finally {
+    if (overlay) overlay.classList.add('hidden');
   }
 }
 

@@ -400,9 +400,7 @@
       <section id="quoteGenerator" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Documento oficial tamaño A4</p>
             <h2>Generar una Cotización</h2>
-            <p class="muted subtle">Completa los datos, controla el resultado en tiempo real y exporta en PDF o PNG.</p>
           </div>
           <div class="actions">
             <button class="ghost-btn" data-jump="plans" type="button"><i class='bx bx-arrow-back'></i>Volver a Cotizaciones</button>
@@ -521,7 +519,7 @@
               </div>
               <div class="form-grid two">
                 <div class="field">
-                  <label for="vehicleTradeIn">Vehículo a entregar</label>
+                  <label for="vehicleTradeIn">Detalle del usado</label>
                   <input id="vehicleTradeIn" data-quote-field="vehicle.tradeIn" placeholder="Descripción del usado" />
                 </div>
                 <div class="field">
@@ -608,11 +606,42 @@
               </div>
               <div class="field">
                 <label for="quoteNotes">Notas y aclaraciones</label>
-                <textarea id="quoteNotes" data-quote-field="notes" rows="3" placeholder="Escribe las notas que quieras imprimir."></textarea>
+                <textarea id="quoteNotes" data-quote-field="notes" rows="4" placeholder="Escribe el detalle que quieras imprimir."></textarea>
               </div>
-              <div class="field">
-                <label for="advisorNotes">Notas del asesor</label>
-                <textarea id="advisorNotes" data-quote-field="advisorNotes" rows="3" placeholder="Comentarios del asesor."></textarea>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Visibilidad de campos</p>
+                  <p class="muted tiny">Oculta lo que no quieras mostrar en la cotización.</p>
+                </div>
+              </div>
+              <div class="visibility-grid">
+                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteNumber" checked> Cotización #</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteDate" checked> Fecha de cotización</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteExpiry" checked> Vencimiento</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="meta.advisor" checked> Asesor comercial</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="client.name" checked> Nombre del cliente</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="client.dni" checked> DNI</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="client.cuil" checked> CUIL</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="client.cel" checked> Celular</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="client.location" checked> Provincia y localidad</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="client.postalCode" checked> Código postal</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.title" checked> Título vehículo a entregar</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.tradeIn" checked> Detalle del usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.brand" checked> Marca usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.model" checked> Modelo y versión usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.year" checked> Año usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.plate" checked> Patente usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.kms" checked> Kms usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.factoryPrice" checked> Precio fábrica usado</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.section" checked> Datos nuevo vehículo</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.brand" checked> Marca 0km</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.model" checked> Modelo y versión 0km</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="payments" checked> Esquema de pagos</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="notes" checked> Notas</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="benefits" checked> Beneficios adicionales</label>
+                <label class="check-pill"><input type="checkbox" data-visibility-field="footer" checked> Texto legal final</label>
               </div>
             </div>
             <div class="field-group compact">
@@ -637,89 +666,79 @@
           </aside>
           <div class="quote-generator-preview card">
             <div class="quote-preview-shell">
-              <div class="quote-preview" id="quotePreview">
-                <div class="quote-preview-header">
-                  <div>
-                    <h3>Cotización <span id="previewQuoteNumber">00000000</span></h3>
-                    <p class="muted">Documento comercial oficial</p>
-                  </div>
-                  <div class="quote-preview-meta">
-                    <div><strong>Fecha de Cotización:</strong> <span id="previewQuoteDate">--/--/----</span></div>
-                    <div><strong>Vencimiento:</strong> <span id="previewQuoteExpiry">--/--/----</span></div>
-                    <div><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
-                  </div>
-                </div>
-                <div class="quote-preview-section">
-                  <h4>Datos Cliente</h4>
-                  <div class="quote-preview-grid">
-                    <div><strong>Nombre:</strong> <span id="previewClientName">-</span></div>
-                    <div><strong>DNI:</strong> <span id="previewClientDni">-</span></div>
-                    <div><strong>CUIL:</strong> <span id="previewClientCuil">-</span></div>
-                    <div><strong>CEL:</strong> <span id="previewClientCel">-</span></div>
-                    <div><strong>PROV. y LOCALIDAD:</strong> <span id="previewClientLocation">-</span></div>
-                    <div><strong>CP:</strong> <span id="previewClientPostal">-</span></div>
-                  </div>
-                </div>
-                <div class="quote-preview-divider"></div>
-                <div class="quote-preview-section">
-                  <h4>Datos Vehículo</h4>
-                  <div class="quote-preview-grid">
-                    <div><strong>Vehículo a entregar:</strong> <span id="previewVehicleTradeIn">-</span></div>
-                    <div><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
-                    <div><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
-                    <div><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
-                    <div><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
-                    <div><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
-                    <div><strong>Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
-                  </div>
-                </div>
-                <div class="quote-preview-divider"></div>
-                <div class="quote-preview-section">
-                  <h4>Datos nuevo Vehículo</h4>
-                  <div class="quote-preview-grid">
-                    <div><strong>Marca:</strong> <span id="previewNewVehicleBrand">-</span></div>
-                    <div><strong>Modelo y Versión:</strong> <span id="previewNewVehicleModel">-</span></div>
-                  </div>
-                </div>
-                <div class="quote-preview-divider"></div>
-                <div class="quote-preview-section">
-                  <h4>Esquema de pagos</h4>
-                  <div id="previewPaymentList" class="quote-preview-payments"></div>
-                </div>
-                <div class="quote-preview-section">
-                  <h4>Notas y aclaraciones</h4>
-                  <div class="quote-preview-notes" id="previewNotes">
-                    <p></p>
-                    <div class="note-lines">
-                      <span></span>
-                      <span></span>
-                      <span></span>
+                <div class="quote-preview" id="quotePreview">
+                  <div class="quote-preview-header">
+                    <div>
+                      <h3 data-quote-visible="meta.quoteNumber">Cotización <span id="previewQuoteNumber">00000000</span></h3>
+                    </div>
+                    <div class="quote-preview-meta">
+                      <div data-quote-visible="meta.quoteDate"><strong>Fecha de Cotización:</strong> <span id="previewQuoteDate">--/--/----</span></div>
+                      <div data-quote-visible="meta.quoteExpiry"><strong>Vencimiento:</strong> <span id="previewQuoteExpiry">--/--/----</span></div>
+                      <div data-quote-visible="meta.advisor"><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
                     </div>
                   </div>
-                </div>
-                <div class="quote-preview-section">
-                  <h4>Notas del asesor</h4>
-                  <div class="quote-preview-notes" id="previewAdvisorNotes">
-                    <p></p>
-                    <div class="note-lines">
-                      <span></span>
-                      <span></span>
+                  <div class="quote-preview-section">
+                    <h4>Datos Cliente</h4>
+                    <div class="quote-preview-grid">
+                      <div data-quote-visible="client.name"><strong>Nombre:</strong> <span id="previewClientName">-</span></div>
+                      <div data-quote-visible="client.dni"><strong>DNI:</strong> <span id="previewClientDni">-</span></div>
+                      <div data-quote-visible="client.cuil"><strong>CUIL:</strong> <span id="previewClientCuil">-</span></div>
+                      <div data-quote-visible="client.cel"><strong>CEL:</strong> <span id="previewClientCel">-</span></div>
+                      <div data-quote-visible="client.location"><strong>PROV. y LOCALIDAD:</strong> <span id="previewClientLocation">-</span></div>
+                      <div data-quote-visible="client.postalCode"><strong>CP:</strong> <span id="previewClientPostal">-</span></div>
                     </div>
                   </div>
-                </div>
-                <div class="quote-preview-section">
-                  <h4>Benef. Adicionales otorgados</h4>
-                  <ul class="quote-preview-list">
-                    <li>Descuento en el seguro del 0km</li>
-                    <li>Elección del Color de la unidad</li>
-                    <li>40-50% Descuento en servicio post venta para accesorios</li>
-                  </ul>
-                </div>
-                <div class="quote-preview-footer">
-                  Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota
+                  <div class="quote-preview-divider"></div>
+                  <div class="quote-preview-section">
+                    <h4>Datos Vehículo</h4>
+                    <div class="quote-preview-title" id="previewVehicleTitle" data-quote-visible="vehicle.title">Vehículo a entregar: -</div>
+                    <div class="quote-preview-grid">
+                      <div data-quote-visible="vehicle.tradeIn"><strong>Detalle del usado:</strong> <span id="previewVehicleTradeIn">-</span></div>
+                      <div data-quote-visible="vehicle.brand"><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
+                      <div data-quote-visible="vehicle.model"><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
+                      <div data-quote-visible="vehicle.year"><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
+                      <div data-quote-visible="vehicle.plate"><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
+                      <div data-quote-visible="vehicle.kms"><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
+                      <div data-quote-visible="vehicle.factoryPrice"><strong>Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-divider"></div>
+                  <div class="quote-preview-section" data-quote-visible="newVehicle.section">
+                    <h4>Datos nuevo Vehículo</h4>
+                    <div class="quote-preview-grid">
+                      <div data-quote-visible="newVehicle.brand"><strong>Marca:</strong> <span id="previewNewVehicleBrand">-</span></div>
+                      <div data-quote-visible="newVehicle.model"><strong>Modelo y Versión:</strong> <span id="previewNewVehicleModel">-</span></div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-divider"></div>
+                  <div class="quote-preview-section" data-quote-visible="payments">
+                    <h4>Esquema de pagos</h4>
+                    <div id="previewPaymentList" class="quote-preview-payments"></div>
+                  </div>
+                  <div class="quote-preview-section" data-quote-visible="notes">
+                    <h4>Notas y aclaraciones</h4>
+                    <div class="quote-preview-notes" id="previewNotes">
+                      <p></p>
+                      <div class="note-lines">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-section" data-quote-visible="benefits">
+                    <h4>Benef. Adicionales otorgados</h4>
+                    <ul class="quote-preview-list">
+                      <li>Descuento en el seguro del 0km</li>
+                      <li>Elección del Color de la unidad</li>
+                      <li>40-50% Descuento en servicio post venta para accesorios</li>
+                    </ul>
+                  </div>
+                  <div class="quote-preview-footer" data-quote-visible="footer">
+                    Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota
+                  </div>
                 </div>
               </div>
-            </div>
           </div>
         </div>
       </section>
@@ -1714,6 +1733,18 @@
         <p class="eyebrow">Procesando cambios</p>
         <h3>Procesando cambios... Aguarde un momento.</h3>
         <p class="muted">Estamos ajustando productos, precios y planes.</p>
+      </div>
+    </div>
+  </div>
+  <div id="quoteExportOverlay" class="processing-overlay hidden" aria-live="polite">
+    <div class="processing-card export-card">
+      <span class="processing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Exportación</p>
+        <h3>Generando la cotización... Espera un momento...</h3>
+        <div class="export-progress">
+          <span></span>
+        </div>
       </div>
     </div>
   </div>
