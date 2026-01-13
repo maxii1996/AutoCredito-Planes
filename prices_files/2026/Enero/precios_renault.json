@@ -2,7 +2,7 @@
   "month": "Enero",
   "year": 2026,
   "tabId": "2026-enero",
-  "updatedAt": "2026-01-09T14:34:48.505Z",
+  "updatedAt": "2026-01-13T19:24:01.775Z",
   "vehicles": [
     {
       "name": "DUSTER",
@@ -13,8 +13,8 @@
       "planProfile": {
         "label": "100/0 (120 cuotas)",
         "planType": "85a120",
-        "financedPct": 1.0,
-        "integrationPct": 0.0,
+        "financedPct": 1,
+        "integrationPct": 0,
         "maxInstallments": 120
       },
       "availablePlans": [
@@ -29,7 +29,9 @@
         "13a24": 442434,
         "25a84": 441479,
         "85a120": 441479,
-        "ctapura": 345167
+        "ctapura": 345167,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1205800,
@@ -71,7 +73,9 @@
         "13a24": 691625,
         "25a84": 630600,
         "85a120": 0,
-        "ctapura": 544375
+        "ctapura": 544375,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1505900,
@@ -118,7 +122,9 @@
         "13a24": 445131,
         "25a84": 489800,
         "85a120": 0,
-        "ctapura": 398482
+        "ctapura": 398482,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1240660,
@@ -165,7 +171,9 @@
         "13a24": 320803,
         "25a84": 327578,
         "85a120": 0,
-        "ctapura": 302214
+        "ctapura": 302214,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1221200,
@@ -212,7 +220,9 @@
         "13a24": 472416,
         "25a84": 480988,
         "85a120": 0,
-        "ctapura": 382357
+        "ctapura": 382357,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1371420,
@@ -260,7 +270,9 @@
         "13a24": 320124,
         "25a84": 319287,
         "85a120": 319287,
-        "ctapura": 258750
+        "ctapura": 258750,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1210980,
@@ -308,7 +320,9 @@
         "13a24": 386796,
         "25a84": 346288,
         "85a120": 346288,
-        "ctapura": 287313
+        "ctapura": 287313,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1262220,
@@ -340,8 +354,8 @@
       "planProfile": {
         "label": "100/0 (120 cuotas)",
         "planType": "85a120",
-        "financedPct": 1.0,
-        "integrationPct": 0.0,
+        "financedPct": 1,
+        "integrationPct": 0,
         "maxInstallments": 120
       },
       "availablePlans": [
@@ -356,7 +370,9 @@
         "13a24": 204624,
         "25a84": 214167,
         "85a120": 214167,
-        "ctapura": 212833
+        "ctapura": 212833,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1019460,
@@ -383,8 +399,8 @@
       "planProfile": {
         "label": "100/0 (120 cuotas)",
         "planType": "85a120",
-        "financedPct": 1.0,
-        "integrationPct": 0.0,
+        "financedPct": 1,
+        "integrationPct": 0,
         "maxInstallments": 120
       },
       "availablePlans": [
@@ -399,7 +415,9 @@
         "13a24": 328944,
         "25a84": 362724,
         "85a120": 362724,
-        "ctapura": 301333
+        "ctapura": 301333,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1154700,
@@ -442,7 +460,9 @@
         "13a24": 436062,
         "25a84": 380998,
         "85a120": 380998,
-        "ctapura": 307000
+        "ctapura": 307000,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1247520,
@@ -474,8 +494,8 @@
       "planProfile": {
         "label": "100/0 (120 cuotas)",
         "planType": "85a120",
-        "financedPct": 1.0,
-        "integrationPct": 0.0,
+        "financedPct": 1,
+        "integrationPct": 0,
         "maxInstallments": 120
       },
       "availablePlans": [
@@ -490,7 +510,9 @@
         "13a24": 442434,
         "25a84": 441479,
         "85a120": 441479,
-        "ctapura": 345167
+        "ctapura": 345167,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1205800,
@@ -517,8 +539,8 @@
       "planProfile": {
         "label": "100/0 (120 cuotas)",
         "planType": "85a120",
-        "financedPct": 1.0,
-        "integrationPct": 0.0,
+        "financedPct": 1,
+        "integrationPct": 0,
         "maxInstallments": 120
       },
       "availablePlans": [
@@ -533,7 +555,9 @@
         "13a24": 328944,
         "25a84": 362724,
         "85a120": 362724,
-        "ctapura": 301333
+        "ctapura": 301333,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1158700,
@@ -576,7 +600,9 @@
         "13a24": 320124,
         "25a84": 319287,
         "85a120": 319287,
-        "ctapura": 258750
+        "ctapura": 258750,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1216300,
@@ -624,7 +650,9 @@
         "13a24": 386796,
         "25a84": 346288,
         "85a120": 346288,
-        "ctapura": 306467
+        "ctapura": 306467,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1269600,
@@ -672,7 +700,9 @@
         "13a24": 591175,
         "25a84": 386796,
         "85a120": 386796,
-        "ctapura": 287813
+        "ctapura": 287813,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1247800,
@@ -720,7 +750,9 @@
         "13a24": 436062,
         "25a84": 380998,
         "85a120": 380998,
-        "ctapura": 307000
+        "ctapura": 307000,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1247800,
@@ -767,7 +799,9 @@
         "13a24": 445131,
         "25a84": 489800,
         "85a120": 0,
-        "ctapura": 398482
+        "ctapura": 398482,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1240800,
@@ -799,8 +833,8 @@
       "planProfile": {
         "label": "100/0 (120 cuotas)",
         "planType": "85a120",
-        "financedPct": 1.0,
-        "integrationPct": 0.0,
+        "financedPct": 1,
+        "integrationPct": 0,
         "maxInstallments": 120
       },
       "availablePlans": [
@@ -815,7 +849,9 @@
         "13a24": 343164,
         "25a84": 378438,
         "85a120": 378438,
-        "ctapura": 314667
+        "ctapura": 314667,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1240800,
@@ -857,7 +893,9 @@
         "13a24": 472416,
         "25a84": 480988,
         "85a120": 0,
-        "ctapura": 382357
+        "ctapura": 382357,
+        "13a21": 0,
+        "22a84": 0
       },
       "reservations": {
         "1": 1371420,
@@ -919,10 +957,6 @@
         {
           "start": 25,
           "end": 84
-        },
-        {
-          "start": 85,
-          "end": 120
         }
       ]
     },
