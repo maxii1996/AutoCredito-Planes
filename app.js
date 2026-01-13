@@ -5532,16 +5532,24 @@ function updateQuoteGeneratorPreview() {
       <div class="bonified-group">
         <div class="bonified-group-title"><strong>Cuota 1</strong></div>
         <div class="bonified-group-grid">
-          ${bonifiedCards.map(card => `
-            <div class="bonified-card">
-              <h5>${card.title}</h5>
-              <div class="bonified-grid">
-                <div><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
-                ${parseMoney(card.data.bonification || 0) > 0 ? `<div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>` : ''}
-                <div><span>A pagar:</span> ${formatQuotePreviewMoney(card.data.amount)}</div>
+          ${bonifiedCards.map(card => {
+            const totalAmount = parseMoney(card.data.amount || 0);
+            const isThreePayments = card.title.includes('3 cuotas');
+            const quotaValue = isThreePayments ? totalAmount / 3 : totalAmount;
+            const paymentDisplay = isThreePayments 
+              ? `<div style="display: flex; flex-direction: column; gap: 4px;"><div>3 cuotas de ${formatQuotePreviewMoney(quotaValue)}</div><div style="font-size: 11px; color: #999;">Total: ${formatQuotePreviewMoney(totalAmount)}</div></div>`
+              : formatQuotePreviewMoney(totalAmount);
+            return `
+              <div class="bonified-card">
+                <h5>${card.title}</h5>
+                <div class="bonified-grid">
+                  <div><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
+                  ${parseMoney(card.data.bonification || 0) > 0 ? `<div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>` : ''}
+                  <div><span>A pagar:</span> ${paymentDisplay}</div>
+                </div>
               </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
     ` : '<p class="muted">Sin bonificaciones configuradas.</p>';
@@ -5761,10 +5769,22 @@ function buildQuoteGeneratorPdfDocument(draft) {
     if (bonifiedCards.length) {
       const bonifiedStacks = bonifiedCards.map(card => {
         const bonifValue = parseMoney(card.data?.bonification || 0);
+        const totalAmount = parseMoney(card.data?.amount || 0);
+        const isThreePayments = card.title.includes('3 cuotas');
+        const quotaValue = isThreePayments ? totalAmount / 3 : totalAmount;
+        const paymentContent = isThreePayments 
+          ? {
+              stack: [
+                { text: `3 cuotas de ${formatMoney(quotaValue)}`, fontSize: 10 },
+                { text: `Total: ${formatMoney(totalAmount)}`, fontSize: 8, color: '#999' }
+              ]
+            }
+          : { text: formatMoney(totalAmount), fontSize: 10 };
         const lines = [
           { text: `Valor Original: ${formatMoney(card.data?.fakeOriginal)}` },
           bonifValue > 0 ? { text: `Bonif.: ${formatMoney(card.data?.bonification)}` } : null,
-          { text: `A pagar: ${formatMoney(card.data?.amount)}` }
+          { text: `A pagar: `, bold: false },
+          paymentContent
         ].filter(Boolean);
         return { stack: [{ text: card.title, bold: true }, ...lines], margin: [0, 2, 0, 6] };
       });
