@@ -1958,11 +1958,14 @@ function getNestedValue(target, path) {
     .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), target);
 }
 
-function commitQuoteGeneratorDraft(draft, { refreshForm = false } = {}) {
+function commitQuoteGeneratorDraft(draft, { refreshForm = false, createIfMissing = false } = {}) {
   ensureQuoteGeneratorState();
   uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(draft);
   uiState.quoteGenerator.hasSession = quoteDraftHasContent(uiState.quoteGenerator.draft);
-  syncQuoteGeneratorEntry({ createIfMissing: uiState.quoteGenerator.hasSession });
+  const hasSelection = Boolean(uiState.quoteGenerator?.selectedId);
+  if (hasSelection || createIfMissing) {
+    syncQuoteGeneratorEntry({ createIfMissing });
+  }
   persist();
   renderQuoteGeneratorSavedList();
   renderQuoteNavigation();
