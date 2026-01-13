@@ -1897,6 +1897,14 @@ function quoteDraftHasContent(draft = {}) {
   const bonified = draft.bonifiedPayments || {};
   const isCustomBenefits = hasText(draft.benefitsText) && draft.benefitsText.trim() !== DEFAULT_QUOTE_BENEFITS.join('\n');
   const isCustomFooter = hasText(draft.footerNote) && draft.footerNote.trim() !== DEFAULT_QUOTE_FOOTER;
+  const hasCustomPayment = payments.some((row, index) => {
+    const label = String(row?.label || '').trim();
+    const detail = String(row?.detail || '').trim();
+    const amount = row?.amount;
+    const defaultLabel = DEFAULT_QUOTE_PAYMENTS[index]?.label || '';
+    const isDefaultLabel = label && label === defaultLabel;
+    return (label && !isDefaultLabel) || detail.length > 0 || hasMoney(amount);
+  });
   return [
     client.name,
     client.dni,
@@ -1915,7 +1923,7 @@ function quoteDraftHasContent(draft = {}) {
     draft.notes
   ].some(hasText)
     || hasMoney(vehicle.factoryPrice)
-    || payments.some(row => hasText(row?.label) || hasText(row?.detail) || hasMoney(row?.amount))
+    || hasCustomPayment
     || hasMoney(draft?.cuotaPura?.amount)
     || hasText(draft?.cuotaPura?.detail)
     || hasMoney(bonified?.one?.fakeOriginal)
@@ -2844,14 +2852,6 @@ function bindQuoteGenerator() {
     }
   });
 
-  const backBtn = document.getElementById('quoteGeneratorBack');
-  if (backBtn) {
-    backBtn.addEventListener('click', () => {
-      setQuoteGeneratorView('hub');
-      renderQuoteGeneratorHub();
-    });
-  }
-
   const createBtn = document.getElementById('quoteGeneratorCreate');
   if (createBtn) {
     createBtn.addEventListener('click', () => {
@@ -2884,10 +2884,6 @@ function bindQuoteGenerator() {
       if (openBtn) {
         loadQuoteGeneratorEntry(openBtn.dataset.quoteOpen);
         return;
-      }
-      if (item && !event.target.closest('[data-quote-alias]')) {
-        const id = item.dataset.quoteId;
-        if (id) loadQuoteGeneratorEntry(id);
       }
     });
 
@@ -5683,7 +5679,7 @@ function renderQuoteGeneratorHub() {
           </div>
         </div>
         <div class="quote-hub-actions">
-          <button class="secondary-btn mini" type="button" data-quote-open="${item.id}"><i class='bx bx-folder-open'></i>Abrir</button>
+          <button class="secondary-btn mini" type="button" data-quote-open="${item.id}"><i class='bx bx-folder-open'></i>Abrir esta cotización</button>
           <button class="ghost-btn mini danger" type="button" data-quote-delete="${item.id}"><i class='bx bx-trash'></i>Eliminar</button>
         </div>
       </div>

@@ -216,8 +216,7 @@ button, .icon-btn { cursor: pointer; }
 .quote-generator-panel[data-view="hub"] #quoteGeneratorSave,
 .quote-generator-panel[data-view="hub"] #quoteGeneratorDeleteActive,
 .quote-generator-panel[data-view="hub"] #quoteGeneratorExportPdf,
-.quote-generator-panel[data-view="hub"] #quoteGeneratorExportPng,
-.quote-generator-panel[data-view="hub"] #quoteGeneratorBack { display: none; }
+.quote-generator-panel[data-view="hub"] #quoteGeneratorExportPng { display: none; }
 .quote-generator-panel[data-view="workspace"] #quoteGeneratorHub { display: none; }
 .quote-generator-panel[data-view="workspace"] #quoteGeneratorWorkspace { display: block; }
 .quote-generator-form { position: sticky; top: 18px; max-height: calc(100vh - 1px); overflow: hidden; }
