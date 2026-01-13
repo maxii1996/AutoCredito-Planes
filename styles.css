@@ -275,6 +275,7 @@ button, .icon-btn { cursor: pointer; }
 .quote-preview-bonified .bonified-group-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; margin-bottom: 8px; font-weight: 700; }
 .quote-preview-bonified .bonified-group-grid { display: grid; gap: 10px; }
 .quote-preview-bonified .bonified-card { border: 1px dashed #cbd5f5; border-radius: 12px; padding: 10px 12px; background: #f8fafc; }
+.quote-preview .bonified-card[data-focus-target] { padding: 10px 12px; }
 .quote-preview-bonified .bonified-card h5 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; }
 .quote-preview-bonified .bonified-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; font-size: 13px; color: #1f2937; }
 .quote-preview-bonified .bonified-grid span { color: #475569; font-weight: 600; }

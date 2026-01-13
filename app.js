@@ -5891,10 +5891,12 @@ function updateQuoteGeneratorPreview() {
     const bonified = draft.bonifiedPayments || {};
     const bonifiedCards = [
       {
+        key: 'one',
         title: 'Opción 1: 1 Pago Bonificado',
         data: bonified.one || {}
       },
       {
+        key: 'three',
         title: 'Opción 2: 3 cuotas sin interes',
         data: bonified.three || {}
       }
@@ -5909,6 +5911,19 @@ function updateQuoteGeneratorPreview() {
         <div class="bonified-group-title"><strong>Cuota 1</strong></div>
         <div class="bonified-group-grid">
           ${bonifiedCards.map(card => {
+            const targets = card.key === 'three'
+              ? {
+                  card: 'bonifiedThreeAmount',
+                  original: 'bonifiedThreeOriginal',
+                  bonification: 'bonifiedThreeDiscount',
+                  amount: 'bonifiedThreeAmount'
+                }
+              : {
+                  card: 'bonifiedOneAmount',
+                  original: 'bonifiedOneOriginal',
+                  bonification: 'bonifiedOneDiscount',
+                  amount: 'bonifiedOneAmount'
+                };
             const totalAmount = parseMoney(card.data.amount || 0);
             const isThreePayments = card.title.includes('3 cuotas');
             const quotaValue = isThreePayments ? totalAmount / 3 : totalAmount;
@@ -5916,12 +5931,12 @@ function updateQuoteGeneratorPreview() {
               ? `<div style="display: flex; flex-direction: column; gap: 4px;"><div>3 cuotas de ${formatQuotePreviewMoney(quotaValue)}</div><div style="font-size: 11px; color: #999;">Total: ${formatQuotePreviewMoney(totalAmount)}</div></div>`
               : formatQuotePreviewMoney(totalAmount);
             return `
-              <div class="bonified-card">
-                <h5>${card.title}</h5>
+              <div class="bonified-card" data-focus-target="${targets.card}" data-focus-tab="quote-tab-payments">
+                <h5 data-focus-target="${targets.card}" data-focus-tab="quote-tab-payments">${card.title}</h5>
                 <div class="bonified-grid">
-                  <div><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
-                  ${parseMoney(card.data.bonification || 0) > 0 ? `<div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>` : ''}
-                  <div><span>A pagar:</span> ${paymentDisplay}</div>
+                  <div data-focus-target="${targets.original}" data-focus-tab="quote-tab-payments"><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
+                  ${parseMoney(card.data.bonification || 0) > 0 ? `<div data-focus-target="${targets.bonification}" data-focus-tab="quote-tab-payments"><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>` : ''}
+                  <div data-focus-target="${targets.amount}" data-focus-tab="quote-tab-payments"><span>A pagar:</span> ${paymentDisplay}</div>
                 </div>
               </div>
             `;
