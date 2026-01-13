@@ -14,6 +14,19 @@ const DEFAULT_QUOTE_PAYMENTS = [
   { label: 'Cuota 1 (1 o 3 pagos)', amount: null, detail: '1 pago: - · 3 pagos: -' },
   { label: 'Cuota 2 - 12', amount: null, detail: '' }
 ];
+const DEFAULT_QUOTE_BENEFITS = [
+  'Descuento en el seguro del 0km',
+  'Elección del Color de la unidad',
+  '40-50% Descuento en servicio post venta para accesorios'
+];
+const DEFAULT_QUOTE_FOOTER = 'Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota';
+const DEFAULT_PREQUOTE_MESSAGE = 'Esta cotización debe ser validada y confirmada con el sector correspondiente.\nFavor de enviar las fotos del vehículo al asesor para obtener los datos finales.';
+const DEFAULT_BONIFIED_PAYMENT = {
+  fakeOriginal: null,
+  bonification: null,
+  concept: '',
+  amount: null
+};
 const DEFAULT_QUOTE_VISIBILITY = {
   'meta.quoteNumber': true,
   'meta.quoteDate': true,
@@ -37,6 +50,7 @@ const DEFAULT_QUOTE_VISIBILITY = {
   'newVehicle.brand': true,
   'newVehicle.model': true,
   payments: true,
+  preQuote: true,
   notes: true,
   benefits: true,
   footer: true
@@ -109,7 +123,8 @@ const defaultUiState = {
   },
   quoteGenerator: {
     draft: null,
-    selectedId: null
+    selectedId: null,
+    hasSession: false
   },
   globalSettings: {
     advisorName: 'Planes de Ahorro Argentina',
@@ -1142,6 +1157,36 @@ function confirmAction({ title = 'Confirmar', message = '', messageHtml = '', co
   closeBtn.onclick = cleanup;
 }
 
+function showQuoteRestoreModal({ onContinue, onReload, onReset } = {}) {
+  const modal = document.getElementById('quoteRestoreModal');
+  if (!modal) return;
+  const continueBtn = document.getElementById('quoteRestoreContinue');
+  const reloadBtn = document.getElementById('quoteRestoreReload');
+  const resetBtn = document.getElementById('quoteRestoreReset');
+  const closeBtn = document.getElementById('quoteRestoreClose');
+  const cleanup = () => {
+    toggleModal(modal, false);
+    continueBtn.onclick = null;
+    reloadBtn.onclick = null;
+    resetBtn.onclick = null;
+    closeBtn.onclick = null;
+  };
+  continueBtn.onclick = () => {
+    cleanup();
+    if (typeof onContinue === 'function') onContinue();
+  };
+  reloadBtn.onclick = () => {
+    cleanup();
+    if (typeof onReload === 'function') onReload();
+  };
+  resetBtn.onclick = () => {
+    cleanup();
+    if (typeof onReset === 'function') onReset();
+  };
+  closeBtn.onclick = cleanup;
+  toggleModal(modal, true);
+}
+
 function toggleModal(modal, show) {
   if (!modal) return;
   if (show) {
@@ -1635,7 +1680,17 @@ function buildQuoteGeneratorDraft({ blank = false } = {}) {
       model: ''
     },
     payments: DEFAULT_QUOTE_PAYMENTS.map(row => ({ ...row })),
+    bonifiedPayments: {
+      one: { ...DEFAULT_BONIFIED_PAYMENT },
+      three: { ...DEFAULT_BONIFIED_PAYMENT }
+    },
+    preQuote: {
+      enabled: false,
+      message: DEFAULT_PREQUOTE_MESSAGE
+    },
     notes: '',
+    benefitsText: DEFAULT_QUOTE_BENEFITS.join('\n'),
+    footerNote: DEFAULT_QUOTE_FOOTER,
     visibility: { ...DEFAULT_QUOTE_VISIBILITY }
   };
 }
@@ -1644,6 +1699,13 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
   const base = buildQuoteGeneratorDraft({ blank: true });
   const meta = { ...base.meta, ...(draft.meta || {}) };
   if (!meta.quoteNumber) meta.quoteNumber = generateQuoteNumber(draft?.client?.dni);
+  const normalizeBonified = (source = {}) => ({
+    ...DEFAULT_BONIFIED_PAYMENT,
+    ...source,
+    fakeOriginal: Number.isFinite(source?.fakeOriginal) ? source.fakeOriginal : parseMoney(source?.fakeOriginal),
+    bonification: Number.isFinite(source?.bonification) ? source.bonification : parseMoney(source?.bonification),
+    amount: Number.isFinite(source?.amount) ? source.amount : parseMoney(source?.amount)
+  });
   const payments = Array.isArray(draft.payments) && draft.payments.length
     ? draft.payments.map(row => ({
       label: row?.label || '',
@@ -1653,23 +1715,41 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
     : base.payments.map(row => ({ ...row }));
   const mergedNotes = [draft.notes, draft.advisorNotes].filter(Boolean).join('\n');
   const visibility = { ...base.visibility, ...(draft.visibility || {}) };
+  const benefitsText = Array.isArray(draft.benefitsText)
+    ? draft.benefitsText.join('\n')
+    : (draft.benefitsText || (Array.isArray(draft.benefits) ? draft.benefits.join('\n') : '') || DEFAULT_QUOTE_BENEFITS.join('\n'));
+  const footerNote = draft.footerNote || draft.footer || DEFAULT_QUOTE_FOOTER;
+  const preQuote = {
+    enabled: !!draft.preQuote?.enabled,
+    message: draft.preQuote?.message || DEFAULT_PREQUOTE_MESSAGE
+  };
   return {
     meta,
     client: { ...base.client, ...(draft.client || {}) },
     vehicle: { ...base.vehicle, ...(draft.vehicle || {}), factoryPrice: Number.isFinite(draft?.vehicle?.factoryPrice) ? draft.vehicle.factoryPrice : parseMoney(draft?.vehicle?.factoryPrice) },
     newVehicle: { ...base.newVehicle, ...(draft.newVehicle || {}) },
     payments,
+    bonifiedPayments: {
+      one: normalizeBonified(draft?.bonifiedPayments?.one),
+      three: normalizeBonified(draft?.bonifiedPayments?.three)
+    },
+    preQuote,
     notes: mergedNotes || '',
+    benefitsText,
+    footerNote,
     visibility
   };
 }
 
 function ensureQuoteGeneratorState() {
   if (!uiState.quoteGenerator) {
-    uiState.quoteGenerator = { draft: null, selectedId: null };
+    uiState.quoteGenerator = { draft: null, selectedId: null, hasSession: false };
   }
   if (!uiState.quoteGenerator.draft) {
     uiState.quoteGenerator.draft = buildQuoteGeneratorDraft({ blank: true });
+  }
+  if (typeof uiState.quoteGenerator.hasSession !== 'boolean') {
+    uiState.quoteGenerator.hasSession = false;
   }
   uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(uiState.quoteGenerator.draft);
 }
@@ -1677,6 +1757,48 @@ function ensureQuoteGeneratorState() {
 function getQuoteGeneratorDraft() {
   ensureQuoteGeneratorState();
   return uiState.quoteGenerator.draft;
+}
+
+function quoteDraftHasContent(draft = {}) {
+  const hasText = value => String(value || '').trim().length > 0;
+  const hasMoney = value => Number.isFinite(value) ? value > 0 : parseMoney(value) > 0;
+  const client = draft.client || {};
+  const vehicle = draft.vehicle || {};
+  const newVehicle = draft.newVehicle || {};
+  const payments = draft.payments || [];
+  const bonified = draft.bonifiedPayments || {};
+  const isCustomBenefits = hasText(draft.benefitsText) && draft.benefitsText.trim() !== DEFAULT_QUOTE_BENEFITS.join('\n');
+  const isCustomFooter = hasText(draft.footerNote) && draft.footerNote.trim() !== DEFAULT_QUOTE_FOOTER;
+  return [
+    client.name,
+    client.dni,
+    client.cuil,
+    client.cel,
+    client.province,
+    client.city,
+    client.postalCode,
+    vehicle.brand,
+    vehicle.model,
+    vehicle.year,
+    vehicle.plate,
+    vehicle.kms,
+    newVehicle.brand,
+    newVehicle.model,
+    draft.notes
+  ].some(hasText)
+    || hasMoney(vehicle.factoryPrice)
+    || payments.some(row => hasText(row?.label) || hasText(row?.detail) || hasMoney(row?.amount))
+    || hasMoney(bonified?.one?.fakeOriginal)
+    || hasMoney(bonified?.one?.bonification)
+    || hasMoney(bonified?.one?.amount)
+    || hasText(bonified?.one?.concept)
+    || hasMoney(bonified?.three?.fakeOriginal)
+    || hasMoney(bonified?.three?.bonification)
+    || hasMoney(bonified?.three?.amount)
+    || hasText(bonified?.three?.concept)
+    || isCustomBenefits
+    || isCustomFooter
+    || (!!draft.preQuote?.enabled);
 }
 
 function setNestedValue(target, path, value) {
@@ -1701,6 +1823,7 @@ function getNestedValue(target, path) {
 function commitQuoteGeneratorDraft(draft, { refreshForm = false } = {}) {
   ensureQuoteGeneratorState();
   uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(draft);
+  uiState.quoteGenerator.hasSession = quoteDraftHasContent(uiState.quoteGenerator.draft);
   persist();
   updateQuoteGeneratorPreview();
   if (refreshForm) {
@@ -2350,14 +2473,14 @@ function bindQuickLinks() {
 function openQuoteGeneratorPanel() {
   ensureQuoteGeneratorState();
   renderQuoteGeneratorForm();
-  confirmAction({
-    title: '¿Quieres utilizar los datos de la última cotización?',
-    message: 'Podemos autocompletar el documento con la última cotización guardada.',
-    confirmText: 'Sí',
-    cancelText: 'No',
-    onConfirm: () => applyQuoteGeneratorAutoFill({ scope: 'all' }),
-    onCancel: () => resetQuoteGeneratorDraft()
-  });
+  const draft = getQuoteGeneratorDraft();
+  if (uiState.quoteGenerator?.hasSession && quoteDraftHasContent(draft)) {
+    showQuoteRestoreModal({
+      onContinue: () => commitQuoteGeneratorDraft(draft, { refreshForm: true }),
+      onReload: () => applyQuoteGeneratorAutoFill({ scope: 'all' }),
+      onReset: () => resetQuoteGeneratorDraft()
+    });
+  }
 }
 
 function bindQuoteGenerator() {
@@ -2392,6 +2515,9 @@ function bindQuoteGenerator() {
 
   panel.addEventListener('change', (event) => {
     const target = event.target;
+    if (target.matches('[data-quote-field][type="checkbox"]')) {
+      updateQuoteGeneratorField(target.dataset.quoteField, target.checked);
+    }
     if (target.matches('[data-visibility-field]')) {
       const draft = getQuoteGeneratorDraft();
       draft.visibility = { ...DEFAULT_QUOTE_VISIBILITY, ...(draft.visibility || {}) };
@@ -2443,6 +2569,12 @@ function bindQuoteGenerator() {
 
     if (event.target.closest('[data-auto-payments]')) {
       applyQuoteGeneratorAutoFill({ scope: 'payments' });
+      return;
+    }
+
+    const editTarget = event.target.closest('[data-quote-edit]');
+    if (editTarget) {
+      activateQuoteTab('quote-tab-extras');
       return;
     }
 
@@ -5185,7 +5317,9 @@ function renderQuoteGeneratorForm() {
   document.querySelectorAll('#quoteGeneratorForm [data-quote-field]').forEach(input => {
     const path = input.dataset.quoteField;
     const value = getNestedValue(draft, path);
-    if (input.classList.contains('money')) {
+    if (input.type === 'checkbox') {
+      input.checked = Boolean(value);
+    } else if (input.classList.contains('money')) {
       setMoneyValue(input, value);
       if (!input.dataset.bound) {
         bindMoneyInput(input, newValue => updateQuoteGeneratorField(path, newValue));
@@ -5207,7 +5341,10 @@ function renderQuoteGeneratorForm() {
 function applyQuoteGeneratorVisibility(visibility = {}) {
   document.querySelectorAll('#quotePreview [data-quote-visible]').forEach(el => {
     const key = el.dataset.quoteVisible;
-    const shouldShow = visibility?.[key] !== false;
+    let shouldShow = visibility?.[key] !== false;
+    if (key === 'preQuote' && !getQuoteGeneratorDraft()?.preQuote?.enabled) {
+      shouldShow = false;
+    }
     el.classList.toggle('is-hidden', !shouldShow);
   });
 }
@@ -5218,6 +5355,7 @@ function updateQuoteGeneratorPreview() {
   const client = draft.client || {};
   const vehicle = draft.vehicle || {};
   const newVehicle = draft.newVehicle || {};
+  const preQuote = draft.preQuote || {};
   const setText = (id, value) => {
     const el = document.getElementById(id);
     if (el) el.textContent = formatQuotePreviewValue(value);
@@ -5235,7 +5373,8 @@ function updateQuoteGeneratorPreview() {
   setText('previewClientPostal', client.postalCode);
   const vehicleTitle = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
   setText('previewVehicleTitle', vehicleTitle ? `Vehículo a entregar: ${vehicleTitle}` : 'Vehículo a entregar: -');
-  setText('previewVehicleTradeIn', vehicle.tradeIn);
+  const vehicleSubtitle = [vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ');
+  setText('previewVehicleSubtitle', vehicleSubtitle || '-');
   setText('previewVehicleBrand', vehicle.brand);
   setText('previewVehicleModel', vehicle.model);
   setText('previewVehicleYear', vehicle.year);
@@ -5245,6 +5384,36 @@ function updateQuoteGeneratorPreview() {
   if (factoryEl) factoryEl.textContent = formatQuotePreviewMoney(vehicle.factoryPrice);
   setText('previewNewVehicleBrand', newVehicle.brand);
   setText('previewNewVehicleModel', newVehicle.model);
+  const preQuoteEl = document.getElementById('previewPreQuote');
+  if (preQuoteEl) {
+    preQuoteEl.classList.toggle('is-hidden', !preQuote.enabled);
+  }
+  setText('previewPreQuoteMessage', preQuote.message || DEFAULT_PREQUOTE_MESSAGE);
+
+  const bonifiedContainer = document.getElementById('previewBonifiedPayments');
+  if (bonifiedContainer) {
+    const bonified = draft.bonifiedPayments || {};
+    const bonifiedCards = [
+      {
+        title: '1 pago bonificado',
+        data: bonified.one || {}
+      },
+      {
+        title: '3 pagos bonificados',
+        data: bonified.three || {}
+      }
+    ].filter(item => item.data && (item.data.fakeOriginal || item.data.bonification || item.data.amount));
+    bonifiedContainer.innerHTML = bonifiedCards.length ? bonifiedCards.map(card => `
+      <div class="bonified-card">
+        <h5>${card.title}</h5>
+        <div class="bonified-grid">
+          <div><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
+          <div><span>Bonificación:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>
+          <div><span>A pagar:</span> ${formatQuotePreviewMoney(card.data.amount)}</div>
+        </div>
+      </div>
+    `).join('') : '<p class="muted">Sin bonificaciones configuradas.</p>';
+  }
 
   const paymentList = document.getElementById('previewPaymentList');
   if (paymentList) {
@@ -5265,13 +5434,30 @@ function updateQuoteGeneratorPreview() {
 
   const notesEl = document.querySelector('#previewNotes p');
   if (notesEl) notesEl.textContent = draft.notes || '';
+  const noteLinesEl = document.getElementById('previewNoteLines');
+  if (noteLinesEl) {
+    const lineCount = Math.max(1, (draft.notes || '').split('\n').length);
+    noteLinesEl.innerHTML = Array.from({ length: lineCount }).map(() => '<span></span>').join('');
+  }
+
+  const benefitsList = document.getElementById('previewBenefitsList');
+  if (benefitsList) {
+    const lines = (draft.benefitsText || '').split('\n').map(line => line.trim()).filter(Boolean);
+    benefitsList.innerHTML = lines.length ? lines.map(item => `<li>${item}</li>`).join('') : '<li>-</li>';
+  }
+  const footerEl = document.getElementById('previewFooterText');
+  if (footerEl) footerEl.textContent = draft.footerNote || DEFAULT_QUOTE_FOOTER;
   applyQuoteGeneratorVisibility(draft.visibility || {});
 }
 
 async function exportQuoteGenerator(format) {
   const preview = document.getElementById('quotePreview');
-  if (!preview || !window.html2canvas) {
+  if (!preview) {
     showToast('No se pudo generar la exportación.', 'error');
+    return;
+  }
+  if (format === 'png' && !window.html2canvas) {
+    showToast('No se encontró la librería para exportar PNG.', 'error');
     return;
   }
   const overlay = document.getElementById('quoteExportOverlay');
@@ -5281,10 +5467,152 @@ async function exportQuoteGenerator(format) {
       await new Promise(resolve => requestAnimationFrame(() => resolve()));
       await new Promise(resolve => setTimeout(resolve, 60));
     }
-    const scale = format === 'png' ? 2 : 1.6;
-    const canvas = await window.html2canvas(preview, { scale, backgroundColor: '#ffffff' });
     const draft = getQuoteGeneratorDraft();
     const fileLabel = draft.meta?.quoteNumber || Date.now();
+    if (format === 'pdf') {
+      const { jsPDF } = window.jspdf || {};
+      if (!jsPDF) {
+        showToast('No se encontró la librería de PDF.', 'error');
+        return;
+      }
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 16;
+      const maxWidth = pageWidth - margin * 2;
+      let cursorY = 20;
+
+      const visibility = draft.visibility || {};
+      const isVisible = key => visibility?.[key] !== false;
+      const lineHeight = 6;
+      const addLine = (text, { size = 11, bold = false, color = [30, 41, 59] } = {}) => {
+        pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+        pdf.setFontSize(size);
+        pdf.setTextColor(...color);
+        const paragraphs = String(text || '').split('\n');
+        paragraphs.forEach((paragraph, index) => {
+          const lines = pdf.splitTextToSize(paragraph || ' ', maxWidth);
+          lines.forEach(line => {
+            if (cursorY + lineHeight > pageHeight - margin) {
+              pdf.addPage();
+              cursorY = margin;
+            }
+            pdf.text(line, margin, cursorY);
+            cursorY += lineHeight;
+          });
+          if (index < paragraphs.length - 1) {
+            cursorY += 2;
+          }
+        });
+      };
+      const addSection = (title) => {
+        cursorY += 2;
+        addLine(title, { size: 12, bold: true, color: [15, 23, 42] });
+        cursorY += 1;
+      };
+      const addRow = (label, value) => {
+        addLine(`${label} ${value}`);
+      };
+      const addSpacer = () => { cursorY += 4; };
+      const formatMoney = value => formatQuotePreviewMoney(value);
+
+      addLine(`Cotización ${draft.meta?.quoteNumber ? `#${draft.meta.quoteNumber}` : ''}`, { size: 15, bold: true, color: [29, 78, 216] });
+      if (isVisible('meta.quoteDate')) addRow('Fecha de Cotización:', draft.meta?.quoteDate || '--/--/----');
+      if (isVisible('meta.quoteExpiry')) addRow('Vencimiento:', draft.meta?.quoteExpiry || '--/--/----');
+      if (isVisible('meta.advisor')) addRow('Asesor Comercial:', draft.meta?.advisor || '-');
+      addSpacer();
+
+      if (draft.preQuote?.enabled && isVisible('preQuote')) {
+        addSection('Modo Pre Cotización');
+        addLine(draft.preQuote?.message || DEFAULT_PREQUOTE_MESSAGE, { size: 10, color: [30, 58, 138] });
+        addSpacer();
+      }
+
+      addSection('Datos Cliente');
+      if (isVisible('client.name')) addRow('Nombre:', draft.client?.name || '-');
+      if (isVisible('client.dni')) addRow('DNI:', draft.client?.dni || '-');
+      if (isVisible('client.cuil')) addRow('CUIL:', draft.client?.cuil || '-');
+      if (isVisible('client.cel')) addRow('Celular:', draft.client?.cel || '-');
+      if (isVisible('client.location')) {
+        const location = [draft.client?.province, draft.client?.city].filter(Boolean).join(' - ') || '-';
+        addRow('Provincia y localidad:', location);
+      }
+      if (isVisible('client.postalCode')) addRow('Código postal:', draft.client?.postalCode || '-');
+      addSpacer();
+
+      addSection('Datos Vehículo');
+      if (isVisible('vehicle.title')) {
+        const title = [draft.vehicle?.brand, draft.vehicle?.model].filter(Boolean).join(' ') || '-';
+        addRow('Vehículo a entregar:', title);
+      }
+      if (isVisible('vehicle.tradeIn')) {
+        const subtitle = [draft.vehicle?.brand, draft.vehicle?.model, draft.vehicle?.year].filter(Boolean).join(' ') || '-';
+        addRow('Detalle del usado:', subtitle);
+      }
+      if (isVisible('vehicle.brand')) addRow('Marca:', draft.vehicle?.brand || '-');
+      if (isVisible('vehicle.model')) addRow('Modelo y Versión:', draft.vehicle?.model || '-');
+      if (isVisible('vehicle.year')) addRow('Año:', draft.vehicle?.year || '-');
+      if (isVisible('vehicle.plate')) addRow('Patente:', draft.vehicle?.plate || '-');
+      if (isVisible('vehicle.kms')) addRow('Kms:', draft.vehicle?.kms || '-');
+      if (isVisible('vehicle.factoryPrice')) addRow('Precio cotizado por Fábrica:', formatMoney(draft.vehicle?.factoryPrice));
+      addSpacer();
+
+      if (isVisible('newVehicle.section')) {
+        addSection('Datos nuevo Vehículo');
+        if (isVisible('newVehicle.brand')) addRow('Marca:', draft.newVehicle?.brand || '-');
+        if (isVisible('newVehicle.model')) addRow('Modelo y Versión:', draft.newVehicle?.model || '-');
+        addSpacer();
+      }
+
+      if (isVisible('payments')) {
+        addSection('Esquema de pagos');
+        const bonified = draft.bonifiedPayments || {};
+        [
+          { label: '1 pago bonificado', data: bonified.one || {} },
+          { label: '3 pagos bonificados', data: bonified.three || {} }
+        ].forEach(card => {
+          if (card.data.fakeOriginal || card.data.bonification || card.data.amount) {
+            addLine(card.label, { bold: true });
+            addRow('Valor Original:', formatMoney(card.data.fakeOriginal));
+            addRow('Bonificación:', formatMoney(card.data.bonification));
+            addRow('A pagar:', formatMoney(card.data.amount));
+          }
+        });
+        (draft.payments || []).forEach(row => {
+          if (!row?.label && !row?.amount && !row?.detail) return;
+          addLine(`${row.label || 'Cuota'}: ${formatMoney(row.amount)}`, { bold: true });
+          if (row.detail) addLine(row.detail, { size: 10, color: [100, 116, 139] });
+        });
+        addSpacer();
+      }
+
+      if (isVisible('notes')) {
+        addSection('Notas y aclaraciones');
+        addLine(draft.notes || '-', { size: 10 });
+        addSpacer();
+      }
+
+      if (isVisible('benefits')) {
+        addSection('Beneficios adicionales otorgados');
+        const benefits = (draft.benefitsText || '').split('\n').map(line => line.trim()).filter(Boolean);
+        if (!benefits.length) {
+          addLine('-', { size: 10 });
+        } else {
+          benefits.forEach(item => addLine(`• ${item}`, { size: 10 }));
+        }
+        addSpacer();
+      }
+
+      if (isVisible('footer')) {
+        addLine(draft.footerNote || DEFAULT_QUOTE_FOOTER, { size: 9, color: [71, 85, 105] });
+      }
+
+      pdf.save(`cotizacion-${fileLabel}.pdf`);
+      return;
+    }
+
+    const scale = 2;
+    const canvas = await window.html2canvas(preview, { scale, backgroundColor: '#ffffff' });
     if (format === 'png') {
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
@@ -5292,22 +5620,6 @@ async function exportQuoteGenerator(format) {
       link.click();
       return;
     }
-    const { jsPDF } = window.jspdf || {};
-    if (!jsPDF) {
-      showToast('No se encontró la librería de PDF.', 'error');
-      return;
-    }
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgData = canvas.toDataURL('image/jpeg', 0.88);
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgProps = pdf.getImageProperties(imgData);
-    const ratio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
-    const imgWidth = imgProps.width * ratio;
-    const imgHeight = imgProps.height * ratio;
-    const x = (pageWidth - imgWidth) / 2;
-    pdf.addImage(imgData, 'JPEG', x, 0, imgWidth, imgHeight, undefined, 'FAST');
-    pdf.save(`cotizacion-${fileLabel}.pdf`);
   } catch (err) {
     console.error('Error exportando cotización:', err);
     showToast('No se pudo exportar la cotización.', 'error');

@@ -432,8 +432,14 @@
                 <button class="quote-tab" id="quote-tab-btn-payments" type="button" data-tab-target="quote-tab-payments" role="tab" aria-selected="false" aria-controls="quote-tab-payments" title="Esquema de pagos" aria-label="Esquema de pagos">
                   <i class='bx bx-credit-card' aria-hidden="true"></i>
                 </button>
+                <button class="quote-tab" id="quote-tab-btn-prequote" type="button" data-tab-target="quote-tab-prequote" role="tab" aria-selected="false" aria-controls="quote-tab-prequote" title="Seleccionar modo de cotización" aria-label="Seleccionar modo de cotización">
+                  <i class='bx bx-toggle-left' aria-hidden="true"></i>
+                </button>
                 <button class="quote-tab" id="quote-tab-btn-notes" type="button" data-tab-target="quote-tab-notes" role="tab" aria-selected="false" aria-controls="quote-tab-notes" title="Notas" aria-label="Notas">
                   <i class='bx bx-note' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-extras" type="button" data-tab-target="quote-tab-extras" role="tab" aria-selected="false" aria-controls="quote-tab-extras" title="Beneficios y gastos" aria-label="Beneficios y gastos">
+                  <i class='bx bx-edit' aria-hidden="true"></i>
                 </button>
                 <button class="quote-tab" id="quote-tab-btn-visibility" type="button" data-tab-target="quote-tab-visibility" role="tab" aria-selected="false" aria-controls="quote-tab-visibility" title="Visibilidad" aria-label="Visibilidad">
                   <i class='bx bx-show' aria-hidden="true"></i>
@@ -552,10 +558,6 @@
                     </div>
                     <div class="form-grid two">
                       <div class="field">
-                        <label for="vehicleTradeIn">Detalle del usado</label>
-                        <input id="vehicleTradeIn" data-quote-field="vehicle.tradeIn" placeholder="Descripción del usado" />
-                      </div>
-                      <div class="field">
                         <label for="vehicleBrand">Marca</label>
                         <div class="auto-row">
                           <input id="vehicleBrand" data-quote-field="vehicle.brand" placeholder="Marca" />
@@ -634,6 +636,94 @@
                     </div>
                     <div id="paymentRows" class="payment-rows"></div>
                   </div>
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">1 pago bonificado</p>
+                        <p class="muted tiny">Configura la bonificación y el valor percibido por el cliente.</p>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="bonifiedOneOriginal">Valor "Falso" Original</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedOneOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.fakeOriginal" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedOneDiscount">Bonificación en 1 pago</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedOneConcept">Concepto (interno)</label>
+                        <input id="bonifiedOneConcept" data-quote-field="bonifiedPayments.one.concept" placeholder="Ej: Bonificación contado" />
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedOneAmount">Cuota 1 / A pagar</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedOneAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.amount" placeholder="0" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">3 pagos bonificados</p>
+                        <p class="muted tiny">Aplica una bonificación distinta para pagos fraccionados.</p>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="bonifiedThreeOriginal">Valor "Falso" Original</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedThreeOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.fakeOriginal" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedThreeDiscount">Bonificación en 3 pagos</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedThreeConcept">Concepto (interno)</label>
+                        <input id="bonifiedThreeConcept" data-quote-field="bonifiedPayments.three.concept" placeholder="Ej: Bonificación 3 pagos" />
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedThreeAmount">Total en 3 pagos</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedThreeAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.amount" placeholder="0" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-prequote" role="tabpanel" aria-labelledby="quote-tab-btn-prequote">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Seleccionar modo de cotización</p>
+                        <p class="muted tiny">Activa el modo Pre-Cotización cuando necesites validaciones adicionales.</p>
+                      </div>
+                    </div>
+                    <label class="toggle inline">
+                      <input type="checkbox" id="preQuoteEnabled" data-quote-field="preQuote.enabled">
+                      <span>Activar modo Pre Cotización</span>
+                    </label>
+                    <div class="field textarea-field">
+                      <label for="preQuoteMessage">Mensaje visible en el documento</label>
+                      <textarea id="preQuoteMessage" data-quote-field="preQuote.message" rows="4" placeholder="Escribe la leyenda para el cliente."></textarea>
+                    </div>
+                  </div>
                 </section>
                 <section class="quote-tab-panel" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-tab-btn-notes">
                   <div class="field-group compact">
@@ -646,6 +736,24 @@
                     <div class="field">
                       <label for="quoteNotes">Notas y aclaraciones</label>
                       <textarea id="quoteNotes" data-quote-field="notes" rows="4" placeholder="Escribe el detalle que quieras imprimir."></textarea>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-extras" role="tabpanel" aria-labelledby="quote-tab-btn-extras">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Beneficios y gastos</p>
+                        <p class="muted tiny">Edita los beneficios visibles y los gastos de retiro.</p>
+                      </div>
+                    </div>
+                    <div class="field textarea-field">
+                      <label for="quoteBenefits">Beneficios adicionales (uno por línea)</label>
+                      <textarea id="quoteBenefits" data-quote-field="benefitsText" rows="5" placeholder="Escribe cada beneficio en una línea."></textarea>
+                    </div>
+                    <div class="field textarea-field">
+                      <label for="quoteFooter">Gastos de retiro (texto final)</label>
+                      <textarea id="quoteFooter" data-quote-field="footerNote" rows="3" placeholder="Texto legal o aclaratorio."></textarea>
                     </div>
                   </div>
                 </section>
@@ -680,6 +788,7 @@
                       <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.brand" checked> Marca 0km</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.model" checked> Modelo y versión 0km</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="payments" checked> Esquema de pagos</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="preQuote" checked> Modo Pre Cotización</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="notes" checked> Notas</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="benefits" checked> Beneficios adicionales</label>
                       <label class="check-pill"><input type="checkbox" data-visibility-field="footer" checked> Texto legal final</label>
@@ -723,6 +832,13 @@
                       <div data-quote-visible="meta.advisor"><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
                     </div>
                   </div>
+                  <div class="quote-preview-alert" id="previewPreQuote" data-quote-visible="preQuote">
+                    <i class='bx bx-info-circle'></i>
+                    <div>
+                      <strong>Modo Pre Cotización</strong>
+                      <p id="previewPreQuoteMessage"></p>
+                    </div>
+                  </div>
                   <div class="quote-preview-section">
                     <h4>Datos Cliente</h4>
                     <div class="quote-preview-grid">
@@ -738,14 +854,14 @@
                   <div class="quote-preview-section">
                     <h4>Datos Vehículo</h4>
                     <div class="quote-preview-title" id="previewVehicleTitle" data-quote-visible="vehicle.title">Vehículo a entregar: -</div>
+                    <div class="quote-preview-subtitle" data-quote-visible="vehicle.tradeIn">Detalle del usado: <span id="previewVehicleSubtitle">-</span></div>
                     <div class="quote-preview-grid">
-                      <div data-quote-visible="vehicle.tradeIn"><strong>Detalle del usado:</strong> <span id="previewVehicleTradeIn">-</span></div>
                       <div data-quote-visible="vehicle.brand"><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
                       <div data-quote-visible="vehicle.model"><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
                       <div data-quote-visible="vehicle.year"><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
                       <div data-quote-visible="vehicle.plate"><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
                       <div data-quote-visible="vehicle.kms"><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
-                      <div data-quote-visible="vehicle.factoryPrice"><strong>Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
+                      <div class="quote-preview-row spaced" data-quote-visible="vehicle.factoryPrice"><strong>Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
                     </div>
                   </div>
                   <div class="quote-preview-divider"></div>
@@ -759,29 +875,28 @@
                   <div class="quote-preview-divider"></div>
                   <div class="quote-preview-section" data-quote-visible="payments">
                     <h4>Esquema de pagos</h4>
+                    <div id="previewBonifiedPayments" class="quote-preview-bonified"></div>
                     <div id="previewPaymentList" class="quote-preview-payments"></div>
                   </div>
                   <div class="quote-preview-section" data-quote-visible="notes">
                     <h4>Notas y aclaraciones</h4>
                     <div class="quote-preview-notes" id="previewNotes">
                       <p></p>
-                      <div class="note-lines">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
+                      <div class="note-lines" id="previewNoteLines"></div>
                     </div>
                   </div>
                   <div class="quote-preview-section" data-quote-visible="benefits">
-                    <h4>Benef. Adicionales otorgados</h4>
-                    <ul class="quote-preview-list">
-                      <li>Descuento en el seguro del 0km</li>
-                      <li>Elección del Color de la unidad</li>
-                      <li>40-50% Descuento en servicio post venta para accesorios</li>
-                    </ul>
+                    <div class="quote-preview-title-row">
+                      <h4>Benef. Adicionales otorgados</h4>
+                      <button class="ghost-btn icon-only mini" type="button" data-quote-edit="extras" title="Editar beneficios y gastos"><i class='bx bx-edit-alt'></i></button>
+                    </div>
+                    <ul class="quote-preview-list" id="previewBenefitsList"></ul>
                   </div>
                   <div class="quote-preview-footer" data-quote-visible="footer">
-                    Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota
+                    <div class="quote-preview-footer-row">
+                      <span id="previewFooterText">Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota</span>
+                      <button class="ghost-btn icon-only mini" type="button" data-quote-edit="extras" title="Editar beneficios y gastos"><i class='bx bx-edit-alt'></i></button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1769,6 +1884,23 @@
       <div class="modal-actions">
         <button id="modalCancel" class="ghost-btn">Cancelar</button>
         <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <div id="quoteRestoreModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Restaurar cotización</p>
+          <h3>Antes tenías una Cotización abierta.</h3>
+          <p class="muted">¿Quieres restaurarla y continuar editándola?</p>
+        </div>
+        <button id="quoteRestoreClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions stacked">
+        <button id="quoteRestoreContinue" class="primary-btn"><i class='bx bx-rotate-right'></i>Si, Continuar la edición</button>
+        <button id="quoteRestoreReload" class="secondary-btn"><i class='bx bx-user'></i>No, Volver a cargar los datos del cliente</button>
+        <button id="quoteRestoreReset" class="ghost-btn danger"><i class='bx bx-eraser'></i>No, Empezar desde 0 en blanco</button>
       </div>
     </div>
   </div>
