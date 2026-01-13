@@ -175,7 +175,14 @@ button, .icon-btn { cursor: pointer; }
 .quote-details { display: grid; gap: 16px; }
 .quote-form { position: sticky; top: 20px; align-self: start; }
 .quote-generator-layout { display: grid; grid-template-columns: minmax(320px, 360px) 1fr; gap: 18px; align-items: start; }
-.quote-generator-form { position: sticky; top: 20px; max-height: calc(100vh - 120px); overflow-y: auto; scrollbar-gutter: stable; }
+.quote-generator-form {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 140px);
+  height: calc(100vh - 140px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
 .quote-generator-form::-webkit-scrollbar { width: 8px; }
 .quote-generator-form::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.45); border-radius: 999px; }
 .quote-generator-form::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.35); border-radius: 999px; }
@@ -225,7 +232,12 @@ button, .icon-btn { cursor: pointer; }
 
 @media (max-width: 1100px) {
   .quote-generator-layout { grid-template-columns: 1fr; }
-  .quote-generator-form { position: static; max-height: none; }
+  .quote-generator-form {
+    position: static;
+    max-height: calc(100vh - 180px);
+    height: auto;
+    overflow-y: auto;
+  }
   .quote-preview { width: 100%; min-height: auto; }
 }
 .picker-row.dense { gap: 8px; }
