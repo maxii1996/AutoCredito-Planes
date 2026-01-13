@@ -12,6 +12,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -660,7 +662,7 @@
                         <label for="bonifiedOneDiscount">Bonif.</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
-                          <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" readonly />
+                          <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" readonly disabled />
                         </div>
                       </div>
                       <div class="field">
@@ -698,7 +700,7 @@
                         <label for="bonifiedThreeDiscount">Bonif.</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
-                          <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" readonly />
+                          <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" readonly disabled />
                         </div>
                       </div>
                       <div class="field">

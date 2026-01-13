@@ -11,8 +11,8 @@ const DEFAULT_PLAN_SCHEME = [
   { start: 85, end: 120 }
 ];
 const DEFAULT_QUOTE_PAYMENTS = [
-  { label: 'Cuota 2 - 12', amount: null, detail: '' },
-  { label: 'Cuota 13 - 84', amount: null, detail: '' }
+  { label: 'Cuota 2 - 12', amount: null, pureAmount: null, detail: '' },
+  { label: 'Cuota 13 - 84', amount: null, pureAmount: null, detail: '' }
 ];
 const DEFAULT_QUOTE_BENEFITS = [
   'Descuento en el seguro del 0km',
@@ -1723,6 +1723,7 @@ function normalizeQuoteGeneratorDraft(draft = {}) {
     ? draft.payments.map(row => ({
       label: row?.label || '',
       amount: Number.isFinite(row?.amount) ? row.amount : parseMoney(row?.amount),
+      pureAmount: Number.isFinite(row?.pureAmount) ? row.pureAmount : parseMoney(row?.pureAmount),
       detail: row?.detail || ''
     }))
     : base.payments.map(row => ({ ...row }));
@@ -1805,7 +1806,7 @@ function quoteDraftHasContent(draft = {}) {
     draft.notes
   ].some(hasText)
     || hasMoney(vehicle.factoryPrice)
-    || payments.some(row => hasText(row?.label) || hasText(row?.detail) || hasMoney(row?.amount))
+    || payments.some(row => hasText(row?.label) || hasText(row?.detail) || hasMoney(row?.amount) || hasMoney(row?.pureAmount))
     || hasMoney(bonified?.one?.fakeOriginal)
     || hasMoney(bonified?.one?.bonification)
     || hasMoney(bonified?.one?.amount)
@@ -1868,6 +1869,7 @@ function updateQuoteGeneratorField(path, value) {
     const [, key, field] = path.split('.');
     if (field === 'fakeOriginal' || field === 'amount' || field === 'bonification') {
       recalculateBonifiedPayment(draft, key);
+      syncBonifiedFormField(draft, key);
     }
   }
   if (path === 'vehicle.model' || path === 'newVehicle.model') {
@@ -1914,6 +1916,11 @@ function resolveBonifiedAutoAmount(quote, draft, type) {
     return quote?.reservation3 || vehicle?.reservations?.['3'] || 0;
   }
   return quote?.reservation1 || vehicle?.reservations?.['1'] || 0;
+}
+
+function resolveQuoteGeneratorCuotaPura(quote, draft) {
+  const vehicle = resolveQuoteGeneratorVehicle(quote, draft);
+  return quote?.cuotaPura || vehicle?.cuotaPura || vehicle?.shareByPlan?.ctapura || 0;
 }
 
 function buildQuoteGeneratorAutoSource() {
@@ -1992,11 +1999,13 @@ function buildQuoteGeneratorAutoPayments(quote) {
     advancePayments: quote.advancePayments || false,
     advanceAmount: quote.advanceAmount || 0
   });
+  const cuotaPura = resolveQuoteGeneratorCuotaPura(quote, { vehicle: { model: quote.model } });
   planRanges.forEach(range => {
     const amount = projection.rangeAmounts?.[range.key] ?? vehicle?.shareByPlan?.[range.key] ?? projection.baseCatalogCuota ?? 0;
     payments.push({
       label: `Cuota ${range.from}-${range.to}`,
       amount,
+      pureAmount: cuotaPura || projection.baseCatalogCuota || null,
       detail: ''
     });
   });
@@ -2643,6 +2652,7 @@ function bindQuoteGenerator() {
         [kind]: { ...draft.bonifiedPayments?.[kind], amount: autoAmount }
       };
       recalculateBonifiedPayment(draft, kind);
+      syncBonifiedFormField(draft, kind);
       commitQuoteGeneratorDraft(draft);
       const input = document.querySelector(`[data-quote-field="bonifiedPayments.${kind}.amount"]`);
       if (input) setMoneyValue(input, autoAmount);
@@ -2669,7 +2679,14 @@ function bindQuoteGenerator() {
   if (addPaymentBtn) {
     addPaymentBtn.addEventListener('click', () => {
       const draft = getQuoteGeneratorDraft();
-      draft.payments.push({ label: `Cuota ${draft.payments.length + 1}`, amount: null, detail: '' });
+      const source = buildQuoteGeneratorAutoSource();
+      const pureAmount = resolveQuoteGeneratorCuotaPura(source.quote, draft);
+      draft.payments.push({
+        label: `Cuota ${draft.payments.length + 1}`,
+        amount: null,
+        pureAmount: pureAmount || null,
+        detail: ''
+      });
       commitQuoteGeneratorDraft(draft, { refreshForm: true });
     });
   }
@@ -5339,7 +5356,7 @@ function renderQuoteGeneratorPayments(draft) {
   if (!rows) return;
   rows.innerHTML = (draft.payments || []).map((row, index) => `
     <div class="payment-row">
-      <div class="form-grid two">
+      <div class="form-grid three">
         <div class="field">
           <label>Detalle</label>
           <input type="text" value="${row.label || ''}" data-payment-field="label" data-payment-index="${index}" placeholder="Ej: Cuota 2 - 12" />
@@ -5349,6 +5366,13 @@ function renderQuoteGeneratorPayments(draft) {
           <div class="money-field">
             <span class="prefix">$</span>
             <input class="money" type="text" inputmode="numeric" data-payment-field="amount" data-payment-index="${index}" value="${row.amount ? number.format(row.amount) : ''}" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Cuota pura (opcional)</label>
+          <div class="money-field">
+            <span class="prefix">$</span>
+            <input class="money" type="text" inputmode="numeric" data-payment-field="pureAmount" data-payment-index="${index}" value="${row.pureAmount ? number.format(row.pureAmount) : ''}" />
           </div>
         </div>
       </div>
@@ -5365,7 +5389,8 @@ function renderQuoteGeneratorPayments(draft) {
   rows.querySelectorAll('input.money').forEach(input => {
     if (input.dataset.bound) return;
     const index = Number(input.dataset.paymentIndex);
-    bindMoneyInput(input, value => updateQuoteGeneratorPayment(index, 'amount', value));
+    const field = input.dataset.paymentField || 'amount';
+    bindMoneyInput(input, value => updateQuoteGeneratorPayment(index, field, value));
     input.dataset.bound = 'true';
   });
 }
@@ -5412,7 +5437,7 @@ function renderQuoteGeneratorForm() {
       input.checked = Boolean(value);
     } else if (input.classList.contains('money')) {
       setMoneyValue(input, value);
-      if (!input.dataset.bound) {
+      if (!input.dataset.bound && !path.endsWith('.bonification')) {
         bindMoneyInput(input, newValue => updateQuoteGeneratorField(path, newValue));
         input.dataset.bound = 'true';
       }
@@ -5497,7 +5522,12 @@ function updateQuoteGeneratorPreview() {
         title: 'Opción 2: 3 cuotas sin interes',
         data: bonified.three || {}
       }
-    ].filter(item => item.data && (item.data.fakeOriginal || item.data.bonification || item.data.amount));
+    ].filter(item => {
+      const fakeOriginal = parseMoney(item.data?.fakeOriginal || 0);
+      const amount = parseMoney(item.data?.amount || 0);
+      const bonification = parseMoney(item.data?.bonification || 0);
+      return fakeOriginal > 0 || amount > 0 || bonification > 0;
+    });
     bonifiedContainer.innerHTML = bonifiedCards.length ? `
       <div class="bonified-group">
         <div class="bonified-group-title"><strong>Cuota 1</strong></div>
@@ -5507,7 +5537,7 @@ function updateQuoteGeneratorPreview() {
               <h5>${card.title}</h5>
               <div class="bonified-grid">
                 <div><span>Valor Original:</span> ${formatQuotePreviewMoney(card.data.fakeOriginal)}</div>
-                <div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>
+                ${parseMoney(card.data.bonification || 0) > 0 ? `<div><span>Bonif.:</span> ${formatQuotePreviewMoney(card.data.bonification)}</div>` : ''}
                 <div><span>A pagar:</span> ${formatQuotePreviewMoney(card.data.amount)}</div>
               </div>
             </div>
@@ -5527,6 +5557,7 @@ function updateQuoteGeneratorPreview() {
           <div>
             <strong>${row.label || 'Cuota'}</strong>
             ${row.detail ? `<div class="muted tiny">${row.detail}</div>` : ''}
+            ${parseMoney(row.pureAmount || 0) > 0 ? `<div class="muted tiny">Cuota pura: ${formatQuotePreviewMoney(row.pureAmount)}</div>` : ''}
           </div>
           <span>${formatQuotePreviewMoney(row.amount)}</span>
         </div>
@@ -5567,40 +5598,12 @@ async function exportQuoteGenerator(format) {
     const draft = getQuoteGeneratorDraft();
     const fileLabel = draft.meta?.quoteNumber || Date.now();
     if (format === 'pdf') {
-      const { jsPDF } = window.jspdf || {};
-      if (!jsPDF) {
-        showToast('No se encontró la librería de PDF.', 'error');
-        return;
-      }
-      if (!window.html2canvas) {
+      if (!window.pdfMake) {
         showToast('No se encontró la librería para exportar PDF.', 'error');
         return;
       }
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 8;
-      const canvas = await window.html2canvas(preview, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true
-      });
-      const imgWidth = pageWidth - margin * 2;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const imgData = canvas.toDataURL('image/png');
-      let position = margin;
-      let heightLeft = imgHeight;
-
-      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-      heightLeft -= pageHeight - margin * 2;
-
-      while (heightLeft > 0) {
-        pdf.addPage();
-        position = margin - (imgHeight - heightLeft);
-        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-        heightLeft -= pageHeight - margin * 2;
-      }
-      pdf.save(`cotizacion-${fileLabel}.pdf`);
+      const docDefinition = buildQuoteGeneratorPdfDocument(draft);
+      window.pdfMake.createPdf(docDefinition).download(`cotizacion-${fileLabel}.pdf`);
       return;
     }
 
@@ -5619,6 +5622,199 @@ async function exportQuoteGenerator(format) {
   } finally {
     if (overlay) overlay.classList.add('hidden');
   }
+}
+
+function syncBonifiedFormField(draft, key) {
+  const input = document.querySelector(`[data-quote-field="bonifiedPayments.${key}.bonification"]`);
+  if (!input) return;
+  const value = draft?.bonifiedPayments?.[key]?.bonification ?? null;
+  setMoneyValue(input, value);
+}
+
+function buildQuoteGeneratorPdfDocument(draft) {
+  const visibility = draft.visibility || {};
+  const isVisible = key => visibility?.[key] !== false;
+  const formatValue = value => (value === undefined || value === null || value === '' ? '-' : value);
+  const formatMoney = value => {
+    if (value === undefined || value === null || value === '') return '-';
+    return currency.format(parseMoney(value) || 0);
+  };
+  const buildKeyValueTable = rows => ({
+    table: {
+      widths: ['*', '*'],
+      body: rows.map(([label, value]) => [
+        { text: label, bold: true, color: '#334155' },
+        { text: formatValue(value), color: '#0f172a' }
+      ])
+    },
+    layout: 'noBorders',
+    margin: [0, 4, 0, 8]
+  });
+  const bonified = draft.bonifiedPayments || {};
+  const bonifiedCards = [
+    { title: 'Opción 1: 1 Pago Bonificado', data: bonified.one || {} },
+    { title: 'Opción 2: 3 cuotas sin interes', data: bonified.three || {} }
+  ].filter(item => {
+    const original = parseMoney(item.data?.fakeOriginal || 0);
+    const amount = parseMoney(item.data?.amount || 0);
+    const bonification = parseMoney(item.data?.bonification || 0);
+    return original > 0 || amount > 0 || bonification > 0;
+  });
+  const hasCuotaPura = (draft.payments || []).some(row => parseMoney(row?.pureAmount || 0) > 0);
+  const paymentTable = {
+    table: {
+      headerRows: 1,
+      widths: hasCuotaPura ? ['*', 'auto', 'auto'] : ['*', 'auto'],
+      body: [
+        hasCuotaPura
+          ? [
+            { text: 'Detalle', bold: true, color: '#334155' },
+            { text: 'Monto', bold: true, color: '#334155', alignment: 'right' },
+            { text: 'Cuota pura', bold: true, color: '#334155', alignment: 'right' }
+          ]
+          : [
+            { text: 'Detalle', bold: true, color: '#334155' },
+            { text: 'Monto', bold: true, color: '#334155', alignment: 'right' }
+          ],
+        ...(draft.payments || []).map(row => {
+          const detailStack = [row.label || 'Cuota'];
+          if (row.detail) detailStack.push({ text: row.detail, fontSize: 8, color: '#64748b' });
+          if (hasCuotaPura) {
+            return [
+              { stack: detailStack },
+              { text: formatMoney(row.amount), alignment: 'right' },
+              { text: formatMoney(row.pureAmount), alignment: 'right' }
+            ];
+          }
+          return [
+            { stack: detailStack },
+            { text: formatMoney(row.amount), alignment: 'right' }
+          ];
+        })
+      ]
+    },
+    layout: 'lightHorizontalLines',
+    margin: [0, 2, 0, 8]
+  };
+  const metaRows = [
+    isVisible('meta.quoteDate') ? ['Fecha de Cotización', draft.meta?.quoteDate || '--/--/----'] : null,
+    isVisible('meta.quoteExpiry') ? ['Vencimiento', draft.meta?.quoteExpiry || '--/--/----'] : null,
+    isVisible('meta.advisor') ? ['Asesor Comercial', draft.meta?.advisor || '-'] : null
+  ].filter(Boolean);
+  const clientRows = [
+    isVisible('client.name') ? ['Nombre', draft.client?.name] : null,
+    isVisible('client.dni') ? ['DNI', draft.client?.dni] : null,
+    isVisible('client.cuil') ? ['CUIL', draft.client?.cuil] : null,
+    isVisible('client.cel') ? ['CEL', draft.client?.cel] : null,
+    isVisible('client.location')
+      ? ['Prov. y localidad', [draft.client?.province, draft.client?.city].filter(Boolean).join(' - ') || '-']
+      : null,
+    isVisible('client.postalCode') ? ['CP', draft.client?.postalCode] : null
+  ].filter(Boolean);
+  const vehicleRows = [
+    isVisible('vehicle.brand') ? ['Marca', draft.vehicle?.brand] : null,
+    isVisible('vehicle.model') ? ['Modelo y versión', draft.vehicle?.model] : null,
+    isVisible('vehicle.year') ? ['Año', draft.vehicle?.year] : null,
+    isVisible('vehicle.plate') ? ['Patente', draft.vehicle?.plate] : null,
+    isVisible('vehicle.kms') ? ['Kms', draft.vehicle?.kms] : null,
+    isVisible('vehicle.factoryPrice')
+      ? [(draft.vehicle?.factoryPriceLabel || DEFAULT_FACTORY_PRICE_LABEL).trim() || DEFAULT_FACTORY_PRICE_LABEL, formatMoney(draft.vehicle?.factoryPrice)]
+      : null
+  ].filter(Boolean);
+  const newVehicleRows = [
+    isVisible('newVehicle.brand') ? ['Marca', draft.newVehicle?.brand] : null,
+    isVisible('newVehicle.model') ? ['Modelo y versión', draft.newVehicle?.model] : null
+  ].filter(Boolean);
+  const content = [
+    {
+      columns: [
+        { text: 'Cotización', style: 'title' },
+        isVisible('meta.quoteNumber') ? { text: `#${draft.meta?.quoteNumber || '--------'}`, alignment: 'right', style: 'titleAccent' } : {}
+      ],
+      margin: [0, 0, 0, 4]
+    }
+  ];
+  if (metaRows.length) {
+    content.push({ text: 'Datos de Cotización', style: 'sectionTitle' });
+    content.push(buildKeyValueTable(metaRows));
+  }
+  if (draft.preQuote?.enabled && isVisible('preQuote')) {
+    content.push({
+      text: draft.preQuote?.message || DEFAULT_PREQUOTE_MESSAGE,
+      style: 'alert'
+    });
+  }
+  if (clientRows.length) {
+    content.push({ text: 'Datos Cliente', style: 'sectionTitle' });
+    content.push(buildKeyValueTable(clientRows));
+  }
+  if (vehicleRows.length) {
+    content.push({ text: 'Datos Vehículo', style: 'sectionTitle' });
+    content.push(buildKeyValueTable(vehicleRows));
+  }
+  if (isVisible('newVehicle.section') && newVehicleRows.length) {
+    content.push({ text: 'Datos nuevo Vehículo', style: 'sectionTitle' });
+    content.push(buildKeyValueTable(newVehicleRows));
+  }
+  if (isVisible('payments')) {
+    content.push({ text: 'Esquema de pagos', style: 'sectionTitle' });
+    if (bonifiedCards.length) {
+      const bonifiedStacks = bonifiedCards.map(card => {
+        const bonifValue = parseMoney(card.data?.bonification || 0);
+        const lines = [
+          { text: `Valor Original: ${formatMoney(card.data?.fakeOriginal)}` },
+          bonifValue > 0 ? { text: `Bonif.: ${formatMoney(card.data?.bonification)}` } : null,
+          { text: `A pagar: ${formatMoney(card.data?.amount)}` }
+        ].filter(Boolean);
+        return { stack: [{ text: card.title, bold: true }, ...lines], margin: [0, 2, 0, 6] };
+      });
+      content.push({ stack: bonifiedStacks });
+    }
+    if (draft.payments?.length) {
+      content.push(paymentTable);
+    }
+  }
+  if (isVisible('notes')) {
+    content.push({ text: 'Notas y aclaraciones', style: 'sectionTitle' });
+    content.push({
+      text: draft.notes || '-',
+      margin: [0, 2, 0, 8]
+    });
+  }
+  if (isVisible('benefits')) {
+    const benefits = (draft.benefitsText || '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+    content.push({ text: 'Benef. Adicionales otorgados', style: 'sectionTitle' });
+    content.push({
+      ul: benefits.length ? benefits : ['-'],
+      margin: [0, 2, 0, 8]
+    });
+  }
+  if (isVisible('footer')) {
+    content.push({
+      text: draft.footerNote || DEFAULT_QUOTE_FOOTER,
+      style: 'footer'
+    });
+  }
+  return {
+    pageSize: 'A4',
+    pageMargins: [24, 24, 24, 24],
+    defaultStyle: {
+      fontSize: 9,
+      color: '#0f172a',
+      lineHeight: 1.15
+    },
+    styles: {
+      title: { fontSize: 16, bold: true, color: '#1d4ed8' },
+      titleAccent: { fontSize: 14, bold: true, color: '#1d4ed8' },
+      sectionTitle: { fontSize: 10, bold: true, color: '#334155', margin: [0, 8, 0, 4] },
+      alert: { fontSize: 9, color: '#1e3a8a', fillColor: '#eef2ff', margin: [0, 6, 0, 8] },
+      footer: { fontSize: 8, color: '#475569', margin: [0, 6, 0, 0] }
+    },
+    content
+  };
 }
 
 function calculateReservationsFromBase(multiplier) {
