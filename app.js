@@ -5664,19 +5664,19 @@ function renderQuoteGeneratorPayments(draft) {
       <div class="form-grid two">
         <div class="field">
           <label>Detalle</label>
-          <input type="text" value="${row.label || ''}" data-payment-field="label" data-payment-index="${index}" placeholder="Ej: Cuota 2 - 12" />
+          <input id="quotePaymentLabel-${index}" type="text" value="${row.label || ''}" data-payment-field="label" data-payment-index="${index}" placeholder="Ej: Cuota 2 - 12" />
         </div>
         <div class="field">
           <label>Monto</label>
           <div class="money-field">
             <span class="prefix">$</span>
-            <input class="money" type="text" inputmode="numeric" data-payment-field="amount" data-payment-index="${index}" value="${row.amount ? number.format(row.amount) : ''}" />
+            <input id="quotePaymentAmount-${index}" class="money" type="text" inputmode="numeric" data-payment-field="amount" data-payment-index="${index}" value="${row.amount ? number.format(row.amount) : ''}" />
           </div>
         </div>
       </div>
       <div class="field">
         <label>Detalle extra</label>
-        <input type="text" value="${row.detail || ''}" data-payment-field="detail" data-payment-index="${index}" placeholder="Ej: 3x $120.000" />
+        <input id="quotePaymentDetail-${index}" type="text" value="${row.detail || ''}" data-payment-field="detail" data-payment-index="${index}" placeholder="Ej: 3x $120.000" />
       </div>
       <div class="row-actions">
         <button class="ghost-btn mini danger" type="button" data-remove-payment="${index}"><i class='bx bx-trash'></i>Quitar</button>
@@ -5942,15 +5942,20 @@ function updateQuoteGeneratorPreview() {
         detail: cuotaPura.detail
       }
     ];
-    paymentList.innerHTML = rows.length ? rows.map(row => `
-      <div class="quote-payment-row">
+    paymentList.innerHTML = rows.length ? rows.map((row, index) => {
+      const isCuotaPura = row.label === 'Cuota pura';
+      const focusTarget = isCuotaPura ? 'quoteCuotaPuraAmount' : `quotePaymentAmount-${index}`;
+      const focusTab = 'quote-tab-payments';
+      return `
+      <div class="quote-payment-row" data-focus-target="${focusTarget}" data-focus-tab="${focusTab}">
         <div>
           <strong>${row.label || 'Cuota'}</strong>
           ${row.detail ? `<div class="muted tiny">${row.detail}</div>` : ''}
         </div>
         <span>${formatQuotePreviewMoney(row.amount)}</span>
       </div>
-    `).join('') : '<p class="muted">Sin cuotas cargadas.</p>';
+    `;
+    }).join('') : '<p class="muted">Sin cuotas cargadas.</p>';
   }
 
   const notesEl = document.querySelector('#previewNotes p');
