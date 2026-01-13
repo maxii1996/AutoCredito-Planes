@@ -560,7 +560,7 @@
                       <div class="field">
                         <label for="vehicleBrand">Marca</label>
                         <div class="auto-row">
-                          <input id="vehicleBrand" data-quote-field="vehicle.brand" placeholder="Marca" />
+                          <input id="vehicleBrand" list="quoteBrandSuggestions" data-quote-field="vehicle.brand" placeholder="Marca" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.brand" type="button">Auto</button>
                         </div>
                       </div>
@@ -608,7 +608,7 @@
                       <div class="field">
                         <label for="newVehicleBrand">Marca</label>
                         <div class="auto-row">
-                          <input id="newVehicleBrand" data-quote-field="newVehicle.brand" placeholder="Marca" />
+                          <input id="newVehicleBrand" list="quoteBrandSuggestions" data-quote-field="newVehicle.brand" placeholder="Marca" />
                           <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.brand" type="button">Auto</button>
                         </div>
                       </div>
@@ -636,7 +636,8 @@
                     </div>
                     <div id="paymentRows" class="payment-rows"></div>
                   </div>
-                  <div class="field-group compact">
+                  <div class="bonified-options">
+                  <div class="field-group compact bonified-option">
                     <div class="field-head">
                       <div>
                         <p class="eyebrow">1 pago bonificado</p>
@@ -645,14 +646,14 @@
                     </div>
                     <div class="form-grid two">
                       <div class="field">
-                        <label for="bonifiedOneOriginal">Valor "Falso" Original</label>
+                        <label for="bonifiedOneOriginal">Valor original (falso)</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="bonifiedOneOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.fakeOriginal" placeholder="0" />
                         </div>
                       </div>
                       <div class="field">
-                        <label for="bonifiedOneDiscount">Bonificación en 1 pago</label>
+                        <label for="bonifiedOneDiscount">Bonif.</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" />
@@ -663,15 +664,18 @@
                         <input id="bonifiedOneConcept" data-quote-field="bonifiedPayments.one.concept" placeholder="Ej: Bonificación contado" />
                       </div>
                       <div class="field">
-                        <label for="bonifiedOneAmount">Cuota 1 / A pagar</label>
-                        <div class="money-field">
-                          <span class="prefix">$</span>
-                          <input id="bonifiedOneAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.amount" placeholder="0" />
+                        <label for="bonifiedOneAmount">A pagar (1 pago)</label>
+                        <div class="auto-row">
+                          <div class="money-field">
+                            <span class="prefix">$</span>
+                            <input id="bonifiedOneAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.amount" placeholder="0" />
+                          </div>
+                          <button class="ghost-btn mini auto-btn" data-auto-bonified="one" type="button">Recargar</button>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div class="field-group compact">
+                  <div class="field-group compact bonified-option">
                     <div class="field-head">
                       <div>
                         <p class="eyebrow">3 pagos bonificados</p>
@@ -680,14 +684,14 @@
                     </div>
                     <div class="form-grid two">
                       <div class="field">
-                        <label for="bonifiedThreeOriginal">Valor "Falso" Original</label>
+                        <label for="bonifiedThreeOriginal">Valor original (falso)</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="bonifiedThreeOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.fakeOriginal" placeholder="0" />
                         </div>
                       </div>
                       <div class="field">
-                        <label for="bonifiedThreeDiscount">Bonificación en 3 pagos</label>
+                        <label for="bonifiedThreeDiscount">Bonif.</label>
                         <div class="money-field">
                           <span class="prefix">$</span>
                           <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" />
@@ -698,13 +702,17 @@
                         <input id="bonifiedThreeConcept" data-quote-field="bonifiedPayments.three.concept" placeholder="Ej: Bonificación 3 pagos" />
                       </div>
                       <div class="field">
-                        <label for="bonifiedThreeAmount">Total en 3 pagos</label>
-                        <div class="money-field">
-                          <span class="prefix">$</span>
-                          <input id="bonifiedThreeAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.amount" placeholder="0" />
+                        <label for="bonifiedThreeAmount">A pagar (3 pagos)</label>
+                        <div class="auto-row">
+                          <div class="money-field">
+                            <span class="prefix">$</span>
+                            <input id="bonifiedThreeAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.amount" placeholder="0" />
+                          </div>
+                          <button class="ghost-btn mini auto-btn" data-auto-bonified="three" type="button">Recargar</button>
                         </div>
                       </div>
                     </div>
+                  </div>
                   </div>
                 </section>
                 <section class="quote-tab-panel" id="quote-tab-prequote" role="tabpanel" aria-labelledby="quote-tab-btn-prequote">
@@ -818,6 +826,7 @@
                 </section>
               </div>
             </div>
+            <datalist id="quoteBrandSuggestions"></datalist>
           </aside>
           <div class="quote-generator-preview card">
             <div class="quote-preview-shell">
