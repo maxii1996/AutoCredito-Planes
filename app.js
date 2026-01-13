@@ -2534,30 +2534,6 @@ function bindQuoteGenerator() {
   renderQuoteGeneratorForm();
 }
 
-function bindQuoteGeneratorTabs() {
-  const navItems = document.querySelectorAll('.quote-generator-nav-item');
-  const tabs = document.querySelectorAll('.quote-generator-tab');
-  
-  navItems.forEach(item => {
-    item.addEventListener('click', () => {
-      const tabId = item.dataset.tab;
-      
-      // Remove active class from all nav items and tabs
-      navItems.forEach(nav => nav.classList.remove('active'));
-      tabs.forEach(tab => tab.classList.remove('active'));
-      
-      // Add active class to clicked item
-      item.classList.add('active');
-      
-      // Show corresponding tab
-      const targetTab = document.querySelector(`.quote-generator-tab[data-tab-id="${tabId}"]`);
-      if (targetTab) {
-        targetTab.classList.add('active');
-      }
-    });
-  });
-}
-
 function bindSidebarToggle() {
   const toggle = document.getElementById('sidebarToggle');
   const sidebar = document.querySelector('.sidebar');
