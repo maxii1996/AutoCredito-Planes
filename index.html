@@ -220,6 +220,8 @@
             <button id="saveClient" class="primary-btn"><i class='bx bx-save'></i>Guardar cotización</button>
             <button id="openQuoteGenerator" class="secondary-btn" data-jump="quoteGenerator" type="button"><i class='bx bx-file'></i>Generar una Cotización</button>
             <button id="copyQuote" class="secondary-btn" type="button"><i class='bx bx-copy'></i>Copiar cotización</button>
+            <button id="exportQuotePng" class="ghost-btn" type="button"><i class='bx bxs-file-png'></i>Exportar PNG</button>
+            <button id="exportQuotePdf" class="ghost-btn" type="button"><i class='bx bxs-file-pdf'></i>Exportar PDF</button>
             <button id="openQuoteModal" class="ghost-btn" type="button"><i class='bx bx-archive'></i>Ver cotizaciones guardadas</button>
           </div>
         </div>
@@ -261,6 +263,110 @@
               </div>
               <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
             </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Datos del cliente</p>
+                  <p class="muted tiny">Se completan al elegir un cliente, pero puedes ajustarlos.</p>
+                </div>
+              </div>
+              <div class="form-grid two">
+                <div class="field">
+                  <label for="clientPhone">Celular</label>
+                  <input id="clientPhone" placeholder="Ej: 11 2345 6789" />
+                </div>
+                <div class="field">
+                  <label for="clientDocument">DNI</label>
+                  <input id="clientDocument" placeholder="Ej: 12345678" />
+                </div>
+                <div class="field">
+                  <label for="clientCuit">CUIT</label>
+                  <input id="clientCuit" placeholder="Ej: 20-12345678-9" />
+                </div>
+                <div class="field">
+                  <label for="clientBirthDate">Nacimiento</label>
+                  <input id="clientBirthDate" type="date" />
+                </div>
+                <div class="field">
+                  <label for="clientCity">Localidad</label>
+                  <input id="clientCity" placeholder="Ej: Rosario" />
+                </div>
+                <div class="field">
+                  <label for="clientProvince">Provincia</label>
+                  <input id="clientProvince" placeholder="Ej: Santa Fe" />
+                </div>
+                <div class="field">
+                  <label for="clientPostalCode">Código postal</label>
+                  <input id="clientPostalCode" placeholder="Ej: 2000" />
+                </div>
+                <div class="field">
+                  <label for="clientBrand">Marca actual</label>
+                  <input id="clientBrand" placeholder="Ej: Chevrolet" />
+                </div>
+                <div class="field">
+                  <label for="clientModel">Modelo actual</label>
+                  <input id="clientModel" placeholder="Ej: Onix LTZ" />
+                </div>
+                <div class="field">
+                  <label for="clientVersion">Versión</label>
+                  <input id="clientVersion" placeholder="Ej: 1.2 AT" />
+                </div>
+              </div>
+            </div>
+            <div class="field-group compact">
+              <div class="field-head">
+                <div>
+                  <p class="eyebrow">Campos visibles en la cotización</p>
+                  <p class="muted tiny">Oculta o muestra datos antes de exportar.</p>
+                </div>
+              </div>
+              <div class="checkbox-grid" id="quoteVisibilityControls">
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="quoteNumber" checked>
+                  <span>Número de cotización</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientName" checked>
+                  <span>Cliente</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientPhone" checked>
+                  <span>Celular</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientDocument" checked>
+                  <span>DNI</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientCuit" checked>
+                  <span>CUIT</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientBirthDate" checked>
+                  <span>Nacimiento</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientCity" checked>
+                  <span>Localidad</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientProvince" checked>
+                  <span>Provincia</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientPostalCode" checked>
+                  <span>Código postal</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="clientVehicle" checked>
+                  <span>Vehículo a entregar</span>
+                </label>
+                <label class="toggle compact">
+                  <input type="checkbox" data-quote-visibility="notes" checked>
+                  <span>Notas y aclaraciones</span>
+                </label>
+              </div>
+            </div>
             <div class="form-grid three">
               <div class="field">
                 <div class="label-row">
@@ -280,8 +386,9 @@
               <div class="field">
                 <label class="toggle compact">
                   <input type="checkbox" id="tradeIn" checked>
-                  <span>Entrega llave x llave</span>
+                  <span>Vehículo a entregar</span>
                 </label>
+                <p class="muted tiny trade-in-title" id="tradeInVehicleTitle">Sin datos del vehículo</p>
                 <div class="money-field">
                   <span class="prefix">$</span>
                   <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
@@ -301,7 +408,6 @@
                 <div class="integration-details" id="integrationDetails">
                   <p id="integration1">1 cuota promocionada: $0</p>
                   <p id="integration3">3 cuotas "sin interés" de: $0 cada una</p>
-                  <p id="integration6">6 cuotas "sin interés" de: $0 cada una</p>
                 </div>
                 <input type="hidden" id="appliedReservation" value="1" />
               </div>
@@ -314,7 +420,6 @@
                 </div>
                 <div class="reservation-actions">
                   <button id="calcReservation3" class="ghost-btn mini" type="button"><i class='bx bx-calculator'></i>3 cuotas</button>
-                  <button id="calcReservation6" class="ghost-btn mini" type="button"><i class='bx bx-math'></i>6 cuotas</button>
                 </div>
               </div>
               <div class="reservation-grid compact">
@@ -332,23 +437,65 @@
                     <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva 3 pagos" />
                   </div>
                 </div>
-                <div class="field">
-                  <label for="reservation6">6 cuotas</label>
-                  <div class="money-field">
-                    <span class="prefix">$</span>
-                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva 6 pagos" />
-                  </div>
-                </div>
               </div>
             </div>
             <div class="field">
-              <label for="notes">Observaciones</label>
+              <label for="notes">Notas y aclaraciones</label>
               <textarea id="notes" rows="3" placeholder="Chevrolet Onix LTZ Febrero 2026"></textarea>
             </div>
           </aside>
 
           <div class="quote-details">
-            <section class="plan-folio">
+            <section class="plan-folio" id="quoteExportArea">
+              <div class="quote-document-head">
+                <div>
+                  <p class="eyebrow">Cotización</p>
+                  <h2 id="quoteDocumentTitle">Resumen de la cotización</h2>
+                  <p class="muted tiny" id="quoteDocumentDate">--</p>
+                </div>
+                <div class="quote-document-meta">
+                  <div class="meta-row" data-quote-field="quoteNumber">
+                    <span>Número de cotización</span>
+                    <strong id="quoteNumberValue">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientName">
+                    <span>Cliente</span>
+                    <strong id="quoteClientName">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientPhone">
+                    <span>Celular</span>
+                    <strong id="quoteClientPhone">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientDocument">
+                    <span>DNI</span>
+                    <strong id="quoteClientDocument">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientCuit">
+                    <span>CUIT</span>
+                    <strong id="quoteClientCuit">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientBirthDate">
+                    <span>Nacimiento</span>
+                    <strong id="quoteClientBirthDate">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientCity">
+                    <span>Localidad</span>
+                    <strong id="quoteClientCity">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientProvince">
+                    <span>Provincia</span>
+                    <strong id="quoteClientProvince">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientPostalCode">
+                    <span>Código postal</span>
+                    <strong id="quoteClientPostalCode">--</strong>
+                  </div>
+                  <div class="meta-row" data-quote-field="clientVehicle">
+                    <span>Vehículo a entregar</span>
+                    <strong id="quoteTradeInVehicle">--</strong>
+                  </div>
+                </div>
+              </div>
               <div class="folio-head">
                 <div>
                   <p class="eyebrow">Detalle simplificado</p>
@@ -388,6 +535,10 @@
                   <h4>Cuotas por tramo</h4>
                   <div id="planRangeList" class="range-grid"></div>
                 </div>
+              </div>
+              <div class="folio-section wide" data-quote-field="notes">
+                <h4>Notas y aclaraciones</h4>
+                <p class="muted" id="quoteNotesText">Sin notas.</p>
               </div>
               <div class="folio-section wide">
                 <h4>Estado de cuotas</h4>
@@ -1711,12 +1862,15 @@
     <div class="processing-card">
       <span class="processing-spinner" aria-hidden="true"></span>
       <div>
-        <p class="eyebrow">Procesando cambios</p>
-        <h3>Procesando cambios... Aguarde un momento.</h3>
-        <p class="muted">Estamos ajustando productos, precios y planes.</p>
+        <p class="eyebrow" id="processingEyebrow">Procesando cambios</p>
+        <h3 id="processingTitle">Procesando cambios... Aguarde un momento.</h3>
+        <p class="muted" id="processingMessage">Estamos ajustando productos, precios y planes.</p>
+        <div class="processing-progress" aria-hidden="true"><span></span></div>
       </div>
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
