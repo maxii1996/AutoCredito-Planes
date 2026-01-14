@@ -256,42 +256,50 @@
               <p class="eyebrow">Carga rápida</p>
               <h3>Datos de cotización</h3>
             </div>
+            
+            <!-- Sección Cliente - Ancho completo -->
+            <div class="quote-section-client">
               <div class="field">
-                <label for="clientName">Cliente</label>
-              <div class="picker-row dense client-picker-row">
-                <input id="clientName" placeholder="Nombre y apellido" />
-                <button id="openClientPicker" class="secondary-btn mini" type="button"><i class='bx bx-user-voice'></i>Asistente de selección...</button>
-              </div>
-              <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
-            </div>
-            <div class="form-grid three">
-              <div class="field">
-                <div class="label-row">
-                  <label for="planModel">Auto a cotizar</label>
-                  <span class="muted tiny micro-tag" id="priceContextTag">Utilizando precios de: Diciembre 2025</span>
+                <label for="clientName"><i class='bx bx-user-circle'></i>Cliente</label>
+                <div class="picker-row dense client-picker-row">
+                  <input id="clientName" placeholder="Nombre y apellido" />
+                  <button id="openClientPicker" class="secondary-btn mini" type="button"><i class='bx bx-user-voice'></i>Asistente de selección...</button>
                 </div>
-                <select id="planModel"></select>
-              </div>
-              <div class="field readonly">
-                <label>Plan asignado automáticamente</label>
-                <div class="plan-profile-cell readonly">
-                  <span class="chip muted" id="planProfileChip"></span>
-                  <small class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</small>
-                </div>
-                <input type="hidden" id="planType" value="85a120" />
-              </div>
-              <div class="field">
-                <label class="toggle compact">
-                  <input type="checkbox" id="tradeIn" checked>
-                  <span>Entrega llave x llave</span>
-                </label>
-                <div class="money-field">
-                  <span class="prefix">$</span>
-                  <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
-                </div>
+                <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
               </div>
             </div>
-            <div class="form-grid two">
+
+            <!-- Sección Auto y Información -->
+            <div class="quote-section-vehicle">
+              <div class="form-grid three">
+                <div class="field">
+                  <div class="label-row">
+                    <label for="planModel">Auto a cotizar</label>
+                    <span class="muted tiny micro-tag" id="priceContextTag">Utilizando precios de: Diciembre 2025</span>
+                  </div>
+                  <select id="planModel"></select>
+                </div>
+                <div class="field readonly">
+                  <label>Plan asignado automáticamente</label>
+                  <div class="plan-profile-cell readonly">
+                    <span class="chip muted" id="planProfileChip"></span>
+                    <small class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</small>
+                  </div>
+                  <input type="hidden" id="planType" value="85a120" />
+                </div>
+                <div class="field">
+                  <label class="toggle compact">
+                    <input type="checkbox" id="tradeIn" checked>
+                    <span>Entrega llave x llave</span>
+                  </label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Valor del Coche -->
               <div class="field">
                 <label for="customPrice">Ingresa el Valor del coche a Cotizar</label>
                 <div class="money-field">
@@ -299,7 +307,9 @@
                   <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Valor del coche a cotizar" />
                 </div>
               </div>
-              <div class="field readonly">
+
+              <!-- Integración Posible - Debajo del valor -->
+              <div class="field readonly integration-card">
                 <label>Integración posible</label>
                 <div class="integration-details" id="integrationDetails">
                   <p id="integration1">1 cuota promocionada: $0</p>
@@ -309,6 +319,8 @@
                 <input type="hidden" id="appliedReservation" value="1" />
               </div>
             </div>
+
+            <!-- Sección Reservas -->
             <div class="field-group compact">
               <div class="field-head">
                 <div>
@@ -344,6 +356,8 @@
                 </div>
               </div>
             </div>
+
+            <!-- Observaciones -->
             <div class="field">
               <label for="notes">Observaciones</label>
               <textarea id="notes" rows="3" placeholder="Chevrolet Onix LTZ Febrero 2026"></textarea>
@@ -1097,7 +1111,7 @@
       </section>
     </main>
     <footer class="app-footer">
-      <p>Creado por Maximiliano Martinez | version 1.1.1 | Solo uso interno autorizado</p>
+      <p>Creado por Maximiliano Martinez | version 1.1.2 | Solo uso interno autorizado</p>
     </footer>
   </div>
   <div class="popover-overlay fade" id="actionCustomizerOverlay">
@@ -1475,32 +1489,6 @@
         </div>
         <button id="clientPickerClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
-      <div class="wizard-progress" id="clientWizardProgress">
-        <div class="wizard-progress-step" data-step="1">
-          <span>1</span>
-          <small>Buscar</small>
-        </div>
-        <div class="wizard-progress-step" data-step="2">
-          <span>2</span>
-          <small>Cliente</small>
-        </div>
-        <div class="wizard-progress-step" data-step="3">
-          <span>3</span>
-          <small>Auto</small>
-        </div>
-        <div class="wizard-progress-step" data-step="4">
-          <span>4</span>
-          <small>Llave</small>
-        </div>
-        <div class="wizard-progress-step" data-step="5">
-          <span>5</span>
-          <small>Valor</small>
-        </div>
-        <div class="wizard-progress-step" data-step="6">
-          <span>6</span>
-          <small>Confirmar</small>
-        </div>
-      </div>
       <div class="wizard-track" id="clientWizardTrack">
         <section class="wizard-panel" data-step="1">
           <div class="wizard-choice">
@@ -1620,10 +1608,38 @@
         </section>
       </div>
       <div class="modal-actions wizard-actions">
-        <button id="clientWizardBack" class="ghost-btn">Atrás</button>
-        <div class="wizard-actions-right">
-          <button id="clientWizardNext" class="primary-btn">Siguiente</button>
-          <button id="clientWizardConfirm" class="primary-btn"><i class='bx bx-check'></i>Continuar</button>
+        <div class="wizard-progress wizard-progress-footer" id="clientWizardProgress">
+          <div class="wizard-progress-step" data-step="1">
+            <span>1</span>
+            <small>Buscar</small>
+          </div>
+          <div class="wizard-progress-step" data-step="2">
+            <span>2</span>
+            <small>Cliente</small>
+          </div>
+          <div class="wizard-progress-step" data-step="3">
+            <span>3</span>
+            <small>Auto</small>
+          </div>
+          <div class="wizard-progress-step" data-step="4">
+            <span>4</span>
+            <small>Llave</small>
+          </div>
+          <div class="wizard-progress-step" data-step="5">
+            <span>5</span>
+            <small>Valor</small>
+          </div>
+          <div class="wizard-progress-step" data-step="6">
+            <span>6</span>
+            <small>Confirmar</small>
+          </div>
+        </div>
+        <div class="wizard-actions-buttons">
+          <button id="clientWizardBack" class="ghost-btn">Atrás</button>
+          <div class="wizard-actions-right">
+            <button id="clientWizardNext" class="primary-btn">Siguiente</button>
+            <button id="clientWizardConfirm" class="primary-btn"><i class='bx bx-check'></i>Continuar</button>
+          </div>
         </div>
       </div>
     </div>
