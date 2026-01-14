@@ -20,7 +20,7 @@ const DEFAULT_QUOTE_BENEFITS = [
   '40-50% Descuento en servicio post venta para accesorios'
 ];
 const DEFAULT_QUOTE_FOOTER = 'Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota';
-const DEFAULT_FACTORY_PRICE_LABEL = 'Precio cotizado por Fábrica';
+const DEFAULT_FACTORY_PRICE_LABEL = 'Precio cotizado';
 const DEFAULT_PREQUOTE_MESSAGE = 'Esta cotización debe ser validada y confirmada con el sector correspondiente.\nFavor de enviar las fotos del vehículo al asesor para obtener los datos finales.';
 const DEFAULT_BONIFIED_PAYMENT = {
   fakeOriginal: null,
@@ -2188,7 +2188,7 @@ function buildQuoteGeneratorAutoSource() {
   const planModelName = planVehicle?.name || latestQuote?.model || '';
   const planBrand = normalizeBrand(planVehicle?.brand || latestQuote?.brand || '');
   const tradeInValue = latestQuote?.tradeIn ? latestQuote?.tradeInValue : null;
-  const priceLabel = tradeInValue ? 'Valor estimado usado' : DEFAULT_FACTORY_PRICE_LABEL;
+  const priceLabel = tradeInValue ? 'Valor reconocido' : DEFAULT_FACTORY_PRICE_LABEL;
   return {
     quote: latestQuote,
     fields: {
@@ -6234,7 +6234,7 @@ function buildQuoteGeneratorPdfDocument(draft) {
       vLineWidth: () => 0,
       fillColor: () => '#f1f5f9'
     },
-    margin: [0, 0, 0, 6]
+    margin: [0, 0, 0, 0]
   });
   const bonified = draft.bonifiedPayments || {};
   const bonifiedCards = [
@@ -6372,15 +6372,15 @@ function buildQuoteGeneratorPdfDocument(draft) {
   }
   if (clientRows.length) {
     const grid = buildInfoGrid(clientRows);
-    if (grid) content.push(wrapSection('Datos Cliente', [grid]));
+    if (grid) content.push(wrapSection('Datos cliente', [grid]));
   }
   if (vehicleRows.length) {
     const grid = buildInfoGrid(vehicleRows);
-    if (grid) content.push(wrapSection('Datos Vehículo', [grid]));
+    if (grid) content.push(wrapSection('Datos vehículo', [grid]));
   }
   if (isVisible('newVehicle.section') && newVehicleRows.length) {
     const grid = buildInfoGrid(newVehicleRows);
-    if (grid) content.push(wrapSection('Datos nuevo Vehículo', [grid]));
+    if (grid) content.push(wrapSection('Datos nuevo vehículo', [grid]));
   }
   if (isVisible('payments')) {
     const paymentBlocks = [];
