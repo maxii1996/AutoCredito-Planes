@@ -1783,6 +1783,9 @@ function ensureQuoteGeneratorState() {
   if (!uiState.quoteGenerator.draft) {
     uiState.quoteGenerator.draft = buildQuoteGeneratorDraft({ blank: true });
   }
+  if (typeof uiState.quoteGenerator.newVehicleCustom !== 'boolean') {
+    uiState.quoteGenerator.newVehicleCustom = false;
+  }
   if (typeof uiState.quoteGenerator.hasSession !== 'boolean') {
     uiState.quoteGenerator.hasSession = false;
   }
@@ -1861,6 +1864,29 @@ function createQuoteGeneratorEntry(draft = buildQuoteGeneratorDraft({ blank: tru
   renderQuoteNavigation();
   renderQuoteGeneratorHub();
   return payload;
+}
+
+function duplicateQuoteGeneratorEntry(id) {
+  const entry = generatedQuotes.find(item => item.id === id);
+  if (!entry) return;
+  const clonedDraft = JSON.parse(JSON.stringify(entry.draft));
+  const payload = upsertGeneratedQuote(clonedDraft, `qg-${Date.now()}`);
+  const aliasLabel = resolveQuoteGeneratorDisplayName(entry);
+  payload.alias = aliasLabel ? `Copia de ${aliasLabel}` : 'Copia de cotización';
+  const index = generatedQuotes.findIndex(item => item.id === payload.id);
+  if (index !== -1) {
+    generatedQuotes[index] = payload;
+  }
+  uiState.quoteGenerator.selectedId = payload.id;
+  uiState.quoteGenerator.draft = payload.draft;
+  uiState.quoteGenerator.hasSession = quoteDraftHasContent(payload.draft);
+  setQuoteGeneratorView('workspace');
+  persist();
+  renderQuoteGeneratorSavedList();
+  renderQuoteNavigation();
+  renderQuoteGeneratorHub();
+  renderQuoteGeneratorForm();
+  showToast('Cotización duplicada.', 'success');
 }
 
 function deleteQuoteGeneratorEntry(id) {
@@ -2101,6 +2127,30 @@ function resolveQuoteGeneratorVehicle(quote, draft) {
   return vehicles.find(v => (v.name || '').toLowerCase() === modelName) || vehicles[0];
 }
 
+function resolvePlanVehicleFromQuote(quote) {
+  const plannedIndex = Number(uiState.planDraft?.planModel);
+  if (Number.isFinite(plannedIndex) && vehicles[plannedIndex]) {
+    return vehicles[plannedIndex];
+  }
+  const modelName = (quote?.model || '').toLowerCase();
+  return vehicles.find(v => (v.name || '').toLowerCase() === modelName) || vehicles[0];
+}
+
+function resolveBrandFromModelName(modelName = '') {
+  const normalized = (modelName || '').toLowerCase();
+  if (!normalized) return '';
+  const found = vehicles.find(vehicle => (vehicle.name || '').toLowerCase() === normalized);
+  return found ? normalizeBrand(found.brand) : '';
+}
+
+function getVehicleModelsByBrand(brand) {
+  const normalized = normalizeBrand(brand || '');
+  return vehicles
+    .filter(vehicle => normalizeBrand(vehicle.brand) === normalized)
+    .map(vehicle => vehicle.name)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function resolveBonifiedAutoAmount(quote, draft, type) {
   const vehicle = resolveQuoteGeneratorVehicle(quote, draft);
   if (type === 'three') {
@@ -2115,22 +2165,30 @@ function resolveQuoteGeneratorCuotaPura(quote, draft) {
 }
 
 function buildQuoteGeneratorAutoSource() {
-  let latestQuote = clients?.[0];
+  let latestQuote = null;
+  try {
+    latestQuote = buildQuoteFromForm();
+  } catch (err) {
+    latestQuote = null;
+  }
   if (!latestQuote) {
-    try {
-      latestQuote = buildQuoteFromForm();
-    } catch (err) {
-      latestQuote = null;
-    }
+    latestQuote = clients?.[0] || null;
   }
   const today = new Date();
   const expiry = new Date();
   expiry.setDate(expiry.getDate() + 7);
   const clientData = resolveQuoteGeneratorClient(latestQuote);
+  const planVehicle = resolvePlanVehicleFromQuote(latestQuote);
   const clientName = clientData?.name || latestQuote?.name || '';
   const clientDni = clientData?.document || '';
   const clientCuil = clientData?.cuit || '';
   const purchaseYear = extractYear(clientData?.purchaseDate || latestQuote?.purchaseDate || '');
+  const clientVehicleModel = clientData?.model || latestQuote?.tradeInModel || '';
+  const clientVehicleBrand = normalizeBrand(clientData?.brand || resolveBrandFromModelName(clientVehicleModel) || latestQuote?.brand || '');
+  const planModelName = planVehicle?.name || latestQuote?.model || '';
+  const planBrand = normalizeBrand(planVehicle?.brand || latestQuote?.brand || '');
+  const tradeInValue = latestQuote?.tradeIn ? latestQuote?.tradeInValue : null;
+  const priceLabel = tradeInValue ? 'Valor estimado usado' : DEFAULT_FACTORY_PRICE_LABEL;
   return {
     quote: latestQuote,
     fields: {
@@ -2145,13 +2203,14 @@ function buildQuoteGeneratorAutoSource() {
       'client.province': clientData?.province || '',
       'client.city': clientData?.city || '',
       'client.postalCode': clientData?.postalCode || '',
-      'vehicle.brand': latestQuote?.brand || '',
-      'vehicle.model': latestQuote?.model || '',
+      'vehicle.brand': clientVehicleBrand,
+      'vehicle.model': clientVehicleModel,
       'vehicle.year': purchaseYear,
-      'vehicle.factoryPrice': latestQuote?.basePrice || latestQuote?.priceApplied || null,
+      'vehicle.factoryPrice': tradeInValue ?? null,
+      'vehicle.factoryPriceLabel': priceLabel,
       'vehicle.tradeIn': '',
-      'newVehicle.brand': latestQuote?.brand || '',
-      'newVehicle.model': latestQuote?.model || ''
+      'newVehicle.brand': planBrand,
+      'newVehicle.model': planModelName
     }
   };
 }
@@ -2938,6 +2997,7 @@ function bindQuoteGenerator() {
     hubList.addEventListener('click', (event) => {
       const openBtn = event.target.closest('[data-quote-open]');
       const deleteBtn = event.target.closest('[data-quote-delete]');
+      const duplicateBtn = event.target.closest('[data-quote-duplicate]');
       const item = event.target.closest('.quote-hub-item');
       if (deleteBtn) {
         const id = deleteBtn.dataset.quoteDelete;
@@ -2950,6 +3010,10 @@ function bindQuoteGenerator() {
             showToast('Cotización eliminada.', 'success');
           }
         });
+        return;
+      }
+      if (duplicateBtn) {
+        duplicateQuoteGeneratorEntry(duplicateBtn.dataset.quoteDuplicate);
         return;
       }
       if (openBtn) {
@@ -5700,6 +5764,79 @@ function renderQuoteGeneratorBrandSuggestions() {
   datalist.innerHTML = brands.map(brand => `<option value="${brand}"></option>`).join('');
 }
 
+function updateNewVehicleModelOptions(brand, selectedModel = '') {
+  const modelSelect = document.getElementById('newVehicleModelSelect');
+  if (!modelSelect) return [];
+  const models = getVehicleModelsByBrand(brand);
+  const mergedModels = selectedModel && !models.includes(selectedModel)
+    ? [selectedModel, ...models]
+    : models;
+  modelSelect.innerHTML = mergedModels.map(model => `<option value="${model}">${model}</option>`).join('');
+  modelSelect.value = mergedModels.includes(selectedModel) && selectedModel
+    ? selectedModel
+    : (mergedModels[0] || '');
+  return mergedModels;
+}
+
+function renderQuoteGeneratorNewVehicleSelectors() {
+  const brandSelect = document.getElementById('newVehicleBrandSelect');
+  const modelSelect = document.getElementById('newVehicleModelSelect');
+  const toggle = document.getElementById('newVehicleCustomToggle');
+  const autoGroup = document.querySelector('.new-vehicle-auto');
+  const manualGroup = document.querySelector('.new-vehicle-manual');
+  if (!brandSelect || !modelSelect || !toggle) return;
+  const draft = getQuoteGeneratorDraft();
+  const currentBrand = normalizeBrand(draft.newVehicle?.brand || '');
+  const currentModel = (draft.newVehicle?.model || '').trim();
+  const brands = getUniqueBrands(vehicles);
+  const brandOptions = currentBrand && !brands.includes(currentBrand)
+    ? [currentBrand, ...brands]
+    : brands;
+  brandSelect.innerHTML = brandOptions.map(brand => `<option value="${brand}">${brand}</option>`).join('');
+  brandSelect.value = brandOptions.includes(currentBrand) && currentBrand ? currentBrand : (brandOptions[0] || '');
+  const models = updateNewVehicleModelOptions(brandSelect.value, currentModel);
+  modelSelect.value = models.includes(currentModel) && currentModel ? currentModel : (models[0] || '');
+  const customMode = uiState.quoteGenerator?.newVehicleCustom ?? false;
+  toggle.checked = customMode;
+  if (autoGroup) autoGroup.classList.toggle('is-hidden', customMode);
+  if (manualGroup) manualGroup.classList.toggle('is-hidden', !customMode);
+  if (!customMode) {
+    if (!draft.newVehicle?.brand && brandSelect.value) {
+      updateQuoteGeneratorField('newVehicle.brand', brandSelect.value);
+    }
+    if (!draft.newVehicle?.model && modelSelect.value) {
+      updateQuoteGeneratorField('newVehicle.model', modelSelect.value);
+    }
+  }
+  if (!toggle.dataset.bound) {
+    toggle.addEventListener('change', () => {
+      uiState.quoteGenerator.newVehicleCustom = toggle.checked;
+      persist();
+      renderQuoteGeneratorForm();
+    });
+    toggle.dataset.bound = 'true';
+  }
+  if (!brandSelect.dataset.bound) {
+    brandSelect.addEventListener('change', () => {
+      if (uiState.quoteGenerator?.newVehicleCustom) return;
+      const brand = brandSelect.value;
+      updateQuoteGeneratorField('newVehicle.brand', brand);
+      const updatedModels = updateNewVehicleModelOptions(brand, '');
+      if (updatedModels.length) {
+        updateQuoteGeneratorField('newVehicle.model', updatedModels[0]);
+      }
+    });
+    brandSelect.dataset.bound = 'true';
+  }
+  if (!modelSelect.dataset.bound) {
+    modelSelect.addEventListener('change', () => {
+      if (uiState.quoteGenerator?.newVehicleCustom) return;
+      updateQuoteGeneratorField('newVehicle.model', modelSelect.value);
+    });
+    modelSelect.dataset.bound = 'true';
+  }
+}
+
 function setQuoteGeneratorView(view) {
   ensureQuoteGeneratorState();
   uiState.quoteGenerator.view = view;
@@ -5751,6 +5888,7 @@ function renderQuoteGeneratorHub() {
         </div>
         <div class="quote-hub-actions">
           <button class="secondary-btn mini" type="button" data-quote-open="${item.id}"><i class='bx bx-folder-open'></i>Abrir esta cotización</button>
+          <button class="ghost-btn mini" type="button" data-quote-duplicate="${item.id}"><i class='bx bx-copy'></i>Duplicar esta Cotización</button>
           <button class="ghost-btn mini danger" type="button" data-quote-delete="${item.id}"><i class='bx bx-trash'></i>Eliminar</button>
         </div>
       </div>
@@ -5828,6 +5966,7 @@ function renderQuoteGeneratorForm() {
   renderQuoteGeneratorSavedList();
   renderQuoteNavigation();
   renderQuoteGeneratorBrandSuggestions();
+  renderQuoteGeneratorNewVehicleSelectors();
   updateQuoteGeneratorPreview();
 }
 
@@ -6047,40 +6186,56 @@ function buildQuoteGeneratorPdfDocument(draft) {
     if (value === undefined || value === null || value === '') return '-';
     return currency.format(parseMoney(value) || 0);
   };
-  const buildInfoGrid = rows => {
+  const buildInfoGrid = (rows, columns = 3) => {
     if (!rows.length) return null;
     const body = [];
-    for (let i = 0; i < rows.length; i += 2) {
-      const left = rows[i];
-      const right = rows[i + 1];
-      body.push([
-        left
-          ? {
-              stack: [
-                { text: `${left[0]}:`, style: 'gridLabel' },
-                { text: formatValue(left[1]), style: 'gridValue' }
-              ]
-            }
-          : '',
-        right
-          ? {
-              stack: [
-                { text: `${right[0]}:`, style: 'gridLabel' },
-                { text: formatValue(right[1]), style: 'gridValue' }
-              ]
-            }
-          : ''
-      ]);
+    for (let i = 0; i < rows.length; i += columns) {
+      const chunk = rows.slice(i, i + columns);
+      const cells = chunk.map(item => (item
+        ? {
+            stack: [
+              { text: `${item[0]}:`, style: 'gridLabel' },
+              { text: formatValue(item[1]), style: 'gridValue' }
+            ]
+          }
+        : ''));
+      while (cells.length < columns) {
+        cells.push('');
+      }
+      body.push(cells);
     }
     return {
       table: {
-        widths: ['*', '*'],
+        widths: Array(columns).fill('*'),
         body
       },
-      layout: 'noBorders',
-      margin: [0, 2, 0, 8]
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: () => 0,
+        fillColor: () => '#f8fafc',
+        paddingLeft: () => 4,
+        paddingRight: () => 4,
+        paddingTop: () => 2,
+        paddingBottom: () => 2
+      },
+      margin: [0, 2, 0, 4]
     };
   };
+  const wrapSection = (title, bodyItems = []) => ({
+    table: {
+      widths: ['*'],
+      body: [[{
+        stack: [{ text: title, style: 'sectionTitle' }, ...bodyItems],
+        margin: [8, 6, 8, 6]
+      }]]
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      fillColor: () => '#f1f5f9'
+    },
+    margin: [0, 0, 0, 6]
+  });
   const bonified = draft.bonifiedPayments || {};
   const bonifiedCards = [
     { title: 'Opción 1: 1 Pago Bonificado', data: bonified.one || {} },
@@ -6131,7 +6286,7 @@ function buildQuoteGeneratorPdfDocument(draft) {
       ]
     },
     layout: 'lightHorizontalLines',
-    margin: [0, 2, 0, 8]
+    margin: [0, 2, 0, 4]
   };
   const metaRows = [
     isVisible('meta.quoteDate') ? ['Fecha de Cotización', draft.meta?.quoteDate || '--/--/----'] : null,
@@ -6175,12 +6330,13 @@ function buildQuoteGeneratorPdfDocument(draft) {
   const textDensityScore = densityScore
     + Math.max(0, estimateLines - 4)
     + Math.max(0, benefits.length - 4);
-  let scale = 1;
-  if (textDensityScore > 24) scale = 0.95;
-  if (textDensityScore > 30) scale = 0.9;
-  if (textDensityScore > 36) scale = 0.85;
-  if (textDensityScore > 44) scale = 0.8;
-  const scaledMargin = Math.max(14, Math.round(28 * scale));
+  let scale = 0.95;
+  if (textDensityScore > 22) scale = 0.92;
+  if (textDensityScore > 28) scale = 0.88;
+  if (textDensityScore > 34) scale = 0.84;
+  if (textDensityScore > 40) scale = 0.8;
+  if (textDensityScore > 48) scale = 0.76;
+  const scaledMargin = Math.max(12, Math.round(20 * scale));
   const shouldKeepTogether = textDensityScore <= 24 && estimateLines <= 6 && benefits.length <= 6;
   const content = [
     {
@@ -6215,65 +6371,63 @@ function buildQuoteGeneratorPdfDocument(draft) {
     });
   }
   if (clientRows.length) {
-    content.push({ text: 'Datos Cliente', style: 'sectionTitle' });
     const grid = buildInfoGrid(clientRows);
-    if (grid) content.push(grid);
+    if (grid) content.push(wrapSection('Datos Cliente', [grid]));
   }
   if (vehicleRows.length) {
-    content.push({ text: 'Datos Vehículo', style: 'sectionTitle' });
     const grid = buildInfoGrid(vehicleRows);
-    if (grid) content.push(grid);
+    if (grid) content.push(wrapSection('Datos Vehículo', [grid]));
   }
   if (isVisible('newVehicle.section') && newVehicleRows.length) {
-    content.push({ text: 'Datos nuevo Vehículo', style: 'sectionTitle' });
     const grid = buildInfoGrid(newVehicleRows);
-    if (grid) content.push(grid);
+    if (grid) content.push(wrapSection('Datos nuevo Vehículo', [grid]));
   }
   if (isVisible('payments')) {
-    content.push({ text: 'Esquema de pagos', style: 'sectionTitle' });
+    const paymentBlocks = [];
     if (bonifiedCards.length) {
-      const bonifiedStacks = bonifiedCards.map(card => {
+      const bonifiedColumns = bonifiedCards.map(card => {
         const bonifValue = parseMoney(card.data?.bonification || 0);
         const totalAmount = parseMoney(card.data?.amount || 0);
         const isThreePayments = card.title.includes('3 cuotas');
         const quotaValue = isThreePayments ? totalAmount / 3 : totalAmount;
-        const paymentContent = isThreePayments 
+        const paymentContent = isThreePayments
           ? {
               stack: [
-                { text: `3 cuotas de ${formatMoney(quotaValue)}`, fontSize: 10 },
+                { text: `3 cuotas de ${formatMoney(quotaValue)}`, fontSize: 9 },
                 { text: `Total: ${formatMoney(totalAmount)}`, fontSize: 8, color: '#999' }
               ]
             }
-          : { text: formatMoney(totalAmount), fontSize: 10 };
+          : { text: formatMoney(totalAmount), fontSize: 9 };
         const lines = [
           { text: `Valor Original: ${formatMoney(card.data?.fakeOriginal)}` },
           bonifValue > 0 ? { text: `Bonif.: ${formatMoney(card.data?.bonification)}` } : null,
-          { text: `A pagar: `, bold: false },
+          { text: 'A pagar:', bold: false },
           paymentContent
         ].filter(Boolean);
-        return { stack: [{ text: card.title, bold: true }, ...lines], margin: [0, 2, 0, 6] };
+        return { stack: [{ text: card.title, bold: true }, ...lines], margin: [0, 2, 0, 4] };
       });
-      content.push({ stack: bonifiedStacks });
+      paymentBlocks.push(bonifiedColumns.length > 1
+        ? { columns: bonifiedColumns, columnGap: 8 }
+        : bonifiedColumns[0]);
     }
     if (paymentRows.length) {
-      content.push(paymentTable);
+      paymentBlocks.push(paymentTable);
     } else {
-      content.push({ text: 'Sin cuotas cargadas.', style: 'notes' });
+      paymentBlocks.push({ text: 'Sin cuotas cargadas.', style: 'notes' });
     }
+    content.push(wrapSection('Esquema de pagos', paymentBlocks));
   }
   if (isVisible('notes')) {
-    content.push({ text: 'Notas y aclaraciones', style: 'sectionTitle' });
-    content.push({
+    content.push(wrapSection('Notas y aclaraciones', [{
       text: draft.notes || '-',
       style: 'notes'
-    });
+    }]));
   }
   if (isVisible('benefits')) {
-    content.push({ text: 'Benef. Adicionales otorgados', style: 'sectionTitle' });
-    content.push({
+    content.push(wrapSection('Benef. Adicionales otorgados', [{
       ul: benefits.length ? benefits : ['-'],
-      margin: [0, 2, 0, 8]
-    });
+      margin: [0, 2, 0, 4]
+    }]));
   }
   if (isVisible('footer')) {
     content.push({
@@ -6287,13 +6441,13 @@ function buildQuoteGeneratorPdfDocument(draft) {
     defaultStyle: {
       fontSize: Math.max(8, Math.round(10 * scale)),
       color: '#0f172a',
-      lineHeight: 1.2
+      lineHeight: 1.15
     },
     styles: {
       title: { fontSize: Math.round(18 * scale), bold: true, color: '#1d4ed8', margin: [0, 0, 0, 2] },
       titleAccent: { fontSize: Math.round(14 * scale), bold: true, color: '#1d4ed8' },
       metaRow: { fontSize: Math.max(8, Math.round(10 * scale)), color: '#334155', margin: [0, 0, 0, 2] },
-      sectionTitle: { fontSize: Math.round(11 * scale), bold: true, color: '#334155', margin: [0, 6, 0, 4] },
+      sectionTitle: { fontSize: Math.round(11 * scale), bold: true, color: '#334155', margin: [0, 0, 0, 4] },
       gridLabel: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#64748b', margin: [0, 0, 0, 2] },
       gridValue: { fontSize: Math.max(8, Math.round(10 * scale)), color: '#0f172a' },
       alert: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#1e3a8a', fillColor: '#eef2ff', margin: [0, 6, 0, 8] },

@@ -520,7 +520,7 @@
                         <button class="ghost-btn mini auto-btn" data-auto-fill="client" type="button">Auto cliente</button>
                       </div>
                     </div>
-                    <div class="form-grid two">
+                    <div class="form-grid three">
                       <div class="field is-required">
                         <label for="clientFullName">Nombre</label>
                         <div class="auto-row">
@@ -636,7 +636,21 @@
                         <button class="ghost-btn mini auto-btn" data-auto-fill="newVehicle" type="button">Auto 0km</button>
                       </div>
                     </div>
-                    <div class="form-grid two">
+                    <label class="toggle inline selection-mode">
+                      <input type="checkbox" id="newVehicleCustomToggle">
+                      <span>Otro Modelo / Personalizado</span>
+                    </label>
+                    <div class="form-grid two new-vehicle-auto">
+                      <div class="field is-required">
+                        <label for="newVehicleBrandSelect">Marca (selección automática)</label>
+                        <select id="newVehicleBrandSelect"></select>
+                      </div>
+                      <div class="field is-required">
+                        <label for="newVehicleModelSelect">Auto (selección automática)</label>
+                        <select id="newVehicleModelSelect"></select>
+                      </div>
+                    </div>
+                    <div class="form-grid two new-vehicle-manual is-hidden">
                       <div class="field is-required">
                         <label for="newVehicleBrand">Marca</label>
                         <div class="auto-row">
