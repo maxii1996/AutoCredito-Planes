@@ -5570,9 +5570,13 @@ function updateClientWizardUI() {
   const nextBtn = document.getElementById('clientWizardNext');
   const confirmBtn = document.getElementById('clientWizardConfirm');
   const backBtn = document.getElementById('clientWizardBack');
-  if (track) {
-    track.style.transform = `translate3d(-${(clientWizardState.step - 1) * 100}%, 0, 0)`;
-  }
+  
+  // Ocultar todos los paneles y mostrar solo el actual
+  document.querySelectorAll('.wizard-panel').forEach((panel, index) => {
+    const panelStep = Number(panel.dataset.step);
+    panel.style.display = panelStep === clientWizardState.step ? 'flex' : 'none';
+  });
+  
   if (subtitle) {
     const subtitles = {
       1: 'Elige cómo deseas buscar al cliente.',
