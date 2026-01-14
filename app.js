@@ -6097,11 +6097,15 @@ function buildQuoteGeneratorPdfDocument(draft) {
     : [];
   const paymentRows = [
     ...normalizedPayments,
-    {
-      label: 'Cuota pura',
-      amount: cuotaPura.amount,
-      detail: cuotaPura.detail
-    }
+    ...(cuotaPura.amount || cuotaPura.detail
+      ? [
+          {
+            label: 'Cuota pura',
+            amount: cuotaPura.amount,
+            detail: cuotaPura.detail
+          }
+        ]
+      : [])
   ];
   const benefits = (draft.benefitsText || '')
     .split('\n')
@@ -6177,7 +6181,7 @@ function buildQuoteGeneratorPdfDocument(draft) {
   if (textDensityScore > 36) scale = 0.85;
   if (textDensityScore > 44) scale = 0.8;
   const scaledMargin = Math.max(14, Math.round(28 * scale));
-  const canKeepOnSinglePage = textDensityScore <= 34 && estimateLines <= 10 && benefits.length <= 10;
+  const shouldKeepTogether = textDensityScore <= 24 && estimateLines <= 6 && benefits.length <= 6;
   const content = [
     {
       columns: [
@@ -6251,8 +6255,10 @@ function buildQuoteGeneratorPdfDocument(draft) {
       });
       content.push({ stack: bonifiedStacks });
     }
-    if (draft.payments?.length) {
+    if (paymentRows.length) {
       content.push(paymentTable);
+    } else {
+      content.push({ text: 'Sin cuotas cargadas.', style: 'notes' });
     }
   }
   if (isVisible('notes')) {
@@ -6294,7 +6300,7 @@ function buildQuoteGeneratorPdfDocument(draft) {
       notes: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#475569', margin: [0, 2, 0, 8] },
       footer: { fontSize: Math.max(7, Math.round(8 * scale)), color: '#475569', margin: [0, 6, 0, 0] }
     },
-    content: [{ stack: content, ...(canKeepOnSinglePage ? { unbreakable: true } : {}) }]
+    content: [{ stack: content, ...(shouldKeepTogether ? { keepTogether: true } : {}) }]
   };
 }
 
