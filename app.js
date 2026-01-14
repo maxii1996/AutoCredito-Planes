@@ -5571,7 +5571,7 @@ function updateClientWizardUI() {
   const confirmBtn = document.getElementById('clientWizardConfirm');
   const backBtn = document.getElementById('clientWizardBack');
   if (track) {
-    track.style.transform = `translateX(-${(clientWizardState.step - 1) * 100}%)`;
+    track.style.transform = `translate3d(-${(clientWizardState.step - 1) * 100}%, 0, 0)`;
   }
   if (subtitle) {
     const subtitles = {
