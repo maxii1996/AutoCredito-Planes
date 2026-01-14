@@ -5560,6 +5560,7 @@ function hydrateWizardInputsFromState() {
 }
 
 function setClientWizardStep(step) {
+  clientWizardState.previousStep = clientWizardState.step;
   clientWizardState.step = Math.min(Math.max(step, 1), 6);
   updateClientWizardUI();
 }
@@ -5574,7 +5575,16 @@ function updateClientWizardUI() {
   // Ocultar todos los paneles y mostrar solo el actual
   document.querySelectorAll('.wizard-panel').forEach((panel, index) => {
     const panelStep = Number(panel.dataset.step);
+    panel.classList.remove('enter-forward', 'enter-backward');
     panel.style.display = panelStep === clientWizardState.step ? 'flex' : 'none';
+    if (panelStep === clientWizardState.step) {
+      const prevStep = clientWizardState.previousStep;
+      let direction = 'enter-forward';
+      if (Number.isFinite(prevStep)) {
+        direction = clientWizardState.step > prevStep ? 'enter-forward' : 'enter-backward';
+      }
+      panel.classList.add(direction);
+    }
   });
   
   if (subtitle) {
@@ -5633,7 +5643,7 @@ function renderClientWizardMode() {
     const sorted = [...managerClients].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
     renderClientWizardList(sorted);
   } else {
-    list.innerHTML = '<p class="muted">Ingresa un nombre y pulsa Buscar...</p>';
+    list.innerHTML = '';
   }
 }
 
@@ -5812,7 +5822,7 @@ function updateWizardPlanCard() {
     { label: 'Tipo de Plan', value: planLabelValue || planLabel(planType) },
     { label: 'Cuotas máximas', value: `${maxInstallments} cuotas` },
     { label: 'Modalidad de adjudicación', value: allocationModeLabel },
-    { label: 'Beneficio destacado', value: vehicle?.benefits?.bonificacion || 'Consultar promociones vigentes' }
+    { label: 'Precio nominal del coche', value: currency.format(vehicle.basePrice || 0) }
   ].map(item => `
     <div class="wizard-plan-item">
       <span>${item.label}</span>
@@ -5823,7 +5833,7 @@ function updateWizardPlanCard() {
   const priceInfo = document.getElementById('clientWizardPriceInfo');
   if (priceInfo) {
     const priceLabel = getMostRecentPriceTab()?.label || getMostRecentPriceTab()?.month || 'Precios actuales';
-    priceInfo.textContent = `El valor del coche en sistema (según precios actualizados de ${priceLabel}) es Nominal: ${currency.format(vehicle.basePrice || 0)}.`;
+    priceInfo.textContent = `El valor nominal del coche en sistema (según precios actualizados de ${priceLabel}) es ${currency.format(vehicle.basePrice || 0)}.`;
   }
   if (clientWizardState.useSystemPrice) {
     applyWizardPriceSelection();

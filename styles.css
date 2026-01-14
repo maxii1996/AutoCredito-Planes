@@ -569,7 +569,17 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
   position: relative;
   flex-shrink: 0;
 }
+.wizard-panel.enter-forward { animation: wizard-slide-forward 0.35s ease both; }
+.wizard-panel.enter-backward { animation: wizard-slide-backward 0.35s ease both; }
 .wizard-panel > * { width: 100%; max-width: 100%; margin-left: auto; margin-right: auto; }
+@keyframes wizard-slide-forward {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes wizard-slide-backward {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 .wizard-panel[data-step="6"] { padding-bottom: 24px; }
 .wizard-panel-head { display: grid; gap: 6px; }
 .wizard-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; justify-items: center; width: 100%; }
@@ -581,10 +591,10 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .wizard-choice-card.small { padding: 14px; }
 .wizard-choice-card.small strong { font-size: 15px; }
 
-.wizard-search { display: flex; flex-direction: column; flex-wrap: wrap; gap: 10px; align-items: stretch; justify-content: flex-start; width: 100%; }
+.wizard-search { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-start; width: 100%; }
 .wizard-search .search-field { flex: 1; min-width: 220px; max-width: 100%; }
-.wizard-search .primary-btn { width: 100%; max-width: 100%; }
-.wizard-list { max-height: 360px; margin-top: 6px; width: 100%; display: grid; gap: 12px; overflow-y: auto; }
+.wizard-search .primary-btn { width: auto; max-width: 140px; padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+.wizard-list { max-height: 360px; margin-top: 6px; padding-top: 8px; width: 100%; display: grid; gap: 12px; overflow-y: auto; }
 
 .wizard-form-grid { margin-top: 6px; display: grid; width: 100%; }
 .wizard-panel .form-grid { max-width: 100%; margin-left: auto; margin-right: auto; width: 100%; }
