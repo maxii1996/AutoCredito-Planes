@@ -6212,7 +6212,7 @@ function buildQuoteGeneratorPdfDocument(draft) {
       layout: {
         hLineWidth: () => 0,
         vLineWidth: () => 0,
-        fillColor: () => '#f8fafc',
+        fillColor: () => '#f1f5f9',
         paddingLeft: () => 4,
         paddingRight: () => 4,
         paddingTop: () => 2,
