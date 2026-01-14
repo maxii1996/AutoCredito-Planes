@@ -256,11 +256,11 @@
               <p class="eyebrow">Carga rápida</p>
               <h3>Datos de cotización</h3>
             </div>
-            <div class="field">
-              <label for="clientName">Cliente</label>
-              <div class="picker-row dense">
+              <div class="field">
+                <label for="clientName">Cliente</label>
+              <div class="picker-row dense client-picker-row">
                 <input id="clientName" placeholder="Nombre y apellido" />
-                <button id="openClientPicker" class="secondary-btn mini" type="button"><i class='bx bx-user-voice'></i>Cliente</button>
+                <button id="openClientPicker" class="secondary-btn mini" type="button"><i class='bx bx-user-voice'></i>Asistente de selección...</button>
               </div>
               <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
             </div>
@@ -1466,22 +1466,166 @@
     </div>
   </div>
   <div id="clientPickerModal" class="modal hidden">
-    <div class="modal-content wide">
+    <div class="modal-content wide wizard">
       <div class="modal-head">
         <div>
-          <p class="eyebrow">Seleccionar cliente</p>
-          <h3>Contactos importados</h3>
-          <p class="muted">Busca en la lista de clientes importados y aplica sus datos al plan.</p>
+          <p class="eyebrow">Asistente de selección</p>
+          <h3>Cliente y cotización</h3>
+          <p class="muted" id="clientWizardSubtitle">Elige cómo deseas buscar al cliente.</p>
         </div>
         <button id="clientPickerClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
-      <div class="search-field expanded">
-        <i class='bx bx-search'></i>
-        <input id="clientPickerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+      <div class="wizard-progress" id="clientWizardProgress">
+        <div class="wizard-progress-step" data-step="1">
+          <span>1</span>
+          <small>Buscar</small>
+        </div>
+        <div class="wizard-progress-step" data-step="2">
+          <span>2</span>
+          <small>Cliente</small>
+        </div>
+        <div class="wizard-progress-step" data-step="3">
+          <span>3</span>
+          <small>Auto</small>
+        </div>
+        <div class="wizard-progress-step" data-step="4">
+          <span>4</span>
+          <small>Llave</small>
+        </div>
+        <div class="wizard-progress-step" data-step="5">
+          <span>5</span>
+          <small>Valor</small>
+        </div>
+        <div class="wizard-progress-step" data-step="6">
+          <span>6</span>
+          <small>Confirmar</small>
+        </div>
       </div>
-      <div id="clientPickerList" class="picker-list"></div>
-      <div class="modal-actions">
-        <button id="clientPickerCancel" class="ghost-btn">Cerrar</button>
+      <div class="wizard-track" id="clientWizardTrack">
+        <section class="wizard-panel" data-step="1">
+          <div class="wizard-choice">
+            <h4>¿Cómo deseas buscar al cliente?</h4>
+            <div class="wizard-choice-grid">
+              <button class="wizard-choice-card" type="button" data-client-wizard-choice="search">
+                <div>
+                  <strong>Búsqueda por nombre</strong>
+                  <p class="muted tiny">Escribe y confirma la búsqueda manualmente.</p>
+                </div>
+                <i class='bx bx-search-alt-2'></i>
+              </button>
+              <button class="wizard-choice-card" type="button" data-client-wizard-choice="all">
+                <div>
+                  <strong>Ver todos los clientes</strong>
+                  <p class="muted tiny">Lista alfabética completa para elegir.</p>
+                </div>
+                <i class='bx bx-list-ul'></i>
+              </button>
+            </div>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="2">
+          <div class="wizard-panel-head">
+            <h4 id="clientWizardModeTitle">Búsqueda por nombre</h4>
+            <p class="muted" id="clientWizardModeSubtitle">Escribe el nombre del cliente a buscar y presiona Buscar.</p>
+          </div>
+          <div class="wizard-search" id="clientWizardSearchSection">
+            <div class="search-field expanded">
+              <i class='bx bx-search'></i>
+              <input id="clientWizardSearchInput" placeholder="Escribe el nombre del cliente a buscar..." />
+            </div>
+            <button id="clientWizardSearchBtn" class="primary-btn" type="button"><i class='bx bx-loader-circle'></i>Buscar...</button>
+          </div>
+          <p class="muted tiny" id="clientWizardSearchStatus">Selecciona un cliente para continuar.</p>
+          <div id="clientWizardList" class="picker-list wizard-list"></div>
+        </section>
+        <section class="wizard-panel" data-step="3">
+          <div class="wizard-panel-head">
+            <h4>Selecciona el auto a cotizar</h4>
+            <p class="muted">Elige marca y modelo. El plan se ajusta automáticamente.</p>
+          </div>
+          <div class="form-grid two wizard-form-grid">
+            <div class="field">
+              <label for="clientWizardBrand">Marca</label>
+              <select id="clientWizardBrand"></select>
+            </div>
+            <div class="field">
+              <label for="clientWizardModel">Modelo</label>
+              <select id="clientWizardModel"></select>
+            </div>
+          </div>
+          <div class="wizard-plan-card" id="clientWizardPlanCard">
+            <div class="wizard-plan-head">
+              <div>
+                <p class="eyebrow">Detalles del plan</p>
+                <h4 id="clientWizardPlanTitle">Plan sugerido</h4>
+              </div>
+              <span class="wizard-plan-badge" id="clientWizardPlanBadge">Plan</span>
+            </div>
+            <div class="wizard-plan-grid" id="clientWizardPlanDetails"></div>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="4">
+          <div class="wizard-panel-head">
+            <h4>¿El cliente usará Llave x Llave?</h4>
+            <p class="muted">Define si se tomará un usado como parte de pago.</p>
+          </div>
+          <div class="wizard-choice-grid compact">
+            <button class="wizard-choice-card small" type="button" data-trade-in-choice="yes">
+              <strong>Si</strong>
+              <p class="muted tiny">Registrar el valor del usado.</p>
+            </button>
+            <button class="wizard-choice-card small" type="button" data-trade-in-choice="no">
+              <strong>No</strong>
+              <p class="muted tiny">Continuar sin usado.</p>
+            </button>
+          </div>
+          <div class="field wizard-money-field" id="clientWizardTradeInField">
+            <label for="clientWizardTradeInValue">¿En cuánto se lo tomarán?</label>
+            <div class="money-field">
+              <span class="prefix">$</span>
+              <input id="clientWizardTradeInValue" class="money" type="text" inputmode="numeric" placeholder="Ej: 1.000.000" />
+            </div>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="5">
+          <div class="wizard-panel-head">
+            <h4>Valor del coche en sistema</h4>
+            <p class="muted" id="clientWizardPriceInfo">Según precios actualizados.</p>
+          </div>
+          <div class="wizard-choice-grid compact">
+            <button class="wizard-choice-card small" type="button" data-price-choice="yes">
+              <strong>Si, usar valores por defecto</strong>
+              <p class="muted tiny">Tomar el valor oficial del catálogo.</p>
+            </button>
+            <button class="wizard-choice-card small" type="button" data-price-choice="no">
+              <strong>No, usaré otro</strong>
+              <p class="muted tiny">Cambio de versión o ajuste manual.</p>
+            </button>
+          </div>
+          <div class="field wizard-money-field" id="clientWizardCustomPriceField">
+            <label for="clientWizardCustomPrice">Ingresar otro valor</label>
+            <div class="money-field">
+              <span class="prefix">$</span>
+              <input id="clientWizardCustomPrice" class="money" type="text" inputmode="numeric" placeholder="Valor del coche a cotizar" />
+            </div>
+            <p class="muted tiny">Ejemplo: versión superior o ajustes personalizados.</p>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="6">
+          <div class="wizard-panel-head">
+            <h4>Confirmar operación</h4>
+            <p class="muted">Revisa y confirma los datos seleccionados.</p>
+          </div>
+          <div class="wizard-summary" id="clientWizardSummary"></div>
+        </section>
+      </div>
+      <div class="modal-actions wizard-actions">
+        <button id="clientWizardBack" class="ghost-btn">Atrás</button>
+        <div class="wizard-actions-right">
+          <button id="clientPickerCancel" class="ghost-btn">Cerrar</button>
+          <button id="clientWizardNext" class="primary-btn">Siguiente</button>
+          <button id="clientWizardConfirm" class="primary-btn"><i class='bx bx-check'></i>Continuar</button>
+        </div>
       </div>
     </div>
   </div>

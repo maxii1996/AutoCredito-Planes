@@ -5360,6 +5360,18 @@ function applyCustomPriceDefaultForModel(modelIdx, { preserveExisting = false, r
   }
 }
 
+let clientWizardState = {
+  step: 1,
+  mode: null,
+  searchTerm: '',
+  selectedClientId: null,
+  selectedVehicleIndex: 0,
+  tradeIn: true,
+  tradeInValue: 0,
+  useSystemPrice: true,
+  customPrice: 0
+};
+
 function bindClientPicker() {
   const openBtn = document.getElementById('openClientPicker');
   if (openBtn && !openBtn.dataset.bound) {
@@ -5373,10 +5385,116 @@ function bindClientPicker() {
       btn.dataset.bound = 'true';
     }
   });
-  const search = document.getElementById('clientPickerSearch');
-  if (search && !search.dataset.bound) {
-    search.addEventListener('input', renderClientPickerList);
-    search.dataset.bound = 'true';
+
+  document.querySelectorAll('[data-client-wizard-choice]').forEach(card => {
+    if (card.dataset.bound) return;
+    card.addEventListener('click', () => {
+      clientWizardState.mode = card.dataset.clientWizardChoice;
+      setClientWizardStep(2);
+      renderClientWizardMode();
+    });
+    card.dataset.bound = 'true';
+  });
+
+  const searchBtn = document.getElementById('clientWizardSearchBtn');
+  if (searchBtn && !searchBtn.dataset.bound) {
+    searchBtn.addEventListener('click', runClientWizardSearch);
+    searchBtn.dataset.bound = 'true';
+  }
+  const searchInput = document.getElementById('clientWizardSearchInput');
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        runClientWizardSearch();
+      }
+    });
+    searchInput.dataset.bound = 'true';
+  }
+
+  const backBtn = document.getElementById('clientWizardBack');
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.addEventListener('click', () => {
+      if (clientWizardState.step > 1) {
+        setClientWizardStep(clientWizardState.step - 1);
+      }
+    });
+    backBtn.dataset.bound = 'true';
+  }
+  const nextBtn = document.getElementById('clientWizardNext');
+  if (nextBtn && !nextBtn.dataset.bound) {
+    nextBtn.addEventListener('click', () => {
+      if (clientWizardState.step < 6) {
+        setClientWizardStep(clientWizardState.step + 1);
+      }
+    });
+    nextBtn.dataset.bound = 'true';
+  }
+  const confirmBtn = document.getElementById('clientWizardConfirm');
+  if (confirmBtn && !confirmBtn.dataset.bound) {
+    confirmBtn.addEventListener('click', () => {
+      applyClientWizardSelections();
+      closeClientPicker();
+      showToast('Asistente aplicado correctamente.', 'success');
+    });
+    confirmBtn.dataset.bound = 'true';
+  }
+
+  const brandSelect = document.getElementById('clientWizardBrand');
+  if (brandSelect && !brandSelect.dataset.bound) {
+    brandSelect.addEventListener('change', () => {
+      updateWizardModelsForBrand(brandSelect.value);
+    });
+    brandSelect.dataset.bound = 'true';
+  }
+  const modelSelect = document.getElementById('clientWizardModel');
+  if (modelSelect && !modelSelect.dataset.bound) {
+    modelSelect.addEventListener('change', () => {
+      const idx = Number(modelSelect.value || 0);
+      setWizardVehicleSelection(idx, { syncSelects: false });
+    });
+    modelSelect.dataset.bound = 'true';
+  }
+
+  document.querySelectorAll('[data-trade-in-choice]').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener('click', () => {
+      const choice = btn.dataset.tradeInChoice === 'yes';
+      clientWizardState.tradeIn = choice;
+      updateWizardTradeInUI();
+      applyWizardTradeInSelection();
+    });
+    btn.dataset.bound = 'true';
+  });
+
+  document.querySelectorAll('[data-price-choice]').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener('click', () => {
+      const useSystem = btn.dataset.priceChoice === 'yes';
+      clientWizardState.useSystemPrice = useSystem;
+      updateWizardPriceUI();
+      applyWizardPriceSelection();
+    });
+    btn.dataset.bound = 'true';
+  });
+
+  const tradeInValueInput = document.getElementById('clientWizardTradeInValue');
+  if (tradeInValueInput && !tradeInValueInput.dataset.bound) {
+    bindMoneyInput(tradeInValueInput, value => {
+      clientWizardState.tradeInValue = value;
+      applyWizardTradeInSelection();
+    });
+    tradeInValueInput.dataset.bound = 'true';
+  }
+  const customPriceInput = document.getElementById('clientWizardCustomPrice');
+  if (customPriceInput && !customPriceInput.dataset.bound) {
+    bindMoneyInput(customPriceInput, value => {
+      clientWizardState.customPrice = value;
+      clientWizardState.useSystemPrice = false;
+      updateWizardPriceUI();
+      applyWizardPriceSelection();
+    });
+    customPriceInput.dataset.bound = 'true';
   }
 
   ['clientVehicleClose', 'clientVehicleCancel'].forEach(id => {
@@ -5397,7 +5515,8 @@ function bindClientPicker() {
 function openClientPicker() {
   const modal = document.getElementById('clientPickerModal');
   if (!modal) return;
-  renderClientPickerList();
+  initializeClientWizardState();
+  updateClientWizardUI();
   modal.classList.add('show');
   modal.classList.remove('hidden');
 }
@@ -5407,6 +5526,393 @@ function closeClientPicker() {
   if (!modal) return;
   modal.classList.remove('show');
   setTimeout(() => modal.classList.add('hidden'), 180);
+}
+
+function initializeClientWizardState() {
+  const modelIdx = Number(document.getElementById('planModel')?.value || 0);
+  const tradeInInput = document.getElementById('tradeInValue');
+  const customPriceInput = document.getElementById('customPrice');
+  const tradeInValue = parseMoney(tradeInInput?.dataset.raw || tradeInInput?.value || 0);
+  const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
+  const basePrice = vehicles[modelIdx]?.basePrice || 0;
+  const useSystemPrice = !customPrice || customPrice === basePrice;
+  clientWizardState = {
+    step: 1,
+    mode: null,
+    searchTerm: '',
+    selectedClientId: selectedPlanClientId || uiState?.planDraft?.selectedClientId || null,
+    selectedVehicleIndex: Number.isFinite(modelIdx) ? modelIdx : 0,
+    tradeIn: document.getElementById('tradeIn')?.checked ?? true,
+    tradeInValue,
+    useSystemPrice,
+    customPrice: customPrice || basePrice
+  };
+  hydrateWizardInputsFromState();
+  updateWizardModelsForBrand(normalizeBrand(vehicles[clientWizardState.selectedVehicleIndex]?.brand || DEFAULT_BRAND), { silent: true });
+  renderClientWizardMode();
+}
+
+function hydrateWizardInputsFromState() {
+  const tradeInInput = document.getElementById('clientWizardTradeInValue');
+  if (tradeInInput) setMoneyValue(tradeInInput, clientWizardState.tradeInValue || 0);
+  const customPriceInput = document.getElementById('clientWizardCustomPrice');
+  if (customPriceInput) setMoneyValue(customPriceInput, clientWizardState.customPrice || 0);
+}
+
+function setClientWizardStep(step) {
+  clientWizardState.step = Math.min(Math.max(step, 1), 6);
+  updateClientWizardUI();
+}
+
+function updateClientWizardUI() {
+  const track = document.getElementById('clientWizardTrack');
+  const subtitle = document.getElementById('clientWizardSubtitle');
+  const nextBtn = document.getElementById('clientWizardNext');
+  const confirmBtn = document.getElementById('clientWizardConfirm');
+  const backBtn = document.getElementById('clientWizardBack');
+  if (track) {
+    track.style.transform = `translateX(-${(clientWizardState.step - 1) * 100}%)`;
+  }
+  if (subtitle) {
+    const subtitles = {
+      1: 'Elige cómo deseas buscar al cliente.',
+      2: 'Selecciona el cliente que deseas aplicar.',
+      3: 'Define el modelo y revisa el plan sugerido.',
+      4: 'Configura la llave x llave y su valor.',
+      5: 'Confirma el valor del vehículo.',
+      6: 'Revisa todo antes de continuar.'
+    };
+    subtitle.textContent = subtitles[clientWizardState.step] || '';
+  }
+  document.querySelectorAll('.wizard-progress-step').forEach(stepEl => {
+    const stepValue = Number(stepEl.dataset.step);
+    stepEl.classList.toggle('active', stepValue === clientWizardState.step);
+    stepEl.classList.toggle('complete', stepValue < clientWizardState.step);
+  });
+  if (backBtn) backBtn.style.visibility = clientWizardState.step > 1 ? 'visible' : 'hidden';
+  if (nextBtn) nextBtn.style.display = [3, 4, 5].includes(clientWizardState.step) ? '' : 'none';
+  if (confirmBtn) confirmBtn.style.display = clientWizardState.step === 6 ? '' : 'none';
+  updateWizardTradeInUI();
+  updateWizardPriceUI();
+  updateWizardPlanCard();
+  if (clientWizardState.step === 6) {
+    renderWizardSummary();
+  }
+}
+
+function renderClientWizardMode() {
+  const mode = clientWizardState.mode || 'search';
+  if (!clientWizardState.mode) clientWizardState.mode = mode;
+  const title = document.getElementById('clientWizardModeTitle');
+  const subtitle = document.getElementById('clientWizardModeSubtitle');
+  const searchSection = document.getElementById('clientWizardSearchSection');
+  const status = document.getElementById('clientWizardSearchStatus');
+  document.querySelectorAll('[data-client-wizard-choice]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.clientWizardChoice === mode);
+  });
+  if (title) title.textContent = mode === 'all' ? 'Listado completo de clientes' : 'Búsqueda por nombre';
+  if (subtitle) {
+    subtitle.textContent = mode === 'all'
+      ? 'Explora los contactos importados ordenados alfabéticamente.'
+      : 'Escribe el nombre del cliente a buscar y presiona Buscar.';
+  }
+  if (searchSection) searchSection.style.display = mode === 'all' ? 'none' : 'flex';
+  if (status) status.textContent = 'Selecciona un cliente para continuar.';
+
+  const list = document.getElementById('clientWizardList');
+  if (!list) return;
+  if (!managerClients.length) {
+    list.innerHTML = '<p class="muted">No hay clientes importados.</p>';
+    return;
+  }
+  if (mode === 'all') {
+    const sorted = [...managerClients].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
+    renderClientWizardList(sorted);
+  } else {
+    list.innerHTML = '<p class="muted">Ingresa un nombre y pulsa Buscar...</p>';
+  }
+}
+
+function runClientWizardSearch() {
+  const input = document.getElementById('clientWizardSearchInput');
+  const status = document.getElementById('clientWizardSearchStatus');
+  const query = (input?.value || '').trim().toLowerCase();
+  if (!query) {
+    if (status) status.textContent = 'Ingresa un nombre para comenzar la búsqueda.';
+    renderClientWizardList([]);
+    return;
+  }
+  if (status) status.textContent = 'Procesando operación...';
+  setTimeout(() => {
+    const filtered = managerClients.filter(c => (c.name || '').toLowerCase().includes(query));
+    if (status) {
+      status.textContent = `Se han encontrado ${filtered.length} resultados:`;
+    }
+    renderClientWizardList(filtered);
+  }, 180);
+}
+
+function renderClientWizardList(list = []) {
+  const container = document.getElementById('clientWizardList');
+  if (!container) return;
+  if (!list.length) {
+    container.innerHTML = '<p class="muted">No hay resultados disponibles.</p>';
+    return;
+  }
+  container.innerHTML = list.map(client => buildClientWizardCard(client)).join('');
+  container.querySelectorAll('[data-wizard-client]').forEach(card => {
+    if (card.dataset.bound) return;
+    card.addEventListener('click', () => {
+      selectClientForWizard(card.dataset.wizardClient);
+    });
+    card.dataset.bound = 'true';
+  });
+}
+
+function buildClientWizardCard(client) {
+  const name = client.name || 'Sin nombre';
+  const model = client.model || 'Sin modelo';
+  const phone = normalizePhone(client.phone);
+  const phoneLabel = phone ? formatPhoneDisplay(phone) : 'Sin teléfono';
+  const location = [client.city, client.province].filter(Boolean).join(', ');
+  const doc = client.document || client.cuit || '';
+  const date = formatDateForDisplay(client.birthDate || client.purchaseDate || '');
+  const pill = doc ? `Doc: ${doc}` : 'Cliente';
+  const selectedClass = client.id === clientWizardState.selectedClientId ? ' selected' : '';
+  return `
+    <div class="wizard-client-card${selectedClass}" data-wizard-client="${client.id}">
+      <div class="wizard-client-head">
+        <div>
+          <strong>${name}</strong>
+          <p class="muted tiny">${model}</p>
+        </div>
+        <span class="wizard-client-pill">${pill}</span>
+      </div>
+      <div class="wizard-client-meta">
+        <span><i class='bx bx-phone'></i>${phoneLabel}</span>
+        <span><i class='bx bx-map'></i>${location || 'Sin ubicación'}</span>
+        <span><i class='bx bx-calendar'></i>${date || 'Sin fecha registrada'}</span>
+      </div>
+    </div>
+  `;
+}
+
+function selectClientForWizard(id) {
+  const client = managerClients.find(c => c.id === id);
+  if (!client) return;
+  clientWizardState.selectedClientId = id;
+  applyWizardClientSelection(client);
+  const suggestedIndex = resolveWizardVehicleIndexFromClient(client);
+  setWizardVehicleSelection(suggestedIndex, { syncSelects: true });
+  setClientWizardStep(3);
+}
+
+function applyWizardClientSelection(client) {
+  selectedPlanClientId = client.id;
+  const input = document.getElementById('clientName');
+  if (input) input.value = client.name || '';
+  uiState.planDraft.clientName = client.name || '';
+  uiState.planDraft.selectedClientId = client.id;
+  refreshClientSelectionHint(client);
+  persist();
+}
+
+function resolveWizardVehicleIndexFromClient(client) {
+  const ranking = rankVehiclesForModel(client?.model || '', vehicles);
+  const selection = ranking.filter(opt => opt.score > 0);
+  return selection[0]?.index ?? 0;
+}
+
+function updateWizardModelsForBrand(brand, { silent = false } = {}) {
+  const brandSelect = document.getElementById('clientWizardBrand');
+  const modelSelect = document.getElementById('clientWizardModel');
+  if (!brandSelect || !modelSelect) return;
+  brandSelect.innerHTML = buildWizardBrandOptions();
+  const normalizedBrand = normalizeBrand(brand || brandSelect.value || DEFAULT_BRAND);
+  brandSelect.value = normalizedBrand;
+  const models = vehicles
+    .map((vehicle, index) => ({ ...vehicle, index }))
+    .filter(vehicle => normalizeBrand(vehicle.brand) === normalizedBrand)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
+  modelSelect.innerHTML = models.map(model => `<option value="${model.index}">${model.name}</option>`).join('');
+  const currentIndex = models.find(m => m.index === clientWizardState.selectedVehicleIndex)?.index ?? models[0]?.index ?? 0;
+  modelSelect.value = currentIndex;
+  if (!silent) {
+    setWizardVehicleSelection(Number(modelSelect.value || 0), { syncSelects: false });
+  } else {
+    clientWizardState.selectedVehicleIndex = Number(modelSelect.value || 0);
+    updateWizardPlanCard();
+  }
+}
+
+function buildWizardBrandOptions() {
+  const brands = Array.from(new Set(vehicles.map(vehicle => normalizeBrand(vehicle.brand)).filter(Boolean)));
+  const normalizedDefaults = BRANDS.map(brand => normalizeBrand(brand));
+  const ordered = [
+    ...BRANDS.filter(b => brands.includes(normalizeBrand(b))).map(b => normalizeBrand(b)),
+    ...brands.filter(b => !normalizedDefaults.includes(b))
+  ];
+  return ordered.map(brand => `<option value="${brand}">${brand}</option>`).join('');
+}
+
+function setWizardVehicleSelection(index, { syncSelects = true } = {}) {
+  clientWizardState.selectedVehicleIndex = Number.isFinite(Number(index)) ? Number(index) : 0;
+  const vehicle = vehicles[clientWizardState.selectedVehicleIndex] || vehicles[0];
+  if (!vehicle) return;
+  if (syncSelects) {
+    const brandSelect = document.getElementById('clientWizardBrand');
+    const modelSelect = document.getElementById('clientWizardModel');
+    if (brandSelect) brandSelect.value = normalizeBrand(vehicle.brand);
+    if (modelSelect) modelSelect.value = clientWizardState.selectedVehicleIndex;
+  }
+  applyWizardVehicleSelection();
+  updateWizardPlanCard();
+}
+
+function applyWizardVehicleSelection() {
+  const idx = clientWizardState.selectedVehicleIndex;
+  const planSelect = document.getElementById('planModel');
+  if (planSelect) planSelect.value = vehicles[idx] ? idx : 0;
+  applyPlanDefaultsForModel(Number(planSelect.value || 0), { resetManual: true });
+  applyReservationDefaultsForModel(Number(planSelect.value || 0), { resetManual: true });
+  applyCustomPriceDefaultForModel(Number(planSelect.value || 0), { resetManual: true });
+  updateIntegrationDetails(Number(planSelect.value || 0));
+  updatePlanSummary();
+}
+
+function updateWizardPlanCard() {
+  const vehicle = vehicles[clientWizardState.selectedVehicleIndex] || vehicles[0];
+  const planCard = document.getElementById('clientWizardPlanCard');
+  const planTitle = document.getElementById('clientWizardPlanTitle');
+  const planBadge = document.getElementById('clientWizardPlanBadge');
+  const planDetails = document.getElementById('clientWizardPlanDetails');
+  if (!vehicle || !planDetails) return;
+  const planType = getPlanTypeForVehicle(vehicle);
+  const maxInstallments = resolveTotalInstallments(planType, vehicle?.planProfile?.planType, vehicle?.planProfile?.maxInstallments);
+  const planLabelValue = resolveVehiclePlanLabel(vehicle, planType);
+  const allocationModeLabel = formatAllocationMode(vehicle?.withdrawal?.mode || 'sorteo_licitacion');
+  const brandColor = getBrandColor(vehicle.brand);
+  if (planTitle) planTitle.textContent = planLabelValue || 'Plan sugerido';
+  if (planBadge) planBadge.textContent = planLabel(planType);
+  if (planCard) {
+    planCard.classList.add('active');
+    planCard.style.borderColor = brandColor;
+  }
+  if (planBadge) {
+    planBadge.style.color = brandColor;
+    planBadge.style.borderColor = `${brandColor}66`;
+  }
+  planDetails.innerHTML = [
+    { label: 'Marca', value: normalizeBrand(vehicle.brand) },
+    { label: 'Modelo', value: vehicle.name || '-' },
+    { label: 'Tipo de Plan', value: planLabelValue || planLabel(planType) },
+    { label: 'Cuotas máximas', value: `${maxInstallments} cuotas` },
+    { label: 'Modalidad de adjudicación', value: allocationModeLabel },
+    { label: 'Beneficio destacado', value: vehicle?.benefits?.bonificacion || 'Consultar promociones vigentes' }
+  ].map(item => `
+    <div class="wizard-plan-item">
+      <span>${item.label}</span>
+      <strong>${item.value}</strong>
+    </div>
+  `).join('');
+
+  const priceInfo = document.getElementById('clientWizardPriceInfo');
+  if (priceInfo) {
+    const priceLabel = getMostRecentPriceTab()?.label || getMostRecentPriceTab()?.month || 'Precios actuales';
+    priceInfo.textContent = `El valor del coche en sistema (según precios actualizados de ${priceLabel}) es Nominal: ${currency.format(vehicle.basePrice || 0)}.`;
+  }
+  if (clientWizardState.useSystemPrice) {
+    applyWizardPriceSelection();
+  }
+}
+
+function updateWizardTradeInUI() {
+  const field = document.getElementById('clientWizardTradeInField');
+  if (field) field.style.display = clientWizardState.tradeIn ? '' : 'none';
+  document.querySelectorAll('[data-trade-in-choice]').forEach(btn => {
+    const isYes = btn.dataset.tradeInChoice === 'yes';
+    btn.classList.toggle('active', isYes === clientWizardState.tradeIn);
+  });
+}
+
+function applyWizardTradeInSelection() {
+  const tradeInToggle = document.getElementById('tradeIn');
+  const tradeInInput = document.getElementById('tradeInValue');
+  if (tradeInToggle) tradeInToggle.checked = clientWizardState.tradeIn;
+  if (tradeInInput) setMoneyValue(tradeInInput, clientWizardState.tradeInValue || 0);
+  updatePlanSummary();
+}
+
+function updateWizardPriceUI() {
+  const field = document.getElementById('clientWizardCustomPriceField');
+  if (field) field.style.display = clientWizardState.useSystemPrice ? 'none' : '';
+  document.querySelectorAll('[data-price-choice]').forEach(btn => {
+    const isYes = btn.dataset.priceChoice === 'yes';
+    btn.classList.toggle('active', isYes === clientWizardState.useSystemPrice);
+  });
+}
+
+function applyWizardPriceSelection() {
+  const customPriceInput = document.getElementById('customPrice');
+  const modelIdx = clientWizardState.selectedVehicleIndex;
+  const basePrice = vehicles[modelIdx]?.basePrice || 0;
+  if (clientWizardState.useSystemPrice) {
+    clientWizardState.customPrice = basePrice;
+    applyCustomPriceDefaultForModel(modelIdx, { resetManual: true });
+  } else {
+    if (customPriceInput) {
+      setMoneyValue(customPriceInput, clientWizardState.customPrice || basePrice);
+      customPriceInput.dataset.manual = 'true';
+    }
+  }
+  updatePlanSummary();
+}
+
+function renderWizardSummary() {
+  const container = document.getElementById('clientWizardSummary');
+  if (!container) return;
+  const client = managerClients.find(c => c.id === clientWizardState.selectedClientId);
+  const vehicle = vehicles[clientWizardState.selectedVehicleIndex] || vehicles[0];
+  const planType = getPlanTypeForVehicle(vehicle);
+  const planLabelValue = resolveVehiclePlanLabel(vehicle, planType);
+  const tradeInValue = clientWizardState.tradeIn ? currency.format(clientWizardState.tradeInValue || 0) : 'No aplica';
+  const priceValue = clientWizardState.useSystemPrice
+    ? currency.format(vehicle?.basePrice || 0)
+    : currency.format(clientWizardState.customPrice || 0);
+  container.innerHTML = `
+    <div class="wizard-summary-card">
+      <h4>Cliente seleccionado</h4>
+      <div class="wizard-summary-grid">
+        <div class="wizard-summary-row"><span>Cliente</span><strong>${client?.name || 'Sin seleccionar'}</strong></div>
+        <div class="wizard-summary-row"><span>Teléfono</span><strong>${formatPhoneDisplay(client?.phone) || 'Sin teléfono'}</strong></div>
+        <div class="wizard-summary-row"><span>Modelo actual</span><strong>${client?.model || 'Sin modelo'}</strong></div>
+      </div>
+    </div>
+    <div class="wizard-summary-card">
+      <h4>Auto a cotizar</h4>
+      <div class="wizard-summary-grid">
+        <div class="wizard-summary-row"><span>Marca</span><strong>${normalizeBrand(vehicle?.brand || '')}</strong></div>
+        <div class="wizard-summary-row"><span>Modelo</span><strong>${vehicle?.name || '-'}</strong></div>
+        <div class="wizard-summary-row"><span>Tipo de plan</span><strong>${planLabelValue || planLabel(planType)}</strong></div>
+      </div>
+    </div>
+    <div class="wizard-summary-card">
+      <h4>Condiciones</h4>
+      <div class="wizard-summary-grid">
+        <div class="wizard-summary-row"><span>Llave x llave</span><strong>${clientWizardState.tradeIn ? 'Sí' : 'No'}</strong></div>
+        <div class="wizard-summary-row"><span>Valor llave x llave</span><strong>${tradeInValue}</strong></div>
+        <div class="wizard-summary-row"><span>Valor del coche</span><strong>${priceValue}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+function applyClientWizardSelections() {
+  const client = managerClients.find(c => c.id === clientWizardState.selectedClientId);
+  if (client) applyWizardClientSelection(client);
+  applyWizardVehicleSelection();
+  applyWizardTradeInSelection();
+  applyWizardPriceSelection();
 }
 
 function bindQuoteModal() {
@@ -5489,82 +5995,6 @@ function openResource(path, name = '', download = false) {
   if (download) {
     showToast('Descarga lista', 'success');
   }
-}
-
-function renderClientPickerList() {
-  const list = document.getElementById('clientPickerList');
-  if (!list) return;
-  const search = (document.getElementById('clientPickerSearch')?.value || '').toLowerCase();
-  const filtered = managerClients.filter(c => {
-    const haystack = `${c.name} ${c.model} ${c.phone}`.toLowerCase();
-    return haystack.includes(search);
-  });
-  if (!filtered.length) {
-    list.innerHTML = '<p class="muted">No hay clientes importados.</p>';
-    return;
-  }
-  list.innerHTML = filtered.map(c => {
-    const fecha = formatDateForDisplay(c.birthDate) || '';
-    return `
-      <div class="picker-card" data-picker-id="${c.id}">
-        <strong>${c.name}</strong>
-        <p class="muted">${c.model || 'Sin modelo'}${fecha ? ' · Nac: ' + fecha : ''}</p>
-        <p class="muted">Tel: ${normalizePhone(c.phone) || 'Sin teléfono'}</p>
-      </div>
-    `;
-  }).join('');
-
-  list.querySelectorAll('[data-picker-id]').forEach(card => {
-    if (!card.dataset.bound) {
-      card.addEventListener('click', () => selectClientForPlan(card.dataset.pickerId));
-      card.dataset.bound = 'true';
-    }
-  });
-}
-
-function selectClientForPlan(id) {
-  const client = managerClients.find(c => c.id === id);
-  if (!client) return;
-  selectedPlanClientId = id;
-  document.getElementById('clientName').value = client.name || '';
-  uiState.planDraft.clientName = client.name || '';
-  uiState.planDraft.selectedClientId = id;
-  resolveClientVehicleSelection(client);
-  refreshClientSelectionHint(client);
-  closeClientPicker();
-  persist();
-}
-
-function resolveClientVehicleSelection(client) {
-  const ranking = rankVehiclesForModel(client.model, vehicles);
-  const selection = ranking.filter(opt => opt.score > 0);
-  const options = selection.length ? selection : ranking.slice(0, 5);
-  const select = document.getElementById('planModel');
-  const modal = document.getElementById('clientVehicleModal');
-  const optionsSelect = document.getElementById('clientVehicleOptions');
-  const context = document.getElementById('clientVehicleContext');
-
-  const fallbackIdx = vehicles.findIndex(v => (v.name || '').toLowerCase() === (client.model || '').toLowerCase());
-  const bestIdx = options[0]?.index ?? (fallbackIdx >= 0 ? fallbackIdx : 0);
-
-  if (!modal || !optionsSelect || options.length <= 1) {
-    if (select) select.value = vehicles[bestIdx] ? bestIdx : 0;
-    applyPlanDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
-    applyReservationDefaultsForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
-    applyCustomPriceDefaultForModel(Number(document.getElementById('planModel').value || 0), { resetManual: true });
-    updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
-    updatePlanSummary();
-    return;
-  }
-
-  if (select) select.value = vehicles[bestIdx] ? bestIdx : 0;
-  context.textContent = client.model
-    ? `El cliente tiene asociado el auto: ${client.model}`
-    : 'Selecciona el modelo correspondiente al cliente';
-  optionsSelect.innerHTML = options.map(opt => `<option value="${opt.index}">${opt.name}</option>`).join('');
-  optionsSelect.value = vehicles[bestIdx] ? bestIdx : options[0].index;
-  modal.classList.remove('hidden');
-  requestAnimationFrame(() => modal.classList.add('show'));
 }
 
 function closeClientVehicleModal() {
