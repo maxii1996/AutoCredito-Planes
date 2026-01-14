@@ -6003,7 +6003,7 @@ async function exportQuoteGenerator(format) {
       await new Promise(resolve => requestAnimationFrame(() => resolve()));
       await new Promise(resolve => setTimeout(resolve, 60));
     }
-    const draft = getQuoteGeneratorDraft();
+    const draft = normalizeQuoteGeneratorDraft(getQuoteGeneratorDraft());
     const fileLabel = draft.meta?.quoteNumber || Date.now();
     if (format === 'pdf') {
       if (!window.pdfMake) {
@@ -6092,8 +6092,11 @@ function buildQuoteGeneratorPdfDocument(draft) {
     return original > 0 || amount > 0 || bonification > 0;
   });
   const cuotaPura = draft.cuotaPura || {};
+  const normalizedPayments = Array.isArray(draft.payments)
+    ? draft.payments.filter(row => row && (row.label || row.amount || row.detail))
+    : [];
   const paymentRows = [
-    ...(draft.payments || []),
+    ...normalizedPayments,
     {
       label: 'Cuota pura',
       amount: cuotaPura.amount,
@@ -6165,12 +6168,16 @@ function buildQuoteGeneratorPdfDocument(draft) {
     + estimateLines
     + Math.max(benefits.length, 1)
     + (isVisible('footer') ? 1 : 0);
+  const textDensityScore = densityScore
+    + Math.max(0, estimateLines - 4)
+    + Math.max(0, benefits.length - 4);
   let scale = 1;
-  if (densityScore > 24) scale = 0.95;
-  if (densityScore > 30) scale = 0.9;
-  if (densityScore > 36) scale = 0.85;
-  if (densityScore > 44) scale = 0.8;
+  if (textDensityScore > 24) scale = 0.95;
+  if (textDensityScore > 30) scale = 0.9;
+  if (textDensityScore > 36) scale = 0.85;
+  if (textDensityScore > 44) scale = 0.8;
   const scaledMargin = Math.max(14, Math.round(28 * scale));
+  const canKeepOnSinglePage = textDensityScore <= 34 && estimateLines <= 10 && benefits.length <= 10;
   const content = [
     {
       columns: [
@@ -6287,7 +6294,7 @@ function buildQuoteGeneratorPdfDocument(draft) {
       notes: { fontSize: Math.max(8, Math.round(9 * scale)), color: '#475569', margin: [0, 2, 0, 8] },
       footer: { fontSize: Math.max(7, Math.round(8 * scale)), color: '#475569', margin: [0, 6, 0, 0] }
     },
-    content: [{ stack: content, unbreakable: true }]
+    content: [{ stack: content, ...(canKeepOnSinglePage ? { unbreakable: true } : {}) }]
   };
 }
 
