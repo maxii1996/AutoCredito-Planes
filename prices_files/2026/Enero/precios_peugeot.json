@@ -8,7 +8,7 @@
       "name": "NUEVO 208 ALLURE MT AM 25 (Plan 70/30)",
       "brand": "Peugeot",
       "basePrice": 36180000,
-      "integration": 0,
+      "integration": 10854000,
       "cuotaPura": 211050,
       "planProfile": {
         "label": "70/30 (120 cuotas)",
@@ -37,16 +37,15 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "N°2 y 12 CON EL 30%",
+        "pactada": "N°2 y 12 con el 30%",
         "bonificacion": ""
-      },
-      "anticipo": 10854000
+      }
     },
     {
       "name": "NUEVO 208 ALLURE MT AM 25 (Plan 80/20)",
       "brand": "Peugeot",
       "basePrice": 36180000,
-      "integration": 0,
+      "integration": 10854000,
       "cuotaPura": 344571,
       "planProfile": {
         "label": "80/20 (84 cuotas)",
@@ -75,16 +74,15 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "N°2,6,9 Y 12 CON 30%",
+        "pactada": "2, 6, 9 y 12 con 30%",
         "bonificacion": ""
-      },
-      "anticipo": 10854000
+      }
     },
     {
-      "name": "NUEVO 208 ALLURE AT (Plan 80/20)",
+      "name": "NUEVO 208 ALLURE AT",
       "brand": "Peugeot",
       "basePrice": 38050000,
-      "integration": 0,
+      "integration": 7610000,
       "cuotaPura": 362381,
       "planProfile": {
         "label": "80/20 (84 cuotas)",
@@ -113,16 +111,15 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "N°2,6,9 Y 12 CON 30% / 20% segun columna",
+        "pactada": "2, 6, 9 y 12 con 20%",
         "bonificacion": ""
-      },
-      "anticipo": 7610000
+      }
     },
     {
-      "name": "PARTNER FURGON CONFORT HDI (Plan 70/30)",
+      "name": "PARTNER FURGON CONFORT HDI",
       "brand": "Peugeot",
       "basePrice": 38070000,
-      "integration": 0,
+      "integration": 11421000,
       "cuotaPura": 317250,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
@@ -151,16 +148,15 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "6, 9 Y 12 CON 30%",
+        "pactada": "6, 9 y 12 con 30%",
         "bonificacion": ""
-      },
-      "anticipo": 11421000
+      }
     },
     {
-      "name": "NUEVA 2008 ACTIVE T200 AT (Plan 80/20)",
+      "name": "NUEVA 2008 ACTIVE T200 AT",
       "brand": "Peugeot",
       "basePrice": 44510000,
-      "integration": 0,
+      "integration": 8902000,
       "cuotaPura": 423905,
       "planProfile": {
         "label": "80/20 (84 cuotas)",
@@ -189,16 +185,15 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "2,6,9 Y 12 CON EL 20%",
+        "pactada": "2, 6, 9 y 12 con 20%",
         "bonificacion": ""
-      },
-      "anticipo": 8902000
+      }
     },
     {
-      "name": "NUEVA 2008 ALLURE T200 AT (Plan 80/20)",
+      "name": "NUEVA 2008 ALLURE T200 AT",
       "brand": "Peugeot",
       "basePrice": 48760000,
-      "integration": 0,
+      "integration": 9752000,
       "cuotaPura": 464381,
       "planProfile": {
         "label": "80/20 (84 cuotas)",
@@ -227,16 +222,15 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "N°2,6,9,12 +20%",
+        "pactada": "2, 6, 9 y 12 con 20%",
         "bonificacion": ""
-      },
-      "anticipo": 9752000
+      }
     },
     {
-      "name": "NUEVO EXPERT L3 HDI (Plan 70/30)",
+      "name": "NUEVO EXPERT L3 HDI",
       "brand": "Peugeot",
       "basePrice": 57500000,
-      "integration": 0,
+      "integration": 17250000,
       "cuotaPura": 479167,
       "planProfile": {
         "label": "70/30 (84 cuotas)",
@@ -265,22 +259,9 @@
         "mode": "pactada"
       },
       "benefits": {
-        "pactada": "6,24 Y 36 CON 30%",
+        "pactada": "6, 24 y 36 con 30%",
         "bonificacion": ""
-      },
-      "anticipo": 17250000
-    }
-  ],
-  "brandSettings": [
-    {
-      "name": "Peugeot",
-      "color": "#a855f7",
-      "planScheme": [
-        { "start": 2, "end": 12 },
-        { "start": 13, "end": 25 },
-        { "start": 26, "end": 84 },
-        { "start": 85, "end": 120 }
-      ]
+      }
     }
   ]
 }
