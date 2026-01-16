@@ -1,0 +1,286 @@
+{
+  "month": "Enero",
+  "year": 2026,
+  "tabId": "2026-enero",
+  "updatedAt": "2026-01-16T00:00:00.000Z",
+  "vehicles": [
+    {
+      "name": "NUEVO 208 ALLURE MT AM 25 (Plan 70/30)",
+      "brand": "Peugeot",
+      "basePrice": 36180000,
+      "integration": 0,
+      "cuotaPura": 211050,
+      "planProfile": {
+        "label": "70/30 (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 120
+      },
+      "availablePlans": ["2a12", "13a25", "26a84", "85a120"],
+      "shareByPlan": {
+        "2a12": 399041,
+        "13a25": 266914,
+        "26a84": 266914,
+        "85a120": 266914,
+        "ctapura": 211050
+      },
+      "reservations": {
+        "1": 1235312,
+        "3": 1605906,
+        "6": 1852968
+      },
+      "withdrawal": {
+        "installments": [2, 12],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "N°2 y 12 CON EL 30%",
+        "bonificacion": ""
+      },
+      "anticipo": 10854000
+    },
+    {
+      "name": "NUEVO 208 ALLURE MT AM 25 (Plan 80/20)",
+      "brand": "Peugeot",
+      "basePrice": 36180000,
+      "integration": 0,
+      "cuotaPura": 344571,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "26a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a25", "26a84"],
+      "shareByPlan": {
+        "2a12": 450245,
+        "13a25": 484982,
+        "26a84": 444371,
+        "85a120": 0,
+        "ctapura": 344571
+      },
+      "reservations": {
+        "1": 1229192,
+        "3": 1597950,
+        "6": 1843788
+      },
+      "withdrawal": {
+        "installments": [2, 6, 9, 12],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "N°2,6,9 Y 12 CON 30%",
+        "bonificacion": ""
+      },
+      "anticipo": 10854000
+    },
+    {
+      "name": "NUEVO 208 ALLURE AT (Plan 80/20)",
+      "brand": "Peugeot",
+      "basePrice": 38050000,
+      "integration": 0,
+      "cuotaPura": 362381,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "26a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a25", "26a84"],
+      "shareByPlan": {
+        "2a12": 542280,
+        "13a25": 578813,
+        "26a84": 439408,
+        "85a120": 0,
+        "ctapura": 362381
+      },
+      "reservations": {
+        "1": 1255712,
+        "3": 1632426,
+        "6": 1883568
+      },
+      "withdrawal": {
+        "installments": [2, 6, 9, 12],
+        "requirementType": "percent",
+        "requirementValue": 0.2,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "N°2,6,9 Y 12 CON 30% / 20% segun columna",
+        "bonificacion": ""
+      },
+      "anticipo": 7610000
+    },
+    {
+      "name": "PARTNER FURGON CONFORT HDI (Plan 70/30)",
+      "brand": "Peugeot",
+      "basePrice": 38070000,
+      "integration": 0,
+      "cuotaPura": 317250,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "26a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a25", "26a84"],
+      "shareByPlan": {
+        "2a12": 495467,
+        "13a25": 527450,
+        "26a84": 388421,
+        "85a120": 0,
+        "ctapura": 317250
+      },
+      "reservations": {
+        "1": 1210600,
+        "3": 1573780,
+        "6": 1815900
+      },
+      "withdrawal": {
+        "installments": [6, 9, 12],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "6, 9 Y 12 CON 30%",
+        "bonificacion": ""
+      },
+      "anticipo": 11421000
+    },
+    {
+      "name": "NUEVA 2008 ACTIVE T200 AT (Plan 80/20)",
+      "brand": "Peugeot",
+      "basePrice": 44510000,
+      "integration": 0,
+      "cuotaPura": 423905,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "26a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a25", "26a84"],
+      "shareByPlan": {
+        "2a12": 553462,
+        "13a25": 596179,
+        "26a84": 546218,
+        "85a120": 0,
+        "ctapura": 423905
+      },
+      "reservations": {
+        "1": 1343600,
+        "3": 1746680,
+        "6": 2015400
+      },
+      "withdrawal": {
+        "installments": [2, 6, 9, 12],
+        "requirementType": "percent",
+        "requirementValue": 0.2,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "2,6,9 Y 12 CON EL 20%",
+        "bonificacion": ""
+      },
+      "anticipo": 8902000
+    },
+    {
+      "name": "NUEVA 2008 ALLURE T200 AT (Plan 80/20)",
+      "brand": "Peugeot",
+      "basePrice": 48760000,
+      "integration": 0,
+      "cuotaPura": 464381,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "26a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a25", "26a84"],
+      "shareByPlan": {
+        "2a12": 692872,
+        "13a25": 739668,
+        "26a84": 562561,
+        "85a120": 0,
+        "ctapura": 464381
+      },
+      "reservations": {
+        "1": 1343600,
+        "3": 1746680,
+        "6": 2015400
+      },
+      "withdrawal": {
+        "installments": [2, 6, 9, 12],
+        "requirementType": "percent",
+        "requirementValue": 0.2,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "N°2,6,9,12 +20%",
+        "bonificacion": ""
+      },
+      "anticipo": 9752000
+    },
+    {
+      "name": "NUEVO EXPERT L3 HDI (Plan 70/30)",
+      "brand": "Peugeot",
+      "basePrice": 57500000,
+      "integration": 0,
+      "cuotaPura": 479167,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "26a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": ["2a12", "13a25", "26a84"],
+      "shareByPlan": {
+        "2a12": 747772,
+        "13a25": 796058,
+        "26a84": 586072,
+        "85a120": 0,
+        "ctapura": 479167
+      },
+      "reservations": {
+        "1": 1516600,
+        "3": 1971580,
+        "6": 2274900
+      },
+      "withdrawal": {
+        "installments": [6, 24, 36],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "6,24 Y 36 CON 30%",
+        "bonificacion": ""
+      },
+      "anticipo": 17250000
+    }
+  ],
+  "brandSettings": [
+    {
+      "name": "Peugeot",
+      "color": "#a855f7",
+      "planScheme": [
+        { "start": 2, "end": 12 },
+        { "start": 13, "end": 25 },
+        { "start": 26, "end": 84 },
+        { "start": 85, "end": 120 }
+      ]
+    }
+  ]
+}
