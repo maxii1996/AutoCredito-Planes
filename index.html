@@ -165,15 +165,20 @@
             </div>
             <div class="field textarea-field">
               <label for="templateBody">Contenido</label>
+              <div class="template-toolbar">
+                <button class="secondary-btn" id="openVariablePicker"><i class='bx bx-code-block'></i>Agregar Dato Dinámico...</button>
+                <p class="muted tiny">Inserta variables con un clic y mantén el mensaje sincronizado.</p>
+              </div>
               <div class="textarea-shell">
+                <div class="template-highlight" id="templateBodyHighlight" aria-hidden="true"></div>
                 <textarea id="templateBody" rows="10" placeholder="Escribe el mensaje con variables"></textarea>
-                <div class="chips inline" id="variableChips"></div>
               </div>
             </div>
             <div class="variables-head">
               <p class="eyebrow">Variables activas</p>
               <p class="muted tiny">Solo las que están en el mensaje.</p>
             </div>
+            <div class="chips" id="activeVariableList"></div>
             <div class="variable-grid" id="variableInputs"></div>
           </div>
         </div>
@@ -1033,6 +1038,7 @@
                 <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
                 <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
                 <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Modo Inteligente</button>
+                <button class="secondary-btn" id="openTemplateCopyModal"><i class='bx bx-copy'></i>Copiar Plantilla...</button>
                 <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
               </div>
             </div>
@@ -1290,17 +1296,17 @@
           <p class="muted tiny" id="assistantHelper"></p>
         </div>
         <div class="assistant-layout" id="contactAssistantCard">
-          <div class="assistant-card" data-tone="cyan">
+          <div class="assistant-card clickable" data-tone="cyan" data-assistant-action="copy-phone" title="Copiar celular">
             <div class="card-head">
               <p class="eyebrow">Teléfono</p>
-              <button class="glow-btn icon-only" id="assistantCopyPhone" data-tone="cyan" title="Copiar celular"><i class='bx bx-copy'></i></button>
+              <span class="pill mini">Clic para copiar</span>
             </div>
             <p class="assistant-value" id="assistantClientPhone">-</p>
           </div>
-          <div class="assistant-card" data-tone="purple">
+          <div class="assistant-card clickable" data-tone="purple" data-assistant-action="copy-message" title="Copiar mensaje">
             <div class="card-head">
-              <p class="eyebrow">Copiar mensaje</p>
-              <button class="glow-btn icon-only" id="assistantCopyMessage" data-tone="purple" title="Copiar mensaje"><i class='bx bx-message-square-dots'></i></button>
+              <p class="eyebrow">Mensaje sugerido</p>
+              <span class="pill mini">Clic para copiar</span>
             </div>
             <p class="muted" id="assistantMessagePreview"></p>
           </div>
@@ -1312,6 +1318,44 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="variablePickerOverlay">
+    <div class="popover wide" id="variablePickerPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Datos dinámicos</p>
+          <h3>Agregar dato dinámico</h3>
+          <p class="muted subtle">Selecciona el dato que quieras insertar en el mensaje.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeVariablePicker"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="template-picker">
+        <div class="search-field">
+          <i class='bx bx-search'></i>
+          <input id="variablePickerSearch" placeholder="Buscar datos dinámicos" />
+        </div>
+        <div class="variable-picker-grid" id="variablePickerList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="templateCopyOverlay">
+    <div class="popover wide" id="templateCopyPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Plantillas rápidas</p>
+          <h3>Copiar plantilla</h3>
+          <p class="muted subtle">Elige la plantilla que quieres copiar sin salir del gestor.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeTemplateCopy"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="template-picker">
+        <div class="search-field">
+          <i class='bx bx-search'></i>
+          <input id="templateCopySearch" placeholder="Buscar plantillas" />
+        </div>
+        <div class="template-copy-grid" id="templateCopyList"></div>
       </div>
     </div>
   </div>
