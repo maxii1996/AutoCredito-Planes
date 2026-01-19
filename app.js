@@ -496,6 +496,7 @@ const defaultActionCatalog = [
   { id: 'favorite', label: 'Favorito', icon: 'bx-star', color: '#f6b04b' },
   { id: 'open_notes', label: 'Notas', icon: 'bx-note', color: '#94a3b8' },
   { id: 'copy_message', label: 'Copiar mensaje', icon: 'bx-message-square-dots', color: '#38bdf8' },
+  { id: 'copy_template', label: 'Copiar plantilla', icon: 'bx-copy-alt', color: '#f59e0b' },
   { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' },
   { id: 'schedule_contact', label: 'Programar contacto', icon: 'bx-calendar-event', color: '#7dd3b0' }
 ];
@@ -2756,6 +2757,10 @@ function buildDynamicVariableMap(client = {}) {
   };
 }
 
+function escapeRegExp(value = '') {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function buildMessageForClient(client) {
   const tpl = initialTemplate();
   if (!tpl) return '';
@@ -2763,7 +2768,19 @@ function buildMessageForClient(client) {
   let content = tpl.body || '';
   extractVariables(content).forEach(key => {
     const value = replacements[key] ?? uiState.variableValues[key] ?? '';
-    const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
+    const regex = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'gi');
+    content = content.replace(regex, value);
+  });
+  return content;
+}
+
+function buildTemplateTextForClient(template, client) {
+  if (!template) return '';
+  const replacements = buildDynamicVariableMap(client);
+  let content = template.body || '';
+  extractVariables(content).forEach(key => {
+    const value = replacements[key] ?? uiState.variableValues[key] ?? '';
+    const regex = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'gi');
     content = content.replace(regex, value);
   });
   return content;
@@ -3709,7 +3726,7 @@ function renderAdvisorNote() {
   }
 }
 
-function renderTemplates() {
+function renderTemplates({ maintainEditor = false } = {}) {
   const list = document.getElementById('templateList');
   const searchInput = document.getElementById('templateSearch');
   if (searchInput && searchInput.value !== uiState.templateSearch) {
@@ -3792,7 +3809,9 @@ function renderTemplates() {
   selectedTemplateId = currentTemplate.id;
   selectedTemplateIndex = templates.findIndex(t => t.id === selectedTemplateId);
   uiState.selectedTemplateIndex = selectedTemplateIndex;
-  loadTemplate(selectedTemplateIndex);
+  if (!maintainEditor) {
+    loadTemplate(selectedTemplateIndex);
+  }
   renderStats();
 }
 
@@ -4072,7 +4091,7 @@ function attachTemplateActions() {
         templates[selectedTemplateIndex].body = bodyValue;
         persist();
         renderVariableInputs(extractVariables(bodyValue));
-        renderTemplates();
+        renderTemplates({ maintainEditor: true });
       }
       updateTemplateBodyHighlight({ preserveSelection: true });
       updatePreview();
@@ -8512,6 +8531,17 @@ function bindContactAssistant() {
   }
 }
 
+let templatePickerClientId = null;
+
+function openTemplatePickerForClient(clientId = null) {
+  const overlay = document.getElementById('templatePickerOverlay');
+  if (!overlay) return;
+  const searchInput = document.getElementById('templatePickerSearch');
+  templatePickerClientId = clientId;
+  renderTemplatePickerList(searchInput?.value || '');
+  toggleFadeOverlay(overlay, true);
+}
+
 function renderTemplatePickerList(search = '') {
   const list = document.getElementById('templatePickerList');
   if (!list) return;
@@ -8541,14 +8571,12 @@ function bindTemplatePicker() {
   const searchInput = document.getElementById('templatePickerSearch');
   const list = document.getElementById('templatePickerList');
 
-  const openPicker = () => {
-    renderTemplatePickerList(searchInput?.value || '');
-    toggleFadeOverlay(overlay, true);
+  const closePicker = () => {
+    templatePickerClientId = null;
+    toggleFadeOverlay(overlay, false);
   };
 
-  const closePicker = () => toggleFadeOverlay(overlay, false);
-
-  if (openBtn) openBtn.addEventListener('click', openPicker);
+  if (openBtn) openBtn.addEventListener('click', () => openTemplatePickerForClient());
   if (closeBtn) closeBtn.addEventListener('click', closePicker);
   if (searchInput) {
     searchInput.addEventListener('input', () => renderTemplatePickerList(searchInput.value));
@@ -8559,7 +8587,16 @@ function bindTemplatePicker() {
       if (!item) return;
       const template = templates.find(t => t.id === item.dataset.id);
       if (!template) return;
-      await copyTemplateContent(template, { showStatus: false });
+      if (templatePickerClientId) {
+        const client = managerClients.find(c => c.id === templatePickerClientId);
+        if (client) {
+          copyText(buildTemplateTextForClient(template, client), 'Plantilla copiada');
+        } else {
+          await copyTemplateContent(template, { showStatus: false });
+        }
+      } else {
+        await copyTemplateContent(template, { showStatus: false });
+      }
       closePicker();
     });
   }
@@ -12199,6 +12236,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'favorite') updateClientFlag(clientId, 'favorite');
   if (actionKey === 'open_notes') openClientNotes(clientId);
   if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
+  if (actionKey === 'copy_template') openTemplatePickerForClient(clientId);
   if (actionKey === 'copy_phone') copyText(normalizePhone(client?.phone || ''), 'Número copiado');
   if (actionKey === 'schedule_contact') openScheduleModal(clientId);
 }
