@@ -135,7 +135,11 @@ const defaultUiState = {
       noNumber: { color: '#f87171', opacity: 0.16 },
       favorite: { color: '#f6b04b', opacity: 0.16 },
       pending: { color: '#9fb1c5', opacity: 0.14 }
-    }
+    },
+    accounts: [
+      { id: 'acct-default', name: 'Planes de Ahorro Argentina', phone: '' }
+    ],
+    activeAccountId: 'acct-default'
   },
   advisorNote: ''
 };
@@ -536,6 +540,7 @@ const presetExportHeaders = [
 const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
+  accountFilter: 'all',
   groupByModel: true,
   dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
@@ -573,7 +578,7 @@ const clientColumnWidths = {
   systemDate: '170px',
   postalCode: '120px',
   type: '170px',
-  status: '180px',
+  status: '260px',
   actions: '340px'
 };
 
@@ -1281,6 +1286,47 @@ function toggleModal(modal, show) {
   } else {
     modal.classList.remove('show');
     setTimeout(() => modal.classList.add('hidden'), 200);
+  }
+}
+
+function toggleAccountManager(show) {
+  const modal = document.getElementById('accountManagerModal');
+  if (!modal) return;
+  if (show) {
+    renderAccountManager();
+  }
+  toggleModal(modal, show);
+}
+
+function renderAccountManager() {
+  const list = document.getElementById('accountManagerList');
+  const nameInput = document.getElementById('accountNameInput');
+  const phoneInput = document.getElementById('accountPhoneInput');
+  const status = document.getElementById('accountManagerStatus');
+  if (!list || !nameInput || !phoneInput) return;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  uiState.globalSettings = settings;
+  const accounts = settings.accounts || [];
+  if (!accountManagerState.selectedId || !accounts.some(acc => acc.id === accountManagerState.selectedId)) {
+    accountManagerState.selectedId = settings.activeAccountId || accounts[0]?.id || null;
+  }
+  list.innerHTML = accounts.map(account => {
+    const activeClass = account.id === accountManagerState.selectedId ? 'active' : '';
+    const phoneLabel = account.phone ? account.phone : 'Sin teléfono';
+    return `
+      <button class="account-manager-tab ${activeClass}" type="button" data-id="${account.id}">
+        <strong>${account.name}</strong>
+        <small>${phoneLabel}</small>
+      </button>
+    `;
+  }).join('');
+
+  const current = accounts.find(acc => acc.id === accountManagerState.selectedId);
+  nameInput.value = current?.name || '';
+  phoneInput.value = current?.phone || '';
+  if (status) {
+    const active = settings.activeAccountId === current?.id;
+    status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
   }
 }
 
@@ -2406,19 +2452,83 @@ function extractVariables(body = '') {
   return Array.from(new Set(vars));
 }
 
+function createAccountId() {
+  return `acct-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeAccount(account = {}) {
+  const name = (account.name || account.label || '').toString().trim();
+  const phone = (account.phone || '').toString().trim();
+  return {
+    id: account.id || createAccountId(),
+    name: name || 'Cuenta sin nombre',
+    phone
+  };
+}
+
+function ensureAccounts(settings = {}) {
+  const base = defaultUiState.globalSettings;
+  let accounts = (settings.accounts || []).map(acc => normalizeAccount(acc));
+  if (!accounts.length) {
+    const fallbackName = settings.advisorName || base.advisorName;
+    accounts = [normalizeAccount({ id: base.activeAccountId || 'acct-default', name: fallbackName, phone: '' })];
+  }
+  const ids = new Set();
+  accounts = accounts.map(acc => {
+    if (ids.has(acc.id)) {
+      return { ...acc, id: createAccountId() };
+    }
+    ids.add(acc.id);
+    return acc;
+  });
+  let activeAccountId = settings.activeAccountId || accounts[0]?.id;
+  if (!accounts.some(acc => acc.id === activeAccountId)) {
+    activeAccountId = accounts[0]?.id;
+  }
+  const activeAccount = accounts.find(acc => acc.id === activeAccountId);
+  return {
+    accounts,
+    activeAccountId,
+    advisorName: activeAccount?.name || settings.advisorName || base.advisorName
+  };
+}
+
 function mergeGlobalSettings(current = {}) {
   const base = defaultUiState.globalSettings;
   const palette = current.statusPalette || {};
+  const accountState = ensureAccounts(current);
   return {
-    advisorName: current.advisorName || base.advisorName,
+    advisorName: accountState.advisorName,
     clientType: current.clientType || base.clientType,
     statusPalette: {
       contacted: { ...base.statusPalette.contacted, ...(palette.contacted || {}) },
       noNumber: { ...base.statusPalette.noNumber, ...(palette.noNumber || {}) },
       favorite: { ...base.statusPalette.favorite, ...(palette.favorite || {}) },
       pending: { ...base.statusPalette.pending, ...(palette.pending || {}) }
-    }
+    },
+    accounts: accountState.accounts,
+    activeAccountId: accountState.activeAccountId
   };
+}
+
+function getActiveAccount(settings = mergeGlobalSettings(uiState.globalSettings)) {
+  return settings.accounts.find(account => account.id === settings.activeAccountId) || settings.accounts[0] || null;
+}
+
+function setActiveAccount(accountId) {
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const nextId = settings.accounts.some(account => account.id === accountId) ? accountId : settings.accounts[0]?.id;
+  uiState.globalSettings.activeAccountId = nextId;
+  const active = getActiveAccount({ ...settings, activeAccountId: nextId });
+  uiState.globalSettings.advisorName = active?.name || uiState.globalSettings.advisorName;
+  persist();
+  renderWelcomeHero();
+  renderClientManager();
+  renderContactLog();
+  const modal = document.getElementById('accountManagerModal');
+  if (modal?.classList.contains('show')) {
+    renderAccountManager();
+  }
 }
 
 function buildDefaultContextMenuVisibility() {
@@ -2504,6 +2614,15 @@ function formatDateTimeForDisplay(value) {
   const datePart = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   const timePart = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
   return `${datePart} - ${timePart}`;
+}
+
+function formatContactMetaLine(value) {
+  if (!value) return 'Sin fecha registrada';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Sin fecha registrada';
+  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `El día: ${day} a las: ${time}`;
 }
 
 function normalizeDateTime(value) {
@@ -2810,6 +2929,7 @@ let brandSettings = normalizeBrandSettings(load('brandSettings') || defaultBrand
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
+let accountManagerState = { selectedId: null };
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let generatedQuotes = load('generatedQuotes') || [];
@@ -2908,6 +3028,7 @@ async function init() {
     attachVehicleToggles();
     bindVehicleEditor();
     bindClientManager();
+    bindAccountManager();
     bindTemplatePicker();
     bindContactAssistant();
     bindScheduleModal();
@@ -3599,41 +3720,32 @@ function renderWelcomeHero() {
   const heading = document.getElementById('dashboardHeading');
   const subtitle = document.getElementById('dashboardSubtitle');
   const helper = document.getElementById('advisorHelper');
-  const input = document.getElementById('advisorInput');
-  const datalist = document.getElementById('advisorSuggestions');
+  const select = document.getElementById('accountSelector');
+  const manageBtn = document.getElementById('openAccountManager');
   if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
-  const advisorRaw = settings.advisorName || '';
+  const activeAccount = getActiveAccount(settings);
+  const advisorRaw = activeAccount?.name || settings.advisorName || '';
   const advisor = advisorRaw.trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
   subtitle.textContent = 'Define quién atiende y ajusta tu jornada.';
   updateSidebarAdvisor(advisor);
-  renderAdvisorSelector(advisorRaw);
-  if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
+  renderAdvisorSelector();
 
-  const suggestions = Array.from(new Set([
-    'Chevrolet Argentina',
-    'Sofía Alvarez',
-    'Martín Rivas',
-    'Agustina Torres',
-    advisor
-  ].filter(Boolean)));
-  if (datalist) {
-    datalist.innerHTML = suggestions.map(name => `<option value="${name}"></option>`).join('');
+  const advisorSelect = document.getElementById('advisorSelector');
+  if (advisorSelect && !advisorSelect.dataset.bound) {
+    advisorSelect.addEventListener('change', () => setActiveAccount(advisorSelect.value));
+    advisorSelect.dataset.bound = 'true';
   }
-
-  if (input && input.value !== advisorRaw) input.value = advisorRaw;
-
-  if (input && !input.dataset.bound) {
-    input.addEventListener('input', () => {
-      uiState.globalSettings.advisorName = input.value.replace(/\s+/g, ' ');
-      persist();
-      renderGlobalSettings();
-      renderWelcomeHero();
-      renderClientManager();
-    });
-    input.dataset.bound = 'true';
+  if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
+  if (select && !select.dataset.bound) {
+    select.addEventListener('change', () => setActiveAccount(select.value));
+    select.dataset.bound = 'true';
+  }
+  if (manageBtn && !manageBtn.dataset.bound) {
+    manageBtn.addEventListener('click', () => toggleAccountManager(true));
+    manageBtn.dataset.bound = 'true';
   }
   bindQuickLinks();
 }
@@ -3643,23 +3755,23 @@ function updateSidebarAdvisor(advisor) {
   if (sidebarLabel) sidebarLabel.textContent = advisor || 'Chevrolet Argentina';
 }
 
-function renderAdvisorSelector(advisor) {
-  const select = document.getElementById('advisorSelector');
-  if (!select) return;
-  const cleanAdvisor = (advisor || '').replace(/\s+/g, ' ').trim();
-  const suggestions = Array.from(new Set([
-    'Chevrolet Argentina',
-    cleanAdvisor
-  ].filter(Boolean)));
-  select.innerHTML = `<option value="" disabled>${cleanAdvisor ? 'Asesor activo' : 'Define el asesor en Inicio'}</option>` +
-    suggestions.map(name => `<option value="${name}">${name}</option>`).join('');
-  select.value = cleanAdvisor || '';
-  select.disabled = true;
+function renderAdvisorSelector() {
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const accounts = settings.accounts || [];
+  const selects = [
+    document.getElementById('advisorSelector'),
+    document.getElementById('accountSelector')
+  ].filter(Boolean);
+  selects.forEach(select => {
+    select.innerHTML = accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
+    select.value = settings.activeAccountId || accounts[0]?.id || '';
+    select.disabled = accounts.length === 0;
+  });
 }
 
 function renderQuickOverview() {
   const steps = [
-    { icon: '🎯', title: 'Selecciona vendedor', text: 'Confirma el nombre activo y sincroniza el panel.', target: 'dashboard' },
+    { icon: '🎯', title: 'Selecciona cuenta', text: 'Confirma la cuenta activa y sincroniza el panel.', target: 'dashboard' },
     { icon: '💬', title: 'Plantillas listas', text: 'Prepara el mensaje inicial con variables y copia en un clic.', target: 'templates' },
     { icon: '🚘', title: 'Valores y reservas', text: 'Revisa precios, integración y reservas disponibles.', target: 'vehicles' },
     { icon: '👥', title: 'Base de clientes', text: 'Agrupa, filtra y prioriza con el gestor dedicado.', target: 'clientManager' }
@@ -3837,6 +3949,7 @@ function getTemplateBodyValue() {
 }
 
 let isTemplateBodyHighlighting = false;
+let templateBodySelection = null;
 
 function captureSelection(container) {
   const selection = window.getSelection();
@@ -3890,7 +4003,15 @@ function updateTemplateBodyHighlight({ preserveSelection = false } = {}) {
   editor.innerHTML = highlightTemplateVariables(text);
   if (!editor.innerHTML) editor.innerHTML = '';
   if (preserveSelection) restoreSelection(editor, selection);
+  if (preserveSelection) templateBodySelection = selection;
   isTemplateBodyHighlighting = false;
+}
+
+function rememberTemplateSelection() {
+  const editor = document.getElementById('templateBody');
+  if (!editor) return;
+  const selection = captureSelection(editor);
+  if (selection) templateBodySelection = selection;
 }
 
 function setTemplateBodyValue(value = '') {
@@ -3946,7 +4067,13 @@ function insertVariable(variable) {
   if (!editor) return;
   const insertion = `{{${variable}}}`;
   editor.focus();
-  const selection = window.getSelection();
+  let selection = window.getSelection();
+  if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode)) {
+    if (templateBodySelection) {
+      restoreSelection(editor, templateBodySelection);
+      selection = window.getSelection();
+    }
+  }
   if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
     const range = selection.getRangeAt(0);
     range.deleteContents();
@@ -3963,6 +4090,7 @@ function insertVariable(variable) {
   if (templates[selectedTemplateIndex]) {
     templates[selectedTemplateIndex].body = updated;
   }
+  rememberTemplateSelection();
   renderVariableInputs(extractVariables(updated));
   updateTemplateBodyHighlight({ preserveSelection: true });
   updatePreview();
@@ -4086,6 +4214,7 @@ function attachTemplateActions() {
   if (templateBody) {
     templateBody.addEventListener('input', () => {
       if (isTemplateBodyHighlighting) return;
+      rememberTemplateSelection();
       const bodyValue = getTemplateBodyValue();
       if (templates[selectedTemplateIndex]) {
         templates[selectedTemplateIndex].body = bodyValue;
@@ -4096,6 +4225,9 @@ function attachTemplateActions() {
       updateTemplateBodyHighlight({ preserveSelection: true });
       updatePreview();
     });
+    templateBody.addEventListener('keyup', rememberTemplateSelection);
+    templateBody.addEventListener('mouseup', rememberTemplateSelection);
+    templateBody.addEventListener('focus', rememberTemplateSelection);
   }
 
   document.getElementById('copyTemplate').addEventListener('click', () => copyTemplateContent());
@@ -4110,6 +4242,7 @@ function attachTemplateActions() {
   if (openDynamicData) {
     openDynamicData.addEventListener('click', (event) => {
       event.stopPropagation();
+      rememberTemplateSelection();
       renderDynamicDataMenu(dynamicSearch?.value || '');
       toggleDynamicDataMenu(true);
       dynamicSearch?.focus();
@@ -8327,7 +8460,7 @@ function bindClientManager() {
     });
   }
 
-  renderAdvisorSelector(mergeGlobalSettings(uiState.globalSettings).advisorName);
+  renderAdvisorSelector();
 
   const search = document.getElementById('clientManagerSearch');
   if (search) {
@@ -8362,6 +8495,18 @@ function bindClientManager() {
     });
   }
   renderStatusFilter();
+
+  const accountFilter = document.getElementById('accountFilter');
+  if (accountFilter) {
+    accountFilter.value = clientManagerState.accountFilter || 'all';
+    accountFilter.addEventListener('change', () => {
+      clientManagerState.accountFilter = accountFilter.value;
+      clientManagerState.pagination.page = 1;
+      persist();
+      renderClientManager();
+    });
+  }
+  renderAccountFilter();
 
   const paginationSelect = document.getElementById('clientPaginationSelect');
   if (paginationSelect) {
@@ -8440,6 +8585,123 @@ function bindClientManager() {
   renderColumnToggles();
 }
 
+function bindAccountManager() {
+  const openBtn = document.getElementById('openAccountManager');
+  const closeBtn = document.getElementById('closeAccountManager');
+  const addBtn = document.getElementById('addAccount');
+  const deleteBtn = document.getElementById('deleteAccount');
+  const list = document.getElementById('accountManagerList');
+  const nameInput = document.getElementById('accountNameInput');
+  const phoneInput = document.getElementById('accountPhoneInput');
+
+  if (openBtn && !openBtn.dataset.bound) {
+    openBtn.addEventListener('click', () => toggleAccountManager(true));
+    openBtn.dataset.bound = 'true';
+  }
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener('click', () => toggleAccountManager(false));
+    closeBtn.dataset.bound = 'true';
+  }
+
+  if (list && !list.dataset.bound) {
+    list.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-id]');
+      if (!target) return;
+      accountManagerState.selectedId = target.dataset.id;
+      renderAccountManager();
+    });
+    list.dataset.bound = 'true';
+  }
+
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.addEventListener('click', () => {
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const newAccount = normalizeAccount({ name: 'Nueva cuenta', phone: '' });
+      uiState.globalSettings.accounts = [...settings.accounts, newAccount];
+      accountManagerState.selectedId = newAccount.id;
+      if (!settings.activeAccountId) {
+        uiState.globalSettings.activeAccountId = newAccount.id;
+        uiState.globalSettings.advisorName = newAccount.name;
+      }
+      persist();
+      renderAccountManager();
+      renderAdvisorSelector();
+      renderWelcomeHero();
+      renderClientManager();
+    });
+    addBtn.dataset.bound = 'true';
+  }
+
+  if (deleteBtn && !deleteBtn.dataset.bound) {
+    deleteBtn.addEventListener('click', () => {
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const accounts = settings.accounts || [];
+      if (accounts.length <= 1) {
+        showToast('Debe existir al menos una cuenta activa.', 'error');
+        return;
+      }
+      const current = accounts.find(acc => acc.id === accountManagerState.selectedId);
+      confirmAction({
+        title: 'Eliminar cuenta',
+        message: `¿Deseas eliminar la cuenta "${current?.name || 'Sin nombre'}"? Esta acción no se puede deshacer.`,
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          const remaining = accounts.filter(acc => acc.id !== accountManagerState.selectedId);
+          const nextActiveId = settings.activeAccountId === accountManagerState.selectedId
+            ? remaining[0]?.id
+            : settings.activeAccountId;
+          uiState.globalSettings.accounts = remaining;
+          uiState.globalSettings.activeAccountId = nextActiveId;
+          const active = remaining.find(acc => acc.id === nextActiveId);
+          if (active) uiState.globalSettings.advisorName = active.name;
+          accountManagerState.selectedId = remaining[0]?.id || null;
+          persist();
+          renderAccountManager();
+          renderAdvisorSelector();
+          renderWelcomeHero();
+          renderClientManager();
+        }
+      });
+    });
+    deleteBtn.dataset.bound = 'true';
+  }
+
+  if (nameInput && !nameInput.dataset.bound) {
+    nameInput.addEventListener('input', () => {
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const accounts = settings.accounts || [];
+      const index = accounts.findIndex(acc => acc.id === accountManagerState.selectedId);
+      if (index < 0) return;
+      const nextName = nameInput.value.trim() || 'Cuenta sin nombre';
+      accounts[index] = { ...accounts[index], name: nextName };
+      uiState.globalSettings.accounts = accounts;
+      if (settings.activeAccountId === accounts[index].id) {
+        uiState.globalSettings.advisorName = nextName;
+      }
+      persist();
+      renderAccountManager();
+      renderAdvisorSelector();
+      renderWelcomeHero();
+      renderClientManager();
+    });
+    nameInput.dataset.bound = 'true';
+  }
+
+  if (phoneInput && !phoneInput.dataset.bound) {
+    phoneInput.addEventListener('input', () => {
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const accounts = settings.accounts || [];
+      const index = accounts.findIndex(acc => acc.id === accountManagerState.selectedId);
+      if (index < 0) return;
+      accounts[index] = { ...accounts[index], phone: phoneInput.value.trim() };
+      uiState.globalSettings.accounts = accounts;
+      persist();
+      renderAccountManager();
+    });
+    phoneInput.dataset.bound = 'true';
+  }
+}
+
 function bindContactAssistant() {
   const openBtn = document.getElementById('openContactAssistant');
   const overlay = document.getElementById('contactAssistantOverlay');
@@ -8496,6 +8758,7 @@ function bindContactAssistant() {
       actionLabel: flag === 'contacted' ? 'Contactado' : 'Número no disponible',
       previousFlags: { ...(current.flags || {}) },
       previousContactDate: current.contactDate || '',
+      previousContactMeta: current.contactMeta ? { ...current.contactMeta } : null,
       previousIndex: clientManagerState.contactAssistant.currentIndex
     };
     updateClientFlag(current.id, flag, true);
@@ -8517,6 +8780,7 @@ function bindContactAssistant() {
       if (!client) return;
       client.flags = { ...(undo.previousFlags || {}) };
       client.contactDate = undo.previousContactDate || '';
+      client.contactMeta = undo.previousContactMeta || null;
       const pending = pendingClientsPool();
       const restoredIndex = pending.findIndex(item => item.id === undo.clientId);
       clientManagerState.contactAssistant.currentIndex = restoredIndex >= 0
@@ -10991,6 +11255,42 @@ function renderStatusFilter() {
   if (label) label.textContent = `${current.label} (${current.count})`;
 }
 
+function accountCounters() {
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const counts = Object.fromEntries((settings.accounts || []).map(account => [account.id, 0]));
+  managerClients.forEach(client => {
+    const status = clientStatus(client);
+    const meta = client.contactMeta;
+    if (status.className === 'status-pending' || !meta?.accountId) return;
+    if (counts[meta.accountId] !== undefined) {
+      counts[meta.accountId] += 1;
+    }
+  });
+  return counts;
+}
+
+function renderAccountFilter() {
+  const select = document.getElementById('accountFilter');
+  const label = document.getElementById('accountFilterLabel');
+  if (!select) return;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const counts = accountCounters();
+  const options = [
+    { value: 'all', label: 'Todas', count: Object.values(counts).reduce((sum, val) => sum + val, 0) }
+  ].concat((settings.accounts || []).map(account => ({
+    value: account.id,
+    label: account.name,
+    count: counts[account.id] || 0
+  })));
+  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
+  if (!options.some(opt => opt.value === clientManagerState.accountFilter)) {
+    clientManagerState.accountFilter = 'all';
+  }
+  select.value = clientManagerState.accountFilter;
+  const current = options.find(opt => opt.value === select.value) || options[0];
+  if (label) label.textContent = `${current.label} (${current.count})`;
+}
+
 function renderDateFilterHelper() {
   const helper = document.getElementById('dateFilterHelper');
   if (!helper) return;
@@ -11057,6 +11357,7 @@ function clientSearchHaystack(client) {
     formatDateForDisplay(client.purchaseDate),
     formatDateForDisplay(client.systemDate),
     formatDateTimeForDisplay(client.contactDate),
+    client.contactMeta?.accountName,
     status
   ];
   return values.filter(Boolean).map(v => v.toString().toLowerCase()).join(' ');
@@ -11065,6 +11366,7 @@ function clientSearchHaystack(client) {
 function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
   const searchActive = !!search;
+  const accountFilter = clientManagerState.accountFilter || 'all';
   return managerClients.filter(c => {
     const status = clientStatus(c).label;
     const matchesSearch = !search || clientSearchHaystack(c).includes(search);
@@ -11078,7 +11380,12 @@ function filteredManagerClients() {
         : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
         : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
     );
-    return matchesSearch && matchesStatus && matchesDate && status !== 'Oculto';
+    const matchesAccount = searchActive ? true : (
+      accountFilter === 'all'
+        ? true
+        : c.contactMeta?.accountId === accountFilter
+    );
+    return matchesSearch && matchesStatus && matchesDate && matchesAccount && status !== 'Oculto';
   });
 }
 
@@ -11090,7 +11397,8 @@ function hasActiveManagerFilters() {
   const search = (clientManagerState.search || '').trim();
   const range = clientManagerState.dateRange || {};
   const status = clientManagerState.statusFilter || 'all';
-  return !!search || !!range.from || !!range.to || (status && status !== 'all');
+  const account = clientManagerState.accountFilter || 'all';
+  return !!search || !!range.from || !!range.to || (status && status !== 'all') || (account && account !== 'all');
 }
 
 function normalizeContactAssistantState() {
@@ -11277,6 +11585,7 @@ function renderClientManager() {
   const bodyContainer = grid.querySelector('.grid-body');
   if (!head || !bodyContainer) return;
   renderStatusFilter();
+  renderAccountFilter();
   renderDateFilterHelper();
   renderSearchNotice();
 
@@ -11318,6 +11627,7 @@ function renderClientManager() {
       const notesActive = hasNotes(c);
       const notesClass = notesActive ? ' has-notes' : '';
       const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
+      const statusMeta = buildStatusMetaHtml(c, status);
       const cells = visibleColumns.map(([key, col]) => `
         <div class="grid-cell" data-label="${col.label}" data-key="${key}" style="--cell-font: var(--pref-font-${key})">
           ${formatCell(key, c)}
@@ -11330,7 +11640,10 @@ function renderClientManager() {
         <div data-id="${c.id}" class="${rowClass}" style="${statusVars}">
           ${cells}
           <div class="grid-cell status-col" data-label="Estado" data-key="status" style="--cell-font: var(--pref-font-status)">
-            <span class="status-pill ${status.className}">${status.label}</span>
+            <div class="status-stack">
+              <span class="status-pill ${status.className}">${status.label}</span>
+              ${statusMeta}
+            </div>
           </div>
           <div class="grid-cell actions-col" data-label="Acciones">${actionsContent}</div>
         </div>`;
@@ -12142,7 +12455,7 @@ function renderGlobalSettings() {
         uiState.globalSettings.advisorName = advisor.value;
         persist();
         renderWelcomeHero();
-        renderAdvisorSelector(advisor.value);
+        renderAdvisorSelector();
       });
       advisor.dataset.bound = 'true';
     }
@@ -12415,10 +12728,31 @@ function updateContactMeta(client) {
   const now = new Date().toISOString();
   client.lastContactStatus = status.label;
   if (status.className !== 'status-pending') {
+    const activeAccount = getActiveAccount();
     client.contactDate = now;
-  } else if (!client.contactDate) {
+    client.contactMeta = {
+      accountId: activeAccount?.id || '',
+      accountName: activeAccount?.name || 'Sin cuenta',
+      timestamp: now
+    };
+  } else {
     client.contactDate = '';
+    client.contactMeta = null;
   }
+}
+
+function buildStatusMetaHtml(client, status) {
+  if (status.className === 'status-pending') return '';
+  const meta = client.contactMeta || {};
+  const accountName = meta.accountName || 'Sin cuenta';
+  const timestamp = meta.timestamp || client.contactDate;
+  const dateLine = formatContactMetaLine(timestamp);
+  return `
+    <div class="status-meta">
+      <div class="status-meta-row"><i class='bx bx-user-circle'></i><strong>${accountName}</strong></div>
+      <div class="status-meta-row"><i class='bx bx-calendar'></i>${dateLine}</div>
+    </div>
+  `;
 }
 
 function updateClientFlag(id, flag, forceValue = null) {

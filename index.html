@@ -85,13 +85,16 @@
               <p class="muted" id="dashboardSubtitle">Define quién atiende y ajusta tu jornada.</p>
               <div class="advisor-card">
                 <div class="field">
-                  <label for="advisorInput">Nombre del vendedor</label>
+                  <label for="accountSelector">Cuenta activa</label>
                   <div class="advisor-input">
-                    <input id="advisorInput" list="advisorSuggestions" placeholder="Ej: Sofía Alvarez" />
-                    <datalist id="advisorSuggestions"></datalist>
+                    <div class="combo-shell">
+                      <i class='bx bx-user-circle'></i>
+                      <select id="accountSelector"></select>
+                    </div>
+                    <button class="secondary-btn" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
                   </div>
                 </div>
-              <p class="muted tiny" id="advisorHelper">Selecciona el nombre de Vendedor que quieres utilizar para Primer Contacto.</p>
+              <p class="muted tiny" id="advisorHelper">Selecciona la cuenta que deseas usar como contacto principal.</p>
               </div>
             <div class="hero-actions tight">
               <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i>Gestor de clientes</button>
@@ -1021,10 +1024,10 @@
           <div class="client-controls">
             <div class="client-top-row">
               <div class="advisor-combo">
-                <div class="combo-head">Asesor activo</div>
+                <div class="combo-head">Cuenta activa</div>
                 <div class="combo-shell">
                   <i class='bx bx-user-voice'></i>
-                  <select id="advisorSelector" disabled></select>
+                  <select id="advisorSelector"></select>
                 </div>
               </div>
               <div class="advisor-filters">
@@ -1041,6 +1044,14 @@
                     <option value="favorite">Favoritos</option>
                     <option value="pending">Pendientes</option>
                   </select>
+                </div>
+                <div class="toggle filter-toggle" title="Filtrar por cuenta de contacto">
+                  <i class='bx bx-user-pin'></i>
+                  <div class="filter-label">
+                    <span class="muted tiny">Contactados por:</span>
+                    <strong id="accountFilterLabel">Todas</strong>
+                  </div>
+                  <select id="accountFilter"></select>
                 </div>
                 <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
@@ -1717,6 +1728,43 @@
       <div class="modal-actions">
         <button id="clientNoteCancel" class="ghost-btn">Cerrar</button>
         <button id="clientNoteSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div id="accountManagerModal" class="modal hidden">
+    <div class="modal-content wide account-manager-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Cuentas múltiples</p>
+          <h3>Gestión de Cuentas</h3>
+          <p class="muted subtle">Crea, edita y organiza todas tus cuentas desde un solo lugar.</p>
+        </div>
+        <button id="closeAccountManager" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="account-manager-body">
+        <aside class="account-manager-nav">
+          <div class="account-manager-actions">
+            <button class="primary-btn ghosted" id="addAccount"><i class='bx bx-plus'></i>Agregar nueva cuenta</button>
+          </div>
+          <div class="account-manager-list" id="accountManagerList"></div>
+        </aside>
+        <div class="account-manager-panel">
+          <div class="field">
+            <label for="accountNameInput">Nombre de la cuenta</label>
+            <input id="accountNameInput" placeholder="Ej: Julián Alvarez" />
+          </div>
+          <div class="field">
+            <label for="accountPhoneInput">Número de teléfono asociado a esta cuenta</label>
+            <input id="accountPhoneInput" placeholder="Ej: 11 2345 6789" />
+          </div>
+          <div class="account-manager-hint muted tiny">Los cambios se guardan automáticamente.</div>
+          <div class="modal-actions with-status">
+            <span class="muted tiny" id="accountManagerStatus"></span>
+            <div class="action-buttons">
+              <button class="ghost-btn danger" id="deleteAccount"><i class='bx bx-trash'></i>Eliminar esta cuenta</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
