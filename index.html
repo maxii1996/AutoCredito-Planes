@@ -87,10 +87,11 @@
                 <div class="field">
                   <label for="accountSelector">Cuenta activa</label>
                   <div class="advisor-input">
-                    <div class="combo-shell">
-                      <i class='bx bx-user-circle'></i>
-                      <select id="accountSelector"></select>
-                    </div>
+                  <div class="combo-shell">
+                    <i class='bx bx-user-circle'></i>
+                    <select id="accountSelector"></select>
+                    <i class='bx bx-chevron-down combo-caret'></i>
+                  </div>
                     <button class="secondary-btn" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
                   </div>
                 </div>
@@ -1028,6 +1029,7 @@
                 <div class="combo-shell">
                   <i class='bx bx-user-voice'></i>
                   <select id="advisorSelector"></select>
+                  <i class='bx bx-chevron-down combo-caret'></i>
                 </div>
               </div>
               <div class="advisor-filters">
@@ -1761,10 +1763,36 @@
           <div class="modal-actions with-status">
             <span class="muted tiny" id="accountManagerStatus"></span>
             <div class="action-buttons">
+              <button class="secondary-btn" id="applyAccountToClients"><i class='bx bx-group'></i>Aplicar esta cuenta a Mis Clientes...</button>
               <button class="ghost-btn danger" id="deleteAccount"><i class='bx bx-trash'></i>Eliminar esta cuenta</button>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+  <div id="accountApplyModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Asignación masiva</p>
+          <h3>Aplicar cuenta a todos los contactos</h3>
+          <p class="muted">Esta función asignará a TODOS TUS CONTACTOS importados la vinculación a esta cuenta. Usar esta opción con precaución.</p>
+        </div>
+        <button id="accountApplyClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="option-stack compact">
+        <label class="option-card checkbox-card">
+          <input type="checkbox" id="accountApplyConfirmCheck">
+          <div>
+            <strong>Se lo que estoy haciendo</strong>
+            <p class="muted tiny">Confirmo que deseo aplicar la vinculación masiva.</p>
+          </div>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="accountApplyCancel" class="ghost-btn">Cancelar</button>
+        <button id="accountApplyConfirm" class="primary-btn" disabled>Aplicar</button>
       </div>
     </div>
   </div>
@@ -2229,6 +2257,16 @@
         <p class="eyebrow">Procesando cambios</p>
         <h3>Procesando cambios... Aguarde un momento.</h3>
         <p class="muted">Estamos ajustando productos, precios y planes.</p>
+      </div>
+    </div>
+  </div>
+  <div id="accountApplyOverlay" class="processing-overlay hidden" aria-live="polite">
+    <div class="processing-card">
+      <span class="processing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Asignación masiva</p>
+        <h3>Aplicando... Aguarda un momento.</h3>
+        <p class="muted">Estamos vinculando la cuenta a tus contactos.</p>
       </div>
     </div>
   </div>

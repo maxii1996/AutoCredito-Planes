@@ -1023,11 +1023,11 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .preferences-section { border: 1px solid var(--border); border-radius: 14px; background: #0f1625; padding: 14px; display: grid; gap: 12px; }
 .preferences-grid { display: grid; gap: 10px; }
 .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: #0b1120; flex-wrap: wrap; }
-.account-manager-modal { width: min(980px, 96vw); max-height: 90vh; }
+.account-manager-modal { width: min(980px, 96vw); max-height: min(86vh, 720px); }
 .account-manager-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; }
 .account-manager-nav { display: grid; gap: 12px; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: #0b1120; align-content: start; }
 .account-manager-actions { display: grid; gap: 8px; }
-.account-manager-list { display: grid; gap: 8px; }
+.account-manager-list { display: grid; gap: 8px; max-height: min(320px, 45vh); overflow-y: auto; padding-right: 4px; }
 .account-manager-tab { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
 .account-manager-tab:hover { border-color: rgba(148,163,184,0.4); background: rgba(148,163,184,0.08); }
 .account-manager-tab.active { border-color: rgba(246,176,75,0.55); background: rgba(246,176,75,0.12); }
@@ -1083,8 +1083,10 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .advisor-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; flex: 1 1 0; }
 .client-controls .ghost-btn { white-space: nowrap; }
 .combo-head { font-size: 12px; letter-spacing: 0.3px; color: var(--muted); text-transform: uppercase; }
-.combo-shell { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, rgba(255, 183, 3, 0.08), rgba(15, 22, 37, 0.92)); box-shadow: 0 10px 28px rgba(0,0,0,0.35); }
-.combo-shell select { background: #0e1626; border: 1px solid rgba(255,255,255,0.08); color: var(--text); font-weight: 600; width: 100%; padding: 10px; border-radius: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); appearance: none; }
+.combo-shell { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(148,163,184,0.35); border-radius: 14px; background: linear-gradient(135deg, rgba(255, 183, 3, 0.14), rgba(15, 23, 42, 0.92)); box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45); }
+.combo-shell select { flex: 1; background: #0e1626; border: 1px solid rgba(255,255,255,0.08); color: var(--text); font-weight: 600; width: 100%; padding: 10px 36px 10px 12px; border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); appearance: none; cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.combo-shell select:focus { outline: none; border-color: rgba(59, 130, 246, 0.55); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18); }
+.combo-shell .combo-caret { position: absolute; right: 16px; font-size: 18px; color: rgba(226,232,240,0.8); pointer-events: none; }
 .combo-shell select:disabled { opacity: 0.7; cursor: not-allowed; }
 .combo-shell select option { background: #111a2c; color: var(--text); font-weight: 600; }
 .combo-shell i { color: var(--muted); }

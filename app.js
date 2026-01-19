@@ -1336,6 +1336,31 @@ function showProcessingOverlay(show) {
   overlay.classList.toggle('hidden', !show);
 }
 
+function showAccountApplyOverlay(show) {
+  const overlay = document.getElementById('accountApplyOverlay');
+  if (!overlay) return;
+  overlay.classList.toggle('hidden', !show);
+}
+
+function applyAccountToAllClients(account) {
+  if (!account) return 0;
+  const now = new Date().toISOString();
+  managerClients = (managerClients || []).map(client => {
+    const meta = client.contactMeta || {};
+    const timestamp = meta.timestamp || client.contactDate || now;
+    return {
+      ...client,
+      contactMeta: {
+        ...meta,
+        accountId: account.id,
+        accountName: account.name,
+        timestamp
+      }
+    };
+  });
+  return managerClients.length;
+}
+
 function openImportDateModal() {
   return new Promise((resolve) => {
     const modal = document.getElementById('importDateModal');
@@ -2930,6 +2955,8 @@ let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
 let accountManagerState = { selectedId: null };
+let accountManagerTimers = { name: null, phone: null };
+let accountApplyState = { isRunning: false };
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let generatedQuotes = load('generatedQuotes') || [];
@@ -4068,14 +4095,17 @@ function insertVariable(variable) {
   const insertion = `{{${variable}}}`;
   editor.focus();
   let selection = window.getSelection();
-  if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode)) {
-    if (templateBodySelection) {
-      restoreSelection(editor, templateBodySelection);
-      selection = window.getSelection();
+  let range = null;
+  if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
+    range = selection.getRangeAt(0);
+  } else if (templateBodySelection) {
+    restoreSelection(editor, templateBodySelection);
+    selection = window.getSelection();
+    if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
+      range = selection.getRangeAt(0);
     }
   }
-  if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
-    const range = selection.getRangeAt(0);
+  if (range) {
     range.deleteContents();
     const node = document.createTextNode(insertion);
     range.insertNode(node);
@@ -4228,6 +4258,7 @@ function attachTemplateActions() {
     templateBody.addEventListener('keyup', rememberTemplateSelection);
     templateBody.addEventListener('mouseup', rememberTemplateSelection);
     templateBody.addEventListener('focus', rememberTemplateSelection);
+    templateBody.addEventListener('blur', rememberTemplateSelection);
   }
 
   document.getElementById('copyTemplate').addEventListener('click', () => copyTemplateContent());
@@ -4275,6 +4306,18 @@ function attachTemplateActions() {
     persist();
     renderTemplates();
   });
+
+  if (!document.body.dataset.templateSelectionBound) {
+    document.addEventListener('selectionchange', () => {
+      const editor = document.getElementById('templateBody');
+      if (!editor) return;
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount) return;
+      if (!editor.contains(selection.anchorNode)) return;
+      templateBodySelection = captureSelection(editor);
+    });
+    document.body.dataset.templateSelectionBound = 'true';
+  }
 }
 
 function renderPriceTabs() {
@@ -8590,9 +8633,11 @@ function bindAccountManager() {
   const closeBtn = document.getElementById('closeAccountManager');
   const addBtn = document.getElementById('addAccount');
   const deleteBtn = document.getElementById('deleteAccount');
+  const applyBtn = document.getElementById('applyAccountToClients');
   const list = document.getElementById('accountManagerList');
   const nameInput = document.getElementById('accountNameInput');
   const phoneInput = document.getElementById('accountPhoneInput');
+  const status = document.getElementById('accountManagerStatus');
 
   if (openBtn && !openBtn.dataset.bound) {
     openBtn.addEventListener('click', () => toggleAccountManager(true));
@@ -8666,6 +8711,19 @@ function bindAccountManager() {
     deleteBtn.dataset.bound = 'true';
   }
 
+  if (applyBtn && !applyBtn.dataset.bound) {
+    applyBtn.addEventListener('click', () => {
+      const modal = document.getElementById('accountApplyModal');
+      const checkbox = document.getElementById('accountApplyConfirmCheck');
+      const confirmBtn = document.getElementById('accountApplyConfirm');
+      if (!modal || !checkbox || !confirmBtn) return;
+      checkbox.checked = false;
+      confirmBtn.disabled = true;
+      toggleModal(modal, true);
+    });
+    applyBtn.dataset.bound = 'true';
+  }
+
   if (nameInput && !nameInput.dataset.bound) {
     nameInput.addEventListener('input', () => {
       const settings = mergeGlobalSettings(uiState.globalSettings);
@@ -8678,11 +8736,20 @@ function bindAccountManager() {
       if (settings.activeAccountId === accounts[index].id) {
         uiState.globalSettings.advisorName = nextName;
       }
-      persist();
-      renderAccountManager();
-      renderAdvisorSelector();
-      renderWelcomeHero();
-      renderClientManager();
+      const listLabel = list?.querySelector(`[data-id="${accountManagerState.selectedId}"] strong`);
+      if (listLabel) listLabel.textContent = nextName;
+      if (status) status.textContent = 'Guardando cambios...';
+      clearTimeout(accountManagerTimers.name);
+      accountManagerTimers.name = setTimeout(() => {
+        persist();
+        renderAdvisorSelector();
+        renderWelcomeHero();
+        renderClientManager();
+        if (status) {
+          const active = settings.activeAccountId === accounts[index].id;
+          status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
+        }
+      }, 320);
     });
     nameInput.dataset.bound = 'true';
   }
@@ -8695,10 +8762,70 @@ function bindAccountManager() {
       if (index < 0) return;
       accounts[index] = { ...accounts[index], phone: phoneInput.value.trim() };
       uiState.globalSettings.accounts = accounts;
-      persist();
-      renderAccountManager();
+      const listLabel = list?.querySelector(`[data-id="${accountManagerState.selectedId}"] small`);
+      if (listLabel) listLabel.textContent = accounts[index].phone || 'Sin teléfono';
+      if (status) status.textContent = 'Guardando cambios...';
+      clearTimeout(accountManagerTimers.phone);
+      accountManagerTimers.phone = setTimeout(() => {
+        persist();
+        if (status) {
+          const active = settings.activeAccountId === accounts[index].id;
+          status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
+        }
+      }, 320);
     });
     phoneInput.dataset.bound = 'true';
+  }
+
+  const applyModal = document.getElementById('accountApplyModal');
+  const applyCancel = document.getElementById('accountApplyCancel');
+  const applyClose = document.getElementById('accountApplyClose');
+  const applyConfirm = document.getElementById('accountApplyConfirm');
+  const applyCheck = document.getElementById('accountApplyConfirmCheck');
+
+  if (applyCheck && !applyCheck.dataset.bound) {
+    applyCheck.addEventListener('change', () => {
+      if (applyConfirm) applyConfirm.disabled = !applyCheck.checked;
+    });
+    applyCheck.dataset.bound = 'true';
+  }
+
+  const closeApplyModal = () => {
+    if (applyModal) toggleModal(applyModal, false);
+  };
+  if (applyCancel && !applyCancel.dataset.bound) {
+    applyCancel.addEventListener('click', closeApplyModal);
+    applyCancel.dataset.bound = 'true';
+  }
+  if (applyClose && !applyClose.dataset.bound) {
+    applyClose.addEventListener('click', closeApplyModal);
+    applyClose.dataset.bound = 'true';
+  }
+
+  if (applyConfirm && !applyConfirm.dataset.bound) {
+    applyConfirm.addEventListener('click', () => {
+      if (accountApplyState.isRunning) return;
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const account = settings.accounts.find(acc => acc.id === accountManagerState.selectedId)
+        || settings.accounts[0];
+      if (!account) return;
+      accountApplyState.isRunning = true;
+      closeApplyModal();
+      showAccountApplyOverlay(true);
+      setTimeout(() => {
+        try {
+          const total = applyAccountToAllClients(account);
+          persist();
+          renderClientManager();
+          renderAccountManager();
+          showToast(`Cuenta aplicada a ${total} contactos.`, 'success');
+        } finally {
+          showAccountApplyOverlay(false);
+          accountApplyState.isRunning = false;
+        }
+      }, 1000);
+    });
+    applyConfirm.dataset.bound = 'true';
   }
 }
 
