@@ -340,8 +340,72 @@ const decemberVehicles = [
 
 const defaultVehicles = decemberVehicles;
 
-const variableSuggestions = [
-  'cliente', 'asesor', 'modelo_actual', 'modelo_nuevo', 'anio_retiro', 'km', 'plan', 'cuota', 'entrega_usado', 'color', 'sucursal', 'telefono', 'valor_efectivo'
+const dynamicVariableCatalog = [
+  {
+    group: 'Cliente',
+    items: [
+      { key: 'cliente', label: 'Nombre del cliente' },
+      { key: 'telefono', label: 'Celular' },
+      { key: 'telefono_limpio', label: 'Celular sin formato' },
+      { key: 'dni', label: 'DNI' },
+      { key: 'cuil', label: 'CUIL' },
+      { key: 'cuit', label: 'CUIT' },
+      { key: 'fecha_nacimiento', label: 'Fecha de nacimiento' },
+      { key: 'edad', label: 'Edad' },
+      { key: 'fecha_compra', label: 'Fecha de compra' },
+      { key: 'fecha_carga', label: 'Fecha de carga' },
+      { key: 'fecha_contacto', label: 'Último contacto' },
+      { key: 'localidad', label: 'Localidad' },
+      { key: 'provincia', label: 'Provincia' },
+      { key: 'ciudad', label: 'Ciudad' },
+      { key: 'cp', label: 'Código postal' },
+      { key: 'modelo_actual', label: 'Modelo actual' },
+      { key: 'marca_actual', label: 'Marca actual' },
+      { key: 'plan', label: 'Plan del cliente' },
+      { key: 'cuota', label: 'Cuota actual' },
+      { key: 'tipo', label: 'Tipo/Notas del cliente' },
+      { key: 'notas', label: 'Notas del cliente' },
+      { key: 'estado', label: 'Estado del cliente' },
+      { key: 'anio_retiro', label: 'Año de retiro' },
+      { key: 'km', label: 'Kilometraje' },
+      { key: 'entrega_usado', label: 'Entrega usado (Sí/No)' },
+      { key: 'valor_efectivo', label: 'Valor efectivo del usado' }
+    ]
+  },
+  {
+    group: 'Asesor',
+    items: [
+      { key: 'asesor', label: 'Nombre del asesor' }
+    ]
+  },
+  {
+    group: 'Plan y vehículo nuevo',
+    items: [
+      { key: 'modelo_nuevo', label: 'Modelo nuevo' },
+      { key: 'marca_nuevo', label: 'Marca nuevo' },
+      { key: 'plan_tipo', label: 'Tipo de plan' },
+      { key: 'cuotas_maximas', label: 'Cantidad de cuotas' },
+      { key: 'precio_lista', label: 'Precio de lista' },
+      { key: 'integracion', label: 'Integración' },
+      { key: 'cuota_pura', label: 'Cuota pura' },
+      { key: 'reserva_1', label: 'Reserva 1' },
+      { key: 'reserva_3', label: 'Reserva 3' },
+      { key: 'reserva_6', label: 'Reserva 6' },
+      { key: 'monto_adelantado', label: 'Monto adelantado' },
+      { key: 'precio_personalizado', label: 'Precio personalizado' },
+      { key: 'valor_usado', label: 'Valor usado' }
+    ]
+  },
+  {
+    group: 'Fechas',
+    items: [
+      { key: 'fecha_hoy', label: 'Fecha de hoy' },
+      { key: 'fecha_hoy_iso', label: 'Fecha de hoy (ISO)' },
+      { key: 'hora_hoy', label: 'Hora actual' },
+      { key: 'mes_actual', label: 'Mes actual' },
+      { key: 'anio_actual', label: 'Año actual' }
+    ]
+  }
 ];
 
 const planTerms = {
@@ -354,6 +418,26 @@ const planTerms = {
 
 const PLAN_TYPES = ['2a12', '13a21', '22a84', '85a120', 'ctapura'];
 const PLAN_START_INSTALLMENT = 2;
+
+const dynamicVariableIndex = dynamicVariableCatalog.reduce((acc, group) => {
+  group.items.forEach(item => acc.set(item.key, item));
+  return acc;
+}, new Map());
+
+function resolveDynamicVariableLabel(key) {
+  return dynamicVariableIndex.get(key)?.label || key;
+}
+
+function filterDynamicVariableCatalog(search = '') {
+  const term = (search || '').trim().toLowerCase();
+  if (!term) return dynamicVariableCatalog;
+  return dynamicVariableCatalog
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => item.key.toLowerCase().includes(term) || item.label.toLowerCase().includes(term))
+    }))
+    .filter(group => group.items.length);
+}
 
 function resolveMaxInstallments(maxInstallments, fallbackPlanType = '85a120') {
   const raw = Number(maxInstallments);
@@ -2585,27 +2669,97 @@ function initialTemplate() {
   return templates.find(t => (t.title || '').toLowerCase().includes('inicio')) || templates[0];
 }
 
-function buildMessageForClient(client) {
-  const tpl = initialTemplate();
-  if (!tpl) return '';
+function formatCurrencyValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '';
+  return currency.format(numeric);
+}
+
+function resolveAge(value) {
+  const date = parseExcelDate(value);
+  if (!date) return '';
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  return age > 0 ? String(age) : '';
+}
+
+function resolvePlanDraftVehicle() {
+  const index = Number(uiState.planDraft?.planModel);
+  if (!Number.isFinite(index)) return null;
+  return vehicles[index] || null;
+}
+
+function buildDynamicVariableMap(client = {}) {
   const globalSettings = mergeGlobalSettings(uiState.globalSettings);
   const year = extractYear(client.purchaseDate || client.birthDate || '');
   const noteValue = normalizeNotesValue(client.type);
   const defaultNote = normalizeNotesValue(globalSettings.clientType);
   const noteForMessage = noteValue !== '-' ? noteValue : (defaultNote !== '-' ? defaultNote : '');
-  const replacements = {
+  const status = clientStatus(client).label || '';
+  const planVehicle = resolvePlanDraftVehicle();
+  const planType = uiState.planDraft?.planType || (planVehicle ? getPlanTypeForVehicle(planVehicle) : '');
+  const today = new Date();
+  const todayIso = formatLocalISO(today);
+  const monthLabel = today.toLocaleDateString('es-AR', { month: 'long' });
+  const hasTradeIn = client.tradeIn !== undefined ? client.tradeIn : uiState.planDraft?.tradeIn;
+  const tradeInValue = client.tradeInValue ?? uiState.planDraft?.tradeInValue ?? '';
+  return {
     cliente: client.name || '',
     asesor: globalSettings.advisorName || '',
-    tipo: noteForMessage,
+    telefono: formatPhoneDisplay(client.phone || '') || client.phone || '',
+    telefono_limpio: normalizePhone(client.phone || ''),
+    dni: formatDniValue(client.document || client.dni || ''),
+    cuil: formatCuilValue(client.cuit || client.cuil || ''),
+    cuit: formatCuilValue(client.cuit || client.cuil || ''),
+    fecha_nacimiento: formatDateForDisplay(client.birthDate) || '',
+    edad: resolveAge(client.birthDate),
+    fecha_compra: formatDateForDisplay(client.purchaseDate) || '',
+    fecha_carga: formatDateForDisplay(client.systemDate) || '',
+    fecha_contacto: formatDateTimeForDisplay(client.contactDate) || '',
+    localidad: client.city || '',
+    provincia: client.province || '',
+    ciudad: client.city || '',
+    cp: client.postalCode || '',
     modelo_actual: client.model || client.brand || '',
-    modelo_nuevo: uiState.planDraft?.planModel !== undefined ? vehicles[uiState.planDraft.planModel]?.name : '',
-    telefono: client.phone || '',
+    marca_actual: client.brand || '',
+    plan: client.plan || planType || '',
+    cuota: client.cuota ? formatCurrencyValue(client.cuota) : '',
+    tipo: noteForMessage,
+    notas: noteForMessage,
+    estado: status,
     anio_retiro: year,
-    plan: client.plan || '',
-    cuota: client.cuota ? currency.format(client.cuota) : '',
-    entrega_usado: client.tradeIn ? 'Sí' : 'No',
-    valor_efectivo: client.tradeInValue ? currency.format(client.tradeInValue) : ''
+    km: client.km || '',
+    entrega_usado: hasTradeIn ? 'Sí' : 'No',
+    valor_efectivo: tradeInValue ? formatCurrencyValue(tradeInValue) : '',
+    modelo_nuevo: planVehicle?.name || '',
+    marca_nuevo: planVehicle?.brand || '',
+    plan_tipo: planType ? planLabel(planType) : '',
+    cuotas_maximas: planType ? String(resolveMaxInstallments(planVehicle?.planProfile?.maxInstallments, planType)) : '',
+    precio_lista: formatCurrencyValue(planVehicle?.basePrice || ''),
+    integracion: formatCurrencyValue(planVehicle?.integration || ''),
+    cuota_pura: formatCurrencyValue(planVehicle?.cuotaPura || ''),
+    reserva_1: formatCurrencyValue(uiState.planDraft?.reservation1 || ''),
+    reserva_3: formatCurrencyValue(uiState.planDraft?.reservation3 || ''),
+    reserva_6: formatCurrencyValue(uiState.planDraft?.reservation6 || ''),
+    monto_adelantado: formatCurrencyValue(uiState.planDraft?.advanceAmount || ''),
+    precio_personalizado: formatCurrencyValue(uiState.planDraft?.customPrice || ''),
+    valor_usado: formatCurrencyValue(tradeInValue || ''),
+    fecha_hoy: formatDateLabel(todayIso),
+    fecha_hoy_iso: todayIso,
+    hora_hoy: formatTimeValue(today),
+    mes_actual: monthLabel,
+    anio_actual: String(today.getFullYear())
   };
+}
+
+function buildMessageForClient(client) {
+  const tpl = initialTemplate();
+  if (!tpl) return '';
+  const replacements = buildDynamicVariableMap(client);
   let content = tpl.body || '';
   extractVariables(content).forEach(key => {
     const value = replacements[key] ?? uiState.variableValues[key] ?? '';
@@ -2737,6 +2891,7 @@ async function init() {
     attachVehicleToggles();
     bindVehicleEditor();
     bindClientManager();
+    bindTemplatePicker();
     bindContactAssistant();
     bindScheduleModal();
     bindActionCustomizer();
@@ -3641,11 +3796,96 @@ function renderTemplates() {
   renderStats();
 }
 
+function escapeHtml(value = '') {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function highlightTemplateVariables(text = '') {
+  const escaped = escapeHtml(text).replace(/\r\n/g, '\n');
+  const withBreaks = escaped.replace(/\n/g, '<br>');
+  return withBreaks.replace(/{{(.*?)}}/g, '<span class="dynamic-token">{{$1}}</span>');
+}
+
+function getTemplateBodyValue() {
+  const editor = document.getElementById('templateBody');
+  if (!editor) return '';
+  return editor.innerText.replace(/\r\n/g, '\n');
+}
+
+let isTemplateBodyHighlighting = false;
+
+function captureSelection(container) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!container.contains(range.startContainer)) return null;
+  const preRange = range.cloneRange();
+  preRange.selectNodeContents(container);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  const start = preRange.toString().length;
+  return { start, end: start + range.toString().length };
+}
+
+function restoreSelection(container, selection) {
+  if (!selection) return;
+  const range = document.createRange();
+  let charIndex = 0;
+  let nodeStack = [container];
+  let node;
+  let foundStart = false;
+  let stop = false;
+  while (!stop && (node = nodeStack.pop())) {
+    if (node.nodeType === 3) {
+      const nextIndex = charIndex + node.textContent.length;
+      if (!foundStart && selection.start >= charIndex && selection.start <= nextIndex) {
+        range.setStart(node, selection.start - charIndex);
+        foundStart = true;
+      }
+      if (foundStart && selection.end >= charIndex && selection.end <= nextIndex) {
+        range.setEnd(node, selection.end - charIndex);
+        stop = true;
+      }
+      charIndex = nextIndex;
+    } else {
+      let i = node.childNodes.length;
+      while (i--) nodeStack.push(node.childNodes[i]);
+    }
+  }
+  const sel = window.getSelection();
+  if (!sel) return;
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function updateTemplateBodyHighlight({ preserveSelection = false } = {}) {
+  const editor = document.getElementById('templateBody');
+  if (!editor || isTemplateBodyHighlighting) return;
+  const selection = preserveSelection ? captureSelection(editor) : null;
+  const text = getTemplateBodyValue();
+  isTemplateBodyHighlighting = true;
+  editor.innerHTML = highlightTemplateVariables(text);
+  if (!editor.innerHTML) editor.innerHTML = '';
+  if (preserveSelection) restoreSelection(editor, selection);
+  isTemplateBodyHighlighting = false;
+}
+
+function setTemplateBodyValue(value = '') {
+  const editor = document.getElementById('templateBody');
+  if (!editor) return;
+  editor.textContent = value;
+  updateTemplateBodyHighlight();
+}
+
 function loadTemplate(idx) {
   const tpl = templates[idx] || templates[0] || { title: '', body: '' };
   document.getElementById('templateTitle').value = tpl?.title || '';
-  document.getElementById('templateBody').value = tpl?.body || '';
-  renderVariableInputs(extractVariables(tpl?.body));
+  setTemplateBodyValue(tpl?.body || '');
+  renderVariableInputs(extractVariables(tpl?.body || ''));
   uiState.selectedTemplateIndex = idx;
   persist();
   setTimeout(updatePreview, 0);
@@ -3665,7 +3905,7 @@ function renderVariableInputs(vars = []) {
 
   inputs.innerHTML = vars.map(v => `
     <div class="field inline-variable">
-      <label>${v}</label>
+      <label>${resolveDynamicVariableLabel(v)}</label>
       <input data-var="${v}" placeholder="${v}">
     </div>`).join('');
 
@@ -3683,13 +3923,29 @@ function renderVariableInputs(vars = []) {
 }
 
 function insertVariable(variable) {
-  const textarea = document.getElementById('templateBody');
-  const cursor = textarea.selectionStart || 0;
-  const text = textarea.value;
+  const editor = document.getElementById('templateBody');
+  if (!editor) return;
   const insertion = `{{${variable}}}`;
-  textarea.value = text.slice(0, cursor) + insertion + text.slice(cursor);
-  textarea.focus();
-  renderVariableInputs(extractVariables(textarea.value));
+  editor.focus();
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const node = document.createTextNode(insertion);
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    editor.textContent = `${getTemplateBodyValue()}${insertion}`;
+  }
+  const updated = getTemplateBodyValue();
+  if (templates[selectedTemplateIndex]) {
+    templates[selectedTemplateIndex].body = updated;
+  }
+  renderVariableInputs(extractVariables(updated));
+  updateTemplateBodyHighlight({ preserveSelection: true });
   updatePreview();
 }
 
@@ -3737,26 +3993,56 @@ function buildTemplateText(body, values = getTemplateValues()) {
 }
 
 function updatePreview() {
-  const body = document.getElementById('templateBody').value || '';
+  const body = getTemplateBodyValue();
   const values = getTemplateValues();
   const replaced = buildTemplateText(body, values);
   const preview = document.getElementById('templatePreview');
   if (preview) {
-    preview.textContent = replaced;
+    preview.innerHTML = highlightTemplateVariables(replaced);
   }
 }
 
-async function copyTemplateContent(template = templates[selectedTemplateIndex]) {
+async function copyTemplateContent(template = templates[selectedTemplateIndex], { showStatus = true } = {}) {
   if (!template) return;
   const values = getTemplateValues();
   const text = buildTemplateText(template.body, values);
-  await navigator.clipboard.writeText(text);
-  const status = document.getElementById('copyStatus');
-  if (status) {
-    status.textContent = 'Plantilla copiada con variables aplicadas';
-    setTimeout(() => status.textContent = '', 2000);
+  await copyText(text, 'Plantilla copiada');
+  if (showStatus) {
+    const status = document.getElementById('copyStatus');
+    if (status) {
+      status.textContent = 'Plantilla copiada con variables aplicadas';
+      setTimeout(() => status.textContent = '', 2000);
+    }
   }
-  showToast('Plantilla copiada', 'success');
+}
+
+function renderDynamicDataMenu(search = '') {
+  const list = document.getElementById('dynamicDataList');
+  if (!list) return;
+  const groups = filterDynamicVariableCatalog(search);
+  if (!groups.length) {
+    list.innerHTML = '<p class="muted tiny">No se encontraron variables con ese criterio.</p>';
+    return;
+  }
+  list.innerHTML = groups.map(group => `
+    <div class="dynamic-data-group">
+      <div class="dynamic-data-group-title">${group.group}</div>
+      <div class="dynamic-data-items">
+        ${group.items.map(item => `
+          <button class="dynamic-data-item" type="button" data-var="${item.key}">
+            <span>${item.label}</span>
+            <span class="pill">{{${item.key}}}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleDynamicDataMenu(show) {
+  const panel = document.getElementById('dynamicDataPanel');
+  if (!panel) return;
+  panel.classList.toggle('hidden', !show);
 }
 
 function attachTemplateActions() {
@@ -3777,17 +4063,56 @@ function attachTemplateActions() {
     }
   });
 
-  document.getElementById('templateBody').addEventListener('input', () => {
-    if (templates[selectedTemplateIndex]) {
-      templates[selectedTemplateIndex].body = document.getElementById('templateBody').value;
-      persist();
+  const templateBody = document.getElementById('templateBody');
+  if (templateBody) {
+    templateBody.addEventListener('input', () => {
+      if (isTemplateBodyHighlighting) return;
+      const bodyValue = getTemplateBodyValue();
+      if (templates[selectedTemplateIndex]) {
+        templates[selectedTemplateIndex].body = bodyValue;
+        persist();
+        renderVariableInputs(extractVariables(bodyValue));
+        renderTemplates();
+      }
+      updateTemplateBodyHighlight({ preserveSelection: true });
       updatePreview();
-      renderVariableInputs(extractVariables(templates[selectedTemplateIndex].body));
-      renderTemplates();
-    }
-  });
+    });
+  }
 
   document.getElementById('copyTemplate').addEventListener('click', () => copyTemplateContent());
+
+  const openDynamicData = document.getElementById('openDynamicData');
+  const closeDynamicData = document.getElementById('closeDynamicData');
+  const dynamicSearch = document.getElementById('dynamicDataSearch');
+  const dynamicList = document.getElementById('dynamicDataList');
+  if (dynamicSearch) {
+    dynamicSearch.addEventListener('input', () => renderDynamicDataMenu(dynamicSearch.value));
+  }
+  if (openDynamicData) {
+    openDynamicData.addEventListener('click', (event) => {
+      event.stopPropagation();
+      renderDynamicDataMenu(dynamicSearch?.value || '');
+      toggleDynamicDataMenu(true);
+      dynamicSearch?.focus();
+    });
+  }
+  if (closeDynamicData) {
+    closeDynamicData.addEventListener('click', () => toggleDynamicDataMenu(false));
+  }
+  if (dynamicList) {
+    dynamicList.addEventListener('click', (event) => {
+      const item = event.target.closest('[data-var]');
+      if (!item) return;
+      insertVariable(item.dataset.var);
+      toggleDynamicDataMenu(false);
+    });
+  }
+  document.addEventListener('click', (event) => {
+    const panel = document.getElementById('dynamicDataPanel');
+    if (!panel || panel.classList.contains('hidden')) return;
+    if (panel.contains(event.target) || openDynamicData?.contains(event.target)) return;
+    toggleDynamicDataMenu(false);
+  });
 
   document.getElementById('addTemplate').addEventListener('click', () => {
     const id = `tpl-${Date.now()}`;
@@ -8100,11 +8425,10 @@ function bindContactAssistant() {
   const openBtn = document.getElementById('openContactAssistant');
   const overlay = document.getElementById('contactAssistantOverlay');
   const closeBtn = document.getElementById('closeContactAssistant');
-  const copyPhoneBtn = document.getElementById('assistantCopyPhone');
-  const copyMsgBtn = document.getElementById('assistantCopyMessage');
   const markContactedBtn = document.getElementById('assistantMarkContacted');
   const markNoNumberBtn = document.getElementById('assistantMarkNoNumber');
   const undoBtn = document.getElementById('assistantUndoBtn');
+  const actionCards = Array.from(document.querySelectorAll('[data-assistant-action]'));
 
   const openAssistant = () => {
     renderContactAssistant();
@@ -8118,17 +8442,30 @@ function bindContactAssistant() {
   if (openBtn) openBtn.addEventListener('click', openAssistant);
   if (closeBtn) closeBtn.addEventListener('click', closeAssistant);
 
-  if (copyPhoneBtn) copyPhoneBtn.addEventListener('click', () => {
+  const handleAssistantAction = (action) => {
     const { current } = assistantContext();
     if (!current) return;
-    copyText(normalizePhone(current.phone || ''), 'Número copiado');
-  });
+    if (action === 'copy_phone') {
+      copyText(normalizePhone(current.phone || ''), 'Número copiado');
+    }
+    if (action === 'copy_message') {
+      const message = buildMessageForClient(current);
+      copyText(message, 'Mensaje copiado');
+    }
+  };
 
-  if (copyMsgBtn) copyMsgBtn.addEventListener('click', () => {
-    const { current } = assistantContext();
-    if (!current) return;
-    const message = buildMessageForClient(current);
-    copyText(message, 'Mensaje copiado');
+  actionCards.forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.classList.contains('is-disabled')) return;
+      handleAssistantAction(card.dataset.assistantAction);
+    });
+    card.addEventListener('keydown', (event) => {
+      if (card.classList.contains('is-disabled')) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        handleAssistantAction(card.dataset.assistantAction);
+      }
+    });
   });
 
   const markAndAdvance = (flag) => {
@@ -8172,6 +8509,59 @@ function bindContactAssistant() {
       renderContactAssistant('slide-left');
     });
     undoBtn.dataset.bound = 'true';
+  }
+}
+
+function renderTemplatePickerList(search = '') {
+  const list = document.getElementById('templatePickerList');
+  if (!list) return;
+  const term = (search || '').toLowerCase();
+  const filtered = templates.filter(t => (t.title || '').toLowerCase().includes(term) || (t.body || '').toLowerCase().includes(term));
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted">No hay plantillas que coincidan.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map(template => {
+    const body = template.body || '';
+    const preview = `${body.slice(0, 140)}${body.length > 140 ? '…' : ''}`;
+    return `
+    <button class="template-picker-item" type="button" data-id="${template.id}">
+      <strong>${template.title || 'Plantilla sin título'}</strong>
+      <p class="muted">${preview}</p>
+      <span class="pill">${extractVariables(body).length || 0} variables</span>
+    </button>
+  `;
+  }).join('');
+}
+
+function bindTemplatePicker() {
+  const openBtn = document.getElementById('openTemplatePicker');
+  const overlay = document.getElementById('templatePickerOverlay');
+  const closeBtn = document.getElementById('closeTemplatePicker');
+  const searchInput = document.getElementById('templatePickerSearch');
+  const list = document.getElementById('templatePickerList');
+
+  const openPicker = () => {
+    renderTemplatePickerList(searchInput?.value || '');
+    toggleFadeOverlay(overlay, true);
+  };
+
+  const closePicker = () => toggleFadeOverlay(overlay, false);
+
+  if (openBtn) openBtn.addEventListener('click', openPicker);
+  if (closeBtn) closeBtn.addEventListener('click', closePicker);
+  if (searchInput) {
+    searchInput.addEventListener('input', () => renderTemplatePickerList(searchInput.value));
+  }
+  if (list) {
+    list.addEventListener('click', async (event) => {
+      const item = event.target.closest('[data-id]');
+      if (!item) return;
+      const template = templates.find(t => t.id === item.dataset.id);
+      if (!template) return;
+      await copyTemplateContent(template, { showStatus: false });
+      closePicker();
+    });
   }
 }
 
@@ -10723,8 +11113,9 @@ function renderContactAssistant(direction = '') {
   const name = document.getElementById('assistantClientName');
   const phone = document.getElementById('assistantClientPhone');
   const messagePreview = document.getElementById('assistantMessagePreview');
-  const { pending, current, index } = assistantContext();
-  const buttons = ['assistantCopyPhone', 'assistantCopyMessage', 'assistantMarkContacted', 'assistantMarkNoNumber'].map(id => document.getElementById(id));
+  const { pending, current } = assistantContext();
+  const actionCards = Array.from(document.querySelectorAll('[data-assistant-action]'));
+  const statusButtons = ['assistantMarkContacted', 'assistantMarkNoNumber'].map(id => document.getElementById(id));
   if (!overlay || !card || !name || !phone || !messagePreview) return;
 
   updateAssistantUndo();
@@ -10733,12 +11124,20 @@ function renderContactAssistant(direction = '') {
     name.textContent = 'Sin pendientes';
     phone.textContent = '-';
     messagePreview.textContent = 'No hay clientes pendientes para contactar.';
-    buttons.forEach(btn => btn && (btn.disabled = true));
+    actionCards.forEach(cardEl => {
+      cardEl.classList.add('is-disabled');
+      cardEl.setAttribute('aria-disabled', 'true');
+    });
+    statusButtons.forEach(btn => btn && (btn.disabled = true));
     updateAssistantHelper([]);
     return;
   }
 
-  buttons.forEach(btn => btn && (btn.disabled = false));
+  actionCards.forEach(cardEl => {
+    cardEl.classList.remove('is-disabled');
+    cardEl.removeAttribute('aria-disabled');
+  });
+  statusButtons.forEach(btn => btn && (btn.disabled = false));
 
   if (direction) {
     card.classList.remove('slide-left', 'slide-right');

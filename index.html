@@ -166,14 +166,31 @@
             <div class="field textarea-field">
               <label for="templateBody">Contenido</label>
               <div class="textarea-shell">
-                <textarea id="templateBody" rows="10" placeholder="Escribe el mensaje con variables"></textarea>
-                <div class="chips inline" id="variableChips"></div>
+                <div class="template-editor-toolbar">
+                  <button class="ghost-btn mini" id="openDynamicData"><i class='bx bx-code-alt'></i>Agregar Dato Dinámico...</button>
+                  <div class="dynamic-data-panel hidden" id="dynamicDataPanel">
+                    <div class="dynamic-data-head">
+                      <div>
+                        <p class="eyebrow">Datos dinámicos</p>
+                        <h4>Insertar variables</h4>
+                      </div>
+                      <button class="ghost-btn icon-only" id="closeDynamicData" title="Cerrar"><i class='bx bx-x'></i></button>
+                    </div>
+                    <div class="search-field compact">
+                      <i class='bx bx-search'></i>
+                      <input id="dynamicDataSearch" placeholder="Buscar variable..." />
+                    </div>
+                    <div class="dynamic-data-list" id="dynamicDataList"></div>
+                  </div>
+                </div>
+                <div id="templateBody" class="template-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el mensaje con variables"></div>
               </div>
             </div>
             <div class="variables-head">
               <p class="eyebrow">Variables activas</p>
               <p class="muted tiny">Solo las que están en el mensaje.</p>
             </div>
+            <div class="chips variable-chip-row" id="variableChips"></div>
             <div class="variable-grid" id="variableInputs"></div>
           </div>
         </div>
@@ -1033,6 +1050,7 @@
                 <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
                 <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
                 <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Modo Inteligente</button>
+                <button class="secondary-btn" id="openTemplatePicker"><i class='bx bx-copy'></i>Copiar Plantilla...</button>
                 <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Registro de contactados</button>
               </div>
             </div>
@@ -1290,17 +1308,17 @@
           <p class="muted tiny" id="assistantHelper"></p>
         </div>
         <div class="assistant-layout" id="contactAssistantCard">
-          <div class="assistant-card" data-tone="cyan">
+          <div class="assistant-card clickable" data-tone="cyan" data-assistant-action="copy_phone" role="button" tabindex="0" aria-label="Copiar teléfono">
             <div class="card-head">
               <p class="eyebrow">Teléfono</p>
-              <button class="glow-btn icon-only" id="assistantCopyPhone" data-tone="cyan" title="Copiar celular"><i class='bx bx-copy'></i></button>
+              <span class="assistant-hint">Toca para copiar</span>
             </div>
             <p class="assistant-value" id="assistantClientPhone">-</p>
           </div>
-          <div class="assistant-card" data-tone="purple">
+          <div class="assistant-card clickable" data-tone="purple" data-assistant-action="copy_message" role="button" tabindex="0" aria-label="Copiar mensaje">
             <div class="card-head">
               <p class="eyebrow">Copiar mensaje</p>
-              <button class="glow-btn icon-only" id="assistantCopyMessage" data-tone="purple" title="Copiar mensaje"><i class='bx bx-message-square-dots'></i></button>
+              <span class="assistant-hint">Toca para copiar</span>
             </div>
             <p class="muted" id="assistantMessagePreview"></p>
           </div>
@@ -1378,6 +1396,25 @@
             </div>
           </section>
         </div>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="templatePickerOverlay">
+    <div class="popover" id="templatePickerPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Copiar plantilla</p>
+          <h3>Selecciona una plantilla para copiar</h3>
+          <p class="muted subtle">Elige la plantilla y se copiará con los datos dinámicos disponibles.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeTemplatePicker"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="template-picker-body">
+        <div class="search-field">
+          <i class='bx bx-search'></i>
+          <input id="templatePickerSearch" placeholder="Buscar plantilla..." />
+        </div>
+        <div class="template-picker-list" id="templatePickerList"></div>
       </div>
     </div>
   </div>
