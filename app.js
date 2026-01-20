@@ -3631,11 +3631,13 @@ function bindQuoteGenerator() {
 
 function bindSidebarToggle() {
   const toggle = document.getElementById('sidebarToggle');
-  const sidebar = document.querySelector('.sidebar');
-  if (!toggle || !sidebar) return;
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
   toggle.addEventListener('click', () => {
     document.body.classList.toggle('menu-collapsed');
-    toggle.setAttribute('aria-pressed', document.body.classList.contains('menu-collapsed'));
+    const isCollapsed = document.body.classList.contains('menu-collapsed');
+    toggle.setAttribute('aria-pressed', isCollapsed);
+    toggle.setAttribute('aria-expanded', String(!isCollapsed));
   });
 }
 

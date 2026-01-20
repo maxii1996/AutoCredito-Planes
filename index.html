@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plan Manager 2025</title>
+  <title>Gestión de Operaciones - Versión: X</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -46,31 +46,16 @@
     </div>
   </div>
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">🚗</div>
-        <div>
-          <p class="brand-title">Trabajando cómo:</p>
-          <p class="brand-subtitle" id="sidebarAdvisor">Planes de Ahorro Argentina</p>
-        </div>
-      </div>
-      <nav class="nav">
-        <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
-        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
-        <button class="nav-link" data-target="scheduledClients"><i class='bx bx-calendar-check'></i><span class="label"> Clientes Programados</span></button>
-        <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
-        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
-        <button class="nav-link" data-target="quoteGenerator" id="myQuotesToggle"><i class='bx bx-folder'></i><span class="label"> Mis Cotizaciones</span></button>
-        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
-      </nav>
-     
-    </aside>
-    <main class="content">
-      <header class="topbar">
+    <header class="topbar app-header">
+      <div class="topbar-row">
         <div class="title-area">
-          <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú"><i class='bx bx-menu-alt-left'></i></button>
-          <div>
-            <h1 id="sectionTitle">Inicio</h1>
+          <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú" aria-expanded="true"><i class='bx bx-menu-alt-left'></i></button>
+          <div class="brand-inline">
+            <div class="brand-icon">🚗</div>
+            <div>
+              <p class="brand-title">Gestión de Operaciones - Versión: X</p>
+              <p class="brand-subtitle" id="sidebarAdvisor">Planes de Ahorro Argentina</p>
+            </div>
           </div>
         </div>
         <div class="top-actions">
@@ -104,7 +89,24 @@
             </div>
           </div>
         </div>
-      </header>
+      </div>
+      <div class="topbar-row nav-row">
+        <div class="section-indicator">
+          <p class="eyebrow">Sección activa</p>
+          <h1 id="sectionTitle">Inicio</h1>
+        </div>
+        <nav class="nav top-nav" id="mainNav">
+          <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
+          <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
+          <button class="nav-link" data-target="scheduledClients"><i class='bx bx-calendar-check'></i><span class="label"> Clientes Programados</span></button>
+          <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
+          <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
+          <button class="nav-link" data-target="quoteGenerator" id="myQuotesToggle"><i class='bx bx-folder'></i><span class="label"> Mis Cotizaciones</span></button>
+          <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
+        </nav>
+      </div>
+    </header>
+    <main class="content">
 
       <section id="dashboard" class="panel active">
         <div class="dashboard-hero" id="welcomeHero">
