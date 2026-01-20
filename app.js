@@ -3967,6 +3967,7 @@ function renderWelcomeHero() {
   const select = document.getElementById('accountSelector');
   const manageBtn = document.getElementById('openAccountManager');
   const activeAccountDisplay = document.getElementById('activeAccountDisplay');
+  const accountField = document.querySelector('.account-field-modern');
   if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
@@ -3990,6 +3991,15 @@ function renderWelcomeHero() {
   if (select && !select.dataset.bound) {
     select.addEventListener('change', () => requestAccountSwitch(select.value));
     select.dataset.bound = 'true';
+  }
+  if (accountField && !accountField.dataset.bound) {
+    accountField.addEventListener('click', (event) => {
+      if (!select) return;
+      if (event.target?.tagName?.toLowerCase() === 'select') return;
+      select.focus();
+      select.click();
+    });
+    accountField.dataset.bound = 'true';
   }
   if (manageBtn && !manageBtn.dataset.bound) {
     manageBtn.addEventListener('click', () => toggleAccountManager(true));
