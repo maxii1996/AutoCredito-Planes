@@ -52,9 +52,16 @@
           <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú" aria-expanded="true"><i class='bx bx-menu-alt-left'></i></button>
           <div class="brand-inline">
             <div class="brand-icon">🚗</div>
-            <div>
+            <div class="brand-meta">
               <p class="brand-title">Gestión de Operaciones - Versión: 1.3.0</p>
-              <p class="brand-subtitle" id="sidebarAdvisor">Planes de Ahorro Argentina</p>
+              <div class="account-switcher">
+                <span class="muted tiny">Cuenta activa</span>
+                <div class="menu-field account-field">
+                  <i class='bx bx-user-circle'></i>
+                  <select id="accountSelector"></select>
+                  <i class='bx bx-chevron-down'></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -62,7 +69,6 @@
           <div class="data-management-card">
             <div class="data-management-head">
               <p class="eyebrow">Gestión de datos</p>
-              <span class="muted tiny">Importa o exporta clientes</span>
             </div>
             <div class="client-file-actions">
               <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
@@ -70,37 +76,33 @@
             </div>
           </div>
           <div class="menu-cluster">
-            <div class="action-menu" id="actionMenu">
-              <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfil</span><i class='bx bx-chevron-down'></i></button>
-              <div class="menu-panel" id="actionMenuPanel">
-                <div class="menu-head">
-                  <p class="eyebrow">Mi Perfil</p>
-                  <h4>Mi Perfil</h4>
-                </div>
-                <div class="menu-section">
-                  <p class="eyebrow">Cuenta activa</p>
-                  <div class="menu-field">
-                    <i class='bx bx-user-circle'></i>
-                    <select id="accountSelector"></select>
-                    <i class='bx bx-chevron-down'></i>
-                  </div>
-                  <p class="muted tiny">Los cambios se guardan automáticamente.</p>
-                </div>
-                                <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
-                <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
-              </div>
+            <div class="menu-cluster-head">
+              <p class="eyebrow">Ajustes y configuraciones</p>
             </div>
-            <div class="icon-menu" id="settingsMenu">
-              <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
-              <div class="menu-panel" id="settingsPanel">
-                <div class="menu-head">
-                  <p class="eyebrow">Opciones</p>
-                  <h4>Opciones</h4>
+            <div class="menu-cluster-actions">
+              <div class="action-menu" id="actionMenu">
+                <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfil</span><i class='bx bx-chevron-down'></i></button>
+                <div class="menu-panel" id="actionMenuPanel">
+                  <div class="menu-head">
+                    <p class="eyebrow">Mi Perfil</p>
+                    <h4>Mi Perfil</h4>
+                  </div>
+                  <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+                  <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
                 </div>
-                <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
-                <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
-                <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
-                <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+              </div>
+              <div class="icon-menu" id="settingsMenu">
+                <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
+                <div class="menu-panel" id="settingsPanel">
+                  <div class="menu-head">
+                    <p class="eyebrow">Opciones</p>
+                    <h4>Opciones</h4>
+                  </div>
+                  <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
+                  <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
+                  <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
+                  <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+                </div>
               </div>
             </div>
           </div>
@@ -108,7 +110,6 @@
       </div>
       <div class="topbar-row nav-row">
         <div class="section-indicator">
-          <p class="eyebrow">Sección activa</p>
           <h1 id="sectionTitle">Inicio</h1>
         </div>
         <nav class="nav top-nav" id="mainNav">
@@ -136,11 +137,11 @@
                 <div class="advisor-input">
                   <div class="combo-shell readonly">
                     <i class='bx bx-user-circle'></i>
-                    <span id="activeAccountDisplay">Selecciona una cuenta en el menú Mi Perfil.</span>
+                    <span id="activeAccountDisplay">Selecciona una cuenta activa en el selector superior.</span>
                   </div>
                 </div>
               </div>
-              <p class="muted tiny" id="advisorHelper">Selecciona la cuenta que deseas usar como contacto principal.</p>
+              <p class="muted tiny" id="advisorHelper">Selecciona la cuenta activa para personalizar el panel.</p>
               </div>
           </div>
           <div class="hero-side metrics">

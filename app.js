@@ -3976,7 +3976,7 @@ function renderWelcomeHero() {
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
   subtitle.textContent = '';
   if (activeAccountDisplay) {
-    activeAccountDisplay.textContent = advisor || 'Selecciona una cuenta en el menú Mi Perfil.';
+    activeAccountDisplay.textContent = advisor || 'Selecciona una cuenta activa en el selector superior.';
   }
   updateSidebarAdvisor(advisor);
   renderAdvisorSelector();
@@ -3986,7 +3986,7 @@ function renderWelcomeHero() {
     advisorSelect.addEventListener('change', () => requestAccountSwitch(advisorSelect.value));
     advisorSelect.dataset.bound = 'true';
   }
-  if (helper) helper.textContent = 'Administra la cuenta activa desde el menú Mi Perfil.';
+  if (helper) helper.textContent = 'Selecciona la cuenta activa para personalizar el panel.';
   if (select && !select.dataset.bound) {
     select.addEventListener('change', () => requestAccountSwitch(select.value));
     select.dataset.bound = 'true';
