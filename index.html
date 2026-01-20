@@ -1436,6 +1436,13 @@
                 <option value="split3">Activada con separador de 3</option>
               </select>
             </div>
+            <div class="field">
+              <label class="toggle inline" for="scrollTopToggle">
+                <input type="checkbox" id="scrollTopToggle">
+                <span>Mostrar botón flotante para volver arriba</span>
+              </label>
+              <p class="muted tiny">Aparece cuando te desplazas en la lista y permite regresar al inicio rápidamente.</p>
+            </div>
           </section>
         </div>
       </div>
@@ -2350,6 +2357,9 @@
       </div>
     </div>
   </div>
+  <button class="scroll-top-btn" id="scrollTopButton" aria-label="Volver arriba" aria-hidden="true">
+    <i class='bx bx-chevron-up'></i>
+  </button>
   <script type="module" src="app.js"></script>
 </body>
 </html>

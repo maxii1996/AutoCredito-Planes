@@ -122,7 +122,8 @@ const defaultUiState = {
   preferences: {
     fontSizes: { ...defaultPreferenceFontSizes },
     phoneDisplay: 'plain',
-    contextMenuVisibility: { data: {}, actions: {} }
+    contextMenuVisibility: { data: {}, actions: {} },
+    scrollTopEnabled: true
   },
   quoteGenerator: {
     draft: null,
@@ -2672,7 +2673,8 @@ function mergePreferences(current = {}) {
   return {
     fontSizes,
     phoneDisplay: current.phoneDisplay ?? base.phoneDisplay,
-    contextMenuVisibility: { data: dataVisibility, actions: actionVisibility }
+    contextMenuVisibility: { data: dataVisibility, actions: actionVisibility },
+    scrollTopEnabled: current.scrollTopEnabled ?? base.scrollTopEnabled
   };
 }
 
@@ -3174,6 +3176,7 @@ async function init() {
     bindPreferencesPanel();
     bindActionMenu();
     bindSidebarToggle();
+    bindScrollTopButton();
     bindQuickLinks();
     applyToggleState();
     applyPreferences();
@@ -3271,6 +3274,7 @@ function activatePanel(targetId) {
   if (targetId === 'scheduledClients') {
     renderScheduledClients();
   }
+  updateScrollTopButton();
 }
 
 function updateSectionTitle(targetId) {
@@ -3677,6 +3681,44 @@ function bindActionMenu() {
   });
 }
 
+let scrollTopButtonFrame = null;
+
+function updateScrollTopButton() {
+  const button = document.getElementById('scrollTopButton');
+  if (!button) return;
+  const prefs = mergePreferences(uiState.preferences);
+  const activePanel = document.querySelector('.panel.active');
+  const isClientPanel = activePanel?.id === 'clientManager';
+  const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+  const shouldShow = prefs.scrollTopEnabled !== false && isClientPanel && scrollTop > 320;
+  button.classList.toggle('visible', shouldShow);
+  button.setAttribute('aria-hidden', String(!shouldShow));
+  if (shouldShow) {
+    button.removeAttribute('tabindex');
+  } else {
+    button.setAttribute('tabindex', '-1');
+  }
+}
+
+function bindScrollTopButton() {
+  const button = document.getElementById('scrollTopButton');
+  if (!button || button.dataset.bound) return;
+  const handleScroll = () => {
+    if (scrollTopButtonFrame) cancelAnimationFrame(scrollTopButtonFrame);
+    scrollTopButtonFrame = requestAnimationFrame(() => {
+      updateScrollTopButton();
+      scrollTopButtonFrame = null;
+    });
+  };
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('resize', handleScroll, { passive: true });
+  button.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  button.dataset.bound = 'true';
+  handleScroll();
+}
+
 function applyToggleState() {
   const toggles = uiState.toggles || defaultUiState.toggles;
   const res = document.getElementById('showReservations');
@@ -3823,6 +3865,11 @@ function renderPreferencesPanel() {
   if (phoneSelect) {
     phoneSelect.value = prefs.phoneDisplay || defaultUiState.preferences.phoneDisplay;
   }
+
+  const scrollToggle = document.getElementById('scrollTopToggle');
+  if (scrollToggle) {
+    scrollToggle.checked = prefs.scrollTopEnabled !== false;
+  }
 }
 
 function bindPreferencesPanel() {
@@ -3830,6 +3877,7 @@ function bindPreferencesPanel() {
   const overlay = document.getElementById('preferencesOverlay');
   const closeBtn = document.getElementById('closePreferences');
   const phoneSelect = document.getElementById('phoneDisplaySelect');
+  const scrollToggle = document.getElementById('scrollTopToggle');
   const tabs = document.querySelectorAll('.preferences-tab');
   const panels = document.querySelectorAll('.pref-panel');
   const panelsContainer = document.querySelector('#preferencesPanel .preferences-panels');
@@ -3891,6 +3939,16 @@ function bindPreferencesPanel() {
       }
     });
     phoneSelect.dataset.bound = 'true';
+  }
+
+  if (scrollToggle && !scrollToggle.dataset.bound) {
+    scrollToggle.addEventListener('change', () => {
+      uiState.preferences = mergePreferences(uiState.preferences);
+      uiState.preferences.scrollTopEnabled = scrollToggle.checked;
+      persist();
+      updateScrollTopButton();
+    });
+    scrollToggle.dataset.bound = 'true';
   }
 }
 
@@ -8716,6 +8774,21 @@ function openOnlineFilesModal() {
   toggleModal(modal, true);
 }
 
+let clientManagerResizeTimer = null;
+
+function bindClientManagerResize() {
+  if (bindClientManagerResize.bound) return;
+  bindClientManagerResize.bound = true;
+  window.addEventListener('resize', () => {
+    if (clientManagerResizeTimer) clearTimeout(clientManagerResizeTimer);
+    clientManagerResizeTimer = setTimeout(() => {
+      renderClientManager();
+      updateScrollTopButton();
+      clientManagerResizeTimer = null;
+    }, 160);
+  });
+}
+
 function bindClientManager() {
   const importInput = document.getElementById('clientExcel');
   if (importInput) {
@@ -8855,6 +8928,7 @@ function bindClientManager() {
 
   bindClientEditHandlers();
   renderColumnToggles();
+  bindClientManagerResize();
 }
 
 function bindAccountManager() {
@@ -11966,6 +12040,37 @@ function contactLogEntries() {
     .sort((a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime());
 }
 
+const clientGridCompactWidths = {
+  name: '210px',
+  model: '170px',
+  phone: '150px',
+  contactDate: '170px',
+  brand: '140px',
+  city: '140px',
+  province: '140px',
+  document: '140px',
+  cuit: '140px',
+  birthDate: '160px',
+  purchaseDate: '160px',
+  systemDate: '160px',
+  postalCode: '110px',
+  type: '150px',
+  status: '210px',
+  actions: '240px'
+};
+
+function isClientManagerCompactView() {
+  const width = window.innerWidth || document.documentElement.clientWidth || 0;
+  return width >= 901 && width <= 1320;
+}
+
+function getClientGridColumnWidth(key, isCompact) {
+  if (isCompact && clientGridCompactWidths[key]) {
+    return clientGridCompactWidths[key];
+  }
+  return clientColumnWidths[key] || '160px';
+}
+
 function renderClientManager() {
   const grid = document.getElementById('clientManagerTable');
   const helper = document.getElementById('clientManagerHelper');
@@ -11978,11 +12083,12 @@ function renderClientManager() {
   renderDateFilterHelper();
   renderSearchNotice();
 
+  const isCompact = isClientManagerCompactView();
   const visibleColumns = Object.entries(clientColumns).filter(([key]) => clientManagerState.columnVisibility[key]);
   const templateColumns = [
-    ...visibleColumns.map(([key]) => `minmax(${clientColumnWidths[key] || '160px'}, 1fr)`),
-    `minmax(${clientColumnWidths.status}, 160px)`,
-    `minmax(${clientColumnWidths.actions}, 220px)`
+    ...visibleColumns.map(([key]) => `minmax(${getClientGridColumnWidth(key, isCompact)}, 1fr)`),
+    `minmax(${getClientGridColumnWidth('status', isCompact)}, 1fr)`,
+    `minmax(${getClientGridColumnWidth('actions', isCompact)}, 240px)`
   ].join(' ');
   grid.style.setProperty('--grid-template', templateColumns);
 
