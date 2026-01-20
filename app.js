@@ -3968,6 +3968,7 @@ function renderWelcomeHero() {
   const manageBtn = document.getElementById('openAccountManager');
   const activeAccountDisplay = document.getElementById('activeAccountDisplay');
   const accountField = document.querySelector('.account-field-modern');
+  const accountCard = document.querySelector('.account-selector-card');
   if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
@@ -3992,14 +3993,26 @@ function renderWelcomeHero() {
     select.addEventListener('change', () => requestAccountSwitch(select.value));
     select.dataset.bound = 'true';
   }
-  if (accountField && !accountField.dataset.bound) {
-    accountField.addEventListener('click', (event) => {
-      if (!select) return;
-      if (event.target?.tagName?.toLowerCase() === 'select') return;
-      select.focus();
+  const openAccountSelector = (event) => {
+    if (!select || select.disabled) return;
+    if (event?.target?.tagName?.toLowerCase() === 'select') return;
+    select.focus();
+    if (typeof select.showPicker === 'function') {
+      select.showPicker();
+    } else {
       select.click();
-    });
+    }
+  };
+  if (accountField && !accountField.dataset.bound) {
+    accountField.addEventListener('click', openAccountSelector);
     accountField.dataset.bound = 'true';
+  }
+  if (accountCard && !accountCard.dataset.bound) {
+    accountCard.addEventListener('click', (event) => {
+      if (event.target?.closest('.account-field-modern')) return;
+      openAccountSelector(event);
+    });
+    accountCard.dataset.bound = 'true';
   }
   if (manageBtn && !manageBtn.dataset.bound) {
     manageBtn.addEventListener('click', () => toggleAccountManager(true));

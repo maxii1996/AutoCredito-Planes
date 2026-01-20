@@ -1068,7 +1068,7 @@
 
         <div class="card">
           <div class="client-controls">
-            <div class="client-top-row">
+            <div class="client-actions-row">
               <div class="advisor-filters">
                 <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                   <i class='bx bx-filter-alt'></i>
@@ -1094,8 +1094,6 @@
                 </div>
                 <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
-            </div>
-            <div class="control-bar">
               <div class="control-group secondary">
                 <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Activar Modo Edición</button>
                 <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar Acciones</button>
@@ -1397,6 +1395,7 @@
           <button class="preferences-tab active" data-pref-tab="fonts"><i class='bx bx-font'></i> Tipografía</button>
           <button class="preferences-tab" data-pref-tab="context"><i class='bx bx-layout'></i> Menú contextual</button>
           <button class="preferences-tab" data-pref-tab="display"><i class='bx bx-low-vision'></i> Visualización</button>
+          <button class="preferences-tab" data-pref-tab="site"><i class='bx bx-cog'></i> Ajustes del sitio</button>
         </aside>
         <div class="preferences-panels">
           <section class="preferences-section pref-panel active" data-pref-panel="fonts">
@@ -1450,11 +1449,13 @@
               </label>
               <p class="muted tiny">Aparece cuando te desplazas en la lista y permite regresar al inicio rápidamente.</p>
             </div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="site">
             <div class="section-head">
               <div>
-                <p class="eyebrow">Datos locales</p>
-                <h4>Mantenimiento del sistema</h4>
-                <p class="muted tiny">Limpia los datos guardados o restaura valores base sin salir de Preferencias.</p>
+                <p class="eyebrow">Ajustes del sitio</p>
+                <h4>Datos locales y mantenimiento</h4>
+                <p class="muted tiny">Gestiona datos guardados, restablece valores base y optimiza la experiencia.</p>
               </div>
             </div>
             <div class="preferences-actions">
