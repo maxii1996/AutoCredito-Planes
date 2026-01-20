@@ -3966,6 +3966,7 @@ function renderWelcomeHero() {
   const helper = document.getElementById('advisorHelper');
   const select = document.getElementById('accountSelector');
   const manageBtn = document.getElementById('openAccountManager');
+  const activeAccountDisplay = document.getElementById('activeAccountDisplay');
   if (!heading || !subtitle) return;
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
@@ -3974,6 +3975,9 @@ function renderWelcomeHero() {
   const advisor = advisorRaw.trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
   subtitle.textContent = '';
+  if (activeAccountDisplay) {
+    activeAccountDisplay.textContent = advisor || 'Selecciona una cuenta en el menú Mi Perfil.';
+  }
   updateSidebarAdvisor(advisor);
   renderAdvisorSelector();
 
@@ -3982,7 +3986,7 @@ function renderWelcomeHero() {
     advisorSelect.addEventListener('change', () => requestAccountSwitch(advisorSelect.value));
     advisorSelect.dataset.bound = 'true';
   }
-  if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
+  if (helper) helper.textContent = 'Administra la cuenta activa desde el menú Mi Perfil.';
   if (select && !select.dataset.bound) {
     select.addEventListener('change', () => requestAccountSwitch(select.value));
     select.dataset.bound = 'true';

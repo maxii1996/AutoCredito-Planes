@@ -59,9 +59,15 @@
           </div>
         </div>
         <div class="top-actions">
-          <div class="client-file-actions">
-            <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
-            <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+          <div class="data-management-card">
+            <div class="data-management-head">
+              <p class="eyebrow">Gestión de datos</p>
+              <span class="muted tiny">Importa o exporta clientes</span>
+            </div>
+            <div class="client-file-actions">
+              <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
+              <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+            </div>
           </div>
           <div class="menu-cluster">
             <div class="action-menu" id="actionMenu">
@@ -70,6 +76,15 @@
                 <div class="menu-head">
                   <p class="eyebrow">Mi Perfil</p>
                   <h4>Mi Perfil</h4>
+                </div>
+                <div class="menu-section">
+                  <p class="eyebrow">Cuenta activa</p>
+                  <div class="menu-field">
+                    <i class='bx bx-user-circle'></i>
+                    <select id="accountSelector"></select>
+                    <i class='bx bx-chevron-down'></i>
+                  </div>
+                  <p class="muted tiny">Los cambios se guardan automáticamente.</p>
                 </div>
                                 <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
                 <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
@@ -82,6 +97,7 @@
                   <p class="eyebrow">Opciones</p>
                   <h4>Opciones</h4>
                 </div>
+                <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
                 <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
                 <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
                 <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
@@ -114,18 +130,16 @@
               <div class="eyebrow">Inicio</div>
               <h2 id="dashboardHeading">Control principal</h2>
               <p class="muted" id="dashboardSubtitle"></p>
-              <div class="advisor-card">
-                <div class="field">
-                  <label for="accountSelector">Cuenta activa</label>
-                  <div class="advisor-input">
-                  <div class="combo-shell">
+            <div class="advisor-card">
+              <div class="field">
+                <label>Cuenta activa</label>
+                <div class="advisor-input">
+                  <div class="combo-shell readonly">
                     <i class='bx bx-user-circle'></i>
-                    <select id="accountSelector"></select>
-                    <i class='bx bx-chevron-down combo-caret'></i>
-                  </div>
-                    <button class="secondary-btn" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
+                    <span id="activeAccountDisplay">Selecciona una cuenta en el menú Mi Perfil.</span>
                   </div>
                 </div>
+              </div>
               <p class="muted tiny" id="advisorHelper">Selecciona la cuenta que deseas usar como contacto principal.</p>
               </div>
           </div>
@@ -167,16 +181,22 @@
             <h2>Gestor de Plantillas</h2>
             <p class="muted subtle">Permite modificar, editar y crear nuevas plantillas para copiar y utilizar rápidamente en los mensajes.</p>
           </div>
-          <div class="actions">
-            <div class="search-field">
+        </div>
+        <div class="templates-layout">
+          <aside class="template-list">
+            <div class="template-list-head">
+              <div>
+                <p class="eyebrow">Plantillas guardadas</p>
+                <h3>Biblioteca</h3>
+              </div>
+              <button id="addTemplate" class="primary-btn ghosted"><i class='bx bx-plus'></i>Nueva plantilla</button>
+            </div>
+            <div class="search-field template-search">
               <i class='bx bx-search'></i>
               <input id="templateSearch" placeholder="Buscar plantillas" />
             </div>
-            <button id="addTemplate" class="ghost-btn"><i class='bx bx-plus'></i>Nueva plantilla</button>
-          </div>
-        </div>
-        <div class="templates-layout">
-          <aside class="template-list" id="templateList"></aside>
+            <div class="template-list-body" id="templateList"></div>
+          </aside>
           <div class="template-editor">
             <div class="preview-stack">
               <div class="preview-box">
@@ -1056,14 +1076,6 @@
         <div class="card">
           <div class="client-controls">
             <div class="client-top-row">
-              <div class="advisor-combo">
-                <div class="combo-head">Cuenta activa</div>
-                <div class="combo-shell">
-                  <i class='bx bx-user-voice'></i>
-                  <select id="advisorSelector"></select>
-                  <i class='bx bx-chevron-down combo-caret'></i>
-                </div>
-              </div>
               <div class="advisor-filters">
                 <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                   <i class='bx bx-filter-alt'></i>
