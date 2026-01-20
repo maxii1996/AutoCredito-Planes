@@ -3687,10 +3687,8 @@ function updateScrollTopButton() {
   const button = document.getElementById('scrollTopButton');
   if (!button) return;
   const prefs = mergePreferences(uiState.preferences);
-  const activePanel = document.querySelector('.panel.active');
-  const isClientPanel = activePanel?.id === 'clientManager';
   const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
-  const shouldShow = prefs.scrollTopEnabled !== false && isClientPanel && scrollTop > 320;
+  const shouldShow = prefs.scrollTopEnabled !== false && scrollTop > 320;
   button.classList.toggle('visible', shouldShow);
   button.setAttribute('aria-hidden', String(!shouldShow));
   if (shouldShow) {
