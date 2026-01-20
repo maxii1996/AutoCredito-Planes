@@ -84,7 +84,8 @@ const panelTitles = {
   plans: 'Cotizaciones',
   quoteGenerator: 'Mis Cotizaciones',
   clientManager: 'Gestor de Clientes',
-  scheduledClients: 'Clientes Programados'
+  scheduledClients: 'Clientes Programados',
+  importedDataManager: 'Administrar Datos Importados'
 };
 
 const defaultPreferenceFontSizes = {
@@ -1366,12 +1367,14 @@ function renderAccountManager() {
     const draft = getAccountManagerDraft(account);
     const draftName = draft.name?.trim() || 'Cuenta sin nombre';
     const draftPhone = draft.phone?.trim() || '';
+    const draftDevice = draft.device?.trim() || '';
     const activeClass = account.id === accountManagerState.selectedId ? 'active' : '';
-    const phoneLabel = draftPhone ? draftPhone : 'Sin teléfono';
+    const phoneLabel = draftPhone ? formatPhoneDisplay(draftPhone) || draftPhone : 'Sin teléfono';
+    const deviceLabel = draftDevice ? ` (${draftDevice})` : '';
     return `
       <button class="account-manager-tab ${activeClass}" type="button" data-id="${account.id}">
         <strong>${draftName}</strong>
-        <small>${phoneLabel}</small>
+        <small>${phoneLabel}${deviceLabel}</small>
       </button>
     `;
   }).join('');
@@ -3071,6 +3074,8 @@ let accountManagerState = { selectedId: null, drafts: {} };
 let accountManagerTimers = { name: null, phone: null };
 let accountApplyState = { isRunning: false };
 let profileSwitchTimer = null;
+let importedManagerState = { selectedIds: new Set(), loading: false };
+let importedManagerTimer = null;
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let generatedQuotes = load('generatedQuotes') || [];
@@ -3208,6 +3213,7 @@ async function init() {
     attachVehicleToggles();
     bindVehicleEditor();
     bindClientManager();
+    bindImportedDataManager();
     bindAccountManager();
     bindAccountInfoModal();
     bindTemplatePicker();
@@ -3273,6 +3279,9 @@ function activatePanel(targetId) {
   }
   if (targetId === 'scheduledClients') {
     renderScheduledClients();
+  }
+  if (targetId === 'importedDataManager') {
+    renderImportedDataManager({ showLoader: true });
   }
   updateScrollTopButton();
 }
@@ -8974,6 +8983,14 @@ function bindClientManager() {
     contactLogBtn.addEventListener('click', () => toggleContactLog(true));
   }
 
+  const openImportedManager = document.getElementById('openImportedDataManager');
+  if (openImportedManager && !openImportedManager.dataset.bound) {
+    openImportedManager.addEventListener('click', () => {
+      activatePanel('importedDataManager');
+    });
+    openImportedManager.dataset.bound = 'true';
+  }
+
   const contactLogClose = document.getElementById('contactLogClose');
   if (contactLogClose) contactLogClose.addEventListener('click', () => toggleContactLog(false));
 
@@ -9006,6 +9023,84 @@ function bindClientManager() {
   bindClientEditHandlers();
   renderColumnToggles();
   bindClientManagerResize();
+}
+
+function bindImportedDataManager() {
+  const selectAll = document.getElementById('importedManagerSelectAll');
+  const clearBtn = document.getElementById('importedManagerClear');
+  const deleteBtn = document.getElementById('importedManagerDelete');
+  const content = document.getElementById('importedManagerContent');
+
+  if (selectAll && !selectAll.dataset.bound) {
+    selectAll.addEventListener('change', () => {
+      if (selectAll.checked) {
+        managerClients.forEach(client => importedManagerState.selectedIds.add(client.id));
+      } else {
+        importedManagerState.selectedIds.clear();
+      }
+      if (content) {
+        content.querySelectorAll('input[data-imported-id]').forEach(input => {
+          input.checked = selectAll.checked;
+        });
+      }
+      updateImportedManagerSelectionUI();
+    });
+    selectAll.dataset.bound = 'true';
+  }
+
+  if (clearBtn && !clearBtn.dataset.bound) {
+    clearBtn.addEventListener('click', () => {
+      importedManagerState.selectedIds.clear();
+      if (content) {
+        content.querySelectorAll('input[data-imported-id]').forEach(input => {
+          input.checked = false;
+        });
+      }
+      updateImportedManagerSelectionUI();
+    });
+    clearBtn.dataset.bound = 'true';
+  }
+
+  if (deleteBtn && !deleteBtn.dataset.bound) {
+    deleteBtn.addEventListener('click', () => {
+      const ids = Array.from(importedManagerState.selectedIds);
+      if (!ids.length) {
+        showToast('Selecciona registros para eliminar.', 'warning');
+        return;
+      }
+      confirmAction({
+        title: 'Eliminar registros importados',
+        message: `Se eliminarán ${ids.length} registros del sistema. ¿Deseas continuar?`,
+        confirmText: 'Eliminar',
+        onConfirm: () => {
+          const toRemove = new Set(ids);
+          managerClients = managerClients.filter(client => !toRemove.has(client.id));
+          importedManagerState.selectedIds.clear();
+          persist();
+          renderImportedDataManager();
+          renderClientManager();
+          renderStats();
+          showToast('Registros eliminados correctamente.', 'success');
+        }
+      });
+    });
+    deleteBtn.dataset.bound = 'true';
+  }
+
+  if (content && !content.dataset.bound) {
+    content.addEventListener('change', (event) => {
+      const input = event.target.closest('input[data-imported-id]');
+      if (!input) return;
+      const id = input.dataset.importedId;
+      if (input.checked) {
+        importedManagerState.selectedIds.add(id);
+      } else {
+        importedManagerState.selectedIds.delete(id);
+      }
+      updateImportedManagerSelectionUI();
+    });
+    content.dataset.bound = 'true';
+  }
 }
 
 function bindAccountManager() {
@@ -9130,9 +9225,14 @@ function bindAccountManager() {
       if (index < 0) return;
       const draft = getAccountManagerDraft(accounts[index]);
       const nextPhone = phoneInput.value;
-      accountManagerState.drafts[accounts[index].id] = { ...draft, phone: nextPhone };
+      const nextDraft = { ...draft, phone: nextPhone };
+      accountManagerState.drafts[accounts[index].id] = nextDraft;
       const listLabel = list?.querySelector(`[data-id="${accountManagerState.selectedId}"] small`);
-      if (listLabel) listLabel.textContent = nextPhone.trim() || 'Sin teléfono';
+      if (listLabel) {
+        const phoneLabel = nextPhone.trim() ? formatPhoneDisplay(nextPhone) || nextPhone.trim() : 'Sin teléfono';
+        const deviceLabel = nextDraft.device?.trim() ? ` (${nextDraft.device.trim()})` : '';
+        listLabel.textContent = `${phoneLabel}${deviceLabel}`;
+      }
       if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
     });
     phoneInput.dataset.bound = 'true';
@@ -9146,7 +9246,16 @@ function bindAccountManager() {
       if (index < 0) return;
       const draft = getAccountManagerDraft(accounts[index]);
       const nextDevice = deviceInput.value;
-      accountManagerState.drafts[accounts[index].id] = { ...draft, device: nextDevice };
+      const nextDraft = { ...draft, device: nextDevice };
+      accountManagerState.drafts[accounts[index].id] = nextDraft;
+      const listLabel = list?.querySelector(`[data-id="${accountManagerState.selectedId}"] small`);
+      if (listLabel) {
+        const phoneLabel = nextDraft.phone?.trim()
+          ? formatPhoneDisplay(nextDraft.phone) || nextDraft.phone.trim()
+          : 'Sin teléfono';
+        const deviceLabel = nextDevice.trim() ? ` (${nextDevice.trim()})` : '';
+        listLabel.textContent = `${phoneLabel}${deviceLabel}`;
+      }
       if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
     });
     deviceInput.dataset.bound = 'true';
@@ -11731,6 +11840,10 @@ function handleClientImport(file, importDate = '') {
         });
         persist();
         renderClientManager();
+        const importedPanel = document.getElementById('importedDataManager');
+        if (importedPanel?.classList.contains('active')) {
+          renderImportedDataManager();
+        }
         renderStats();
         const extra = showWarning ? ' (usando asignación manual)' : '';
         showToast(`Se han importado ${imported} clientes correctamente${extra}.`, 'success');
@@ -12239,6 +12352,106 @@ function renderClientManager() {
     renderContactAssistant();
     updateAssistantHelper(pendingClientsPool());
   }
+}
+
+function updateImportedManagerSelectionUI() {
+  const summary = document.getElementById('importedManagerSummary');
+  const selectAll = document.getElementById('importedManagerSelectAll');
+  const total = managerClients.length;
+  const selected = importedManagerState.selectedIds.size;
+  if (summary) {
+    summary.textContent = total
+      ? `Total ${total} registros · Seleccionados ${selected}`
+      : 'Aún no hay clientes importados.';
+  }
+  if (selectAll) {
+    selectAll.checked = total > 0 && selected === total;
+    selectAll.indeterminate = selected > 0 && selected < total;
+  }
+}
+
+function getImportedGroups() {
+  const groups = new Map();
+  managerClients.forEach(client => {
+    const dateKey = formatDateISO(client.systemDate) || 'sin_fecha';
+    if (!groups.has(dateKey)) groups.set(dateKey, []);
+    groups.get(dateKey).push(client);
+  });
+  return Array.from(groups.entries())
+    .map(([key, clients]) => ({
+      key,
+      label: key === 'sin_fecha' ? 'Sin fecha asignada' : formatDateLabel(key),
+      clients
+    }))
+    .sort((a, b) => {
+      if (a.key === 'sin_fecha') return 1;
+      if (b.key === 'sin_fecha') return -1;
+      return new Date(b.key).getTime() - new Date(a.key).getTime();
+    });
+}
+
+function renderImportedDataManager({ showLoader = false } = {}) {
+  const content = document.getElementById('importedManagerContent');
+  const loader = document.getElementById('importedManagerLoader');
+  if (!content || !loader) return;
+  const allIds = new Set(managerClients.map(client => client.id));
+  importedManagerState.selectedIds = new Set(
+    Array.from(importedManagerState.selectedIds).filter(id => allIds.has(id))
+  );
+
+  const runRender = () => {
+    const groups = getImportedGroups();
+    if (!groups.length) {
+      content.innerHTML = `<div class="import-empty">No hay clientes importados para administrar.</div>`;
+      content.classList.remove('hidden');
+      loader.classList.add('hidden');
+      updateImportedManagerSelectionUI();
+      return;
+    }
+    content.innerHTML = groups.map(group => {
+      const rows = group.clients.map((client, index) => {
+        const checked = importedManagerState.selectedIds.has(client.id) ? 'checked' : '';
+        const documentLabel = client.document || 'Sin DNI';
+        const phoneLabel = formatPhoneDisplay(client.phone || '') || client.phone || 'Sin teléfono';
+        return `
+          <div class="import-record-row">
+            <input type="checkbox" data-imported-id="${client.id}" ${checked} />
+            <div class="import-record-meta">
+              <div><span>Registro #</span><strong>${index + 1}</strong></div>
+              <div><span>DNI</span><strong>${documentLabel}</strong></div>
+              <div><span>TEL</span><strong>${phoneLabel}</strong></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      return `
+        <div class="import-day-group">
+          <div class="import-day-head">
+            <div class="import-day-title">Ingresados el día ${group.label}</div>
+            <div class="import-day-meta">${group.clients.length} registros en este lote</div>
+          </div>
+          <div class="import-record-list">${rows}</div>
+        </div>
+      `;
+    }).join('');
+    content.classList.remove('hidden');
+    loader.classList.add('hidden');
+    updateImportedManagerSelectionUI();
+  };
+
+  if (showLoader) {
+    if (importedManagerTimer) clearTimeout(importedManagerTimer);
+    importedManagerState.loading = true;
+    loader.classList.remove('hidden');
+    content.classList.add('hidden');
+    importedManagerTimer = setTimeout(() => {
+      importedManagerState.loading = false;
+      runRender();
+    }, 420);
+    return;
+  }
+
+  runRender();
 }
 
 function getCustomActionById(id) {

@@ -1093,6 +1093,7 @@
                 <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar</button>
                 <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Inteligente</button>
                 <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Reg. Contactados</button>
+                <button class="secondary-btn" id="openImportedDataManager"><i class='bx bx-data'></i>Administrar datos importados</button>
               </div>
             </div>
           </div>
@@ -1104,13 +1105,6 @@
               <span>Se están mostrando los resultados de la búsqueda: <strong id="clientSearchTerm"></strong></span>
             </div>
             <button class="ghost-btn mini" id="clientSearchReset">Restablecer</button>
-          </div>
-          <div class="pagination-bar hidden" id="clientPaginationBar">
-            <div class="pagination-controls">
-              <button class="ghost-btn mini" id="clientPaginationPrev"><i class='bx bx-chevron-left'></i>Anterior</button>
-              <span id="clientPaginationInfo" class="muted tiny"></span>
-              <button class="ghost-btn mini" id="clientPaginationNext">Siguiente<i class='bx bx-chevron-right'></i></button>
-            </div>
           </div>
           <div class="table-wrapper dense">
             <div class="table-toolbar">
@@ -1131,6 +1125,13 @@
                     <option value="100">Cada 100</option>
                   </select>
                 </div>
+                <div class="pagination-bar inline hidden" id="clientPaginationBar">
+                  <div class="pagination-controls">
+                    <button class="ghost-btn mini" id="clientPaginationPrev"><i class='bx bx-chevron-left'></i>Anterior</button>
+                    <span id="clientPaginationInfo" class="muted tiny"></span>
+                    <button class="ghost-btn mini" id="clientPaginationNext">Siguiente<i class='bx bx-chevron-right'></i></button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="data-grid" id="clientManagerTable">
@@ -1139,6 +1140,40 @@
             </div>
           </div>
           <p id="clientManagerHelper" class="muted tiny"></p>
+        </div>
+      </section>
+
+      <section id="importedDataManager" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Gestión de Clientes Ingresados</p>
+            <h2>Administrar Datos Importados</h2>
+            <p class="muted subtle">Revisa los registros importados, organiza por fecha de carga y elimina lotes completos o filas puntuales.</p>
+          </div>
+        </div>
+        <div class="card import-manager-card">
+          <div class="import-manager-header">
+            <div>
+              <p class="eyebrow">Base de clientes importados</p>
+              <h3>Administración de registros</h3>
+              <p class="muted tiny" id="importedManagerSummary">Selecciona registros para eliminar o auditar.</p>
+            </div>
+            <div class="import-manager-actions">
+              <label class="checkbox-pill">
+                <input type="checkbox" id="importedManagerSelectAll" />
+                <span>Marcar todos</span>
+              </label>
+              <button class="ghost-btn mini" id="importedManagerClear"><i class='bx bx-x'></i>Limpiar</button>
+              <button class="primary-btn" id="importedManagerDelete"><i class='bx bx-trash'></i>Eliminar seleccionados</button>
+            </div>
+          </div>
+          <div class="import-manager-loader" id="importedManagerLoader" aria-live="polite">
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+            <span>Obteniendo clientes...</span>
+          </div>
+          <div class="import-manager-content" id="importedManagerContent"></div>
         </div>
       </section>
 
