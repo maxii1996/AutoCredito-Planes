@@ -140,7 +140,7 @@ const defaultUiState = {
       pending: { color: '#9fb1c5', opacity: 0.14 }
     },
     accounts: [
-      { id: 'acct-default', name: 'Planes de Ahorro Argentina', phone: '' }
+      { id: 'acct-default', name: 'Planes de Ahorro Argentina', phone: '', device: '' }
     ],
     activeAccountId: 'acct-default'
   },
@@ -1293,13 +1293,19 @@ function toggleModal(modal, show) {
 }
 
 function getAccountManagerDraft(account) {
-  if (!account) return { name: '', phone: '' };
-  return accountManagerState.drafts[account.id] || { name: account.name || '', phone: account.phone || '' };
+  if (!account) return { name: '', phone: '', device: '' };
+  return accountManagerState.drafts[account.id] || {
+    name: account.name || '',
+    phone: account.phone || '',
+    device: account.device || ''
+  };
 }
 
 function hasAccountDraftChanges(account, draft) {
   if (!account || !draft) return false;
-  return (account.name || '') !== (draft.name || '') || (account.phone || '') !== (draft.phone || '');
+  return (account.name || '') !== (draft.name || '')
+    || (account.phone || '') !== (draft.phone || '')
+    || (account.device || '') !== (draft.device || '');
 }
 
 function saveAccountManagerDrafts() {
@@ -1312,9 +1318,10 @@ function saveAccountManagerDrafts() {
     if (!draft) return account;
     const nextName = draft.name?.trim() || 'Cuenta sin nombre';
     const nextPhone = draft.phone?.trim() || '';
-    if (account.name === nextName && (account.phone || '') === nextPhone) return account;
+    const nextDevice = draft.device?.trim() || '';
+    if (account.name === nextName && (account.phone || '') === nextPhone && (account.device || '') === nextDevice) return account;
     updated = true;
-    return { ...account, name: nextName, phone: nextPhone };
+    return { ...account, name: nextName, phone: nextPhone, device: nextDevice };
   });
   if (updated) {
     uiState.globalSettings.accounts = nextAccounts;
@@ -1345,8 +1352,9 @@ function renderAccountManager() {
   const list = document.getElementById('accountManagerList');
   const nameInput = document.getElementById('accountNameInput');
   const phoneInput = document.getElementById('accountPhoneInput');
+  const deviceInput = document.getElementById('accountDeviceInput');
   const status = document.getElementById('accountManagerStatus');
-  if (!list || !nameInput || !phoneInput) return;
+  if (!list || !nameInput || !phoneInput || !deviceInput) return;
   const settings = mergeGlobalSettings(uiState.globalSettings);
   uiState.globalSettings = settings;
   const accounts = settings.accounts || [];
@@ -1371,6 +1379,7 @@ function renderAccountManager() {
   const currentDraft = getAccountManagerDraft(current);
   nameInput.value = currentDraft?.name || '';
   phoneInput.value = currentDraft?.phone || '';
+  deviceInput.value = currentDraft?.device || '';
   if (status) {
     const active = settings.activeAccountId === current?.id;
     const changed = hasAccountDraftChanges(current, currentDraft);
@@ -2536,10 +2545,12 @@ function createAccountId() {
 function normalizeAccount(account = {}) {
   const name = (account.name || account.label || '').toString().trim();
   const phone = (account.phone || '').toString().trim();
+  const device = (account.device || account.deviceRef || '').toString().trim();
   return {
     id: account.id || createAccountId(),
     name: name || 'Cuenta sin nombre',
-    phone
+    phone,
+    device
   };
 }
 
@@ -2596,8 +2607,10 @@ function showProfileSwitchOverlay(name) {
   const overlay = document.getElementById('profileSwitchOverlay');
   if (!overlay) return;
   const title = document.getElementById('profileSwitchTitle');
+  const account = document.getElementById('profileSwitchAccount');
   const subtitle = document.getElementById('profileSwitchSubtitle');
-  if (title) title.textContent = `Cambiando de Perfil a: ${name}`;
+  if (title) title.textContent = 'Cambiando cuenta activa a:';
+  if (account) account.textContent = name;
   if (subtitle) subtitle.textContent = 'Espera un momento...';
   overlay.classList.add('show');
   overlay.setAttribute('aria-hidden', 'false');
@@ -2735,6 +2748,15 @@ function formatContactMetaLine(value) {
   const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
   return `El día: ${day} a las: ${time}`;
+}
+
+function formatContactMetaDetail(value) {
+  if (!value) return 'Contacto realizado el día: Sin fecha registrada';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Contacto realizado el día: Sin fecha registrada';
+  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `Contacto realizado el día: ${day} a las ${time}`;
 }
 
 function normalizeDateTime(value) {
@@ -3184,6 +3206,7 @@ async function init() {
     bindVehicleEditor();
     bindClientManager();
     bindAccountManager();
+    bindAccountInfoModal();
     bindTemplatePicker();
     bindContactAssistant();
     bindScheduleModal();
@@ -3892,7 +3915,7 @@ function renderWelcomeHero() {
   const advisorRaw = activeAccount?.name || settings.advisorName || '';
   const advisor = advisorRaw.trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
-  subtitle.textContent = 'Define quién atiende y ajusta tu jornada.';
+  subtitle.textContent = '';
   updateSidebarAdvisor(advisor);
   renderAdvisorSelector();
 
@@ -8841,6 +8864,7 @@ function bindAccountManager() {
   const list = document.getElementById('accountManagerList');
   const nameInput = document.getElementById('accountNameInput');
   const phoneInput = document.getElementById('accountPhoneInput');
+  const deviceInput = document.getElementById('accountDeviceInput');
   const status = document.getElementById('accountManagerStatus');
 
   if (openBtn && !openBtn.dataset.bound) {
@@ -8961,6 +8985,20 @@ function bindAccountManager() {
     phoneInput.dataset.bound = 'true';
   }
 
+  if (deviceInput && !deviceInput.dataset.bound) {
+    deviceInput.addEventListener('input', () => {
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const accounts = settings.accounts || [];
+      const index = accounts.findIndex(acc => acc.id === accountManagerState.selectedId);
+      if (index < 0) return;
+      const draft = getAccountManagerDraft(accounts[index]);
+      const nextDevice = deviceInput.value;
+      accountManagerState.drafts[accounts[index].id] = { ...draft, device: nextDevice };
+      if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
+    });
+    deviceInput.dataset.bound = 'true';
+  }
+
   const applyModal = document.getElementById('accountApplyModal');
   const applyCancel = document.getElementById('accountApplyCancel');
   const applyClose = document.getElementById('accountApplyClose');
@@ -9011,6 +9049,41 @@ function bindAccountManager() {
     });
     applyConfirm.dataset.bound = 'true';
   }
+}
+
+function bindAccountInfoModal() {
+  const modal = document.getElementById('accountInfoModal');
+  if (!modal || modal.dataset.bound) return;
+  const closeBtn = document.getElementById('accountInfoClose');
+  const dismissBtn = document.getElementById('accountInfoDismiss');
+  const closeModal = () => toggleModal(modal, false);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (dismissBtn) dismissBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeModal();
+  });
+  modal.dataset.bound = 'true';
+}
+
+function openAccountInfoModal({ accountId, accountName, contactDate }) {
+  const modal = document.getElementById('accountInfoModal');
+  if (!modal) return;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const account = settings.accounts.find(acc => acc.id === accountId)
+    || settings.accounts.find(acc => acc.name === accountName)
+    || null;
+  const nameLabel = document.getElementById('accountInfoName');
+  const phoneLabel = document.getElementById('accountInfoPhone');
+  const deviceLabel = document.getElementById('accountInfoDevice');
+  const contactLabel = document.getElementById('accountInfoContact');
+  const resolvedName = account?.name || accountName || 'Sin cuenta';
+  const resolvedPhone = formatPhoneDisplay(account?.phone || '') || account?.phone || 'Sin teléfono';
+  const resolvedDevice = account?.device?.trim() || 'Sin datos';
+  if (nameLabel) nameLabel.textContent = resolvedName;
+  if (phoneLabel) phoneLabel.textContent = resolvedPhone;
+  if (deviceLabel) deviceLabel.textContent = resolvedDevice;
+  if (contactLabel) contactLabel.textContent = formatContactMetaDetail(contactDate);
+  toggleModal(modal, true);
 }
 
 function bindContactAssistant() {
@@ -12842,6 +12915,15 @@ function bindClientTableActions() {
     e.stopPropagation();
     triggerClientAction(action, id);
   }));
+
+  document.querySelectorAll('#clientManagerTable .status-account-button').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAccountInfoModal({
+      accountId: btn.dataset.accountId || '',
+      accountName: btn.dataset.accountName || '',
+      contactDate: btn.dataset.contactDate || ''
+    });
+  }));
 }
 
 function triggerClientAction(actionKey, clientId) {
@@ -13063,7 +13145,9 @@ function buildStatusMetaHtml(client, status) {
   const dateLine = formatContactMetaLine(timestamp);
   return `
     <div class="status-meta">
-      <div class="status-meta-row"><i class='bx bx-user-circle'></i><strong>${accountName}</strong></div>
+      <button class="status-meta-row status-account-button" type="button" data-account-id="${meta.accountId || ''}" data-account-name="${accountName}" data-contact-date="${timestamp || ''}">
+        <i class='bx bx-user-circle'></i><strong>${accountName}</strong>
+      </button>
       <div class="status-meta-row"><i class='bx bx-calendar'></i>${dateLine}</div>
     </div>
   `;

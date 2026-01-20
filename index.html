@@ -38,8 +38,9 @@
     <div class="profile-switch-card">
       <div class="profile-switch-spinner" aria-hidden="true"></div>
       <div class="profile-switch-text">
-        <p class="eyebrow">Cambio de Perfil</p>
-        <h3 id="profileSwitchTitle">Cambiando de Perfil</h3>
+        <p class="eyebrow">Cambio de cuenta activa</p>
+        <h3 id="profileSwitchTitle">Cambiando cuenta activa a:</h3>
+        <p class="profile-switch-name" id="profileSwitchAccount">Cuenta</p>
         <p class="muted" id="profileSwitchSubtitle">Espera un momento...</p>
       </div>
     </div>
@@ -49,7 +50,7 @@
       <div class="brand">
         <div class="brand-icon">🚗</div>
         <div>
-          <p class="brand-title">Asesor:</p>
+          <p class="brand-title">Trabajando cómo:</p>
           <p class="brand-subtitle" id="sidebarAdvisor">Planes de Ahorro Argentina</p>
         </div>
       </div>
@@ -110,7 +111,7 @@
             <div class="hero-main modern">
               <div class="eyebrow">Inicio</div>
               <h2 id="dashboardHeading">Control principal</h2>
-              <p class="muted" id="dashboardSubtitle">Define quién atiende y ajusta tu jornada.</p>
+              <p class="muted" id="dashboardSubtitle"></p>
               <div class="advisor-card">
                 <div class="field">
                   <label for="accountSelector">Cuenta activa</label>
@@ -125,11 +126,6 @@
                 </div>
               <p class="muted tiny" id="advisorHelper">Selecciona la cuenta que deseas usar como contacto principal.</p>
               </div>
-            <div class="hero-actions tight">
-              <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i>Gestor de clientes</button>
-              <button class="secondary-btn" data-jump="plans"><i class='bx bx-notepad'></i>Crear plan</button>
-              <button class="ghost-btn" data-jump="templates"><i class='bx bx-message-dots'></i>Plantillas</button>
-            </div>
           </div>
           <div class="hero-side metrics">
             <div class="stat-tiles">
@@ -1765,6 +1761,41 @@
       </div>
     </div>
   </div>
+  <div id="accountInfoModal" class="modal hidden">
+    <div class="modal-content account-info-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Cuenta activa</p>
+          <h3>Detalles de la cuenta</h3>
+        </div>
+        <button id="accountInfoClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="account-info-body">
+        <div class="account-info-avatar"><i class='bx bx-user'></i></div>
+        <h4 id="accountInfoName">Cuenta</h4>
+        <div class="account-info-sections">
+          <div class="info-block">
+            <h5>Información de la cuenta</h5>
+            <div class="info-row">
+              <span>Número de Teléfono de esta cuenta:</span>
+              <strong id="accountInfoPhone">-</strong>
+            </div>
+            <div class="info-row">
+              <span>Dispositivo de esta cuenta:</span>
+              <strong id="accountInfoDevice">-</strong>
+            </div>
+          </div>
+          <div class="info-block">
+            <h5>Detalles de la operación</h5>
+            <p class="muted" id="accountInfoContact">Contacto realizado el día: -</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="accountInfoDismiss" class="primary-btn">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="accountManagerModal" class="modal hidden">
     <div class="modal-content wide account-manager-modal">
       <div class="modal-head">
@@ -1789,6 +1820,10 @@
           <div class="field">
             <label for="accountPhoneInput">Número de teléfono asociado a esta cuenta</label>
             <input id="accountPhoneInput" placeholder="Ej: 11 2345 6789" />
+          </div>
+          <div class="field">
+            <label for="accountDeviceInput">Referencia del Dispositivo</label>
+            <input id="accountDeviceInput" placeholder="Ej. Samsung Galaxy A33" />
           </div>
           <div class="account-manager-hint muted tiny">Los cambios se guardan al cerrar este panel.</div>
           <div class="modal-actions with-status">
