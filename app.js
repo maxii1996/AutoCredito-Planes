@@ -2592,6 +2592,40 @@ function getActiveAccount(settings = mergeGlobalSettings(uiState.globalSettings)
   return settings.accounts.find(account => account.id === settings.activeAccountId) || settings.accounts[0] || null;
 }
 
+function showProfileSwitchOverlay(name) {
+  const overlay = document.getElementById('profileSwitchOverlay');
+  if (!overlay) return;
+  const title = document.getElementById('profileSwitchTitle');
+  const subtitle = document.getElementById('profileSwitchSubtitle');
+  if (title) title.textContent = `Cambiando de Perfil a: ${name}`;
+  if (subtitle) subtitle.textContent = 'Espera un momento...';
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+
+function hideProfileSwitchOverlay() {
+  const overlay = document.getElementById('profileSwitchOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+  overlay.setAttribute('aria-hidden', 'true');
+}
+
+function requestAccountSwitch(accountId) {
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  if (settings.activeAccountId === accountId) return;
+  const account = settings.accounts.find(acc => acc.id === accountId) || settings.accounts[0];
+  if (!account) return;
+  showProfileSwitchOverlay(account.name || 'Sin cuenta');
+  if (profileSwitchTimer) {
+    clearTimeout(profileSwitchTimer);
+  }
+  profileSwitchTimer = setTimeout(() => {
+    setActiveAccount(accountId);
+    hideProfileSwitchOverlay();
+    profileSwitchTimer = null;
+  }, 1000);
+}
+
 function setActiveAccount(accountId) {
   const settings = mergeGlobalSettings(uiState.globalSettings);
   const nextId = settings.accounts.some(account => account.id === accountId) ? accountId : settings.accounts[0]?.id;
@@ -3012,6 +3046,7 @@ let managerClients = load('managerClients') || [];
 let accountManagerState = { selectedId: null, drafts: {} };
 let accountManagerTimers = { name: null, phone: null };
 let accountApplyState = { isRunning: false };
+let profileSwitchTimer = null;
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let generatedQuotes = load('generatedQuotes') || [];
@@ -3863,12 +3898,12 @@ function renderWelcomeHero() {
 
   const advisorSelect = document.getElementById('advisorSelector');
   if (advisorSelect && !advisorSelect.dataset.bound) {
-    advisorSelect.addEventListener('change', () => setActiveAccount(advisorSelect.value));
+    advisorSelect.addEventListener('change', () => requestAccountSwitch(advisorSelect.value));
     advisorSelect.dataset.bound = 'true';
   }
   if (helper) helper.textContent = 'Los cambios se guardan automáticamente en este dispositivo.';
   if (select && !select.dataset.bound) {
-    select.addEventListener('change', () => setActiveAccount(select.value));
+    select.addEventListener('change', () => requestAccountSwitch(select.value));
     select.dataset.bound = 'true';
   }
   if (manageBtn && !manageBtn.dataset.bound) {

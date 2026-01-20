@@ -1057,6 +1057,69 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
   pointer-events: all;
 }
 
+.profile-switch-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 12, 20, 0.82);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  padding: 16px;
+}
+
+.profile-switch-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.profile-switch-card {
+  width: min(420px, 92vw);
+  background: linear-gradient(160deg, rgba(18, 26, 44, 0.96), rgba(11, 16, 28, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(4, 8, 18, 0.55);
+  padding: 26px 28px;
+  display: grid;
+  gap: 14px;
+  text-align: center;
+  animation: profile-card-rise 0.45s ease;
+}
+
+.profile-switch-spinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid rgba(226, 232, 240, 0.2);
+  border-top-color: var(--primary);
+  margin: 0 auto;
+  animation: profile-spin 0.9s linear infinite;
+}
+
+.profile-switch-text h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.profile-switch-text .muted {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+@keyframes profile-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes profile-card-rise {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 .loader-card {
   width: min(560px, 90vw);
   padding: 32px;
