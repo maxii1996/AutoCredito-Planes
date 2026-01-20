@@ -1023,11 +1023,11 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .preferences-section { border: 1px solid var(--border); border-radius: 14px; background: #0f1625; padding: 14px; display: grid; gap: 12px; }
 .preferences-grid { display: grid; gap: 10px; }
 .preference-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: #0b1120; flex-wrap: wrap; }
-.account-manager-modal { width: min(980px, 96vw); max-height: min(86vh, 720px); }
+.account-manager-modal { width: min(1120px, 96vw); max-height: min(92vh, 820px); }
 .account-manager-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; }
 .account-manager-nav { display: grid; gap: 12px; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: #0b1120; align-content: start; }
 .account-manager-actions { display: grid; gap: 8px; }
-.account-manager-list { display: grid; gap: 8px; max-height: min(320px, 45vh); overflow-y: auto; padding-right: 4px; }
+.account-manager-list { display: grid; gap: 8px; max-height: min(420px, 50vh); overflow-y: auto; padding-right: 4px; }
 .account-manager-tab { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
 .account-manager-tab:hover { border-color: rgba(148,163,184,0.4); background: rgba(148,163,184,0.08); }
 .account-manager-tab.active { border-color: rgba(246,176,75,0.55); background: rgba(246,176,75,0.12); }

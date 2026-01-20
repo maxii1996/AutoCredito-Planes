@@ -1289,10 +1289,50 @@ function toggleModal(modal, show) {
   }
 }
 
+function getAccountManagerDraft(account) {
+  if (!account) return { name: '', phone: '' };
+  return accountManagerState.drafts[account.id] || { name: account.name || '', phone: account.phone || '' };
+}
+
+function hasAccountDraftChanges(account, draft) {
+  if (!account || !draft) return false;
+  return (account.name || '') !== (draft.name || '') || (account.phone || '') !== (draft.phone || '');
+}
+
+function saveAccountManagerDrafts() {
+  if (!Object.keys(accountManagerState.drafts || {}).length) return;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const accounts = settings.accounts || [];
+  let updated = false;
+  const nextAccounts = accounts.map(account => {
+    const draft = accountManagerState.drafts[account.id];
+    if (!draft) return account;
+    const nextName = draft.name?.trim() || 'Cuenta sin nombre';
+    const nextPhone = draft.phone?.trim() || '';
+    if (account.name === nextName && (account.phone || '') === nextPhone) return account;
+    updated = true;
+    return { ...account, name: nextName, phone: nextPhone };
+  });
+  if (updated) {
+    uiState.globalSettings.accounts = nextAccounts;
+    const active = nextAccounts.find(acc => acc.id === settings.activeAccountId);
+    if (active) {
+      uiState.globalSettings.advisorName = active.name;
+    }
+    persist();
+    renderAdvisorSelector();
+    renderWelcomeHero();
+    renderClientManager();
+  }
+  accountManagerState.drafts = {};
+}
+
 function toggleAccountManager(show) {
   const modal = document.getElementById('accountManagerModal');
   if (!modal) return;
-  if (show) {
+  if (!show) {
+    saveAccountManagerDrafts();
+  } else {
     renderAccountManager();
   }
   toggleModal(modal, show);
@@ -1311,22 +1351,31 @@ function renderAccountManager() {
     accountManagerState.selectedId = settings.activeAccountId || accounts[0]?.id || null;
   }
   list.innerHTML = accounts.map(account => {
+    const draft = getAccountManagerDraft(account);
+    const draftName = draft.name?.trim() || 'Cuenta sin nombre';
+    const draftPhone = draft.phone?.trim() || '';
     const activeClass = account.id === accountManagerState.selectedId ? 'active' : '';
-    const phoneLabel = account.phone ? account.phone : 'Sin teléfono';
+    const phoneLabel = draftPhone ? draftPhone : 'Sin teléfono';
     return `
       <button class="account-manager-tab ${activeClass}" type="button" data-id="${account.id}">
-        <strong>${account.name}</strong>
+        <strong>${draftName}</strong>
         <small>${phoneLabel}</small>
       </button>
     `;
   }).join('');
 
   const current = accounts.find(acc => acc.id === accountManagerState.selectedId);
-  nameInput.value = current?.name || '';
-  phoneInput.value = current?.phone || '';
+  const currentDraft = getAccountManagerDraft(current);
+  nameInput.value = currentDraft?.name || '';
+  phoneInput.value = currentDraft?.phone || '';
   if (status) {
     const active = settings.activeAccountId === current?.id;
-    status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
+    const changed = hasAccountDraftChanges(current, currentDraft);
+    if (changed) {
+      status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
+    } else {
+      status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
+    }
   }
 }
 
@@ -2954,7 +3003,7 @@ let brandSettings = normalizeBrandSettings(load('brandSettings') || defaultBrand
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
 let managerClients = load('managerClients') || [];
-let accountManagerState = { selectedId: null };
+let accountManagerState = { selectedId: null, drafts: {} };
 let accountManagerTimers = { name: null, phone: null };
 let accountApplyState = { isRunning: false };
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
@@ -4094,35 +4143,22 @@ function insertVariable(variable) {
   if (!editor) return;
   const insertion = `{{${variable}}}`;
   editor.focus();
-  let selection = window.getSelection();
-  let range = null;
-  if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
-    range = selection.getRangeAt(0);
-  } else if (templateBodySelection) {
-    restoreSelection(editor, templateBodySelection);
-    selection = window.getSelection();
-    if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
-      range = selection.getRangeAt(0);
-    }
-  }
-  if (range) {
-    range.deleteContents();
-    const node = document.createTextNode(insertion);
-    range.insertNode(node);
-    range.setStartAfter(node);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  } else {
-    editor.textContent = `${getTemplateBodyValue()}${insertion}`;
-  }
-  const updated = getTemplateBodyValue();
+  const updated = `${getTemplateBodyValue()}${insertion}`;
+  editor.textContent = updated;
   if (templates[selectedTemplateIndex]) {
     templates[selectedTemplateIndex].body = updated;
   }
-  rememberTemplateSelection();
   renderVariableInputs(extractVariables(updated));
-  updateTemplateBodyHighlight({ preserveSelection: true });
+  updateTemplateBodyHighlight();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  const selection = window.getSelection();
+  if (selection) {
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  rememberTemplateSelection();
   updatePreview();
 }
 
@@ -8730,26 +8766,13 @@ function bindAccountManager() {
       const accounts = settings.accounts || [];
       const index = accounts.findIndex(acc => acc.id === accountManagerState.selectedId);
       if (index < 0) return;
-      const nextName = nameInput.value.trim() || 'Cuenta sin nombre';
-      accounts[index] = { ...accounts[index], name: nextName };
-      uiState.globalSettings.accounts = accounts;
-      if (settings.activeAccountId === accounts[index].id) {
-        uiState.globalSettings.advisorName = nextName;
-      }
+      const draft = getAccountManagerDraft(accounts[index]);
+      const nextName = nameInput.value;
+      accountManagerState.drafts[accounts[index].id] = { ...draft, name: nextName };
       const listLabel = list?.querySelector(`[data-id="${accountManagerState.selectedId}"] strong`);
-      if (listLabel) listLabel.textContent = nextName;
-      if (status) status.textContent = 'Guardando cambios...';
-      clearTimeout(accountManagerTimers.name);
-      accountManagerTimers.name = setTimeout(() => {
-        persist();
-        renderAdvisorSelector();
-        renderWelcomeHero();
-        renderClientManager();
-        if (status) {
-          const active = settings.activeAccountId === accounts[index].id;
-          status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
-        }
-      }, 320);
+      const labelValue = nextName.trim() || 'Cuenta sin nombre';
+      if (listLabel) listLabel.textContent = labelValue;
+      if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
     });
     nameInput.dataset.bound = 'true';
   }
@@ -8760,19 +8783,12 @@ function bindAccountManager() {
       const accounts = settings.accounts || [];
       const index = accounts.findIndex(acc => acc.id === accountManagerState.selectedId);
       if (index < 0) return;
-      accounts[index] = { ...accounts[index], phone: phoneInput.value.trim() };
-      uiState.globalSettings.accounts = accounts;
+      const draft = getAccountManagerDraft(accounts[index]);
+      const nextPhone = phoneInput.value;
+      accountManagerState.drafts[accounts[index].id] = { ...draft, phone: nextPhone };
       const listLabel = list?.querySelector(`[data-id="${accountManagerState.selectedId}"] small`);
-      if (listLabel) listLabel.textContent = accounts[index].phone || 'Sin teléfono';
-      if (status) status.textContent = 'Guardando cambios...';
-      clearTimeout(accountManagerTimers.phone);
-      accountManagerTimers.phone = setTimeout(() => {
-        persist();
-        if (status) {
-          const active = settings.activeAccountId === accounts[index].id;
-          status.textContent = active ? 'Cuenta activa actualmente.' : 'Cuenta disponible para selección.';
-        }
-      }, 320);
+      if (listLabel) listLabel.textContent = nextPhone.trim() || 'Sin teléfono';
+      if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
     });
     phoneInput.dataset.bound = 'true';
   }
