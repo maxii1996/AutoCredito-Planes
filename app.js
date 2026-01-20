@@ -4309,7 +4309,32 @@ function updateAutoVariableHint(client) {
   }
   const name = client?.name || 'Cliente sin nombre';
   const phoneValue = formatPhoneDisplay(client?.phone || '') || client?.phone || '';
-  hint.textContent = `Ejemplo automático: ${name}${phoneValue ? ` (${phoneValue})` : ''}`;
+  hint.textContent = `Auto completado con: ${name}${phoneValue ? ` (${phoneValue})` : ''}. Puedes personalizar cualquier campo y volver a automático.`;
+}
+
+function setVariableInputState(input, autoValue) {
+  const field = input.closest('.inline-variable');
+  const status = field?.querySelector('[data-var-status]');
+  const autoBtn = field?.querySelector('[data-auto-var]');
+  const value = input.value.trim();
+  const isManual = input.dataset.manual === 'true';
+  const hasAuto = autoValue !== undefined && autoValue !== '';
+  let label = 'Vacío';
+  let state = 'empty';
+  if (isManual && value) {
+    label = 'Manual';
+    state = 'manual';
+  } else if (hasAuto) {
+    label = 'Auto';
+    state = value ? 'auto' : 'empty';
+  }
+  if (status) {
+    status.textContent = label;
+    status.dataset.state = state;
+  }
+  if (autoBtn) {
+    autoBtn.disabled = !hasAuto;
+  }
 }
 
 function refreshAutoVariableInputs({ randomize = false } = {}) {
@@ -4319,14 +4344,17 @@ function refreshAutoVariableInputs({ randomize = false } = {}) {
   inputs.forEach(inp => {
     const key = inp.dataset.var;
     const stored = uiState.variableValues?.[key];
+    inp.dataset.autoValue = autoValues[key] || '';
     if (stored !== undefined && stored !== '') {
       inp.value = stored;
       inp.dataset.manual = 'true';
+      setVariableInputState(inp, inp.dataset.autoValue);
       return;
     }
     if (inp.dataset.manual === 'true') return;
     inp.value = autoValues[key] || '';
     inp.dataset.manual = 'false';
+    setVariableInputState(inp, inp.dataset.autoValue);
   });
   updateAutoVariableHint(client);
   updatePreview();
@@ -4348,12 +4376,19 @@ function renderVariableInputs(vars = []) {
   const autoValues = buildDynamicVariableMap(resolveTemplatePreviewClient() || {});
   inputs.innerHTML = vars.map(v => `
     <div class="field inline-variable">
-      <label>${resolveDynamicVariableLabel(v)}</label>
+      <div class="variable-label-row">
+        <label>${resolveDynamicVariableLabel(v)}</label>
+        <div class="variable-controls">
+          <span class="variable-status" data-var-status></span>
+          <button class="ghost-btn mini variable-auto-btn" data-auto-var="${v}" type="button">Auto</button>
+        </div>
+      </div>
       <input data-var="${v}" placeholder="${v}">
     </div>`).join('');
 
   inputs.querySelectorAll('input').forEach(inp => {
     const stored = uiState.variableValues?.[inp.dataset.var];
+    inp.dataset.autoValue = autoValues[inp.dataset.var] || '';
     if (stored !== undefined && stored !== '') {
       inp.value = stored;
       inp.dataset.manual = 'true';
@@ -4361,6 +4396,7 @@ function renderVariableInputs(vars = []) {
       inp.value = autoValues[inp.dataset.var] || '';
       inp.dataset.manual = 'false';
     }
+    setVariableInputState(inp, inp.dataset.autoValue);
     inp.addEventListener('input', () => {
       const value = inp.value;
       if (value) {
@@ -4370,6 +4406,22 @@ function renderVariableInputs(vars = []) {
         delete uiState.variableValues[inp.dataset.var];
         inp.dataset.manual = 'false';
       }
+      setVariableInputState(inp, inp.dataset.autoValue);
+      persist();
+      updatePreview();
+    });
+  });
+  inputs.querySelectorAll('.variable-auto-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const key = button.dataset.autoVar;
+      const input = inputs.querySelector(`input[data-var="${key}"]`);
+      if (!input) return;
+      const autoValue = input.dataset.autoValue || '';
+      if (!autoValue) return;
+      input.value = autoValue;
+      input.dataset.manual = 'false';
+      delete uiState.variableValues[key];
+      setVariableInputState(input, autoValue);
       persist();
       updatePreview();
     });

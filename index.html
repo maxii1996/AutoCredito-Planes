@@ -216,16 +216,18 @@
                 <div id="templateBody" class="template-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el mensaje con variables"></div>
               </div>
             </div>
-            <div class="variables-head">
-              <p class="eyebrow">Variables activas</p>
-              <p class="muted tiny">Solo las que están en el mensaje.</p>
+            <div class="variables-shell">
+              <div class="variables-head">
+                <p class="eyebrow">Variables activas</p>
+                <p class="muted tiny">Solo las que están en el mensaje.</p>
+              </div>
+              <div class="chips variable-chip-row" id="variableChips"></div>
+              <div class="variable-actions">
+                <button class="secondary-btn mini" id="refreshAutoVariables"><i class='bx bx-refresh'></i>Cargar otros valores automáticos...</button>
+                <span class="muted tiny" id="autoVariableHint"></span>
+              </div>
+              <div class="variable-grid" id="variableInputs"></div>
             </div>
-            <div class="chips variable-chip-row" id="variableChips"></div>
-            <div class="variable-actions">
-              <button class="secondary-btn mini" id="refreshAutoVariables"><i class='bx bx-refresh'></i>Cargar otros valores automáticos...</button>
-              <span class="muted tiny" id="autoVariableHint"></span>
-            </div>
-            <div class="variable-grid" id="variableInputs"></div>
           </div>
         </div>
       </section>
