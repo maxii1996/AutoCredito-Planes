@@ -16,6 +16,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 </head>
 <body>
+  <div class="app-loader show" id="appLoader" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-icon">✨</div>
+      <div class="loader-text">
+        <p class="eyebrow">Inicializando Sistema...</p>
+        <h2>Cargando información</h2>
+      </div>
+      <div class="loader-progress">
+        <div class="loader-bar"><span id="loaderBar"></span></div>
+        <div class="loader-steps" id="loaderSteps">
+          <div class="loader-step" data-step="0">Cargando cuentas...</div>
+          <div class="loader-step" data-step="1">Cargando Plantillas....</div>
+          <div class="loader-step" data-step="2">Cargando Clientes...</div>
+          <div class="loader-step" data-step="3">Cargando Marcas y Precios...</div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -195,6 +213,10 @@
               <p class="muted tiny">Solo las que están en el mensaje.</p>
             </div>
             <div class="chips variable-chip-row" id="variableChips"></div>
+            <div class="variable-actions">
+              <button class="secondary-btn mini" id="refreshAutoVariables"><i class='bx bx-refresh'></i>Cargar otros valores automáticos...</button>
+              <span class="muted tiny" id="autoVariableHint"></span>
+            </div>
             <div class="variable-grid" id="variableInputs"></div>
           </div>
         </div>
@@ -1739,7 +1761,6 @@
         <div>
           <p class="eyebrow">Cuentas múltiples</p>
           <h3>Gestión de Cuentas</h3>
-          <p class="muted subtle">Crea, edita y organiza todas tus cuentas desde un solo lugar.</p>
         </div>
         <button id="closeAccountManager" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>

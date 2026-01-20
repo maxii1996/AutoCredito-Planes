@@ -112,6 +112,9 @@ const defaultPreferenceFontSizes = {
 const defaultUiState = {
   selectedTemplateIndex: 0,
   variableValues: {},
+  templatePreview: {
+    clientId: null
+  },
   planDraft: {},
   quoteSearch: '',
   toggles: { showReservations: true, showIntegration: true },
@@ -2599,6 +2602,7 @@ function setActiveAccount(accountId) {
   renderWelcomeHero();
   renderClientManager();
   renderContactLog();
+  refreshAutoVariableInputs();
   const modal = document.getElementById('accountManagerModal');
   if (modal?.classList.contains('show')) {
     renderAccountManager();
@@ -2889,6 +2893,8 @@ function resolvePlanDraftVehicle() {
 
 function buildDynamicVariableMap(client = {}) {
   const globalSettings = mergeGlobalSettings(uiState.globalSettings);
+  const activeAccount = getActiveAccount(globalSettings);
+  const advisorName = activeAccount?.name || globalSettings.advisorName || '';
   const year = extractYear(client.purchaseDate || client.birthDate || '');
   const noteValue = normalizeNotesValue(client.type);
   const defaultNote = normalizeNotesValue(globalSettings.clientType);
@@ -2903,7 +2909,7 @@ function buildDynamicVariableMap(client = {}) {
   const tradeInValue = client.tradeInValue ?? uiState.planDraft?.tradeInValue ?? '';
   return {
     cliente: client.name || '',
-    asesor: globalSettings.advisorName || '',
+    asesor: advisorName,
     telefono: formatPhoneDisplay(client.phone || '') || client.phone || '',
     telefono_limpio: normalizePhone(client.phone || ''),
     dni: formatDniValue(client.document || client.dni || ''),
@@ -3025,6 +3031,40 @@ let scheduleClockInterval = null;
 let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab: 'models' };
 let vehicleEditorAutosaveTimer = null;
 
+const appLoaderSteps = [
+  'Cargando cuentas...',
+  'Cargando Plantillas....',
+  'Cargando Clientes...',
+  'Cargando Marcas y Precios...'
+];
+
+function setAppLoaderStep(stepIndex) {
+  const overlay = document.getElementById('appLoader');
+  if (!overlay) return;
+  overlay.classList.add('show');
+  const bar = document.getElementById('loaderBar');
+  const steps = Array.from(overlay.querySelectorAll('.loader-step'));
+  steps.forEach((step, index) => {
+    step.classList.toggle('active', index === stepIndex);
+    step.classList.toggle('done', index < stepIndex);
+  });
+  if (bar) {
+    const total = steps.length || appLoaderSteps.length || 1;
+    const progress = Math.min(((stepIndex + 1) / total) * 100, 100);
+    bar.style.width = `${progress}%`;
+  }
+}
+
+function hideAppLoader() {
+  const overlay = document.getElementById('appLoader');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+}
+
+function nextFrame() {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+
 function migrateLegacyPrices() {
   const legacyVehicles = load('vehicles');
   if (legacyVehicles && !priceDrafts?.legacy) {
@@ -3058,6 +3098,7 @@ uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicle
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
 uiState.variableValues = uiState.variableValues || {};
+uiState.templatePreview = { ...defaultUiState.templatePreview, ...(uiState.templatePreview || {}) };
 uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
 uiState.planDraft = uiState.planDraft || {};
 let selectedPlanClientId = uiState.planDraft.selectedClientId || null;
@@ -3066,7 +3107,8 @@ init();
 
 async function init() {
   try {
-    await initializePriceTabs();
+    setAppLoaderStep(0);
+    await nextFrame();
     setupScrollLockObserver();
     bindNavigation();
     bindQuoteNavigation();
@@ -3081,11 +3123,13 @@ async function init() {
     applyStatusPalette();
     renderStats();
     renderWelcomeHero();
+    setAppLoaderStep(1);
+    await nextFrame();
     renderQuickOverview();
     renderHomeShortcuts();
     renderTemplates();
-    renderPriceTabs();
-    renderVehicleTable();
+    setAppLoaderStep(2);
+    await nextFrame();
     renderPlanForm();
     renderClients();
     renderClientManager();
@@ -3114,9 +3158,17 @@ async function init() {
     startContactLogTicker();
     startScheduleClock();
     startRealtimePersistence();
+    setAppLoaderStep(3);
+    await initializePriceTabs();
+    renderPriceTabs();
+    renderVehicleTable();
+    renderPlanForm();
+    await nextFrame();
+    hideAppLoader();
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
   } catch (err) {
     console.error('Error during initialization:', err);
+    hideAppLoader();
   }
 }
 
@@ -4107,18 +4159,77 @@ function loadTemplate(idx) {
   setTimeout(updatePreview, 0);
 }
 
+function getTemplatePreviewPool() {
+  if (managerClients?.length) return managerClients;
+  if (clients?.length) return clients;
+  return [];
+}
+
+function resolveTemplatePreviewClient({ randomize = false } = {}) {
+  const pool = getTemplatePreviewPool();
+  if (!pool.length) return null;
+  const storedId = uiState.templatePreview?.clientId;
+  let selected = null;
+  if (!randomize && storedId) {
+    selected = pool.find(client => client.id === storedId) || null;
+  }
+  if (!selected) {
+    selected = pool[Math.floor(Math.random() * pool.length)] || null;
+    uiState.templatePreview = { ...(uiState.templatePreview || {}), clientId: selected?.id || null };
+    persist();
+  }
+  return selected;
+}
+
+function updateAutoVariableHint(client) {
+  const hint = document.getElementById('autoVariableHint');
+  const btn = document.getElementById('refreshAutoVariables');
+  const pool = getTemplatePreviewPool();
+  if (btn) btn.disabled = !pool.length;
+  if (!hint) return;
+  if (!pool.length) {
+    hint.textContent = 'Importa clientes para autocompletar variables automáticamente.';
+    return;
+  }
+  const name = client?.name || 'Cliente sin nombre';
+  const phoneValue = formatPhoneDisplay(client?.phone || '') || client?.phone || '';
+  hint.textContent = `Ejemplo automático: ${name}${phoneValue ? ` (${phoneValue})` : ''}`;
+}
+
+function refreshAutoVariableInputs({ randomize = false } = {}) {
+  const client = resolveTemplatePreviewClient({ randomize });
+  const autoValues = buildDynamicVariableMap(client || {});
+  const inputs = document.querySelectorAll('#variableInputs input');
+  inputs.forEach(inp => {
+    const key = inp.dataset.var;
+    const stored = uiState.variableValues?.[key];
+    if (stored !== undefined && stored !== '') {
+      inp.value = stored;
+      inp.dataset.manual = 'true';
+      return;
+    }
+    if (inp.dataset.manual === 'true') return;
+    inp.value = autoValues[key] || '';
+    inp.dataset.manual = 'false';
+  });
+  updateAutoVariableHint(client);
+  updatePreview();
+}
+
 function renderVariableInputs(vars = []) {
   const chips = document.getElementById('variableChips');
   const inputs = document.getElementById('variableInputs');
   if (!vars.length) {
     chips.innerHTML = `<span class="chip muted">Sin variables en esta plantilla</span>`;
     inputs.innerHTML = `<p class="muted tiny">Agrega {{variable}} en el texto para habilitar reemplazos.</p>`;
+    updateAutoVariableHint(resolveTemplatePreviewClient());
     setTimeout(updatePreview, 0);
     return;
   }
   chips.innerHTML = vars.map(v => `<span class="chip compact" data-var="${v}">{{${v}}}</span>`).join('');
   chips.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => insertVariable(chip.dataset.var)));
 
+  const autoValues = buildDynamicVariableMap(resolveTemplatePreviewClient() || {});
   inputs.innerHTML = vars.map(v => `
     <div class="field inline-variable">
       <label>${resolveDynamicVariableLabel(v)}</label>
@@ -4126,13 +4237,28 @@ function renderVariableInputs(vars = []) {
     </div>`).join('');
 
   inputs.querySelectorAll('input').forEach(inp => {
-    inp.value = uiState.variableValues?.[inp.dataset.var] || '';
+    const stored = uiState.variableValues?.[inp.dataset.var];
+    if (stored !== undefined && stored !== '') {
+      inp.value = stored;
+      inp.dataset.manual = 'true';
+    } else {
+      inp.value = autoValues[inp.dataset.var] || '';
+      inp.dataset.manual = 'false';
+    }
     inp.addEventListener('input', () => {
-      uiState.variableValues[inp.dataset.var] = inp.value;
+      const value = inp.value;
+      if (value) {
+        uiState.variableValues[inp.dataset.var] = value;
+        inp.dataset.manual = 'true';
+      } else {
+        delete uiState.variableValues[inp.dataset.var];
+        inp.dataset.manual = 'false';
+      }
       persist();
       updatePreview();
     });
   });
+  updateAutoVariableHint(resolveTemplatePreviewClient());
   
   // Trigger initial preview update
   setTimeout(updatePreview, 0);
@@ -4298,6 +4424,13 @@ function attachTemplateActions() {
   }
 
   document.getElementById('copyTemplate').addEventListener('click', () => copyTemplateContent());
+  const refreshAutoBtn = document.getElementById('refreshAutoVariables');
+  if (refreshAutoBtn && !refreshAutoBtn.dataset.bound) {
+    refreshAutoBtn.addEventListener('click', () => {
+      refreshAutoVariableInputs({ randomize: true });
+    });
+    refreshAutoBtn.dataset.bound = 'true';
+  }
 
   const openDynamicData = document.getElementById('openDynamicData');
   const closeDynamicData = document.getElementById('closeDynamicData');
@@ -11420,18 +11553,21 @@ function renderAccountFilter() {
   const counts = accountCounters();
   const options = [
     { value: 'all', label: 'Todas', count: Object.values(counts).reduce((sum, val) => sum + val, 0) }
-  ].concat((settings.accounts || []).map(account => ({
-    value: account.id,
-    label: account.name,
-    count: counts[account.id] || 0
-  })));
-  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
+  ].concat((settings.accounts || []).map(account => {
+    const phoneLabel = formatPhoneDisplay(account.phone || '') || account.phone || 'Sin teléfono';
+    return {
+      value: account.id,
+      label: `${account.name} (${phoneLabel})`,
+      count: counts[account.id] || 0
+    };
+  }));
+  select.innerHTML = options.map(opt => `<option value="${opt.value}">(${opt.count}) ${opt.label}</option>`).join('');
   if (!options.some(opt => opt.value === clientManagerState.accountFilter)) {
     clientManagerState.accountFilter = 'all';
   }
   select.value = clientManagerState.accountFilter;
   const current = options.find(opt => opt.value === select.value) || options[0];
-  if (label) label.textContent = `${current.label} (${current.count})`;
+  if (label) label.textContent = `(${current.count}) ${current.label}`;
 }
 
 function renderDateFilterHelper() {
