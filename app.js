@@ -3129,6 +3129,161 @@ function nextFrame() {
   return new Promise(resolve => requestAnimationFrame(() => resolve()));
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+function showImportOverlay({ eyebrow, title, subtitle, helper, steps }) {
+  const overlay = document.getElementById('importOverlay');
+  if (!overlay) return;
+  const eyebrowEl = document.getElementById('importOverlayEyebrow');
+  const titleEl = document.getElementById('importOverlayTitle');
+  const subtitleEl = document.getElementById('importOverlaySubtitle');
+  const helperEl = document.getElementById('importOverlayHelper');
+  const stepsEl = document.getElementById('importOverlaySteps');
+  const bar = document.getElementById('importOverlayBar');
+  if (eyebrowEl) eyebrowEl.textContent = eyebrow || 'Importación';
+  if (titleEl) titleEl.textContent = title || 'Preparando importación...';
+  if (subtitleEl) subtitleEl.textContent = subtitle || 'Espera un momento...';
+  if (helperEl) helperEl.textContent = helper || '';
+  if (stepsEl) {
+    stepsEl.innerHTML = (steps || []).map((step, index) => (
+      `<div class="import-step${index === 0 ? ' active' : ''}" data-step="${index}"><span>${step}</span><span></span></div>`
+    )).join('');
+  }
+  if (bar) bar.style.width = '0%';
+  overlay.classList.remove('hidden');
+}
+
+function updateImportOverlayStep(stepIndex, text, detail) {
+  const overlay = document.getElementById('importOverlay');
+  if (!overlay) return;
+  const steps = Array.from(overlay.querySelectorAll('.import-step'));
+  steps.forEach((step, index) => {
+    step.classList.toggle('active', index === stepIndex);
+    step.classList.toggle('done', index < stepIndex);
+    if (index === stepIndex && text) {
+      const label = step.querySelector('span');
+      if (label) label.textContent = text;
+    }
+    if (index === stepIndex && detail !== undefined) {
+      const detailEl = step.querySelector('span:last-child');
+      if (detailEl) detailEl.textContent = detail;
+    }
+  });
+}
+
+function updateImportOverlayProgress(value, total = 100) {
+  const bar = document.getElementById('importOverlayBar');
+  if (!bar) return;
+  const percent = total === 0 ? 0 : Math.min((value / total) * 100, 100);
+  bar.style.width = `${percent}%`;
+}
+
+function hideImportOverlay() {
+  const overlay = document.getElementById('importOverlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
+}
+
+function showModuleLoadOverlay(steps) {
+  const overlay = document.getElementById('moduleLoadOverlay');
+  const stepsEl = document.getElementById('moduleLoadSteps');
+  const bar = document.getElementById('moduleLoadBar');
+  if (!overlay || !stepsEl || !bar) return;
+  stepsEl.innerHTML = steps.map((step, index) => (
+    `<div class="import-step${index === 0 ? ' active' : ''}" data-step="${index}"><span>${step.label}</span><span>(0/${step.total})</span></div>`
+  )).join('');
+  bar.style.width = '0%';
+  overlay.classList.remove('hidden');
+}
+
+function updateModuleLoadStep(stepIndex, current, total) {
+  const overlay = document.getElementById('moduleLoadOverlay');
+  if (!overlay) return;
+  const steps = Array.from(overlay.querySelectorAll('.import-step'));
+  steps.forEach((step, index) => {
+    step.classList.toggle('active', index === stepIndex);
+    step.classList.toggle('done', index < stepIndex);
+    if (index === stepIndex) {
+      const detail = step.querySelector('span:last-child');
+      if (detail) detail.textContent = `(${current}/${total})`;
+    }
+  });
+}
+
+function updateModuleLoadProgress(stepIndex, stepProgress, totalSteps) {
+  const bar = document.getElementById('moduleLoadBar');
+  if (!bar) return;
+  const percent = totalSteps === 0 ? 0 : ((stepIndex + stepProgress) / totalSteps) * 100;
+  bar.style.width = `${Math.min(percent, 100)}%`;
+}
+
+function hideModuleLoadOverlay() {
+  const overlay = document.getElementById('moduleLoadOverlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
+}
+
+function isProfileCompatible(profile) {
+  return !!(profile
+    && typeof profile === 'object'
+    && Array.isArray(profile.vehicles)
+    && Array.isArray(profile.templates)
+    && Array.isArray(profile.clients)
+    && Array.isArray(profile.managerClients)
+    && typeof profile.uiState === 'object');
+}
+
+async function runModuleLoadingSequence() {
+  const steps = [
+    { label: 'Cargando cuentas', total: (uiState.globalSettings?.accounts || []).length },
+    { label: 'Cargando clientes', total: managerClients.length },
+    { label: 'Cargando utilidades', total: document.querySelectorAll('#utilitiesMenuPanel .menu-item').length },
+    { label: 'Cargando ajustes', total: document.querySelectorAll('#settingsPanel .menu-item, #actionMenuPanel .menu-item').length },
+    { label: 'Cargando pestañas', total: document.querySelectorAll('#mainNav .nav-link').length }
+  ];
+  showModuleLoadOverlay(steps);
+  for (let i = 0; i < steps.length; i += 1) {
+    const { total } = steps[i];
+    const safeTotal = Math.max(total, 0);
+    let current = 0;
+    const duration = 650;
+    const start = performance.now();
+    while (current < safeTotal) {
+      const elapsed = performance.now() - start;
+      const progress = Math.min(elapsed / duration, 1);
+      current = Math.min(Math.round(progress * safeTotal), safeTotal);
+      updateModuleLoadStep(i, current, safeTotal);
+      updateModuleLoadProgress(i, progress, steps.length);
+      await nextFrame();
+      if (progress >= 1) break;
+    }
+    updateModuleLoadStep(i, safeTotal, safeTotal);
+    updateModuleLoadProgress(i, 1, steps.length);
+    await wait(120);
+  }
+  hideModuleLoadOverlay();
+}
+
 function migrateLegacyPrices() {
   const legacyVehicles = load('vehicles');
   if (legacyVehicles && !priceDrafts?.legacy) {
@@ -3171,6 +3326,7 @@ init();
 
 async function init() {
   try {
+    document.body.classList.add('modules-loading');
     setAppLoaderStep(0);
     await nextFrame();
     setupScrollLockObserver();
@@ -3234,10 +3390,15 @@ async function init() {
     renderPlanForm();
     await nextFrame();
     hideAppLoader();
+    await runModuleLoadingSequence();
+    document.body.classList.remove('modules-loading');
+    document.body.classList.add('modules-loaded');
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
   } catch (err) {
     console.error('Error during initialization:', err);
     hideAppLoader();
+    document.body.classList.remove('modules-loading');
+    document.body.classList.add('modules-loaded');
   }
 }
 
@@ -11863,58 +12024,98 @@ function mapRow(row, headers, systemDate = '') {
   return mapped;
 }
 
-function handleClientImport(file, importDate = '') {
-  const reader = new FileReader();
-  reader.onload = async (ev) => {
-    try {
-      const data = new Uint8Array(ev.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      const [headerRow, ...rows] = json;
-      if (!headerRow || !rows.length) {
-        showToast('El archivo no tiene registros.', 'error');
-        return;
-      }
-
-      const columns = buildImportColumns(headerRow, rows);
-      const guessedMapping = guessImportMapping(columns);
-
-      const processImport = (headersToUse, dataRows, showWarning = false) => {
-        const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
-        let imported = 0;
-        dataRows.forEach(r => {
-          const mapped = mapRow(r, headersToUse, importDate);
-          const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
-          if (existingKeys.has(key)) {
-            return;
-          }
-          existingKeys.add(key);
-          imported += 1;
-          managerClients.push(mapped);
-        });
-        persist();
-        renderClientManager();
-        const importedPanel = document.getElementById('importedDataManager');
-        if (importedPanel?.classList.contains('active')) {
-          renderImportedDataManager();
-        }
-        renderStats();
-        const extra = showWarning ? ' (usando asignación manual)' : '';
-        showToast(`Se han importado ${imported} clientes correctamente${extra}.`, 'success');
-      };
-
-      const mapping = await openImportMappingModal(headerRow, rows, columns, guessedMapping);
-      if (!mapping) return;
-      const headersToUse = buildHeadersFromMapping(mapping, columns.length);
-      const showWarning = Object.keys(guessedMapping).length !== importRequiredFields.length;
-      processImport(headersToUse, rows, showWarning);
-    } catch (err) {
-      console.error(err);
-      showToast('No se pudo procesar el Excel.', 'error');
+async function handleClientImport(file, importDate = '') {
+  showImportOverlay({
+    eyebrow: 'Importación de Excel',
+    title: 'Preparando importación del Excel',
+    subtitle: 'Espera un momento...',
+    helper: 'Estamos leyendo los datos para la importación...',
+    steps: [
+      'Leyendo datos del archivo del Excel...',
+      'Leyendo registros...',
+      'Espera un momento...'
+    ]
+  });
+  await wait(1000);
+  try {
+    updateImportOverlayStep(0, 'Leyendo datos del archivo del Excel...');
+    updateImportOverlayProgress(10, 100);
+    const buffer = await readFileAsArrayBuffer(file);
+    const data = new Uint8Array(buffer);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const [headerRow, ...rows] = json;
+    if (!headerRow || !rows.length) {
+      hideImportOverlay();
+      showToast('El archivo no tiene registros.', 'error');
+      return;
     }
-  };
-  reader.readAsArrayBuffer(file);
+
+    updateImportOverlayStep(1, 'Leyendo registros...', `(0/${rows.length})`);
+    updateImportOverlayProgress(25, 100);
+    const previewStep = Math.max(1, Math.round(rows.length / 18));
+    for (let count = 0; count <= rows.length; count += previewStep) {
+      const current = Math.min(count, rows.length);
+      updateImportOverlayStep(1, 'Leyendo registros...', `(${current}/${rows.length})`);
+      updateImportOverlayProgress(25 + (current / rows.length) * 25, 100);
+      await nextFrame();
+    }
+    const columns = buildImportColumns(headerRow, rows);
+    const guessedMapping = guessImportMapping(columns);
+
+    hideImportOverlay();
+    const mapping = await openImportMappingModal(headerRow, rows, columns, guessedMapping);
+    if (!mapping) return;
+    const headersToUse = buildHeadersFromMapping(mapping, columns.length);
+    const showWarning = Object.keys(guessedMapping).length !== importRequiredFields.length;
+
+    showImportOverlay({
+      eyebrow: 'Importación de Excel',
+      title: 'Importando registros',
+      subtitle: 'Espera un momento...',
+      helper: 'Estamos aplicando la importación en tu base de datos.',
+      steps: [
+        'Importando registros...',
+        'Actualizando paneles...'
+      ]
+    });
+    await wait(1000);
+
+    const existingKeys = new Set(managerClients.map(c => `${(c.name || '').toLowerCase().trim()}|${normalizePhone(c.phone)}`));
+    let imported = 0;
+    let processed = 0;
+    rows.forEach(r => {
+      processed += 1;
+      const mapped = mapRow(r, headersToUse, importDate);
+      const key = `${mapped.name.toLowerCase().trim()}|${normalizePhone(mapped.phone)}`;
+      if (!existingKeys.has(key)) {
+        existingKeys.add(key);
+        imported += 1;
+        managerClients.push(mapped);
+      }
+      if (processed % 20 === 0 || processed === rows.length) {
+        updateImportOverlayStep(0, 'Importando registros...', `(${processed}/${rows.length})`);
+        updateImportOverlayProgress(processed, rows.length);
+      }
+    });
+    updateImportOverlayStep(1, 'Actualizando paneles...');
+    updateImportOverlayProgress(rows.length, rows.length);
+    persist();
+    renderClientManager();
+    const importedPanel = document.getElementById('importedDataManager');
+    if (importedPanel?.classList.contains('active')) {
+      renderImportedDataManager();
+    }
+    renderStats();
+    const extra = showWarning ? ' (usando asignación manual)' : '';
+    showToast(`Se han importado ${imported} clientes correctamente${extra}.`, 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('No se pudo procesar el Excel.', 'error');
+  } finally {
+    hideImportOverlay();
+  }
 }
 
 function statusCounters() {
@@ -13831,29 +14032,71 @@ function bindProfileActions() {
     });
   });
 
-  document.getElementById('importProfile').addEventListener('change', e => {
+  document.getElementById('importProfile').addEventListener('change', async e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    confirmAction({
-      title: 'Importar perfil',
-      message: `Se reemplazarán datos actuales por ${file.name}.`,
-      confirmText: 'Importar',
-      onConfirm: () => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const parsed = JSON.parse(reader.result);
-            applyProfileData(parsed);
-            showToast('Perfil importado y aplicado', 'success');
-          } catch (err) {
-            showToast('No se pudo leer el perfil.', 'error');
-          } finally {
-            e.target.value = '';
-          }
-        };
-        reader.readAsText(file);
-      }
+    showImportOverlay({
+      eyebrow: 'Importación de perfil',
+      title: 'Leyendo perfil...',
+      subtitle: 'Espera un momento...',
+      helper: 'Estamos verificando la compatibilidad del perfil.',
+      steps: [
+        'Leyendo perfil...',
+        'Validando compatibilidad...',
+        'Listo para importar.'
+      ]
     });
+    await wait(1000);
+    try {
+      const content = await readFileAsText(file);
+      updateImportOverlayStep(0, 'Leyendo perfil...');
+      updateImportOverlayProgress(40, 100);
+      const parsed = JSON.parse(content);
+      updateImportOverlayStep(1, 'Validando compatibilidad...');
+      updateImportOverlayProgress(70, 100);
+      const compatible = isProfileCompatible(parsed);
+      if (!compatible) {
+        updateImportOverlayStep(2, 'Perfil incompatible.');
+        updateImportOverlayProgress(100, 100);
+        await wait(400);
+        hideImportOverlay();
+        showToast('El perfil no es compatible con la importación.', 'error');
+        return;
+      }
+      updateImportOverlayStep(2, 'Listo para importar.');
+      updateImportOverlayProgress(100, 100);
+      await wait(400);
+      hideImportOverlay();
+      confirmAction({
+        title: 'Importar perfil',
+        message: `Este perfil es compatible con la importación.\n\n¿Quieres importar este perfil?\nEsto reemplazará toda la información actual cargada. Si no tienes copia de respaldo, la perderás.\n\nArchivo seleccionado: ${file.name}`,
+        confirmText: 'Importar',
+        onConfirm: async () => {
+          showImportOverlay({
+            eyebrow: 'Importación de perfil',
+            title: 'Aplicando perfil...',
+            subtitle: 'Espera un momento...',
+            helper: 'Estamos actualizando la información de tu cuenta.',
+            steps: [
+              'Aplicando información del perfil...',
+              'Reiniciando módulos...'
+            ]
+          });
+          await wait(1000);
+          applyProfileData(parsed);
+          updateImportOverlayStep(1, 'Reiniciando módulos...');
+          updateImportOverlayProgress(100, 100);
+          await wait(300);
+          hideImportOverlay();
+          showToast('Perfil importado y aplicado', 'success');
+        }
+      });
+    } catch (err) {
+      hideImportOverlay();
+      showToast('No se pudo leer el perfil.', 'error');
+    } finally {
+      e.target.value = '';
+    }
   });
 
   const profileSearch = document.getElementById('profileSearch');

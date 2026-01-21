@@ -2417,6 +2417,36 @@
       </div>
     </div>
   </div>
+  <div id="importOverlay" class="processing-overlay hidden import-overlay" aria-live="polite">
+    <div class="processing-card import-card">
+      <div class="import-card-head">
+        <span class="processing-spinner" aria-hidden="true"></span>
+        <div>
+          <p class="eyebrow" id="importOverlayEyebrow">Importación</p>
+          <h3 id="importOverlayTitle">Preparando importación...</h3>
+          <p class="muted" id="importOverlaySubtitle">Espera un momento...</p>
+          <p class="muted tiny" id="importOverlayHelper">Estamos leyendo los datos para la importación...</p>
+        </div>
+      </div>
+      <div class="import-progress">
+        <div class="import-progress-bar"><span id="importOverlayBar"></span></div>
+        <div class="import-progress-steps" id="importOverlaySteps"></div>
+      </div>
+    </div>
+  </div>
+  <div id="moduleLoadOverlay" class="processing-overlay hidden module-overlay" aria-live="polite">
+    <div class="processing-card module-card">
+      <div>
+        <p class="eyebrow">Inicializando módulos</p>
+        <h3>Cargando paneles y utilidades</h3>
+        <p class="muted">Estamos preparando los módulos de tu cuenta activa.</p>
+      </div>
+      <div class="module-progress">
+        <div class="import-progress-bar"><span id="moduleLoadBar"></span></div>
+        <div class="import-progress-steps" id="moduleLoadSteps"></div>
+      </div>
+    </div>
+  </div>
   <button class="scroll-top-btn" id="scrollTopButton" aria-label="Volver arriba" aria-hidden="true">
     <i class='bx bx-chevron-up'></i>
   </button>
