@@ -3180,6 +3180,7 @@ async function init() {
     bindSettingsMenu();
     bindPreferencesPanel();
     bindActionMenu();
+    bindUtilitiesMenu();
     bindSidebarToggle();
     bindScrollTopButton();
     bindQuickLinks();
@@ -3203,6 +3204,7 @@ async function init() {
     renderSnapshots();
     bindNoteModal();
     bindClientPicker();
+    updateUtilitiesVisibility(document.querySelector('.panel.active')?.id || 'dashboard');
     bindQuoteModal();
     bindResourceButtons();
     attachPlanListeners();
@@ -3284,6 +3286,7 @@ function activatePanel(targetId) {
     renderImportedDataManager({ showLoader: true });
   }
   updateScrollTopButton();
+  updateUtilitiesVisibility(targetId);
 }
 
 function updateSectionTitle(targetId) {
@@ -3672,6 +3675,26 @@ function bindSettingsMenu() {
   });
 }
 
+function bindUtilitiesMenu() {
+  const toggle = document.getElementById('utilitiesMenuToggle');
+  const panel = document.getElementById('utilitiesMenuPanel');
+  const wrapper = document.getElementById('utilitiesMenu');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const actionPanel = document.getElementById('actionMenuPanel');
+  if (!toggle || !panel || !wrapper) return;
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      settingsPanel?.classList.remove('open');
+      actionPanel?.classList.remove('open');
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!wrapper.contains(e.target)) panel.classList.remove('open');
+  });
+}
+
 function bindActionMenu() {
   const toggle = document.getElementById('actionMenuToggle');
   const panel = document.getElementById('actionMenuPanel');
@@ -3705,6 +3728,12 @@ function updateScrollTopButton() {
   } else {
     button.setAttribute('tabindex', '-1');
   }
+}
+
+function updateUtilitiesVisibility(targetId) {
+  const utilities = document.getElementById('utilitiesContainer');
+  if (!utilities) return;
+  utilities.classList.toggle('is-visible', targetId === 'clientManager');
 }
 
 function bindScrollTopButton() {
@@ -9026,27 +9055,9 @@ function bindClientManager() {
 }
 
 function bindImportedDataManager() {
-  const selectAll = document.getElementById('importedManagerSelectAll');
   const clearBtn = document.getElementById('importedManagerClear');
   const deleteBtn = document.getElementById('importedManagerDelete');
   const content = document.getElementById('importedManagerContent');
-
-  if (selectAll && !selectAll.dataset.bound) {
-    selectAll.addEventListener('change', () => {
-      if (selectAll.checked) {
-        managerClients.forEach(client => importedManagerState.selectedIds.add(client.id));
-      } else {
-        importedManagerState.selectedIds.clear();
-      }
-      if (content) {
-        content.querySelectorAll('input[data-imported-id]').forEach(input => {
-          input.checked = selectAll.checked;
-        });
-      }
-      updateImportedManagerSelectionUI();
-    });
-    selectAll.dataset.bound = 'true';
-  }
 
   if (clearBtn && !clearBtn.dataset.bound) {
     clearBtn.addEventListener('click', () => {
@@ -9088,7 +9099,27 @@ function bindImportedDataManager() {
   }
 
   if (content && !content.dataset.bound) {
+    content.addEventListener('click', (event) => {
+      if (event.target.matches('input[data-imported-group-toggle], input[data-imported-id]')) {
+        event.stopPropagation();
+      }
+    });
     content.addEventListener('change', (event) => {
+      const groupToggle = event.target.closest('input[data-imported-group-toggle]');
+      if (groupToggle) {
+        const groupKey = groupToggle.dataset.importedGroupToggle;
+        const groupInputs = content.querySelectorAll(`input[data-imported-id][data-imported-group="${groupKey}"]`);
+        groupInputs.forEach(input => {
+          input.checked = groupToggle.checked;
+          if (groupToggle.checked) {
+            importedManagerState.selectedIds.add(input.dataset.importedId);
+          } else {
+            importedManagerState.selectedIds.delete(input.dataset.importedId);
+          }
+        });
+        updateImportedManagerSelectionUI();
+        return;
+      }
       const input = event.target.closest('input[data-imported-id]');
       if (!input) return;
       const id = input.dataset.importedId;
@@ -12356,7 +12387,6 @@ function renderClientManager() {
 
 function updateImportedManagerSelectionUI() {
   const summary = document.getElementById('importedManagerSummary');
-  const selectAll = document.getElementById('importedManagerSelectAll');
   const total = managerClients.length;
   const selected = importedManagerState.selectedIds.size;
   if (summary) {
@@ -12364,10 +12394,14 @@ function updateImportedManagerSelectionUI() {
       ? `Total ${total} registros · Seleccionados ${selected}`
       : 'Aún no hay clientes importados.';
   }
-  if (selectAll) {
-    selectAll.checked = total > 0 && selected === total;
-    selectAll.indeterminate = selected > 0 && selected < total;
-  }
+  document.querySelectorAll('input[data-imported-group-toggle]').forEach(input => {
+    const groupKey = input.dataset.importedGroupToggle;
+    const groupInputs = Array.from(document.querySelectorAll(`input[data-imported-id][data-imported-group="${groupKey}"]`));
+    const groupTotal = groupInputs.length;
+    const groupSelected = groupInputs.filter(item => item.checked).length;
+    input.checked = groupTotal > 0 && groupSelected === groupTotal;
+    input.indeterminate = groupSelected > 0 && groupSelected < groupTotal;
+  });
 }
 
 function getImportedGroups() {
@@ -12408,30 +12442,43 @@ function renderImportedDataManager({ showLoader = false } = {}) {
       updateImportedManagerSelectionUI();
       return;
     }
-    content.innerHTML = groups.map(group => {
-      const rows = group.clients.map((client, index) => {
+    content.innerHTML = groups.map((group, groupIndex) => {
+      const rows = group.clients.map(client => {
         const checked = importedManagerState.selectedIds.has(client.id) ? 'checked' : '';
+        const nameLabel = client.name?.trim() || 'Sin nombre';
         const documentLabel = client.document || 'Sin DNI';
         const phoneLabel = formatPhoneDisplay(client.phone || '') || client.phone || 'Sin teléfono';
         return `
           <div class="import-record-row">
-            <input type="checkbox" data-imported-id="${client.id}" ${checked} />
-            <div class="import-record-meta">
-              <div><span>Registro #</span><strong>${index + 1}</strong></div>
-              <div><span>DNI</span><strong>${documentLabel}</strong></div>
-              <div><span>TEL</span><strong>${phoneLabel}</strong></div>
+            <input type="checkbox" data-imported-id="${client.id}" data-imported-group="${group.key}" ${checked} />
+            <div class="import-record-main">
+              <div class="import-record-name">${nameLabel}</div>
+              <div class="import-record-meta">
+                <span><i class='bx bx-id-card'></i>${documentLabel}</span>
+                <span><i class='bx bx-phone'></i>${phoneLabel}</span>
+              </div>
             </div>
           </div>
         `;
       }).join('');
+      const openState = groupIndex === 0 ? 'open' : '';
       return `
-        <div class="import-day-group">
-          <div class="import-day-head">
-            <div class="import-day-title">Ingresados el día ${group.label}</div>
-            <div class="import-day-meta">${group.clients.length} registros en este lote</div>
-          </div>
+        <details class="import-day-group" ${openState}>
+          <summary class="import-day-head">
+            <div class="import-day-title">
+              <span>Paquete de ingresados</span>
+              <strong>${group.label}</strong>
+            </div>
+            <div class="import-day-actions">
+              <div class="import-day-meta">${group.clients.length} registros</div>
+              <label class="checkbox-pill mini">
+                <input type="checkbox" data-imported-group-toggle="${group.key}" />
+                <span>Marcar lote</span>
+              </label>
+            </div>
+          </summary>
           <div class="import-record-list">${rows}</div>
-        </div>
+        </details>
       `;
     }).join('');
     content.classList.remove('hidden');

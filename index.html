@@ -72,6 +72,25 @@
               <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
             </div>
           </div>
+          <div class="utilities-card" id="utilitiesContainer">
+            <div class="utilities-head">
+              <p class="eyebrow">Utilidades</p>
+            </div>
+            <div class="utilities-menu" id="utilitiesMenu">
+              <button class="menu-trigger ghost" id="utilitiesMenuToggle"><i class='bx bx-extension'></i><span>Utilidades</span><i class='bx bx-chevron-down'></i></button>
+              <div class="menu-panel" id="utilitiesMenuPanel">
+                <div class="menu-head">
+                  <p class="eyebrow">Utilidades</p>
+                  <h4>Utilidades</h4>
+                </div>
+                <button class="menu-item highlight" id="openContactAssistant"><i class='bx bx-bot'></i>Inteligente</button>
+                <button class="menu-item" id="toggleEditMode"></button>
+                <button class="menu-item" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar acciones rápidas</button>
+                <button class="menu-item" id="openContactLog"><i class='bx bx-time-five'></i>Registro de Contactados</button>
+                <button class="menu-item" id="openImportedDataManager"><i class='bx bx-data'></i>Administrar datos importados</button>
+              </div>
+            </div>
+          </div>
           <div class="menu-cluster">
             <div class="menu-cluster-head">
               <p class="eyebrow">Ajustes y configuraciones</p>
@@ -1088,13 +1107,6 @@
                 </div>
                 <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
-              <div class="control-group secondary">
-                <button class="secondary-btn" id="toggleEditMode"><i class='bx bx-edit-alt'></i>Modo Edición</button>
-                <button class="secondary-btn" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar</button>
-                <button class="primary-btn" id="openContactAssistant"><i class='bx bx-bot'></i>Inteligente</button>
-                <button class="secondary-btn" id="openContactLog"><i class='bx bx-time-five'></i>Reg. Contactados</button>
-                <button class="secondary-btn" id="openImportedDataManager"><i class='bx bx-data'></i>Administrar datos importados</button>
-              </div>
             </div>
           </div>
           <div id="dateFilterHelper" class="muted tiny"></div>
@@ -1159,10 +1171,6 @@
               <p class="muted tiny" id="importedManagerSummary">Selecciona registros para eliminar o auditar.</p>
             </div>
             <div class="import-manager-actions">
-              <label class="checkbox-pill">
-                <input type="checkbox" id="importedManagerSelectAll" />
-                <span>Marcar todos</span>
-              </label>
               <button class="ghost-btn mini" id="importedManagerClear"><i class='bx bx-x'></i>Limpiar</button>
               <button class="primary-btn" id="importedManagerDelete"><i class='bx bx-trash'></i>Eliminar seleccionados</button>
             </div>
@@ -1205,7 +1213,7 @@
       </section>
     </main>
     <footer class="app-footer">
-      <p>Creado por Maximiliano Martinez | version 1.3.0 | Solo uso interno autorizado</p>
+      <p>Creado por Maximiliano Martinez | version 1.3.1 | Solo uso interno autorizado</p>
     </footer>
   </div>
   <div class="popover-overlay fade" id="actionCustomizerOverlay">
