@@ -1780,7 +1780,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .pagination-controls .mini { padding-inline: 10px; }
 .field.compact-field { width: auto; max-width: 100%; }
 .advisor-combo { display: grid; gap: 6px; flex: 0 1 auto; max-width: 100%; min-width: auto; }
-.advisor-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-start; flex: 1 1 auto; width: auto; max-width: 700px; }
+.advisor-filters { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; justify-content: flex-start; flex: 1 1 auto; width: auto; max-width: none; }
 .client-controls .ghost-btn { white-space: nowrap; }
 .control-group.secondary button { padding: 8px 10px; font-size: 13px; border-radius: 10px; height: 40px; display: inline-flex; align-items: center; gap: 6px; }
 .control-group.secondary button i { font-size: 16px; }
