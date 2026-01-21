@@ -3102,6 +3102,42 @@ const appLoaderSteps = [
   'Cargando Marcas y Precios...'
 ];
 
+const appLoaderState = {
+  steps: [...appLoaderSteps]
+};
+
+function setAppLoaderSteps(steps = appLoaderSteps) {
+  const overlay = document.getElementById('appLoader');
+  if (!overlay) return;
+  const container = document.getElementById('loaderSteps');
+  if (!container) return;
+  const normalized = steps.length ? steps : appLoaderSteps;
+  appLoaderState.steps = [...normalized];
+  container.innerHTML = '';
+  normalized.forEach((label, index) => {
+    const step = document.createElement('div');
+    step.className = 'loader-step';
+    step.dataset.step = String(index);
+    step.textContent = label;
+    container.appendChild(step);
+  });
+}
+
+function setAppLoaderProgress(percent) {
+  const bar = document.getElementById('loaderBar');
+  if (!bar) return;
+  const normalized = Math.min(Math.max(percent, 0), 100);
+  bar.style.width = `${normalized}%`;
+}
+
+function updateAppLoaderStepText(stepIndex, text) {
+  const overlay = document.getElementById('appLoader');
+  if (!overlay) return;
+  const step = overlay.querySelector(`.loader-step[data-step="${stepIndex}"]`);
+  if (!step) return;
+  step.textContent = text;
+}
+
 function setAppLoaderStep(stepIndex) {
   const overlay = document.getElementById('appLoader');
   if (!overlay) return;
@@ -3113,7 +3149,7 @@ function setAppLoaderStep(stepIndex) {
     step.classList.toggle('done', index < stepIndex);
   });
   if (bar) {
-    const total = steps.length || appLoaderSteps.length || 1;
+    const total = steps.length || appLoaderState.steps.length || 1;
     const progress = Math.min(((stepIndex + 1) / total) * 100, 100);
     bar.style.width = `${progress}%`;
   }
@@ -3204,43 +3240,9 @@ function hideImportOverlay() {
   overlay.classList.add('hidden');
 }
 
-function showModuleLoadOverlay(steps) {
-  const overlay = document.getElementById('moduleLoadOverlay');
-  const stepsEl = document.getElementById('moduleLoadSteps');
-  const bar = document.getElementById('moduleLoadBar');
-  if (!overlay || !stepsEl || !bar) return;
-  stepsEl.innerHTML = steps.map((step, index) => (
-    `<div class="import-step${index === 0 ? ' active' : ''}" data-step="${index}"><span>${step.label}</span><span>(0/${step.total})</span></div>`
-  )).join('');
-  bar.style.width = '0%';
-  overlay.classList.remove('hidden');
-}
-
-function updateModuleLoadStep(stepIndex, current, total) {
-  const overlay = document.getElementById('moduleLoadOverlay');
-  if (!overlay) return;
-  const steps = Array.from(overlay.querySelectorAll('.import-step'));
-  steps.forEach((step, index) => {
-    step.classList.toggle('active', index === stepIndex);
-    step.classList.toggle('done', index < stepIndex);
-    if (index === stepIndex) {
-      const detail = step.querySelector('span:last-child');
-      if (detail) detail.textContent = `(${current}/${total})`;
-    }
-  });
-}
-
-function updateModuleLoadProgress(stepIndex, stepProgress, totalSteps) {
-  const bar = document.getElementById('moduleLoadBar');
-  if (!bar) return;
-  const percent = totalSteps === 0 ? 0 : ((stepIndex + stepProgress) / totalSteps) * 100;
-  bar.style.width = `${Math.min(percent, 100)}%`;
-}
-
-function hideModuleLoadOverlay() {
-  const overlay = document.getElementById('moduleLoadOverlay');
-  if (!overlay) return;
-  overlay.classList.add('hidden');
+function formatLoaderStepLabel(label, current, total) {
+  if (total <= 0) return label;
+  return `${label} (${current}/${total})`;
 }
 
 function isProfileCompatible(profile) {
@@ -3261,9 +3263,9 @@ async function runModuleLoadingSequence() {
     { label: 'Cargando ajustes', total: document.querySelectorAll('#settingsPanel .menu-item, #actionMenuPanel .menu-item').length },
     { label: 'Cargando pestañas', total: document.querySelectorAll('#mainNav .nav-link').length }
   ];
-  showModuleLoadOverlay(steps);
+  setAppLoaderSteps(steps.map(step => step.label));
   for (let i = 0; i < steps.length; i += 1) {
-    const { total } = steps[i];
+    const { total, label } = steps[i];
     const safeTotal = Math.max(total, 0);
     let current = 0;
     const duration = 650;
@@ -3272,16 +3274,18 @@ async function runModuleLoadingSequence() {
       const elapsed = performance.now() - start;
       const progress = Math.min(elapsed / duration, 1);
       current = Math.min(Math.round(progress * safeTotal), safeTotal);
-      updateModuleLoadStep(i, current, safeTotal);
-      updateModuleLoadProgress(i, progress, steps.length);
+      setAppLoaderStep(i);
+      updateAppLoaderStepText(i, formatLoaderStepLabel(label, current, safeTotal));
+      setAppLoaderProgress(steps.length === 0 ? 0 : ((i + progress) / steps.length) * 100);
       await nextFrame();
       if (progress >= 1) break;
     }
-    updateModuleLoadStep(i, safeTotal, safeTotal);
-    updateModuleLoadProgress(i, 1, steps.length);
+    setAppLoaderStep(i);
+    updateAppLoaderStepText(i, formatLoaderStepLabel(label, safeTotal, safeTotal));
+    setAppLoaderProgress(steps.length === 0 ? 0 : ((i + 1) / steps.length) * 100);
     await wait(120);
   }
-  hideModuleLoadOverlay();
+  setAppLoaderSteps(appLoaderSteps);
 }
 
 function migrateLegacyPrices() {
@@ -3327,6 +3331,7 @@ init();
 async function init() {
   try {
     document.body.classList.add('modules-loading');
+    setAppLoaderSteps(appLoaderSteps);
     setAppLoaderStep(0);
     await nextFrame();
     setupScrollLockObserver();
@@ -3389,8 +3394,8 @@ async function init() {
     renderVehicleTable();
     renderPlanForm();
     await nextFrame();
-    hideAppLoader();
     await runModuleLoadingSequence();
+    hideAppLoader();
     document.body.classList.remove('modules-loading');
     document.body.classList.add('modules-loaded');
     document.getElementById('clearStorage').addEventListener('click', clearStorage);
