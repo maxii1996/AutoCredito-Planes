@@ -3823,6 +3823,16 @@ function bindSidebarToggle() {
   });
 }
 
+function updateTopNavVisibility() {
+  const utilitiesPanel = document.getElementById('utilitiesMenuPanel');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const actionPanel = document.getElementById('actionMenuPanel');
+  const isAnyMenuOpen = [utilitiesPanel, settingsPanel, actionPanel].some(
+    (panel) => panel && panel.classList.contains('open')
+  );
+  document.body.classList.toggle('menu-overlay-active', isAnyMenuOpen);
+}
+
 function bindSettingsMenu() {
   const toggle = document.getElementById('settingsToggle');
   const panel = document.getElementById('settingsPanel');
@@ -3833,10 +3843,12 @@ function bindSettingsMenu() {
     if (panel.classList.contains('open') && actionPanel) {
       actionPanel.classList.remove('open');
     }
+    updateTopNavVisibility();
   });
   document.addEventListener('click', (e) => {
     if (!panel.contains(e.target) && !toggle.contains(e.target)) {
       panel.classList.remove('open');
+      updateTopNavVisibility();
     }
   });
 }
@@ -3855,9 +3867,13 @@ function bindUtilitiesMenu() {
       settingsPanel?.classList.remove('open');
       actionPanel?.classList.remove('open');
     }
+    updateTopNavVisibility();
   });
   document.addEventListener('click', (e) => {
-    if (!wrapper.contains(e.target)) panel.classList.remove('open');
+    if (!wrapper.contains(e.target)) {
+      panel.classList.remove('open');
+      updateTopNavVisibility();
+    }
   });
 }
 
@@ -3873,9 +3889,13 @@ function bindActionMenu() {
     if (panel.classList.contains('open') && settingsPanel) {
       settingsPanel.classList.remove('open');
     }
+    updateTopNavVisibility();
   });
   document.addEventListener('click', (e) => {
-    if (!wrapper.contains(e.target)) panel.classList.remove('open');
+    if (!wrapper.contains(e.target)) {
+      panel.classList.remove('open');
+      updateTopNavVisibility();
+    }
   });
 }
 

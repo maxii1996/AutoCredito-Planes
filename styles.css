@@ -54,6 +54,7 @@ body {
 
 body.menu-collapsed .nav-row { display: none; }
 body.menu-collapsed .menu-toggle { background: rgba(255, 255, 255, 0.04); }
+body.menu-overlay-active .nav-row { visibility: hidden; opacity: 0; pointer-events: none; }
 
 .app-header {
   position: sticky;
