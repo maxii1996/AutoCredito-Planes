@@ -81,9 +81,8 @@
               <div class="menu-panel" id="utilitiesMenuPanel">
                 <div class="menu-head">
                   <p class="eyebrow">Utilidades</p>
-                  <h4>Utilidades</h4>
                 </div>
-                <button class="menu-item highlight" id="openContactAssistant"><i class='bx bx-bot'></i>Inteligente</button>
+                <button class="menu-item highlight" id="openContactAssistant"><i class='bx bx-bot'></i>Modo de Contacto Express</button>
                 <button class="menu-item" id="toggleEditMode"></button>
                 <button class="menu-item" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar acciones rápidas</button>
                 <button class="menu-item" id="openContactLog"><i class='bx bx-time-five'></i>Registro de Contactados</button>
@@ -101,7 +100,6 @@
                 <div class="menu-panel" id="actionMenuPanel">
                   <div class="menu-head">
                     <p class="eyebrow">Mi Perfil</p>
-                    <h4>Mi Perfil</h4>
                   </div>
                   <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
                   <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
@@ -112,7 +110,6 @@
                 <div class="menu-panel" id="settingsPanel">
                   <div class="menu-head">
                     <p class="eyebrow">Opciones</p>
-                    <h4>Opciones</h4>
                   </div>
                   <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
                   <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
@@ -1171,6 +1168,13 @@
               <p class="muted tiny" id="importedManagerSummary">Selecciona registros para eliminar o auditar.</p>
             </div>
             <div class="import-manager-actions">
+              <div class="search-group import-manager-search">
+                <div class="search-field compact">
+                  <i class='bx bx-search'></i>
+                  <input id="importedManagerSearch" placeholder="Buscar por nombre..." />
+                </div>
+                <button class="secondary-btn mini" id="importedManagerSearchBtn"><i class='bx bx-right-arrow-alt'></i>Buscar</button>
+              </div>
               <button class="ghost-btn mini" id="importedManagerClear"><i class='bx bx-x'></i>Limpiar</button>
               <button class="primary-btn" id="importedManagerDelete"><i class='bx bx-trash'></i>Eliminar seleccionados</button>
             </div>

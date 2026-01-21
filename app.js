@@ -3074,7 +3074,7 @@ let accountManagerState = { selectedId: null, drafts: {} };
 let accountManagerTimers = { name: null, phone: null };
 let accountApplyState = { isRunning: false };
 let profileSwitchTimer = null;
-let importedManagerState = { selectedIds: new Set(), loading: false };
+let importedManagerState = { selectedIds: new Set(), loading: false, searchTerm: '' };
 let importedManagerTimer = null;
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
@@ -9058,6 +9058,8 @@ function bindImportedDataManager() {
   const clearBtn = document.getElementById('importedManagerClear');
   const deleteBtn = document.getElementById('importedManagerDelete');
   const content = document.getElementById('importedManagerContent');
+  const searchInput = document.getElementById('importedManagerSearch');
+  const searchBtn = document.getElementById('importedManagerSearchBtn');
 
   if (clearBtn && !clearBtn.dataset.bound) {
     clearBtn.addEventListener('click', () => {
@@ -9096,6 +9098,28 @@ function bindImportedDataManager() {
       });
     });
     deleteBtn.dataset.bound = 'true';
+  }
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.value = importedManagerState.searchTerm || '';
+    searchInput.addEventListener('input', () => {
+      importedManagerState.searchTerm = searchInput.value;
+      runImportedManagerSearch({ scroll: false });
+    });
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        runImportedManagerSearch();
+      }
+    });
+    searchInput.dataset.bound = 'true';
+  }
+
+  if (searchBtn && !searchBtn.dataset.bound) {
+    searchBtn.addEventListener('click', () => {
+      runImportedManagerSearch();
+    });
+    searchBtn.dataset.bound = 'true';
   }
 
   if (content && !content.dataset.bound) {
@@ -12404,6 +12428,42 @@ function updateImportedManagerSelectionUI() {
   });
 }
 
+function normalizeSearchTerm(value) {
+  return (value || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isImportedSearchMatch(client, term) {
+  if (!term) return false;
+  const name = normalizeSearchTerm(client.name || '');
+  const document = normalizeSearchTerm(client.document || '');
+  const phone = normalizeSearchTerm(client.phone || '');
+  return name.includes(term) || document.includes(term) || phone.includes(term);
+}
+
+function runImportedManagerSearch({ scroll = true } = {}) {
+  const content = document.getElementById('importedManagerContent');
+  const term = normalizeSearchTerm(importedManagerState.searchTerm);
+  if (!term) {
+    renderImportedDataManager();
+    return;
+  }
+  renderImportedDataManager();
+  if (!scroll || !content) return;
+  const firstMatch = content.querySelector('.import-record-row.highlight');
+  if (!firstMatch) {
+    showToast('No se encontraron coincidencias en los registros importados.', 'warning');
+    return;
+  }
+  const group = firstMatch.closest('details');
+  if (group) group.open = true;
+  firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function getImportedGroups() {
   const groups = new Map();
   managerClients.forEach(client => {
@@ -12435,6 +12495,7 @@ function renderImportedDataManager({ showLoader = false } = {}) {
 
   const runRender = () => {
     const groups = getImportedGroups();
+    const normalizedTerm = normalizeSearchTerm(importedManagerState.searchTerm);
     if (!groups.length) {
       content.innerHTML = `<div class="import-empty">No hay clientes importados para administrar.</div>`;
       content.classList.remove('hidden');
@@ -12448,8 +12509,9 @@ function renderImportedDataManager({ showLoader = false } = {}) {
         const nameLabel = client.name?.trim() || 'Sin nombre';
         const documentLabel = client.document || 'Sin DNI';
         const phoneLabel = formatPhoneDisplay(client.phone || '') || client.phone || 'Sin teléfono';
+        const highlightClass = isImportedSearchMatch(client, normalizedTerm) ? ' highlight' : '';
         return `
-          <div class="import-record-row">
+          <div class="import-record-row${highlightClass}">
             <input type="checkbox" data-imported-id="${client.id}" data-imported-group="${group.key}" ${checked} />
             <div class="import-record-main">
               <div class="import-record-name">${nameLabel}</div>
