@@ -503,12 +503,28 @@ const defaultActionCatalog = [
   { id: 'contacted', label: 'Marcar como contactado', icon: 'bx-check-circle', color: '#22c55e' },
   { id: 'no_number', label: 'Número no disponible', icon: 'bx-block', color: '#f87171' },
   { id: 'favorite', label: 'Favorito', icon: 'bx-star', color: '#f6b04b' },
+  { id: 'update_status', label: 'Modificación de estado', icon: 'bx-tag', color: '#60a5fa' },
   { id: 'open_notes', label: 'Notas', icon: 'bx-note', color: '#94a3b8' },
   { id: 'copy_message', label: 'Copiar mensaje', icon: 'bx-message-square-dots', color: '#38bdf8' },
   { id: 'copy_template', label: 'Copiar plantilla', icon: 'bx-copy-alt', color: '#f59e0b' },
   { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' },
   { id: 'schedule_contact', label: 'Programar contacto', icon: 'bx-calendar-event', color: '#7dd3b0' }
 ];
+
+const JOURNEY_STATUS_OPTIONS = [
+  { key: 'sin_respuesta', label: 'Sin Respuesta' },
+  { key: 'sin_respuesta_no_disponible', label: 'Sin respuesta: Número no disponible' },
+  { key: 'con_respuesta_numero_equivocado', label: 'Con Respuesta: Número equivocado' },
+  { key: 'con_respuesta_no_interesado', label: 'Con Respuesta: Hecha la propuesta pero no interesado.' },
+  { key: 'con_respuesta_lo_piensa', label: 'Con Respuesta: Hecha la propuesta y lo va a pensar.' },
+  { key: 'con_respuesta_recontacto', label: 'Con Respuesta: Solicita recontactarlo en el futuro.' },
+  { key: 'posible_venta_espera_fotos', label: 'Con Respuesta (Posible Venta): Hecha la propuesta y le interesa. Esperando recibir fotos del vehículo' },
+  { key: 'posible_venta_cotizacion', label: 'Con Respuesta  (Posible Venta): Fotos Recibidas, Cotización enviada. En proceso de análisis y decisión final.' },
+  { key: 'venta_pausada', label: 'Con Respuesta (Venta Pausada): No desea continuar con la operación.' },
+  { key: 'venta_concretada', label: 'Venta concretada correctamente.' }
+];
+
+const DEFAULT_JOURNEY_STATUS_KEY = 'sin_respuesta';
 
 const contextMenuDataCatalog = [
   { key: 'name', label: 'Nombre' },
@@ -1737,7 +1753,7 @@ async function applyProfileData(parsed) {
   await initializePriceTabs();
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
   clients = parsed.clients || [];
-  managerClients = parsed.managerClients || [];
+  managerClients = (parsed.managerClients || []).map(client => ensureJourneyStatusData(client));
   generatedQuotes = parsed.generatedQuotes || [];
   snapshots = parsed.snapshots || [];
   uiState = { ...defaultUiState, ...(parsed.uiState || {}) };
@@ -1746,7 +1762,7 @@ async function applyProfileData(parsed) {
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
   clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
-  clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
+  clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
   uiState.templateSearch = uiState.templateSearch || '';
@@ -2755,6 +2771,15 @@ function formatContactMetaLine(value) {
   return `El día: ${day} a las: ${time}`;
 }
 
+function formatDetailedDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${day} a las ${time}`;
+}
+
 function formatContactMetaDetail(value) {
   if (!value) return 'Contacto realizado el día: Sin fecha registrada';
   const date = new Date(value);
@@ -2898,6 +2923,85 @@ function setupScrollLockObserver() {
 
 function hasNotes(client = {}) {
   return normalizeNotesValue(client.type) !== '-';
+}
+
+function getJourneyStatusOption(key) {
+  return JOURNEY_STATUS_OPTIONS.find(option => option.key === key) || null;
+}
+
+function normalizeJourneyStatus(client = {}) {
+  const fallback = getJourneyStatusOption(DEFAULT_JOURNEY_STATUS_KEY) || JOURNEY_STATUS_OPTIONS[0];
+  const current = client.journeyStatus || {};
+  const resolved = getJourneyStatusOption(current.key) || fallback;
+  return {
+    key: resolved.key,
+    label: current.label || resolved.label,
+    updatedAt: current.updatedAt || '',
+    accountId: current.accountId || '',
+    accountName: current.accountName || ''
+  };
+}
+
+function normalizeJourneyHistory(history = []) {
+  return Array.isArray(history) ? history.filter(Boolean).map(entry => ({
+    key: entry.key || DEFAULT_JOURNEY_STATUS_KEY,
+    label: entry.label || getJourneyStatusOption(entry.key || DEFAULT_JOURNEY_STATUS_KEY)?.label || 'Sin Respuesta',
+    timestamp: entry.timestamp || '',
+    accountId: entry.accountId || '',
+    accountName: entry.accountName || ''
+  })) : [];
+}
+
+function ensureJourneyStatusData(client = {}) {
+  return {
+    ...client,
+    journeyStatus: normalizeJourneyStatus(client),
+    journeyHistory: normalizeJourneyHistory(client.journeyHistory)
+  };
+}
+
+function updateClientJourneyStatus(client, statusKey) {
+  if (!client) return;
+  const option = getJourneyStatusOption(statusKey) || getJourneyStatusOption(DEFAULT_JOURNEY_STATUS_KEY);
+  if (!option) return;
+  const activeAccount = getActiveAccount();
+  const timestamp = new Date().toISOString();
+  client.journeyStatus = {
+    key: option.key,
+    label: option.label,
+    updatedAt: timestamp,
+    accountId: activeAccount?.id || '',
+    accountName: activeAccount?.name || 'Sin cuenta'
+  };
+  client.journeyHistory = Array.isArray(client.journeyHistory) ? client.journeyHistory : [];
+  client.journeyHistory.push({
+    key: option.key,
+    label: option.label,
+    timestamp,
+    accountId: activeAccount?.id || '',
+    accountName: activeAccount?.name || 'Sin cuenta'
+  });
+}
+
+function journeyStatusLabel(client = {}) {
+  const normalized = normalizeJourneyStatus(client);
+  return normalized.label || 'Sin Respuesta';
+}
+
+function journeyStatusLastUpdate(client = {}) {
+  const normalized = normalizeJourneyStatus(client);
+  return normalized.updatedAt || '';
+}
+
+function buildJourneyStatusOptions(selectedKey = 'none', { includeNone = false } = {}) {
+  const options = [];
+  if (includeNone) {
+    options.push({ key: 'none', label: 'Sin actualización de estado' });
+  }
+  options.push(...JOURNEY_STATUS_OPTIONS);
+  return options.map(option => (
+    `<option value="${option.key}" ${option.key === selectedKey ? 'selected' : ''}>${option.label}</option>`
+  )).join('');
 }
 
 function clientStatus(client = {}) {
@@ -3069,7 +3173,7 @@ let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
 let brandSettings = normalizeBrandSettings(load('brandSettings') || defaultBrandSettings, vehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
 let clients = load('clients') || [];
-let managerClients = load('managerClients') || [];
+let managerClients = (load('managerClients') || []).map(client => ensureJourneyStatusData(client));
 let accountManagerState = { selectedId: null, drafts: {} };
 let accountManagerTimers = { name: null, phone: null };
 let accountApplyState = { isRunning: false };
@@ -3086,6 +3190,7 @@ let snapshots = load('snapshots') || [];
 let activeNoteClientId = null;
 let activeActionClientId = null;
 let activeEditAction = null;
+let activeStatusClientId = null;
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
@@ -3094,6 +3199,7 @@ let activeScheduleClientId = null;
 let scheduleClockInterval = null;
 let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab: 'models' };
 let vehicleEditorAutosaveTimer = null;
+let journeyReportState = { from: '', to: '' };
 
 const appLoaderSteps = [
   'Cargando cuentas...',
@@ -3307,7 +3413,7 @@ migrateLegacyPrices();
 clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
 clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
 clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
-clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
+clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
 clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
 clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
 
@@ -3376,6 +3482,7 @@ async function init() {
     attachVehicleToggles();
     bindVehicleEditor();
     bindClientManager();
+    bindJourneyReport();
     bindImportedDataManager();
     bindAccountManager();
     bindAccountInfoModal();
@@ -9198,6 +9305,12 @@ function bindClientManager() {
     contactLogBtn.addEventListener('click', () => toggleContactLog(true));
   }
 
+  const journeyReportBtn = document.getElementById('openJourneyReport');
+  if (journeyReportBtn && !journeyReportBtn.dataset.bound) {
+    journeyReportBtn.addEventListener('click', openJourneyReportModal);
+    journeyReportBtn.dataset.bound = 'true';
+  }
+
   const openImportedManager = document.getElementById('openImportedDataManager');
   if (openImportedManager && !openImportedManager.dataset.bound) {
     openImportedManager.addEventListener('click', () => {
@@ -9238,6 +9351,62 @@ function bindClientManager() {
   bindClientEditHandlers();
   renderColumnToggles();
   bindClientManagerResize();
+}
+
+function bindJourneyReport() {
+  const modal = document.getElementById('journeyReportModal');
+  const closeBtn = document.getElementById('journeyReportClose');
+  const closeFooter = document.getElementById('journeyReportCloseFooter');
+  const downloadBtn = document.getElementById('journeyReportDownload');
+  const fromInput = document.getElementById('journeyReportFrom');
+  const toInput = document.getElementById('journeyReportTo');
+  const quickButtons = document.querySelectorAll('.journey-quick-buttons [data-range]');
+
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.addEventListener('click', closeJourneyReportModal);
+    closeBtn.dataset.bound = 'true';
+  }
+  if (closeFooter && !closeFooter.dataset.bound) {
+    closeFooter.addEventListener('click', closeJourneyReportModal);
+    closeFooter.dataset.bound = 'true';
+  }
+  if (downloadBtn && !downloadBtn.dataset.bound) {
+    downloadBtn.addEventListener('click', downloadJourneyReportPdf);
+    downloadBtn.dataset.bound = 'true';
+  }
+  if (fromInput && !fromInput.dataset.bound) {
+    fromInput.addEventListener('change', () => {
+      journeyReportState.from = fromInput.value;
+      renderJourneyReport();
+    });
+    fromInput.dataset.bound = 'true';
+  }
+  if (toInput && !toInput.dataset.bound) {
+    toInput.addEventListener('change', () => {
+      journeyReportState.to = toInput.value;
+      renderJourneyReport();
+    });
+    toInput.dataset.bound = 'true';
+  }
+  quickButtons.forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.addEventListener('click', () => {
+      const range = Number(btn.dataset.range || 0);
+      const today = new Date();
+      const start = new Date();
+      start.setDate(today.getDate() - Math.max(range - 1, 0));
+      journeyReportState.from = formatLocalISO(start);
+      journeyReportState.to = formatLocalISO(today);
+      renderJourneyReport();
+    });
+    btn.dataset.bound = 'true';
+  });
+  if (modal && !modal.dataset.bound) {
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeJourneyReportModal();
+    });
+    modal.dataset.bound = 'true';
+  }
 }
 
 function bindImportedDataManager() {
@@ -9646,6 +9815,8 @@ function bindContactAssistant() {
       previousFlags: { ...(current.flags || {}) },
       previousContactDate: current.contactDate || '',
       previousContactMeta: current.contactMeta ? { ...current.contactMeta } : null,
+      previousJourneyStatus: current.journeyStatus ? { ...current.journeyStatus } : null,
+      previousJourneyHistory: Array.isArray(current.journeyHistory) ? [...current.journeyHistory] : [],
       previousIndex: clientManagerState.contactAssistant.currentIndex
     };
     updateClientFlag(current.id, flag, true);
@@ -9668,6 +9839,10 @@ function bindContactAssistant() {
       client.flags = { ...(undo.previousFlags || {}) };
       client.contactDate = undo.previousContactDate || '';
       client.contactMeta = undo.previousContactMeta || null;
+      client.journeyStatus = undo.previousJourneyStatus || normalizeJourneyStatus(client);
+      client.journeyHistory = Array.isArray(undo.previousJourneyHistory)
+        ? [...undo.previousJourneyHistory]
+        : normalizeJourneyHistory(client.journeyHistory);
       const pending = pendingClientsPool();
       const restoredIndex = pending.findIndex(item => item.id === undo.clientId);
       clientManagerState.contactAssistant.currentIndex = restoredIndex >= 0
@@ -9836,13 +10011,17 @@ function renderActionCustomizer() {
     const active = action.visible !== false;
     const eyeIcon = active ? 'bx-show' : 'bx-hide';
     const eyeClass = active ? 'eye-toggle active' : 'eye-toggle';
+    const statusOption = action.statusKey && action.statusKey !== 'none'
+      ? getJourneyStatusOption(action.statusKey)
+      : null;
+    const statusLabel = statusOption?.label || 'Sin actualización de estado';
     return `
       <div class="action-row" data-custom-id="${action.id}">
         <div class="action-main">
           <div class="icon" style="color:${action.color}; background:${hexToRgba(action.color || '#38bdf8', 0.16)}"><i class='bx ${action.icon}'></i></div>
           <div class="action-meta">
             <span class="label">${action.label}</span>
-            <span class="muted">Personalizada</span>
+            <span class="muted">Personalizada · Estado automático: ${statusLabel}</span>
           </div>
         </div>
         <div class="action-actions">
@@ -11563,6 +11742,12 @@ function renderIconPicker(selected = selectedCustomIcon) {
   }));
 }
 
+function renderCustomActionStatusSelect(selectedKey = 'none') {
+  const select = document.getElementById('customActionStatus');
+  if (!select) return;
+  select.innerHTML = buildJourneyStatusOptions(selectedKey, { includeNone: true });
+}
+
 function resetCustomActionForm() {
   const label = document.getElementById('customActionLabel');
   const color = document.getElementById('customActionColor');
@@ -11575,6 +11760,7 @@ function resetCustomActionForm() {
   if (subtitle) subtitle.textContent = 'Nueva acción';
   selectedCustomIcon = 'bx-check-circle';
   renderIconPicker();
+  renderCustomActionStatusSelect('none');
 }
 
 function startCustomActionEdit(action = null) {
@@ -11582,6 +11768,7 @@ function startCustomActionEdit(action = null) {
   const color = document.getElementById('customActionColor');
   const title = document.getElementById('customActionTitle');
   const subtitle = document.getElementById('customActionSubtitle');
+  const statusSelect = document.getElementById('customActionStatus');
   if (!label || !color || !title || !subtitle) return;
   editingCustomActionId = action?.id || null;
   label.value = action?.label || '';
@@ -11590,6 +11777,10 @@ function startCustomActionEdit(action = null) {
   title.textContent = action ? 'Editar acción personalizada' : 'Crear acción personalizada';
   subtitle.textContent = action ? 'Editar acción' : 'Nueva acción';
   renderIconPicker(selectedCustomIcon);
+  if (statusSelect) {
+    const currentKey = action?.statusKey || 'none';
+    renderCustomActionStatusSelect(currentKey);
+  }
 }
 
 function hideCustomActionForm() {
@@ -11600,6 +11791,7 @@ function hideCustomActionForm() {
 function saveCustomAction() {
   const label = document.getElementById('customActionLabel');
   const color = document.getElementById('customActionColor');
+  const statusSelect = document.getElementById('customActionStatus');
   if (!label || !color) return;
   const trimmed = (label.value || '').trim();
   if (!trimmed) {
@@ -11611,6 +11803,7 @@ function saveCustomAction() {
     label: trimmed,
     color: color.value || '#38bdf8',
     icon: selectedCustomIcon,
+    statusKey: statusSelect?.value || 'none',
     visible: true
   };
   const existing = getCustomActionById(actionData.id);
@@ -12046,7 +12239,7 @@ function mapRow(row, headers, systemDate = '') {
   mapped.phone = normalizePhone(mapped.phone || '');
   mapped.type = normalizeNotesValue(mapped.type);
   mapped.systemDate = systemDate;
-  return mapped;
+  return ensureJourneyStatusData(mapped);
 }
 
 async function handleClientImport(file, importDate = '') {
@@ -12594,6 +12787,11 @@ function renderClientManager() {
       const notesClass = notesActive ? ' has-notes' : '';
       const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
       const statusMeta = buildStatusMetaHtml(c, status);
+      const journeyLabel = journeyStatusLabel(c);
+      const journeyUpdatedAt = journeyStatusLastUpdate(c);
+      const journeyUpdatedLabel = journeyUpdatedAt
+        ? `Última actualización: ${formatDateTimeForDisplay(journeyUpdatedAt)}`
+        : 'Última actualización: Sin registros';
       const cells = visibleColumns.map(([key, col]) => `
         <div class="grid-cell" data-label="${col.label}" data-key="${key}" style="--cell-font: var(--pref-font-${key})">
           ${formatCell(key, c)}
@@ -12609,6 +12807,11 @@ function renderClientManager() {
             <div class="status-stack">
               <span class="status-pill ${status.className}">${status.label}</span>
               ${statusMeta}
+              <div class="journey-status-block">
+                <span class="eyebrow">Estado de jornada</span>
+                <button class="journey-status-pill" type="button" data-action="update_status">${journeyLabel}</button>
+                <span class="muted tiny">${journeyUpdatedLabel}</span>
+              </div>
             </div>
           </div>
           <div class="grid-cell actions-col" data-label="Acciones">${actionsContent}</div>
@@ -12866,6 +13069,127 @@ function renderContactLog() {
     if (!client) return;
     copyText(normalizePhone(client.phone || ''), 'Número copiado');
   }));
+}
+
+function resolveJourneyReportRange() {
+  const today = formatLocalISO();
+  const from = journeyReportState.from || today;
+  const to = journeyReportState.to || today;
+  return { from, to };
+}
+
+function collectJourneyHistoryEntries(from, to) {
+  const fromDate = from ? new Date(`${from}T00:00:00`) : null;
+  const toDate = to ? new Date(`${to}T23:59:59.999`) : null;
+  const entries = [];
+  managerClients.forEach(client => {
+    const history = Array.isArray(client.journeyHistory) ? client.journeyHistory : [];
+    history.forEach(entry => {
+      if (!entry?.timestamp) return;
+      const entryDate = new Date(entry.timestamp);
+      if (Number.isNaN(entryDate.getTime())) return;
+      if (fromDate && entryDate < fromDate) return;
+      if (toDate && entryDate > toDate) return;
+      entries.push({ ...entry, clientId: client.id });
+    });
+  });
+  return entries;
+}
+
+function renderJourneyReport() {
+  const fromInput = document.getElementById('journeyReportFrom');
+  const toInput = document.getElementById('journeyReportTo');
+  const advisor = document.getElementById('journeyReportAdvisor');
+  const period = document.getElementById('journeyReportPeriod');
+  const total = document.getElementById('journeyReportTotal');
+  const list = document.getElementById('journeyReportList');
+  if (!fromInput || !toInput || !advisor || !period || !total || !list) return;
+
+  const { from, to } = resolveJourneyReportRange();
+  if (fromInput.value !== from) fromInput.value = from;
+  if (toInput.value !== to) toInput.value = to;
+
+  const activeAccount = getActiveAccount();
+  advisor.textContent = `Informe del asesor: ${activeAccount?.name || uiState.globalSettings?.advisorName || 'Sin cuenta'}`;
+  period.textContent = `Periodo del informe: ${formatDateLabel(from)} al ${formatDateLabel(to)}`;
+
+  const entries = collectJourneyHistoryEntries(from, to);
+  const uniqueClients = new Set(entries.map(entry => entry.clientId));
+  total.textContent = `${uniqueClients.size}`;
+
+  const counts = Object.fromEntries(JOURNEY_STATUS_OPTIONS.map(option => [option.key, 0]));
+  entries.forEach(entry => {
+    if (counts[entry.key] !== undefined) counts[entry.key] += 1;
+  });
+
+  list.innerHTML = JOURNEY_STATUS_OPTIONS.map(option => `
+    <div class="journey-report-row">
+      <span>${option.label}</span>
+      <strong>${counts[option.key] || 0}</strong>
+    </div>
+  `).join('');
+}
+
+function openJourneyReportModal() {
+  const modal = document.getElementById('journeyReportModal');
+  if (!modal) return;
+  const today = formatLocalISO();
+  if (!journeyReportState.from) journeyReportState.from = today;
+  if (!journeyReportState.to) journeyReportState.to = today;
+  renderJourneyReport();
+  toggleModal(modal, true);
+}
+
+function closeJourneyReportModal() {
+  const modal = document.getElementById('journeyReportModal');
+  toggleModal(modal, false);
+}
+
+function downloadJourneyReportPdf() {
+  if (!window.pdfMake) {
+    showToast('No se encontró la librería para exportar PDF.', 'error');
+    return;
+  }
+  const { from, to } = resolveJourneyReportRange();
+  const entries = collectJourneyHistoryEntries(from, to);
+  const counts = Object.fromEntries(JOURNEY_STATUS_OPTIONS.map(option => [option.key, 0]));
+  entries.forEach(entry => {
+    if (counts[entry.key] !== undefined) counts[entry.key] += 1;
+  });
+  const uniqueClients = new Set(entries.map(entry => entry.clientId)).size;
+  const activeAccount = getActiveAccount();
+  const advisorName = activeAccount?.name || uiState.globalSettings?.advisorName || 'Sin cuenta';
+  const detailRows = JOURNEY_STATUS_OPTIONS.map(option => ([option.label, counts[option.key] || 0]));
+  const docDefinition = {
+    content: [
+      { text: 'Informe de Jornada', style: 'title' },
+      { text: `Informe del asesor: ${advisorName}`, style: 'subtitle' },
+      { text: `Periodo del informe: ${formatDateLabel(from)} al ${formatDateLabel(to)}`, style: 'subtitle' },
+      { text: `Cantidad de teléfonos contactados en el periodo: ${uniqueClients}`, margin: [0, 12, 0, 12] },
+      { text: 'Detalle del informe', style: 'section' },
+      {
+        table: {
+          headerRows: 1,
+          widths: ['*', 80],
+          body: [
+            [{ text: 'Estado', style: 'tableHeader' }, { text: 'Cantidad', style: 'tableHeader' }],
+            ...detailRows.map(row => ([row[0], String(row[1])]))
+          ]
+        },
+        layout: 'lightHorizontalLines'
+      }
+    ],
+    styles: {
+      title: { fontSize: 18, bold: true, margin: [0, 0, 0, 6] },
+      subtitle: { fontSize: 11, color: '#334155', margin: [0, 2, 0, 2] },
+      section: { fontSize: 12, bold: true, margin: [0, 12, 0, 6] },
+      tableHeader: { bold: true, fillColor: '#e2e8f0' }
+    },
+    defaultStyle: {
+      fontSize: 10
+    }
+  };
+  window.pdfMake.createPdf(docDefinition).download(`informe-jornada-${from}-al-${to}.pdf`);
 }
 
 function scheduledClientsList() {
@@ -13146,6 +13470,10 @@ function bindClientEditHandlers() {
   const cancelEdit = document.getElementById('clientEditCancel');
   const closeEdit = document.getElementById('clientEditClose');
   const saveEdit = document.getElementById('clientEditSave');
+  const statusModal = document.getElementById('clientStatusModal');
+  const cancelStatus = document.getElementById('clientStatusCancel');
+  const closeStatus = document.getElementById('clientStatusClose');
+  const saveStatus = document.getElementById('clientStatusSave');
   if (closeAction && !closeAction.dataset.bound) {
     closeAction.addEventListener('click', closeClientActionMenu);
     closeAction.dataset.bound = 'true';
@@ -13160,12 +13488,37 @@ function bindClientEditHandlers() {
     saveEdit.addEventListener('click', applyClientEdit);
     saveEdit.dataset.bound = 'true';
   }
+  [cancelStatus, closeStatus].forEach(btn => {
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', () => closeClientStatusModal(true));
+      btn.dataset.bound = 'true';
+    }
+  });
+  if (saveStatus && !saveStatus.dataset.bound) {
+    saveStatus.addEventListener('click', applyClientStatusUpdate);
+    saveStatus.dataset.bound = 'true';
+  }
+  if (statusModal && !statusModal.dataset.bound) {
+    statusModal.addEventListener('click', (event) => {
+      if (event.target === statusModal) closeClientStatusModal();
+    });
+    statusModal.dataset.bound = 'true';
+  }
 }
 
 function clientActionOptions(client) {
   const vehicleOptions = [...new Set([...(vehicles || []).map(v => v.name), client.model].filter(Boolean))];
   const formatDateValue = (value) => formatDateForDisplay(value) || 'Sin datos';
   return [
+    {
+      key: 'update_status',
+      icon: 'bx-tag',
+      tone: 'info',
+      label: 'Actualizar estado',
+      description: 'Selecciona el estado actual del cliente.',
+      currentValue: () => journeyStatusLabel(client),
+      handler: () => openClientStatusModal(client.id)
+    },
     {
       key: 'rename',
       icon: 'bxs-user-detail',
@@ -13504,6 +13857,54 @@ function closeClientEditModal(returnToMenu = false) {
   }
 }
 
+function openClientStatusModal(clientId = activeActionClientId) {
+  const modal = document.getElementById('clientStatusModal');
+  const title = document.getElementById('clientStatusTitle');
+  const subtitle = document.getElementById('clientStatusSubtitle');
+  const lastUpdate = document.getElementById('clientStatusLastUpdate');
+  const select = document.getElementById('clientStatusSelect');
+  const client = managerClients.find(c => c.id === clientId);
+  if (!modal || !client || !select) return;
+  activeStatusClientId = clientId;
+  if (title) title.textContent = client.name || 'Cliente';
+  if (subtitle) subtitle.textContent = client.model ? `Modelo: ${client.model}` : 'Actualiza el estado del cliente seleccionado.';
+  const updatedAt = journeyStatusLastUpdate(client);
+  if (lastUpdate) {
+    lastUpdate.textContent = updatedAt
+      ? `Última actualización de estado hecha para este cliente realizada el día: ${formatDetailedDateTime(updatedAt)}`
+      : 'Última actualización de estado: Sin registros previos.';
+  }
+  const currentKey = normalizeJourneyStatus(client).key;
+  select.innerHTML = buildJourneyStatusOptions(currentKey);
+  toggleModal(modal, true);
+  closeClientActionMenu();
+}
+
+function closeClientStatusModal(returnToMenu = false) {
+  const modal = document.getElementById('clientStatusModal');
+  const reopenId = returnToMenu ? (activeStatusClientId || activeActionClientId) : null;
+  if (!modal) return;
+  toggleModal(modal, false);
+  activeStatusClientId = null;
+  if (returnToMenu && reopenId) {
+    setTimeout(() => openClientActionMenu(reopenId), 220);
+  }
+}
+
+function applyClientStatusUpdate() {
+  const select = document.getElementById('clientStatusSelect');
+  const client = managerClients.find(c => c.id === activeStatusClientId);
+  if (!client || !select) {
+    closeClientStatusModal(true);
+    return;
+  }
+  updateClientJourneyStatus(client, select.value);
+  persist();
+  renderClientManager();
+  showToast('Estado actualizado correctamente', 'success');
+  closeClientStatusModal(true);
+}
+
 function applyClientEdit() {
   if (!activeEditAction) {
     closeClientEditModal(true);
@@ -13667,7 +14068,7 @@ function triggerClientAction(actionKey, clientId) {
     openClientActionMenu(clientId);
     return;
   }
-  if (clientManagerState.editingMode && !actionKey.startsWith('custom:')) return;
+  if (clientManagerState.editingMode && !actionKey.startsWith('custom:') && actionKey !== 'update_status') return;
   if (actionKey.startsWith('custom:')) {
     const customId = actionKey.split(':')[1];
     handleCustomAction(customId, clientId);
@@ -13676,6 +14077,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'contacted') updateClientFlag(clientId, 'contacted');
   if (actionKey === 'no_number') updateClientFlag(clientId, 'noNumber');
   if (actionKey === 'favorite') updateClientFlag(clientId, 'favorite');
+  if (actionKey === 'update_status') openClientStatusModal(clientId);
   if (actionKey === 'open_notes') openClientNotes(clientId);
   if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
   if (actionKey === 'copy_template') openTemplatePickerForClient(clientId);
@@ -13898,10 +14300,12 @@ function updateClientFlag(id, flag, forceValue = null) {
     const nextValue = forceValue !== null ? !!forceValue : !client.flags.noNumber;
     client.flags.noNumber = nextValue;
     if (client.flags.noNumber) client.flags.contacted = false;
+    if (client.flags.noNumber) updateClientJourneyStatus(client, 'sin_respuesta_no_disponible');
   } else if (flag === 'contacted') {
     const nextValue = forceValue !== null ? !!forceValue : !client.flags.contacted;
     client.flags.contacted = nextValue;
     if (client.flags.contacted) client.flags.noNumber = false;
+    if (client.flags.contacted) updateClientJourneyStatus(client, DEFAULT_JOURNEY_STATUS_KEY);
   }
   updateContactMeta(client);
   persist();
@@ -13918,6 +14322,9 @@ function handleCustomAction(actionId, clientId) {
   client.flags.customStatus = isSame ? null : { id: action.id, label: action.label, color: action.color, icon: action.icon };
   client.flags.contacted = !isSame;
   client.flags.noNumber = false;
+  if (!isSame && action.statusKey && action.statusKey !== 'none') {
+    updateClientJourneyStatus(client, action.statusKey);
+  }
   updateContactMeta(client);
   persist();
   renderClientManager();
@@ -14214,7 +14621,7 @@ function syncFromStorage() {
   brandSettings = normalizeBrandSettings(load('brandSettings') || brandSettings, vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
   clients = load('clients') || clients;
-  managerClients = load('managerClients') || managerClients;
+  managerClients = (load('managerClients') || managerClients).map(client => ensureJourneyStatusData(client));
   uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
   generatedQuotes = load('generatedQuotes') || generatedQuotes;
   uiState.preferences = mergePreferences(uiState.preferences);
@@ -14224,7 +14631,7 @@ function syncFromStorage() {
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
   clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
-  clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ visible: true, ...action }));
+  clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
   snapshots = load('snapshots') || snapshots;

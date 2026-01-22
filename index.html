@@ -86,6 +86,7 @@
                 <button class="menu-item" id="toggleEditMode"></button>
                 <button class="menu-item" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar acciones rápidas</button>
                 <button class="menu-item" id="openContactLog"><i class='bx bx-time-five'></i>Registro de Contactados</button>
+                <button class="menu-item" id="openJourneyReport"><i class='bx bx-bar-chart-alt-2'></i>Informe de Jornada</button>
                 <button class="menu-item" id="openImportedDataManager"><i class='bx bx-data'></i>Administrar datos importados</button>
               </div>
             </div>
@@ -1282,6 +1283,10 @@
           <button class="secondary-btn" id="openIconPicker"><i class='bx bx-grid-alt'></i>Elegir icono</button>
         </div>
       </div>
+      <div class="field">
+        <label for="customActionStatus">Estado automático al ejecutar</label>
+        <select id="customActionStatus"></select>
+      </div>
       <div class="form-actions">
         <button class="ghost-btn" id="cancelCustomAction">Cancelar</button>
         <button class="primary-btn" id="saveCustomAction"><i class='bx bx-save'></i>Guardar esta acción personalizada</button>
@@ -1549,6 +1554,31 @@
       </div>
     </div>
   </div>
+  <div class="modal hidden" id="clientStatusModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Modificación de estado</p>
+          <h3 id="clientStatusTitle">Actualizar estado</h3>
+          <p class="muted" id="clientStatusSubtitle">Actualiza el estado del cliente seleccionado.</p>
+        </div>
+        <button id="clientStatusClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="status-update-card">
+          <p class="muted tiny" id="clientStatusLastUpdate">Última actualización: Sin datos.</p>
+          <div class="field">
+            <label for="clientStatusSelect">Actualizar el estado del cliente a:</label>
+            <select id="clientStatusSelect"></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="clientStatusCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientStatusSave" class="primary-btn"><i class='bx bx-check-circle'></i>Actualizar estado</button>
+      </div>
+    </div>
+  </div>
   <div class="popover-overlay" id="contactLogOverlay">
     <div class="popover wide" id="contactLogPanel">
       <div class="popover-head">
@@ -1567,6 +1597,61 @@
       <div id="contactLogEmpty" class="empty-state hidden">
         <i class='bx bx-time-five'></i>
         <p class="muted">Aún no hay registros de contacto. Marca clientes como contactados, número no disponible o favoritos para verlos aquí.</p>
+      </div>
+    </div>
+  </div>
+  <div id="journeyReportModal" class="modal hidden">
+    <div class="modal-content wide journey-report-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Informe de Jornada</p>
+          <h3>Control de gestión por periodo</h3>
+          <p class="muted subtle">Selecciona el rango de fechas para generar un informe detallado y descargarlo en PDF.</p>
+        </div>
+        <button id="journeyReportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="journey-report-grid">
+          <div class="journey-report-filters">
+            <h4>Selecciona el rango de fecha que deseas obtener el informe:</h4>
+            <div class="form-grid">
+              <div class="field">
+                <label for="journeyReportFrom">Desde</label>
+                <input type="date" id="journeyReportFrom" />
+              </div>
+              <div class="field">
+                <label for="journeyReportTo">Hasta</label>
+                <input type="date" id="journeyReportTo" />
+              </div>
+            </div>
+            <div class="journey-quick-buttons">
+              <button class="ghost-btn mini" data-range="0">Hoy</button>
+              <button class="ghost-btn mini" data-range="3">Últimos 3 días</button>
+              <button class="ghost-btn mini" data-range="7">Últimos 7 días</button>
+              <button class="ghost-btn mini" data-range="15">Últimos 15 días</button>
+              <button class="ghost-btn mini" data-range="30">Últimos 30 días</button>
+            </div>
+          </div>
+          <div class="journey-report-summary">
+            <div class="journey-summary-card">
+              <p class="eyebrow">Informe de Jornada</p>
+              <h4 id="journeyReportAdvisor">Informe del asesor: -</h4>
+              <p class="muted" id="journeyReportPeriod">Periodo del informe: -</p>
+              <div class="journey-stat">
+                <span>Cantidad de teléfonos contactados en el periodo</span>
+                <strong id="journeyReportTotal">0</strong>
+              </div>
+            </div>
+            <div class="journey-report-detail">
+              <h4>Detalle del informe</h4>
+              <div class="journey-report-list" id="journeyReportList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="journeyReportCloseFooter" class="ghost-btn">Cerrar</button>
+        <button id="journeyReportDownload" class="primary-btn"><i class='bx bx-download'></i>Descargar PDF</button>
       </div>
     </div>
   </div>
