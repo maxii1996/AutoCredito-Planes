@@ -3191,6 +3191,7 @@ let activeNoteClientId = null;
 let activeActionClientId = null;
 let activeEditAction = null;
 let activeStatusClientId = null;
+let activeStatusReturnToMenu = false;
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
@@ -12790,8 +12791,8 @@ function renderClientManager() {
       const journeyLabel = journeyStatusLabel(c);
       const journeyUpdatedAt = journeyStatusLastUpdate(c);
       const journeyUpdatedLabel = journeyUpdatedAt
-        ? `Última actualización: ${formatDateTimeForDisplay(journeyUpdatedAt)}`
-        : 'Última actualización: Sin registros';
+        ? formatDateTimeForDisplay(journeyUpdatedAt)
+        : 'Sin registros';
       const cells = visibleColumns.map(([key, col]) => `
         <div class="grid-cell" data-label="${col.label}" data-key="${key}" style="--cell-font: var(--pref-font-${key})">
           ${formatCell(key, c)}
@@ -12807,10 +12808,10 @@ function renderClientManager() {
             <div class="status-stack">
               <span class="status-pill ${status.className}">${status.label}</span>
               ${statusMeta}
-              <div class="journey-status-block">
-                <span class="eyebrow">Estado de jornada</span>
+              <div class="journey-status-block" title="Actualizar estado de jornada">
+                <span class="journey-status-label">Estado:</span>
                 <button class="journey-status-pill" type="button" data-action="update_status">${journeyLabel}</button>
-                <span class="muted tiny">${journeyUpdatedLabel}</span>
+                <span class="journey-status-meta">(Última Act. ${journeyUpdatedLabel})</span>
               </div>
             </div>
           </div>
@@ -13490,7 +13491,7 @@ function bindClientEditHandlers() {
   }
   [cancelStatus, closeStatus].forEach(btn => {
     if (btn && !btn.dataset.bound) {
-      btn.addEventListener('click', () => closeClientStatusModal(true));
+      btn.addEventListener('click', () => closeClientStatusModal());
       btn.dataset.bound = 'true';
     }
   });
@@ -13517,7 +13518,7 @@ function clientActionOptions(client) {
       label: 'Actualizar estado',
       description: 'Selecciona el estado actual del cliente.',
       currentValue: () => journeyStatusLabel(client),
-      handler: () => openClientStatusModal(client.id)
+      handler: () => openClientStatusModal(client.id, { returnToMenu: true })
     },
     {
       key: 'rename',
@@ -13857,7 +13858,7 @@ function closeClientEditModal(returnToMenu = false) {
   }
 }
 
-function openClientStatusModal(clientId = activeActionClientId) {
+function openClientStatusModal(clientId = activeActionClientId, { returnToMenu = false } = {}) {
   const modal = document.getElementById('clientStatusModal');
   const title = document.getElementById('clientStatusTitle');
   const subtitle = document.getElementById('clientStatusSubtitle');
@@ -13866,6 +13867,7 @@ function openClientStatusModal(clientId = activeActionClientId) {
   const client = managerClients.find(c => c.id === clientId);
   if (!modal || !client || !select) return;
   activeStatusClientId = clientId;
+  activeStatusReturnToMenu = returnToMenu;
   if (title) title.textContent = client.name || 'Cliente';
   if (subtitle) subtitle.textContent = client.model ? `Modelo: ${client.model}` : 'Actualiza el estado del cliente seleccionado.';
   const updatedAt = journeyStatusLastUpdate(client);
@@ -13880,12 +13882,13 @@ function openClientStatusModal(clientId = activeActionClientId) {
   closeClientActionMenu();
 }
 
-function closeClientStatusModal(returnToMenu = false) {
+function closeClientStatusModal(returnToMenu = activeStatusReturnToMenu) {
   const modal = document.getElementById('clientStatusModal');
   const reopenId = returnToMenu ? (activeStatusClientId || activeActionClientId) : null;
   if (!modal) return;
   toggleModal(modal, false);
   activeStatusClientId = null;
+  activeStatusReturnToMenu = false;
   if (returnToMenu && reopenId) {
     setTimeout(() => openClientActionMenu(reopenId), 220);
   }
@@ -13895,14 +13898,14 @@ function applyClientStatusUpdate() {
   const select = document.getElementById('clientStatusSelect');
   const client = managerClients.find(c => c.id === activeStatusClientId);
   if (!client || !select) {
-    closeClientStatusModal(true);
+    closeClientStatusModal();
     return;
   }
   updateClientJourneyStatus(client, select.value);
   persist();
   renderClientManager();
   showToast('Estado actualizado correctamente', 'success');
-  closeClientStatusModal(true);
+  closeClientStatusModal();
 }
 
 function applyClientEdit() {
@@ -14077,7 +14080,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'contacted') updateClientFlag(clientId, 'contacted');
   if (actionKey === 'no_number') updateClientFlag(clientId, 'noNumber');
   if (actionKey === 'favorite') updateClientFlag(clientId, 'favorite');
-  if (actionKey === 'update_status') openClientStatusModal(clientId);
+  if (actionKey === 'update_status') openClientStatusModal(clientId, { returnToMenu: false });
   if (actionKey === 'open_notes') openClientNotes(clientId);
   if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
   if (actionKey === 'copy_template') openTemplatePickerForClient(clientId);
