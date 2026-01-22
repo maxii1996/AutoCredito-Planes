@@ -23,6 +23,26 @@
         <p class="eyebrow">Inicializando Sistema...</p>
         <h2>Cargando información</h2>
       </div>
+      <div class="loader-summary">
+        <div class="loader-summary-card">
+          <p class="eyebrow">Resumen de módulos</p>
+          <div class="loader-metrics">
+            <div class="loader-metric">
+              <span>Módulos</span>
+              <strong id="loaderModuleCount">0</strong>
+            </div>
+            <div class="loader-metric">
+              <span>Sub módulos</span>
+              <strong id="loaderSubmoduleCount">0</strong>
+            </div>
+            <div class="loader-metric">
+              <span>Exportables</span>
+              <strong id="loaderExportableCount">0</strong>
+            </div>
+          </div>
+        </div>
+        <div class="loader-module-list" id="loaderModuleList"></div>
+      </div>
       <div class="loader-progress">
         <div class="loader-bar"><span id="loaderBar"></span></div>
         <div class="loader-steps" id="loaderSteps">
