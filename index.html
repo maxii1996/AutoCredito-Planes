@@ -1176,9 +1176,17 @@
                 </div>
                 <button class="secondary-btn mini" id="importedManagerSearchBtn"><i class='bx bx-right-arrow-alt'></i>Buscar</button>
               </div>
-              <button class="ghost-btn mini" id="importedManagerClear"><i class='bx bx-x'></i>Limpiar</button>
+              <button class="ghost-btn mini" id="importedManagerClear"><i class='bx bx-check-double'></i>Limpiar selección</button>
+              <button class="secondary-btn" id="importedManagerManual"><i class='bx bx-user-plus'></i>Nuevo cliente manual</button>
               <button class="primary-btn" id="importedManagerDelete"><i class='bx bx-trash'></i>Eliminar seleccionados</button>
             </div>
+          </div>
+          <div class="search-notice hidden import-manager-notice" id="importedManagerSearchNotice">
+            <div class="search-notice-text">
+              <i class='bx bx-filter-alt'></i>
+              <span>Mostrando resultados de: <strong id="importedManagerSearchTerm"></strong></span>
+            </div>
+            <button class="ghost-btn mini" id="importedManagerSearchReset">Restablecer</button>
           </div>
           <div class="import-manager-loader" id="importedManagerLoader" aria-live="polite">
             <div class="loader-dot"></div>
@@ -2103,6 +2111,83 @@
           <button id="importMappingConfirm" class="primary-btn"><i class='bx bx-check'></i>Importar</button>
         </div>
       </div>
+    </div>
+  </div>
+  <div id="manualImportModal" class="modal hidden">
+    <div class="modal-content wide manual-import-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Ingreso manual de datos</p>
+          <h3>Nuevo cliente manual</h3>
+          <p class="muted">Completa todos los datos que necesites para registrar un cliente en el paquete correspondiente.</p>
+        </div>
+        <button id="manualImportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <form id="manualImportForm" class="modal-body">
+        <div class="form-grid three manual-import-grid">
+          <div class="field">
+            <label for="manualName">Nombre del cliente</label>
+            <input id="manualName" name="name" required placeholder="Nombre completo" />
+          </div>
+          <div class="field">
+            <label for="manualDocument">DNI</label>
+            <input id="manualDocument" name="document" required placeholder="Documento" />
+          </div>
+          <div class="field">
+            <label for="manualPhone">Teléfono</label>
+            <input id="manualPhone" name="phone" required placeholder="Celular" />
+          </div>
+          <div class="field">
+            <label for="manualBirthDate">Fecha de nacimiento</label>
+            <input id="manualBirthDate" name="birthDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="manualCity">Localidad</label>
+            <input id="manualCity" name="city" placeholder="Localidad" />
+          </div>
+          <div class="field">
+            <label for="manualProvince">Provincia</label>
+            <input id="manualProvince" name="province" placeholder="Provincia" />
+          </div>
+          <div class="field">
+            <label for="manualPostalCode">Código Postal</label>
+            <input id="manualPostalCode" name="postalCode" placeholder="CP" />
+          </div>
+          <div class="field">
+            <label for="manualBrand">Marca</label>
+            <input id="manualBrand" name="brand" placeholder="Marca del coche" />
+          </div>
+          <div class="field">
+            <label for="manualModel">Modelo</label>
+            <input id="manualModel" name="model" placeholder="Modelo del coche" />
+          </div>
+          <div class="field">
+            <label for="manualPurchaseDate">Fecha de compra</label>
+            <input id="manualPurchaseDate" name="purchaseDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="manualCuit">CUIT</label>
+            <input id="manualCuit" name="cuit" placeholder="CUIT" />
+          </div>
+          <div class="field">
+            <label for="manualContactDate">Fecha/Hora de contacto</label>
+            <input id="manualContactDate" name="contactDate" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="manualSystemDate">Fecha de carga (paquete)</label>
+            <input id="manualSystemDate" name="systemDate" type="date" />
+          </div>
+          <div class="field wide">
+            <label for="manualNotes">Notas</label>
+            <textarea id="manualNotes" name="type" rows="2" placeholder="Notas o comentarios"></textarea>
+          </div>
+        </div>
+        <p class="muted tiny">Los campos obligatorios son Nombre, DNI y Teléfono.</p>
+        <div class="modal-actions">
+          <button type="button" class="ghost-btn" id="manualImportCancel">Cancelar</button>
+          <button type="submit" class="primary-btn"><i class='bx bx-save'></i>Guardar cliente</button>
+        </div>
+      </form>
     </div>
   </div>
   <div id="dateFilterModal" class="modal hidden">

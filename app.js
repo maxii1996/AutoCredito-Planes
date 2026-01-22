@@ -9496,6 +9496,12 @@ function bindImportedDataManager() {
   const content = document.getElementById('importedManagerContent');
   const searchInput = document.getElementById('importedManagerSearch');
   const searchBtn = document.getElementById('importedManagerSearchBtn');
+  const searchReset = document.getElementById('importedManagerSearchReset');
+  const manualBtn = document.getElementById('importedManagerManual');
+  const manualModal = document.getElementById('manualImportModal');
+  const manualClose = document.getElementById('manualImportClose');
+  const manualCancel = document.getElementById('manualImportCancel');
+  const manualForm = document.getElementById('manualImportForm');
 
   if (clearBtn && !clearBtn.dataset.bound) {
     clearBtn.addEventListener('click', () => {
@@ -9538,14 +9544,10 @@ function bindImportedDataManager() {
 
   if (searchInput && !searchInput.dataset.bound) {
     searchInput.value = importedManagerState.searchTerm || '';
-    searchInput.addEventListener('input', () => {
-      importedManagerState.searchTerm = searchInput.value;
-      runImportedManagerSearch({ scroll: false });
-    });
     searchInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        runImportedManagerSearch();
+        runImportedManagerSearch({ term: searchInput.value });
       }
     });
     searchInput.dataset.bound = 'true';
@@ -9553,9 +9555,62 @@ function bindImportedDataManager() {
 
   if (searchBtn && !searchBtn.dataset.bound) {
     searchBtn.addEventListener('click', () => {
-      runImportedManagerSearch();
+      runImportedManagerSearch({ term: searchInput?.value });
     });
     searchBtn.dataset.bound = 'true';
+  }
+
+  if (searchReset && !searchReset.dataset.bound) {
+    searchReset.addEventListener('click', () => {
+      importedManagerState.searchTerm = '';
+      if (searchInput) searchInput.value = '';
+      renderImportedDataManager();
+    });
+    searchReset.dataset.bound = 'true';
+  }
+
+  if (manualBtn && !manualBtn.dataset.bound) {
+    manualBtn.addEventListener('click', openManualImportModal);
+    manualBtn.dataset.bound = 'true';
+  }
+
+  if (manualClose && !manualClose.dataset.bound) {
+    manualClose.addEventListener('click', closeManualImportModal);
+    manualClose.dataset.bound = 'true';
+  }
+
+  if (manualCancel && !manualCancel.dataset.bound) {
+    manualCancel.addEventListener('click', closeManualImportModal);
+    manualCancel.dataset.bound = 'true';
+  }
+
+  if (manualModal && !manualModal.dataset.bound) {
+    manualModal.addEventListener('click', (event) => {
+      if (event.target === manualModal) closeManualImportModal();
+    });
+    manualModal.dataset.bound = 'true';
+  }
+
+  if (manualForm && !manualForm.dataset.bound) {
+    manualForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = manualForm.querySelector('[name="name"]')?.value?.trim() || '';
+      const documentValue = manualForm.querySelector('[name="document"]')?.value?.trim() || '';
+      const phone = manualForm.querySelector('[name="phone"]')?.value?.trim() || '';
+      if (!name || !documentValue || !phone) {
+        showToast('Completa Nombre, DNI y Teléfono para guardar.', 'warning');
+        return;
+      }
+      const payload = buildManualClientPayload(manualForm);
+      managerClients.push(payload);
+      persist();
+      renderImportedDataManager();
+      renderClientManager();
+      renderStats();
+      closeManualImportModal();
+      showToast('Cliente manual agregado correctamente.', 'success');
+    });
+    manualForm.dataset.bound = 'true';
   }
 
   if (content && !content.dataset.bound) {
@@ -9563,6 +9618,14 @@ function bindImportedDataManager() {
       if (event.target.matches('input[data-imported-group-toggle], input[data-imported-id]')) {
         event.stopPropagation();
       }
+    });
+    content.addEventListener('toggle', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLDetailsElement)) return;
+      if (!target.open) return;
+      content.querySelectorAll('.import-day-group').forEach(group => {
+        if (group !== target) group.open = false;
+      });
     });
     content.addEventListener('change', (event) => {
       const groupToggle = event.target.closest('input[data-imported-group-toggle]');
@@ -12949,6 +13012,20 @@ function updateImportedManagerSelectionUI() {
   });
 }
 
+function updateImportedManagerSearchNotice() {
+  const notice = document.getElementById('importedManagerSearchNotice');
+  const termLabel = document.getElementById('importedManagerSearchTerm');
+  const term = (importedManagerState.searchTerm || '').trim();
+  if (!notice || !termLabel) return;
+  if (term) {
+    termLabel.textContent = term;
+    notice.classList.remove('hidden');
+  } else {
+    termLabel.textContent = '';
+    notice.classList.add('hidden');
+  }
+}
+
 function normalizeSearchTerm(value) {
   return (value || '')
     .toString()
@@ -12966,16 +13043,16 @@ function isImportedSearchMatch(client, term) {
   return name.includes(term) || document.includes(term) || phone.includes(term);
 }
 
-function runImportedManagerSearch({ scroll = true } = {}) {
+function runImportedManagerSearch({ scroll = true, term } = {}) {
   const content = document.getElementById('importedManagerContent');
-  const term = normalizeSearchTerm(importedManagerState.searchTerm);
-  if (!term) {
-    renderImportedDataManager();
-    return;
+  if (typeof term === 'string') {
+    importedManagerState.searchTerm = term.trim();
   }
+  const termNormalized = normalizeSearchTerm(importedManagerState.searchTerm);
   renderImportedDataManager();
+  if (!termNormalized) return;
   if (!scroll || !content) return;
-  const firstMatch = content.querySelector('.import-record-row.highlight');
+  const firstMatch = content.querySelector('.import-record-row');
   if (!firstMatch) {
     showToast('No se encontraron coincidencias en los registros importados.', 'warning');
     return;
@@ -12983,6 +13060,54 @@ function runImportedManagerSearch({ scroll = true } = {}) {
   const group = firstMatch.closest('details');
   if (group) group.open = true;
   firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function setManualImportDefaults(form) {
+  if (!form) return;
+  const systemDate = form.querySelector('[name="systemDate"]');
+  if (systemDate && !systemDate.value) systemDate.value = formatLocalISO();
+}
+
+function openManualImportModal() {
+  const modal = document.getElementById('manualImportModal');
+  const form = document.getElementById('manualImportForm');
+  if (!modal || !form) return;
+  form.reset();
+  setManualImportDefaults(form);
+  toggleModal(modal, true);
+}
+
+function closeManualImportModal() {
+  const modal = document.getElementById('manualImportModal');
+  if (!modal) return;
+  toggleModal(modal, false);
+}
+
+function buildManualClientPayload(form) {
+  const data = new FormData(form);
+  const rawName = (data.get('name') || '').toString().trim();
+  const rawDocument = (data.get('document') || '').toString().trim();
+  const rawPhone = (data.get('phone') || '').toString().trim();
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: rawName || 'Sin nombre',
+    document: rawDocument,
+    phone: normalizePhone(rawPhone),
+    birthDate: (data.get('birthDate') || '').toString(),
+    city: (data.get('city') || '').toString().trim(),
+    province: (data.get('province') || '').toString().trim(),
+    postalCode: (data.get('postalCode') || '').toString().trim(),
+    brand: (data.get('brand') || '').toString().trim(),
+    model: (data.get('model') || '').toString().trim() || 'Sin modelo',
+    purchaseDate: (data.get('purchaseDate') || '').toString(),
+    cuit: (data.get('cuit') || '').toString().trim(),
+    contactDate: normalizeDateTime((data.get('contactDate') || '').toString()),
+    type: normalizeNotesValue(data.get('type')),
+    systemDate: (data.get('systemDate') || '').toString().trim() || formatLocalISO(),
+    flags: {},
+    selected: false
+  };
+  return ensureJourneyStatusData(entry);
 }
 
 function getImportedGroups() {
@@ -13017,14 +13142,26 @@ function renderImportedDataManager({ showLoader = false } = {}) {
   const runRender = () => {
     const groups = getImportedGroups();
     const normalizedTerm = normalizeSearchTerm(importedManagerState.searchTerm);
-    if (!groups.length) {
-      content.innerHTML = `<div class="import-empty">No hay clientes importados para administrar.</div>`;
+    const filteredGroups = normalizedTerm
+      ? groups
+        .map(group => ({
+          ...group,
+          clients: group.clients.filter(client => isImportedSearchMatch(client, normalizedTerm))
+        }))
+        .filter(group => group.clients.length)
+      : groups;
+    if (!filteredGroups.length) {
+      const emptyMessage = normalizedTerm
+        ? `No se encontraron resultados para "${importedManagerState.searchTerm}".`
+        : 'No hay clientes importados para administrar.';
+      content.innerHTML = `<div class="import-empty">${emptyMessage}</div>`;
       content.classList.remove('hidden');
       loader.classList.add('hidden');
       updateImportedManagerSelectionUI();
+      updateImportedManagerSearchNotice();
       return;
     }
-    content.innerHTML = groups.map((group, groupIndex) => {
+    content.innerHTML = filteredGroups.map((group, groupIndex) => {
       const rows = group.clients.map(client => {
         const checked = importedManagerState.selectedIds.has(client.id) ? 'checked' : '';
         const nameLabel = client.name?.trim() || 'Sin nombre';
@@ -13060,13 +13197,16 @@ function renderImportedDataManager({ showLoader = false } = {}) {
               </label>
             </div>
           </summary>
-          <div class="import-record-list">${rows}</div>
+          <div class="import-record-scroll">
+            <div class="import-record-list">${rows}</div>
+          </div>
         </details>
       `;
     }).join('');
     content.classList.remove('hidden');
     loader.classList.add('hidden');
     updateImportedManagerSelectionUI();
+    updateImportedManagerSearchNotice();
   };
 
   if (showLoader) {
