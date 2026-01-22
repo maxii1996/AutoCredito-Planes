@@ -525,6 +525,52 @@ const JOURNEY_STATUS_OPTIONS = [
   { key: 'venta_concretada', label: 'Venta concretada correctamente.' }
 ];
 
+const JOURNEY_STATUS_SHORT_LABELS = {
+  sin_respuesta: 'Sin Respuesta',
+  sin_respuesta_no_disponible: 'N° no disponible',
+  con_respuesta_numero_equivocado: 'N° Equivocado',
+  con_respuesta_no_interesado: 'No Interesado',
+  con_respuesta_lo_piensa: 'Pensandolo',
+  con_respuesta_recontacto: 'A Futuro',
+  posible_venta_espera_fotos: 'Esperando Fotos',
+  posible_venta_cotizacion: 'Cotiz. Enviada',
+  venta_pausada: 'Suspendido',
+  venta_concretada: 'Terminada'
+};
+
+const JOURNEY_STATUS_GROUPS = [
+  {
+    id: 'sin_respuesta',
+    label: 'Sin respuesta',
+    emoji: '⚪',
+    keys: ['sin_respuesta', 'sin_respuesta_no_disponible']
+  },
+  {
+    id: 'con_respuesta',
+    label: 'Con respuesta',
+    emoji: '🔵',
+    keys: ['con_respuesta_numero_equivocado', 'con_respuesta_no_interesado', 'con_respuesta_lo_piensa', 'con_respuesta_recontacto']
+  },
+  {
+    id: 'posible_venta',
+    label: 'Posible venta',
+    emoji: '🟡',
+    keys: ['posible_venta_espera_fotos', 'posible_venta_cotizacion']
+  },
+  {
+    id: 'venta_pausada',
+    label: 'Venta pausada',
+    emoji: '🔴',
+    keys: ['venta_pausada']
+  },
+  {
+    id: 'venta_concretada',
+    label: 'Venta concretada',
+    emoji: '🟢',
+    keys: ['venta_concretada']
+  }
+];
+
 const DEFAULT_JOURNEY_STATUS_KEY = 'sin_respuesta';
 
 const contextMenuDataCatalog = [
@@ -3005,20 +3051,35 @@ function journeyStatusLabel(client = {}) {
   return normalized.label || 'Sin Respuesta';
 }
 
+function journeyStatusShortLabel(client = {}) {
+  const normalized = normalizeJourneyStatus(client);
+  const shortLabel = JOURNEY_STATUS_SHORT_LABELS[normalized.key];
+  return shortLabel || normalized.label || 'Sin Respuesta';
+}
+
 function journeyStatusLastUpdate(client = {}) {
   const normalized = normalizeJourneyStatus(client);
   return normalized.updatedAt || '';
 }
 
 function buildJourneyStatusOptions(selectedKey = 'none', { includeNone = false } = {}) {
-  const options = [];
+  const optionsByKey = new Map(JOURNEY_STATUS_OPTIONS.map(option => [option.key, option]));
+  const rows = [];
   if (includeNone) {
-    options.push({ key: 'none', label: 'Sin actualización de estado' });
+    rows.push(`<option value="none" ${selectedKey === 'none' ? 'selected' : ''}>Sin actualización de estado</option>`);
   }
-  options.push(...JOURNEY_STATUS_OPTIONS);
-  return options.map(option => (
-    `<option value="${option.key}" ${option.key === selectedKey ? 'selected' : ''}>${option.label}</option>`
-  )).join('');
+  JOURNEY_STATUS_GROUPS.forEach(group => {
+    const groupOptions = group.keys.map(key => optionsByKey.get(key)).filter(Boolean);
+    if (!groupOptions.length) return;
+    rows.push(`<optgroup label="${group.emoji} ${group.label}">`);
+    groupOptions.forEach(option => {
+      rows.push(
+        `<option value="${option.key}" ${option.key === selectedKey ? 'selected' : ''}>${group.emoji} ${option.label}</option>`
+      );
+    });
+    rows.push('</optgroup>');
+  });
+  return rows.join('');
 }
 
 function clientStatus(client = {}) {
@@ -12823,6 +12884,7 @@ function renderClientManager() {
       const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
       const statusMeta = buildStatusMetaHtml(c, status);
       const journeyLabel = journeyStatusLabel(c);
+      const journeyShortLabel = journeyStatusShortLabel(c);
       const cells = visibleColumns.map(([key, col]) => `
         <div class="grid-cell" data-label="${col.label}" data-key="${key}" style="--cell-font: var(--pref-font-${key})">
           ${formatCell(key, c)}
@@ -12840,7 +12902,7 @@ function renderClientManager() {
               ${statusMeta}
               <div class="journey-status-block" title="Actualizar estado de jornada">
                 <span class="journey-status-label">Estado:</span>
-                <button class="journey-status-pill" type="button" data-action="update_status">${journeyLabel}</button>
+                <button class="journey-status-pill" type="button" data-action="update_status" title="${journeyLabel}">${journeyShortLabel}</button>
               </div>
             </div>
           </div>

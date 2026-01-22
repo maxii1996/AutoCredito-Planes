@@ -1507,7 +1507,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 
 .status-update-card { display: grid; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(11, 18, 32, 0.85); }
 .status-update-card .muted.tiny { font-size: 12px; }
-.journey-report-modal { width: min(75vw, 1320px); max-width: 75vw; }
+.journey-report-modal { width: min(75%, 1320px); max-width: 75%; }
 .journey-report-modal .modal-body { max-height: 70vh; overflow: auto; }
 .journey-report-grid { display: grid; grid-template-columns: minmax(240px, 320px) minmax(320px, 1fr); gap: 18px; }
 .journey-report-filters { display: grid; gap: 12px; padding: 14px; border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(12, 19, 34, 0.7); max-height: 320px; overflow: auto; }
@@ -1516,6 +1516,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .journey-report-filters input[type="date"] { max-width: 160px; min-width: 140px; }
 .journey-report-filters h4 { margin: 0; }
 .journey-quick-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.journey-report-actions { display: flex; justify-content: flex-start; }
+.journey-report-actions .primary-btn { width: 100%; justify-content: center; }
 .journey-report-summary { display: grid; gap: 16px; }
 .journey-summary-card { padding: 16px; border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.24); background: rgba(10, 16, 28, 0.8); display: grid; gap: 8px; }
 .journey-summary-card h4 { margin: 0; }
@@ -1609,8 +1611,8 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .account-manager-nav { display: grid; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: linear-gradient(145deg, rgba(11, 17, 32, 0.8), rgba(15, 22, 37, 0.9)); backdrop-filter: blur(4px); align-content: start; box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3); }
 .account-manager-actions { display: grid; gap: 8px; }
 .account-manager-list { display: grid; gap: 8px; max-height: min(420px, 50vh); overflow-y: auto; padding-right: 4px; }
-.account-manager-tab { display: grid; gap: 4px; padding: 11px 14px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer; transition: all 0.25s ease; }
-.account-manager-tab:hover { border-color: rgba(246,176,75,0.4); background: rgba(246,176,75,0.08); transform: translateX(2px); }
+.account-manager-tab { display: grid; gap: 4px; padding: 11px 14px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer; transition: none; }
+.account-manager-tab:hover { border-color: rgba(246,176,75,0.4); background: rgba(246,176,75,0.08); transform: none; }
 .account-manager-tab.active { border-color: var(--primary); background: rgba(246,176,75,0.18); box-shadow: 0 4px 12px rgba(246,176,75,0.15); }
 .account-manager-tab small { color: var(--muted); }
 .account-manager-tab { animation: none; }
