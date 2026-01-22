@@ -985,7 +985,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .picker-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: #0f1625; display: grid; gap: 4px; }
 .picker-card:hover { border-color: var(--accent); cursor: pointer; }
 .picker-card .muted { font-size: 13px; }
-.modal-content.wide { max-width: 720px; }
+.modal-content.wide { max-width: 65%; }
 #clientPickerModal .modal-content.wide { max-width: min(980px, 96vw); }
 #clientPickerModal .modal-content.wizard { width: min(900px, 96vw); max-height: 85vh; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: linear-gradient(180deg, rgba(12, 18, 30, 0.98), rgba(15, 22, 37, 0.98)); }
 #clientPickerModal .modal-head { align-items: flex-start; gap: 16px; }
