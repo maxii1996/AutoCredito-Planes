@@ -85,7 +85,12 @@ const panelTitles = {
   quoteGenerator: 'Mis Cotizaciones',
   clientManager: 'Gestor de Clientes',
   scheduledClients: 'Clientes Programados',
-  importedDataManager: 'Administrar Datos Importados'
+  importedDataManager: 'Administrar Datos Importados',
+  moduleManagement: 'Gestión de Módulos'
+};
+
+const NAV_PARENT_MAP = {
+  importedDataManager: 'clientManager'
 };
 
 const defaultPreferenceFontSizes = {
@@ -148,6 +153,26 @@ const defaultUiState = {
   },
   advisorNote: ''
 };
+
+const MODULE_GROUPS = [
+  { id: 'general', title: 'Módulos Generales' },
+  { id: 'options', title: 'Opciones' }
+];
+
+const MODULE_CATALOG = [
+  { id: 'dashboard', label: 'Inicio', type: 'module', exportable: false, group: 'general' },
+  { id: 'clientManager', label: 'Gestor de Clientes: Listado de Clientes', type: 'module', exportable: true, group: 'general' },
+  { id: 'quickActions', label: 'Sub Módulo: Acciones Rápidas', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
+  { id: 'contactLog', label: 'Sub Módulo: Registro de Contactados', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
+  { id: 'journeyReport', label: 'Sub Módulo: Registro de Jornada', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
+  { id: 'scheduledClients', label: 'Clientes Programados', type: 'module', exportable: true, group: 'general' },
+  { id: 'templates', label: 'Plantillas', type: 'module', exportable: true, group: 'general' },
+  { id: 'plans', label: 'Cotizaciones', type: 'module', exportable: true, group: 'general' },
+  { id: 'quoteGenerator', label: 'Mis Cotizaciones', type: 'module', exportable: true, group: 'general' },
+  { id: 'vehicles', label: 'Autos y Valores', type: 'module', exportable: true, group: 'general' },
+  { id: 'preferences', label: 'Opciones: Preferencias', type: 'module', exportable: true, group: 'options' },
+  { id: 'accounts', label: 'Opciones: Gestión de cuentas', type: 'module', exportable: true, group: 'options' }
+];
 
 const novemberVehicles = [
   {
@@ -3258,6 +3283,7 @@ let accountApplyState = { isRunning: false };
 let profileSwitchTimer = null;
 let importedManagerState = { selectedIds: new Set(), loading: false, searchTerm: '' };
 let importedManagerTimer = null;
+let moduleImportState = null;
 let uiState = { ...defaultUiState, ...(load('uiState') || {}) };
 let clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || {}) };
 let generatedQuotes = load('generatedQuotes') || [];
@@ -3525,6 +3551,7 @@ async function init() {
     bindNavigation();
     bindQuoteNavigation();
     bindProfileActions();
+    bindModuleManagement();
     bindSettingsMenu();
     bindPreferencesPanel();
     bindActionMenu();
@@ -3550,9 +3577,10 @@ async function init() {
     renderScheduledClients();
     renderGlobalSettings();
     renderSnapshots();
+    renderModuleManagement();
     bindNoteModal();
     bindClientPicker();
-    updateUtilitiesVisibility(document.querySelector('.panel.active')?.id || 'dashboard');
+    updateUtilitiesVisibility(resolveNavTarget(document.querySelector('.panel.active')?.id || 'dashboard'));
     bindQuoteModal();
     bindResourceButtons();
     attachPlanListeners();
@@ -3622,8 +3650,13 @@ function bindQuoteNavigation() {
   });
 }
 
+function resolveNavTarget(targetId) {
+  return NAV_PARENT_MAP[targetId] || targetId;
+}
+
 function activatePanel(targetId) {
-  document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.target === targetId));
+  const navTarget = resolveNavTarget(targetId);
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.target === navTarget));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
   const targetPanel = document.getElementById(targetId);
   updateSectionTitle(targetId);
@@ -3640,7 +3673,7 @@ function activatePanel(targetId) {
     renderImportedDataManager({ showLoader: true });
   }
   updateScrollTopButton();
-  updateUtilitiesVisibility(targetId);
+  updateUtilitiesVisibility(navTarget);
 }
 
 function updateSectionTitle(targetId) {
@@ -14916,6 +14949,543 @@ function bindProfileActions() {
       });
     });
   }
+}
+
+function getModuleDefinition(moduleId) {
+  return MODULE_CATALOG.find(module => module.id === moduleId) || null;
+}
+
+function moduleTypeLabel(module) {
+  return module?.type === 'submodule' ? 'Sub Módulo' : 'Módulo';
+}
+
+function buildManagerStatusEntries() {
+  return managerClients.map(client => ({
+    id: client.id,
+    name: client.name || '',
+    flags: { ...(client.flags || {}) },
+    journeyStatus: client.journeyStatus || {},
+    journeyHistory: Array.isArray(client.journeyHistory) ? client.journeyHistory : []
+  }));
+}
+
+function buildScheduleEntries() {
+  return clients
+    .filter(client => client.schedule?.scheduledAt)
+    .map(client => ({
+      id: client.id,
+      name: client.name || '',
+      schedule: client.schedule || null
+    }));
+}
+
+function applyManagerStatusEntries(entries = []) {
+  if (!Array.isArray(entries)) return;
+  const byId = new Map(managerClients.map(client => [client.id, client]));
+  entries.forEach(entry => {
+    if (!entry?.id) return;
+    const current = byId.get(entry.id);
+    const merged = ensureJourneyStatusData({
+      ...(current || {}),
+      ...entry,
+      flags: { ...(current?.flags || {}), ...(entry.flags || {}) },
+      journeyStatus: entry.journeyStatus || current?.journeyStatus,
+      journeyHistory: Array.isArray(entry.journeyHistory) ? entry.journeyHistory : current?.journeyHistory
+    });
+    if (current) {
+      Object.assign(current, merged);
+    } else {
+      managerClients.push(merged);
+    }
+  });
+}
+
+function applyScheduleEntries(entries = []) {
+  if (!Array.isArray(entries)) return;
+  const byId = new Map(clients.map(client => [client.id, client]));
+  entries.forEach(entry => {
+    if (!entry?.id) return;
+    const current = byId.get(entry.id);
+    if (current) {
+      current.schedule = entry.schedule || null;
+      if (!current.name && entry.name) current.name = entry.name;
+    } else {
+      clients.push({ id: entry.id, name: entry.name || 'Sin nombre', schedule: entry.schedule || null });
+    }
+  });
+}
+
+function buildModulePayload(moduleId) {
+  switch (moduleId) {
+    case 'clientManager':
+      return {
+        clients: JSON.parse(JSON.stringify(clients)),
+        managerClients: JSON.parse(JSON.stringify(managerClients))
+      };
+    case 'quickActions':
+      return {
+        actionVisibility: { ...(clientManagerState.actionVisibility || {}) },
+        customActions: JSON.parse(JSON.stringify(clientManagerState.customActions || []))
+      };
+    case 'contactLog':
+    case 'journeyReport':
+      return {
+        entries: buildManagerStatusEntries()
+      };
+    case 'scheduledClients':
+      return {
+        entries: buildScheduleEntries()
+      };
+    case 'templates':
+      return {
+        templates: JSON.parse(JSON.stringify(templates))
+      };
+    case 'plans':
+      return {
+        planDraft: { ...(uiState.planDraft || {}) }
+      };
+    case 'quoteGenerator':
+      return {
+        generatedQuotes: JSON.parse(JSON.stringify(generatedQuotes)),
+        quoteGenerator: { ...(uiState.quoteGenerator || {}) }
+      };
+    case 'vehicles':
+      return {
+        vehicles: cloneVehicles(vehicles),
+        brandSettings: ensureBrandSettings(),
+        priceDrafts: JSON.parse(JSON.stringify(priceDrafts || {})),
+        activePriceTabId,
+        activePriceSource
+      };
+    case 'preferences':
+      return {
+        preferences: JSON.parse(JSON.stringify(uiState.preferences || {}))
+      };
+    case 'accounts':
+      return {
+        globalSettings: JSON.parse(JSON.stringify(uiState.globalSettings || {}))
+      };
+    default:
+      return null;
+  }
+}
+
+async function applyModulePayload(moduleId, payload) {
+  switch (moduleId) {
+    case 'clientManager': {
+      clients = Array.isArray(payload?.clients) ? payload.clients : [];
+      managerClients = Array.isArray(payload?.managerClients)
+        ? payload.managerClients.map(client => ensureJourneyStatusData(client))
+        : [];
+      renderClients();
+      renderClientManager();
+      renderScheduledClients();
+      renderStats();
+      return true;
+    }
+    case 'quickActions': {
+      clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(payload?.actionVisibility || {}) };
+      clientManagerState.customActions = (payload?.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
+      renderClientManager();
+      return true;
+    }
+    case 'contactLog': {
+      if (Array.isArray(payload?.managerClients)) {
+        managerClients = payload.managerClients.map(client => ensureJourneyStatusData(client));
+      } else {
+        applyManagerStatusEntries(payload?.entries || []);
+      }
+      renderContactLog();
+      renderClientManager();
+      renderStats();
+      return true;
+    }
+    case 'journeyReport': {
+      if (Array.isArray(payload?.managerClients)) {
+        managerClients = payload.managerClients.map(client => ensureJourneyStatusData(client));
+      } else {
+        applyManagerStatusEntries(payload?.entries || []);
+      }
+      renderJourneyReport();
+      renderClientManager();
+      renderStats();
+      return true;
+    }
+    case 'scheduledClients': {
+      if (Array.isArray(payload?.clients)) {
+        clients = payload.clients;
+      } else {
+        applyScheduleEntries(payload?.entries || []);
+      }
+      renderScheduledClients();
+      renderClients();
+      renderStats();
+      return true;
+    }
+    case 'templates': {
+      templates = ensureTemplateIds(payload?.templates || []);
+      selectedTemplateIndex = Math.min(uiState.selectedTemplateIndex || 0, templates.length - 1);
+      selectedTemplateId = templates[selectedTemplateIndex]?.id;
+      renderTemplates();
+      renderStats();
+      return true;
+    }
+    case 'plans': {
+      uiState.planDraft = { ...defaultUiState.planDraft, ...(payload?.planDraft || {}) };
+      planDraftApplied = false;
+      renderPlanForm();
+      updatePlanSummary();
+      return true;
+    }
+    case 'quoteGenerator': {
+      generatedQuotes = Array.isArray(payload?.generatedQuotes) ? payload.generatedQuotes : [];
+      uiState.quoteGenerator = { ...defaultUiState.quoteGenerator, ...(payload?.quoteGenerator || {}) };
+      renderQuoteNavigation();
+      renderQuoteGeneratorForm();
+      return true;
+    }
+    case 'vehicles': {
+      activePriceTabId = payload?.activePriceTabId || activePriceTabId;
+      activePriceSource = payload?.activePriceSource || activePriceSource;
+      priceDrafts = payload?.priceDrafts || priceDrafts;
+      vehicles = cloneVehicles(payload?.vehicles || vehicles);
+      brandSettings = normalizeBrandSettings(payload?.brandSettings || brandSettings, vehicles);
+      await initializePriceTabs();
+      renderPriceTabs();
+      renderVehicleTable();
+      renderPlanForm();
+      return true;
+    }
+    case 'preferences': {
+      uiState.preferences = mergePreferences(payload?.preferences || uiState.preferences);
+      applyPreferences();
+      return true;
+    }
+    case 'accounts': {
+      uiState.globalSettings = mergeGlobalSettings(payload?.globalSettings || uiState.globalSettings);
+      renderGlobalSettings();
+      renderWelcomeHero();
+      renderStats();
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+function exportSelectedModules(moduleIds) {
+  const normalized = moduleIds.filter(Boolean);
+  if (!normalized.length) {
+    showToast('Selecciona al menos un módulo exportable.', 'error');
+    return;
+  }
+  const modules = normalized.map(id => getModuleDefinition(id)).filter(Boolean);
+  const dataMap = {};
+  modules.forEach(module => {
+    const payload = buildModulePayload(module.id);
+    if (payload) dataMap[module.id] = payload;
+  });
+  if (!Object.keys(dataMap).length) {
+    showToast('No hay datos disponibles para exportar.', 'error');
+    return;
+  }
+  const isSingle = modules.length === 1;
+  const payload = isSingle
+    ? {
+      version: 1,
+      type: 'module',
+      moduleId: modules[0].id,
+      moduleLabel: modules[0].label,
+      moduleType: modules[0].type,
+      generatedAt: new Date().toISOString(),
+      data: dataMap[modules[0].id]
+    }
+    : {
+      version: 1,
+      type: 'pack',
+      generatedAt: new Date().toISOString(),
+      modules: modules.map(module => ({ id: module.id, label: module.label, type: module.type })),
+      data: dataMap
+    };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  a.download = isSingle ? `modulo-${modules[0].id}-${dateStamp}.module` : `modulos-${dateStamp}.module`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exportación de módulos lista', 'success');
+}
+
+function parseModulePackage(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  if (parsed.type === 'module' && parsed.moduleId && parsed.data) {
+    return {
+      modules: [{ id: parsed.moduleId, label: parsed.moduleLabel, type: parsed.moduleType }],
+      dataById: { [parsed.moduleId]: parsed.data }
+    };
+  }
+  if (parsed.type === 'pack' && Array.isArray(parsed.modules) && parsed.data && typeof parsed.data === 'object') {
+    return { modules: parsed.modules, dataById: parsed.data };
+  }
+  return null;
+}
+
+function normalizeModuleEntry(entry) {
+  if (!entry) return null;
+  if (typeof entry === 'string') {
+    const def = getModuleDefinition(entry);
+    return { id: entry, label: def?.label || entry, type: def?.type || 'module' };
+  }
+  const id = entry.id || entry.moduleId;
+  if (!id) return null;
+  const def = getModuleDefinition(id);
+  return {
+    id,
+    label: def?.label || entry.label || id,
+    type: def?.type || entry.type || 'module'
+  };
+}
+
+function updateModuleImportSummary() {
+  const fileLabel = document.getElementById('moduleImportFile');
+  const itemsLabel = document.getElementById('moduleImportItems');
+  const reviewBtn = document.getElementById('moduleImportReview');
+  if (!fileLabel || !itemsLabel || !reviewBtn) return;
+  if (!moduleImportState) {
+    fileLabel.textContent = 'Sin archivo seleccionado';
+    itemsLabel.textContent = '-';
+    reviewBtn.disabled = true;
+    return;
+  }
+  fileLabel.textContent = moduleImportState.fileName;
+  const count = moduleImportState.modules.length;
+  itemsLabel.textContent = `${count} ${count === 1 ? 'elemento' : 'elementos'}`;
+  reviewBtn.disabled = count === 0;
+}
+
+function renderModuleManagement() {
+  const container = document.getElementById('moduleList');
+  if (!container) return;
+  container.innerHTML = MODULE_GROUPS.map(group => {
+    const items = MODULE_CATALOG.filter(item => item.group === group.id);
+    return `
+      <div class="module-group">
+        <div class="module-group-title">${group.title}</div>
+        ${items.map(item => {
+          const chipClass = item.exportable ? 'module-chip exportable' : 'module-chip';
+          const typeLabel = moduleTypeLabel(item);
+          const disabled = !item.exportable ? 'disabled' : '';
+          const checkbox = item.exportable
+            ? `<input type="checkbox" class="module-checkbox" data-module="${item.id}">`
+            : `<input type="checkbox" disabled>`;
+          return `
+            <div class="module-item ${item.type === 'submodule' ? 'sub' : ''} ${disabled}">
+              <div class="module-item-info">
+                <strong>${item.label}</strong>
+                <div class="module-item-meta">
+                  <span class="module-chip">${typeLabel}</span>
+                  <span class="${chipClass}">${item.exportable ? 'Exportable' : 'No exportable'}</span>
+                </div>
+              </div>
+              ${checkbox}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }).join('');
+  updateModuleExportCount();
+}
+
+function updateModuleExportCount() {
+  const counter = document.getElementById('moduleExportCount');
+  if (!counter) return;
+  const checked = document.querySelectorAll('.module-checkbox:checked').length;
+  counter.textContent = `${checked} ${checked === 1 ? 'módulo seleccionado' : 'módulos seleccionados'}`;
+}
+
+function resetModuleImportState() {
+  moduleImportState = null;
+  const input = document.getElementById('moduleImportInput');
+  if (input) input.value = '';
+  updateModuleImportSummary();
+}
+
+async function applyModuleImport(state) {
+  if (!state?.modules?.length) return;
+  showImportOverlay({
+    eyebrow: 'Importación de módulos',
+    title: 'Aplicando configuración...',
+    subtitle: 'Espera un momento...',
+    helper: 'Actualizando módulos seleccionados.',
+    steps: state.modules.map(module => `Aplicando ${module.label || module.id}...`)
+  });
+  for (let i = 0; i < state.modules.length; i += 1) {
+    const module = state.modules[i];
+    updateImportOverlayStep(i, `Aplicando ${module.label || module.id}...`);
+    updateImportOverlayProgress((i + 1) / state.modules.length * 100, 100);
+    const payload = state.dataById?.[module.id];
+    await applyModulePayload(module.id, payload);
+  }
+  persist();
+  hideImportOverlay();
+  showToast('Módulos importados correctamente', 'success');
+  resetModuleImportState();
+  renderModuleManagement();
+}
+
+function openModuleImportModal() {
+  if (!moduleImportState) return;
+  const modal = document.getElementById('moduleImportModal');
+  const list = document.getElementById('moduleImportModalList');
+  const subtitle = document.getElementById('moduleImportModalSubtitle');
+  const confirmBtn = document.getElementById('moduleImportConfirm');
+  const cancelBtn = document.getElementById('moduleImportCancel');
+  const closeBtn = document.getElementById('moduleImportClose');
+  const check = document.getElementById('moduleImportAcknowledge');
+  if (!modal || !list || !subtitle || !confirmBtn || !cancelBtn || !closeBtn || !check) return;
+
+  subtitle.textContent = `Archivo seleccionado: ${moduleImportState.fileName}`;
+  list.innerHTML = moduleImportState.modules.map(module => `
+    <div class="module-import-modal-item">
+      <div>
+        <strong>${module.label || module.id}</strong>
+        <p class="muted tiny">Tipo: ${moduleTypeLabel(module)}</p>
+      </div>
+      <span class="module-chip exportable">${moduleTypeLabel(module)}</span>
+    </div>
+  `).join('');
+  check.checked = false;
+  confirmBtn.disabled = true;
+
+  const handleCheck = () => {
+    confirmBtn.disabled = !check.checked;
+  };
+  check.onchange = handleCheck;
+
+  const cleanup = () => {
+    check.onchange = null;
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+    closeBtn.onclick = null;
+    toggleModal(modal, false);
+  };
+
+  confirmBtn.onclick = async () => {
+    if (!check.checked) return;
+    cleanup();
+    await applyModuleImport(moduleImportState);
+  };
+  cancelBtn.onclick = cleanup;
+  closeBtn.onclick = cleanup;
+  toggleModal(modal, true);
+}
+
+function bindModuleManagement() {
+  const openBtn = document.getElementById('openModuleManagement');
+  if (openBtn && !openBtn.dataset.bound) {
+    openBtn.dataset.bound = 'true';
+    openBtn.addEventListener('click', () => {
+      activatePanel('moduleManagement');
+      document.getElementById('actionMenuPanel')?.classList.remove('open');
+    });
+  }
+
+  const list = document.getElementById('moduleList');
+  if (list && !list.dataset.bound) {
+    list.addEventListener('change', (event) => {
+      if (!event.target.classList.contains('module-checkbox')) return;
+      updateModuleExportCount();
+    });
+    list.dataset.bound = 'true';
+  }
+
+  const selectAllBtn = document.getElementById('moduleSelectAll');
+  if (selectAllBtn && !selectAllBtn.dataset.bound) {
+    selectAllBtn.dataset.bound = 'true';
+    selectAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('.module-checkbox').forEach(input => {
+        if (!input.disabled) input.checked = true;
+      });
+      updateModuleExportCount();
+    });
+  }
+
+  const clearBtn = document.getElementById('moduleClearSelection');
+  if (clearBtn && !clearBtn.dataset.bound) {
+    clearBtn.dataset.bound = 'true';
+    clearBtn.addEventListener('click', () => {
+      document.querySelectorAll('.module-checkbox').forEach(input => {
+        input.checked = false;
+      });
+      updateModuleExportCount();
+    });
+  }
+
+  const exportBtn = document.getElementById('exportModules');
+  if (exportBtn && !exportBtn.dataset.bound) {
+    exportBtn.dataset.bound = 'true';
+    exportBtn.addEventListener('click', () => {
+      const selected = Array.from(document.querySelectorAll('.module-checkbox:checked')).map(input => input.dataset.module);
+      exportSelectedModules(selected);
+    });
+  }
+
+  const trigger = document.getElementById('moduleImportTrigger');
+  const input = document.getElementById('moduleImportInput');
+  if (trigger && input && !trigger.dataset.bound) {
+    trigger.dataset.bound = 'true';
+    trigger.addEventListener('click', () => input.click());
+  }
+
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = 'true';
+    input.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        const content = await readFileAsText(file);
+        const parsed = JSON.parse(content);
+        const pkg = parseModulePackage(parsed);
+        if (!pkg) {
+          showToast('El archivo no tiene un formato de módulos válido.', 'error');
+          resetModuleImportState();
+          return;
+        }
+        const modules = (pkg.modules || [])
+          .map(entry => normalizeModuleEntry(entry))
+          .filter(Boolean);
+        moduleImportState = {
+          fileName: file.name,
+          modules,
+          dataById: pkg.dataById || {}
+        };
+        updateModuleImportSummary();
+      } catch (err) {
+        showToast('No se pudo leer el archivo de módulos.', 'error');
+        resetModuleImportState();
+      }
+    });
+  }
+
+  const reviewBtn = document.getElementById('moduleImportReview');
+  if (reviewBtn && !reviewBtn.dataset.bound) {
+    reviewBtn.dataset.bound = 'true';
+    reviewBtn.addEventListener('click', () => {
+      if (!moduleImportState) return;
+      openModuleImportModal();
+    });
+  }
+
+  const resetBtn = document.getElementById('moduleImportReset');
+  if (resetBtn && !resetBtn.dataset.bound) {
+    resetBtn.dataset.bound = 'true';
+    resetBtn.addEventListener('click', () => resetModuleImportState());
+  }
+
+  updateModuleImportSummary();
 }
 
 function persist() {

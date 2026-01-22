@@ -99,15 +99,16 @@
               <div class="action-menu" id="actionMenu">
                 <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfil</span><i class='bx bx-chevron-down'></i></button>
                 <div class="menu-panel" id="actionMenuPanel">
-                  <div class="menu-head">
-                    <p class="eyebrow">Mi Perfil</p>
-                  </div>
-                  <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
-                  <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+                <div class="menu-head">
+                  <p class="eyebrow">Mi Perfil</p>
                 </div>
+                <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+                <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+                <button class="menu-item" id="openModuleManagement"><i class='bx bx-grid-alt'></i>Gestión de módulos</button>
               </div>
-              <div class="icon-menu" id="settingsMenu">
-                <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
+            </div>
+            <div class="icon-menu" id="settingsMenu">
+              <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
                 <div class="menu-panel" id="settingsPanel">
                   <div class="menu-head">
                     <p class="eyebrow">Opciones</p>
@@ -1221,6 +1222,70 @@
           <div class="schedule-agenda">
             <h3>Esta es tu agenda:</h3>
             <div id="scheduledTimeline" class="schedule-timeline"></div>
+          </div>
+        </div>
+      </section>
+      <section id="moduleManagement" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Gestión de Mi Perfil</p>
+            <h2>Gestión de Módulos</h2>
+            <p class="muted subtle">Administra la importación y exportación individual de módulos y submódulos del sistema.</p>
+          </div>
+        </div>
+        <div class="module-management-grid">
+          <div class="card module-card">
+            <div class="module-card-head">
+              <div>
+                <p class="eyebrow">Exportación</p>
+                <h3>Selecciona módulos y submódulos</h3>
+                <p class="muted tiny">El perfil completo incluye todo, aquí puedes exportar solo lo necesario.</p>
+              </div>
+              <div class="module-card-actions">
+                <button class="ghost-btn mini" id="moduleSelectAll">Seleccionar todo</button>
+                <button class="ghost-btn mini" id="moduleClearSelection">Limpiar</button>
+              </div>
+            </div>
+            <div id="moduleList" class="module-list"></div>
+            <div class="module-export-footer">
+              <span class="muted tiny" id="moduleExportCount">0 módulos seleccionados</span>
+              <button class="primary-btn" id="exportModules"><i class='bx bx-download'></i>Exportar selección</button>
+            </div>
+          </div>
+          <div class="card module-card">
+            <div class="module-card-head">
+              <div>
+                <p class="eyebrow">Importación</p>
+                <h3>Importar módulos y submódulos</h3>
+                <p class="muted tiny">Carga un archivo y revisa lo que se reemplazará antes de continuar.</p>
+              </div>
+            </div>
+            <div class="module-import-body">
+              <div class="module-import-drop">
+                <i class='bx bx-upload'></i>
+                <div>
+                  <p><strong>Arrastra aquí tu archivo o busca desde tu equipo.</strong></p>
+                  <p class="muted tiny">Formatos compatibles: .json, .module</p>
+                </div>
+                <button class="secondary-btn" id="moduleImportTrigger"><i class='bx bx-folder-open'></i>Buscar archivo</button>
+                <input type="file" id="moduleImportInput" accept="application/json,.module" hidden>
+              </div>
+              <div class="module-import-summary" id="moduleImportSummary">
+                <div class="summary-row">
+                  <span class="label">Archivo cargado:</span>
+                  <strong id="moduleImportFile">Sin archivo seleccionado</strong>
+                </div>
+                <div class="summary-row">
+                  <span class="label">Elementos detectados:</span>
+                  <strong id="moduleImportItems">-</strong>
+                </div>
+                <p class="muted tiny" id="moduleImportHint">Una vez cargado el archivo podrás revisar los elementos antes de continuar.</p>
+              </div>
+            </div>
+            <div class="module-import-footer">
+              <button class="ghost-btn" id="moduleImportReset">Cancelar</button>
+              <button class="primary-btn" id="moduleImportReview" disabled><i class='bx bx-check-circle'></i>Continuar</button>
+            </div>
           </div>
         </div>
       </section>
@@ -2563,6 +2628,33 @@
       <div class="modal-actions">
         <button id="modalCancel" class="ghost-btn">Cancelar</button>
         <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <div id="moduleImportModal" class="modal hidden">
+    <div class="modal-content wide module-import-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Gestión de módulos</p>
+          <h3>Estas por importar elementos</h3>
+          <p class="muted" id="moduleImportModalSubtitle">Revisa los módulos y confirma para continuar.</p>
+        </div>
+        <button id="moduleImportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="module-import-modal-list" id="moduleImportModalList"></div>
+        <div class="module-import-warning">
+          <p><strong>Esto reemplazará la configuración actual.</strong></p>
+          <p class="muted tiny">Si no tienes copia hecha se reemplazarán y se perderán.</p>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="moduleImportAcknowledge">
+          <span>Entiendo lo que estoy haciendo.</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-btn" id="moduleImportCancel">Cancelar</button>
+        <button class="primary-btn" id="moduleImportConfirm" disabled>Continuar</button>
       </div>
     </div>
   </div>
