@@ -142,7 +142,7 @@ const defaultUiState = {
       pending: { color: '#9fb1c5', opacity: 0.14 }
     },
     accounts: [
-      { id: 'acct-default', name: 'Planes de Ahorro Argentina', phone: '', device: '' }
+      { id: 'acct-default', name: 'Planes de Ahorro Argentina', alias: '', phone: '', device: '' }
     ],
     activeAccountId: 'acct-default'
   },
@@ -504,6 +504,7 @@ const defaultActionCatalog = [
   { id: 'no_number', label: 'Número no disponible', icon: 'bx-block', color: '#f87171' },
   { id: 'favorite', label: 'Favorito', icon: 'bx-star', color: '#f6b04b' },
   { id: 'update_status', label: 'Modificación de estado', icon: 'bx-tag', color: '#60a5fa' },
+  { id: 'reassign_account', label: 'Reasignación de cuenta', icon: 'bx-transfer-alt', color: '#a78bfa' },
   { id: 'open_notes', label: 'Notas', icon: 'bx-note', color: '#94a3b8' },
   { id: 'copy_message', label: 'Copiar mensaje', icon: 'bx-message-square-dots', color: '#38bdf8' },
   { id: 'copy_template', label: 'Copiar plantilla', icon: 'bx-copy-alt', color: '#f59e0b' },
@@ -1311,9 +1312,10 @@ function toggleModal(modal, show) {
 }
 
 function getAccountManagerDraft(account) {
-  if (!account) return { name: '', phone: '', device: '' };
+  if (!account) return { name: '', alias: '', phone: '', device: '' };
   return accountManagerState.drafts[account.id] || {
     name: account.name || '',
+    alias: account.alias || '',
     phone: account.phone || '',
     device: account.device || ''
   };
@@ -1322,6 +1324,7 @@ function getAccountManagerDraft(account) {
 function hasAccountDraftChanges(account, draft) {
   if (!account || !draft) return false;
   return (account.name || '') !== (draft.name || '')
+    || (account.alias || '') !== (draft.alias || '')
     || (account.phone || '') !== (draft.phone || '')
     || (account.device || '') !== (draft.device || '');
 }
@@ -1335,17 +1338,21 @@ function saveAccountManagerDrafts() {
     const draft = accountManagerState.drafts[account.id];
     if (!draft) return account;
     const nextName = draft.name?.trim() || 'Cuenta sin nombre';
+    const nextAlias = draft.alias?.trim() || '';
     const nextPhone = draft.phone?.trim() || '';
     const nextDevice = draft.device?.trim() || '';
-    if (account.name === nextName && (account.phone || '') === nextPhone && (account.device || '') === nextDevice) return account;
+    if (account.name === nextName
+      && (account.alias || '') === nextAlias
+      && (account.phone || '') === nextPhone
+      && (account.device || '') === nextDevice) return account;
     updated = true;
-    return { ...account, name: nextName, phone: nextPhone, device: nextDevice };
+    return { ...account, name: nextName, alias: nextAlias, phone: nextPhone, device: nextDevice };
   });
   if (updated) {
     uiState.globalSettings.accounts = nextAccounts;
     const active = nextAccounts.find(acc => acc.id === settings.activeAccountId);
     if (active) {
-      uiState.globalSettings.advisorName = active.name;
+      uiState.globalSettings.advisorName = resolveAccountAdvisorName(active);
     }
     persist();
     renderAdvisorSelector();
@@ -1369,10 +1376,11 @@ function toggleAccountManager(show) {
 function renderAccountManager() {
   const list = document.getElementById('accountManagerList');
   const nameInput = document.getElementById('accountNameInput');
+  const aliasInput = document.getElementById('accountAliasInput');
   const phoneInput = document.getElementById('accountPhoneInput');
   const deviceInput = document.getElementById('accountDeviceInput');
   const status = document.getElementById('accountManagerStatus');
-  if (!list || !nameInput || !phoneInput || !deviceInput) return;
+  if (!list || !nameInput || !aliasInput || !phoneInput || !deviceInput) return;
   const settings = mergeGlobalSettings(uiState.globalSettings);
   uiState.globalSettings = settings;
   const accounts = settings.accounts || [];
@@ -1398,6 +1406,7 @@ function renderAccountManager() {
   const current = accounts.find(acc => acc.id === accountManagerState.selectedId);
   const currentDraft = getAccountManagerDraft(current);
   nameInput.value = currentDraft?.name || '';
+  aliasInput.value = currentDraft?.alias || '';
   phoneInput.value = currentDraft?.phone || '';
   deviceInput.value = currentDraft?.device || '';
   if (status) {
@@ -1888,7 +1897,7 @@ function generateQuoteNumber(dni = '', date = new Date()) {
 }
 
 function buildQuoteGeneratorDraft({ blank = false } = {}) {
-  const advisorName = uiState?.globalSettings?.advisorName || '';
+  const advisorName = resolveAccountAdvisorName(getActiveAccount()) || uiState?.globalSettings?.advisorName || '';
   return {
     meta: {
       quoteNumber: generateQuoteNumber(),
@@ -2564,14 +2573,22 @@ function createAccountId() {
 
 function normalizeAccount(account = {}) {
   const name = (account.name || account.label || '').toString().trim();
+  const alias = (account.alias || account.advisorAlias || '').toString().trim();
   const phone = (account.phone || '').toString().trim();
   const device = (account.device || account.deviceRef || '').toString().trim();
   return {
     id: account.id || createAccountId(),
     name: name || 'Cuenta sin nombre',
+    alias,
     phone,
     device
   };
+}
+
+function resolveAccountAdvisorName(account = {}) {
+  const alias = (account.alias || '').toString().trim();
+  if (alias) return alias;
+  return (account.name || '').toString().trim();
 }
 
 function ensureAccounts(settings = {}) {
@@ -2597,7 +2614,7 @@ function ensureAccounts(settings = {}) {
   return {
     accounts,
     activeAccountId,
-    advisorName: activeAccount?.name || settings.advisorName || base.advisorName
+    advisorName: resolveAccountAdvisorName(activeAccount) || settings.advisorName || base.advisorName
   };
 }
 
@@ -2664,7 +2681,7 @@ function setActiveAccount(accountId) {
   const nextId = settings.accounts.some(account => account.id === accountId) ? accountId : settings.accounts[0]?.id;
   uiState.globalSettings.activeAccountId = nextId;
   const active = getActiveAccount({ ...settings, activeAccountId: nextId });
-  uiState.globalSettings.advisorName = active?.name || uiState.globalSettings.advisorName;
+  uiState.globalSettings.advisorName = resolveAccountAdvisorName(active) || uiState.globalSettings.advisorName;
   persist();
   renderWelcomeHero();
   renderClientManager();
@@ -3059,7 +3076,7 @@ function resolvePlanDraftVehicle() {
 function buildDynamicVariableMap(client = {}) {
   const globalSettings = mergeGlobalSettings(uiState.globalSettings);
   const activeAccount = getActiveAccount(globalSettings);
-  const advisorName = activeAccount?.name || globalSettings.advisorName || '';
+  const advisorName = resolveAccountAdvisorName(activeAccount) || globalSettings.advisorName || '';
   const year = extractYear(client.purchaseDate || client.birthDate || '');
   const noteValue = normalizeNotesValue(client.type);
   const defaultNote = normalizeNotesValue(globalSettings.clientType);
@@ -3192,6 +3209,8 @@ let activeActionClientId = null;
 let activeEditAction = null;
 let activeStatusClientId = null;
 let activeStatusReturnToMenu = false;
+let activeReassignClientId = null;
+let activeReassignReturnToMenu = false;
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
@@ -4305,7 +4324,7 @@ function renderWelcomeHero() {
 
   const settings = mergeGlobalSettings(uiState.globalSettings);
   const activeAccount = getActiveAccount(settings);
-  const advisorRaw = activeAccount?.name || settings.advisorName || '';
+  const advisorRaw = resolveAccountAdvisorName(activeAccount) || settings.advisorName || '';
   const advisor = advisorRaw.trim();
   heading.textContent = advisor ? `Inicio de ${advisor}` : 'Inicio';
   subtitle.textContent = '';
@@ -9522,6 +9541,7 @@ function bindAccountManager() {
   const applyBtn = document.getElementById('applyAccountToClients');
   const list = document.getElementById('accountManagerList');
   const nameInput = document.getElementById('accountNameInput');
+  const aliasInput = document.getElementById('accountAliasInput');
   const phoneInput = document.getElementById('accountPhoneInput');
   const deviceInput = document.getElementById('accountDeviceInput');
   const status = document.getElementById('accountManagerStatus');
@@ -9553,7 +9573,7 @@ function bindAccountManager() {
       accountManagerState.selectedId = newAccount.id;
       if (!settings.activeAccountId) {
         uiState.globalSettings.activeAccountId = newAccount.id;
-        uiState.globalSettings.advisorName = newAccount.name;
+        uiState.globalSettings.advisorName = resolveAccountAdvisorName(newAccount);
       }
       persist();
       renderAccountManager();
@@ -9585,7 +9605,7 @@ function bindAccountManager() {
           uiState.globalSettings.accounts = remaining;
           uiState.globalSettings.activeAccountId = nextActiveId;
           const active = remaining.find(acc => acc.id === nextActiveId);
-          if (active) uiState.globalSettings.advisorName = active.name;
+          if (active) uiState.globalSettings.advisorName = resolveAccountAdvisorName(active);
           accountManagerState.selectedId = remaining[0]?.id || null;
           persist();
           renderAccountManager();
@@ -9626,6 +9646,20 @@ function bindAccountManager() {
       if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
     });
     nameInput.dataset.bound = 'true';
+  }
+
+  if (aliasInput && !aliasInput.dataset.bound) {
+    aliasInput.addEventListener('input', () => {
+      const settings = mergeGlobalSettings(uiState.globalSettings);
+      const accounts = settings.accounts || [];
+      const index = accounts.findIndex(acc => acc.id === accountManagerState.selectedId);
+      if (index < 0) return;
+      const draft = getAccountManagerDraft(accounts[index]);
+      const nextAlias = aliasInput.value;
+      accountManagerState.drafts[accounts[index].id] = { ...draft, alias: nextAlias };
+      if (status) status.textContent = 'Cambios pendientes. Se guardan al cerrar.';
+    });
+    aliasInput.dataset.bound = 'true';
   }
 
   if (phoneInput && !phoneInput.dataset.bound) {
@@ -12789,10 +12823,6 @@ function renderClientManager() {
       const notesTitle = notesActive ? 'Notas guardadas' : 'Agregar notas';
       const statusMeta = buildStatusMetaHtml(c, status);
       const journeyLabel = journeyStatusLabel(c);
-      const journeyUpdatedAt = journeyStatusLastUpdate(c);
-      const journeyUpdatedLabel = journeyUpdatedAt
-        ? formatDateTimeForDisplay(journeyUpdatedAt)
-        : 'Sin registros';
       const cells = visibleColumns.map(([key, col]) => `
         <div class="grid-cell" data-label="${col.label}" data-key="${key}" style="--cell-font: var(--pref-font-${key})">
           ${formatCell(key, c)}
@@ -12811,7 +12841,6 @@ function renderClientManager() {
               <div class="journey-status-block" title="Actualizar estado de jornada">
                 <span class="journey-status-label">Estado:</span>
                 <button class="journey-status-pill" type="button" data-action="update_status">${journeyLabel}</button>
-                <span class="journey-status-meta">(Última Act. ${journeyUpdatedLabel})</span>
               </div>
             </div>
           </div>
@@ -13111,7 +13140,7 @@ function renderJourneyReport() {
   if (toInput.value !== to) toInput.value = to;
 
   const activeAccount = getActiveAccount();
-  advisor.textContent = `Informe del asesor: ${activeAccount?.name || uiState.globalSettings?.advisorName || 'Sin cuenta'}`;
+  advisor.textContent = `Informe del asesor: ${resolveAccountAdvisorName(activeAccount) || uiState.globalSettings?.advisorName || 'Sin cuenta'}`;
   period.textContent = `Periodo del informe: ${formatDateLabel(from)} al ${formatDateLabel(to)}`;
 
   const entries = collectJourneyHistoryEntries(from, to);
@@ -13159,7 +13188,7 @@ function downloadJourneyReportPdf() {
   });
   const uniqueClients = new Set(entries.map(entry => entry.clientId)).size;
   const activeAccount = getActiveAccount();
-  const advisorName = activeAccount?.name || uiState.globalSettings?.advisorName || 'Sin cuenta';
+  const advisorName = resolveAccountAdvisorName(activeAccount) || uiState.globalSettings?.advisorName || 'Sin cuenta';
   const detailRows = JOURNEY_STATUS_OPTIONS.map(option => ([option.label, counts[option.key] || 0]));
   const docDefinition = {
     content: [
@@ -13475,6 +13504,10 @@ function bindClientEditHandlers() {
   const cancelStatus = document.getElementById('clientStatusCancel');
   const closeStatus = document.getElementById('clientStatusClose');
   const saveStatus = document.getElementById('clientStatusSave');
+  const reassignModal = document.getElementById('clientReassignModal');
+  const cancelReassign = document.getElementById('clientReassignCancel');
+  const closeReassign = document.getElementById('clientReassignClose');
+  const saveReassign = document.getElementById('clientReassignSave');
   if (closeAction && !closeAction.dataset.bound) {
     closeAction.addEventListener('click', closeClientActionMenu);
     closeAction.dataset.bound = 'true';
@@ -13505,6 +13538,22 @@ function bindClientEditHandlers() {
     });
     statusModal.dataset.bound = 'true';
   }
+  [cancelReassign, closeReassign].forEach(btn => {
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener('click', () => closeClientReassignModal());
+      btn.dataset.bound = 'true';
+    }
+  });
+  if (saveReassign && !saveReassign.dataset.bound) {
+    saveReassign.addEventListener('click', applyClientReassignUpdate);
+    saveReassign.dataset.bound = 'true';
+  }
+  if (reassignModal && !reassignModal.dataset.bound) {
+    reassignModal.addEventListener('click', (event) => {
+      if (event.target === reassignModal) closeClientReassignModal();
+    });
+    reassignModal.dataset.bound = 'true';
+  }
 }
 
 function clientActionOptions(client) {
@@ -13519,6 +13568,15 @@ function clientActionOptions(client) {
       description: 'Selecciona el estado actual del cliente.',
       currentValue: () => journeyStatusLabel(client),
       handler: () => openClientStatusModal(client.id, { returnToMenu: true })
+    },
+    {
+      key: 'reassign_account',
+      icon: 'bx-transfer-alt',
+      tone: 'info',
+      label: 'Reasignación de cuenta',
+      description: 'Actualiza la cuenta responsable del cliente.',
+      currentValue: (c) => c.contactMeta?.accountName || 'Sin cuenta asignada',
+      handler: () => openClientReassignModal(client.id, { returnToMenu: true })
     },
     {
       key: 'rename',
@@ -13908,6 +13966,72 @@ function applyClientStatusUpdate() {
   closeClientStatusModal();
 }
 
+function openClientReassignModal(clientId = activeActionClientId, { returnToMenu = false } = {}) {
+  const modal = document.getElementById('clientReassignModal');
+  const title = document.getElementById('clientReassignTitle');
+  const subtitle = document.getElementById('clientReassignSubtitle');
+  const statusLine = document.getElementById('clientReassignStatusLine');
+  const accountLine = document.getElementById('clientReassignAccountLine');
+  const select = document.getElementById('clientReassignSelect');
+  const client = managerClients.find(c => c.id === clientId);
+  if (!modal || !client || !select) return;
+  activeReassignClientId = clientId;
+  activeReassignReturnToMenu = returnToMenu;
+  if (title) title.textContent = client.name || 'Cliente';
+  if (subtitle) subtitle.textContent = client.model ? `Modelo: ${client.model}` : 'Reasigna la cuenta asociada al cliente.';
+  if (statusLine) statusLine.textContent = `El cliente: ${client.name || 'Cliente'} está marcado como: ${clientStatus(client).label}`;
+  const currentAccount = client.contactMeta?.accountName || 'Sin cuenta';
+  if (accountLine) accountLine.textContent = `Por la cuenta: ${currentAccount}`;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const accounts = settings.accounts || [];
+  const selectedId = client.contactMeta?.accountId || settings.activeAccountId || accounts[0]?.id || '';
+  select.innerHTML = accounts.map(account => `
+    <option value="${account.id}" ${account.id === selectedId ? 'selected' : ''}>${account.name}</option>
+  `).join('');
+  toggleModal(modal, true);
+  closeClientActionMenu();
+}
+
+function closeClientReassignModal(returnToMenu = activeReassignReturnToMenu) {
+  const modal = document.getElementById('clientReassignModal');
+  const reopenId = returnToMenu ? (activeReassignClientId || activeActionClientId) : null;
+  if (!modal) return;
+  toggleModal(modal, false);
+  activeReassignClientId = null;
+  activeReassignReturnToMenu = false;
+  if (returnToMenu && reopenId) {
+    setTimeout(() => openClientActionMenu(reopenId), 220);
+  }
+}
+
+function applyClientReassignUpdate() {
+  const select = document.getElementById('clientReassignSelect');
+  const client = managerClients.find(c => c.id === activeReassignClientId);
+  if (!client || !select) {
+    closeClientReassignModal();
+    return;
+  }
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const account = settings.accounts.find(acc => acc.id === select.value);
+  if (!account) {
+    showToast('Selecciona una cuenta válida.', 'error');
+    return;
+  }
+  const meta = client.contactMeta || {};
+  const timestamp = meta.timestamp || client.contactDate || new Date().toISOString();
+  client.contactMeta = {
+    ...meta,
+    accountId: account.id,
+    accountName: account.name,
+    timestamp
+  };
+  persist();
+  renderClientManager();
+  renderContactLog();
+  showToast('Cuenta reasignada correctamente', 'success');
+  closeClientReassignModal();
+}
+
 function applyClientEdit() {
   if (!activeEditAction) {
     closeClientEditModal(true);
@@ -14071,7 +14195,9 @@ function triggerClientAction(actionKey, clientId) {
     openClientActionMenu(clientId);
     return;
   }
-  if (clientManagerState.editingMode && !actionKey.startsWith('custom:') && actionKey !== 'update_status') return;
+  if (clientManagerState.editingMode
+    && !actionKey.startsWith('custom:')
+    && !['update_status', 'reassign_account'].includes(actionKey)) return;
   if (actionKey.startsWith('custom:')) {
     const customId = actionKey.split(':')[1];
     handleCustomAction(customId, clientId);
@@ -14081,6 +14207,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'no_number') updateClientFlag(clientId, 'noNumber');
   if (actionKey === 'favorite') updateClientFlag(clientId, 'favorite');
   if (actionKey === 'update_status') openClientStatusModal(clientId, { returnToMenu: false });
+  if (actionKey === 'reassign_account') openClientReassignModal(clientId, { returnToMenu: false });
   if (actionKey === 'open_notes') openClientNotes(clientId);
   if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
   if (actionKey === 'copy_template') openTemplatePickerForClient(clientId);

@@ -1579,6 +1579,32 @@
       </div>
     </div>
   </div>
+  <div class="modal hidden" id="clientReassignModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Reasignación de cuenta</p>
+          <h3 id="clientReassignTitle">Reasignar cliente</h3>
+          <p class="muted" id="clientReassignSubtitle"></p>
+        </div>
+        <button id="clientReassignClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="status-update-card">
+          <p class="muted" id="clientReassignStatusLine"></p>
+          <p class="muted" id="clientReassignAccountLine"></p>
+          <div class="field">
+            <label for="clientReassignSelect">Reasignar este cliente a la cuenta:</label>
+            <select id="clientReassignSelect"></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="clientReassignCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientReassignSave" class="primary-btn"><i class='bx bx-refresh'></i>Reasignar cuenta</button>
+      </div>
+    </div>
+  </div>
   <div class="popover-overlay" id="contactLogOverlay">
     <div class="popover wide" id="contactLogPanel">
       <div class="popover-head">
@@ -1614,15 +1640,11 @@
         <div class="journey-report-grid">
           <div class="journey-report-filters">
             <h4>Selecciona el rango de fecha que deseas obtener el informe:</h4>
-            <div class="form-grid">
-              <div class="field">
-                <label for="journeyReportFrom">Desde</label>
-                <input type="date" id="journeyReportFrom" />
-              </div>
-              <div class="field">
-                <label for="journeyReportTo">Hasta</label>
-                <input type="date" id="journeyReportTo" />
-              </div>
+            <div class="journey-date-row">
+              <label for="journeyReportFrom">Desde:</label>
+              <input type="date" id="journeyReportFrom" />
+              <label for="journeyReportTo">Hasta:</label>
+              <input type="date" id="journeyReportTo" />
             </div>
             <div class="journey-quick-buttons">
               <button class="ghost-btn mini" data-range="0">Hoy</button>
@@ -1970,6 +1992,10 @@
           <div class="field">
             <label for="accountNameInput">Nombre de la cuenta</label>
             <input id="accountNameInput" placeholder="Ej: Julián Alvarez" />
+          </div>
+          <div class="field">
+            <label for="accountAliasInput">Alias de la cuenta (Nombre Asesor)</label>
+            <input id="accountAliasInput" placeholder="Ej: Julián Alvarez" />
           </div>
           <div class="field">
             <label for="accountPhoneInput">Número de teléfono asociado a esta cuenta</label>
