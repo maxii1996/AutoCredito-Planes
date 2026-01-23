@@ -3308,15 +3308,8 @@ let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab
 let vehicleEditorAutosaveTimer = null;
 let journeyReportState = { from: '', to: '' };
 
-const appLoaderSteps = [
-  { label: 'Cuentas', total: 0 },
-  { label: 'Plantillas', total: 0 },
-  { label: 'Clientes', total: 0 },
-  { label: 'Marcas y precios', total: 0 }
-];
-
 const appLoaderState = {
-  steps: [...appLoaderSteps]
+  steps: []
 };
 
 function loaderMetricForModule(moduleId) {
@@ -3408,12 +3401,12 @@ function renderLoaderModuleSummary() {
   });
 }
 
-function setAppLoaderSteps(steps = appLoaderSteps) {
+function setAppLoaderSteps(steps = []) {
   const overlay = document.getElementById('appLoader');
   if (!overlay) return;
   const container = document.getElementById('loaderSteps');
   if (!container) return;
-  const normalized = (steps.length ? steps : appLoaderSteps).map((step, index) => {
+  const normalized = steps.map((step, index) => {
     if (typeof step === 'string') {
       return { label: step, current: 0, total: 0 };
     }
@@ -3606,6 +3599,19 @@ function formatLoaderStepLabel(label, current, total) {
   return label;
 }
 
+function getModuleLoadingSteps() {
+  return [
+    { label: 'Cuentas', total: (uiState.globalSettings?.accounts || []).length },
+    { label: 'Plantillas', total: templates.length },
+    { label: 'Clientes', total: managerClients.length },
+    { label: 'Autos y valores', total: vehicles.length },
+    { label: 'Cotizaciones', total: generatedQuotes.length },
+    { label: 'Utilidades', total: document.querySelectorAll('#utilitiesMenuPanel .menu-item').length },
+    { label: 'Ajustes', total: document.querySelectorAll('#settingsPanel .menu-item, #actionMenuPanel .menu-item').length },
+    { label: 'Pestañas', total: document.querySelectorAll('#mainNav .nav-link').length }
+  ];
+}
+
 function isProfileCompatible(profile) {
   return !!(profile
     && typeof profile === 'object'
@@ -3617,16 +3623,7 @@ function isProfileCompatible(profile) {
 }
 
 async function runModuleLoadingSequence() {
-  const steps = [
-    { label: 'Cuentas', total: (uiState.globalSettings?.accounts || []).length },
-    { label: 'Plantillas', total: templates.length },
-    { label: 'Clientes', total: managerClients.length },
-    { label: 'Autos y valores', total: vehicles.length },
-    { label: 'Cotizaciones', total: generatedQuotes.length },
-    { label: 'Utilidades', total: document.querySelectorAll('#utilitiesMenuPanel .menu-item').length },
-    { label: 'Ajustes', total: document.querySelectorAll('#settingsPanel .menu-item, #actionMenuPanel .menu-item').length },
-    { label: 'Pestañas', total: document.querySelectorAll('#mainNav .nav-link').length }
-  ];
+  const steps = getModuleLoadingSteps();
   setAppLoaderSteps(steps);
   for (let i = 0; i < steps.length; i += 1) {
     const { total, label } = steps[i];
@@ -3651,7 +3648,6 @@ async function runModuleLoadingSequence() {
     setAppLoaderProgress(steps.length === 0 ? 0 : ((i + 1) / steps.length) * 100);
     await wait(120);
   }
-  setAppLoaderSteps(appLoaderSteps);
 }
 
 function migrateLegacyPrices() {
@@ -3697,7 +3693,8 @@ init();
 async function init() {
   try {
     document.body.classList.add('modules-loading');
-    setAppLoaderSteps(appLoaderSteps);
+    const initialSteps = getModuleLoadingSteps();
+    setAppLoaderSteps(initialSteps);
     setAppLoaderStep(0);
     await nextFrame();
     setupScrollLockObserver();
@@ -3717,12 +3714,10 @@ async function init() {
     applyStatusPalette();
     renderStats();
     renderWelcomeHero();
-    setAppLoaderStep(1);
     await nextFrame();
     renderQuickOverview();
     renderHomeShortcuts();
     renderTemplates();
-    setAppLoaderStep(2);
     await nextFrame();
     renderPlanForm();
     renderClients();
@@ -3757,7 +3752,6 @@ async function init() {
     startContactLogTicker();
     startScheduleClock();
     startRealtimePersistence();
-    setAppLoaderStep(3);
     await initializePriceTabs();
     renderPriceTabs();
     renderVehicleTable();
