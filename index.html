@@ -1827,21 +1827,36 @@
         <section class="wizard-panel" data-step="1">
           <div class="wizard-choice">
             <h4>¿Cómo deseas buscar al cliente?</h4>
-            <div class="wizard-choice-grid">
-              <button class="wizard-choice-card" type="button" data-client-wizard-choice="search">
-                <div>
-                  <strong>Búsqueda por nombre</strong>
-                  <p class="muted tiny">Escribe y confirma la búsqueda manualmente.</p>
-                </div>
-                <i class='bx bx-search-alt-2'></i>
-              </button>
-              <button class="wizard-choice-card" type="button" data-client-wizard-choice="all">
-                <div>
-                  <strong>Ver todos los clientes</strong>
-                  <p class="muted tiny">Lista alfabética completa para elegir.</p>
-                </div>
-                <i class='bx bx-list-ul'></i>
-              </button>
+            <div class="wizard-choice-group">
+              <p class="wizard-choice-title">Usando mis clientes...</p>
+              <div class="wizard-choice-grid">
+                <button class="wizard-choice-card" type="button" data-client-wizard-choice="search">
+                  <div>
+                    <strong>Búsqueda por nombre</strong>
+                    <p class="muted tiny">Escribe y confirma la búsqueda manualmente.</p>
+                  </div>
+                  <i class='bx bx-search-alt-2'></i>
+                </button>
+                <button class="wizard-choice-card" type="button" data-client-wizard-choice="all">
+                  <div>
+                    <strong>Ver todos los clientes</strong>
+                    <p class="muted tiny">Lista alfabética completa para elegir.</p>
+                  </div>
+                  <i class='bx bx-list-ul'></i>
+                </button>
+              </div>
+            </div>
+            <div class="wizard-choice-group alt">
+              <p class="wizard-choice-title">No utilizar ningún cliente registrado</p>
+              <div class="wizard-choice-grid">
+                <button class="wizard-choice-card" type="button" data-client-wizard-choice="external">
+                  <div>
+                    <strong>Cotización Externa...</strong>
+                    <p class="muted tiny">Usa un nombre manual sin datos asociados.</p>
+                  </div>
+                  <i class='bx bx-id-card'></i>
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -1856,6 +1871,12 @@
               <input id="clientWizardSearchInput" placeholder="Escribe el nombre del cliente a buscar..." />
             </div>
             <button id="clientWizardSearchBtn" class="primary-btn" type="button"><i class='bx bx-loader-circle'></i>Buscar...</button>
+          </div>
+          <div class="wizard-search" id="clientWizardExternalSection">
+            <div class="field">
+              <label for="clientWizardExternalName">Ingresa el nombre del cliente que quieres utilizar.</label>
+              <input id="clientWizardExternalName" placeholder="Ej: Juan Pérez" />
+            </div>
           </div>
           <p class="muted tiny" id="clientWizardSearchStatus">Selecciona un cliente para continuar.</p>
           <div id="clientWizardList" class="picker-list wizard-list"></div>

@@ -2431,6 +2431,9 @@ function formatQuotePreviewMoney(value) {
 }
 
 function resolveQuoteGeneratorClient(latestQuote) {
+  if (isExternalClientSelection()) {
+    return null;
+  }
   const selectedId = selectedPlanClientId || latestQuote?.selectedClientId || uiState?.planDraft?.selectedClientId || null;
   if (selectedId) {
     const found = managerClients.find(client => client.id === selectedId);
@@ -6847,6 +6850,7 @@ let clientWizardState = {
   mode: null,
   searchTerm: '',
   selectedClientId: null,
+  externalName: '',
   selectedVehicleIndex: 0,
   tradeIn: true,
   tradeInValue: 0,
@@ -6907,6 +6911,14 @@ function bindClientPicker() {
   if (nextBtn && !nextBtn.dataset.bound) {
     nextBtn.addEventListener('click', () => {
       if (clientWizardState.step < 6) {
+        if (clientWizardState.step === 2 && clientWizardState.mode === 'external') {
+          const externalName = (clientWizardState.externalName || '').trim();
+          if (!externalName) {
+            showToast('Ingresa el nombre del cliente externo.', 'error');
+            return;
+          }
+          applyWizardExternalClientSelection(externalName);
+        }
         setClientWizardStep(clientWizardState.step + 1);
       }
     });
@@ -6915,6 +6927,14 @@ function bindClientPicker() {
   const confirmBtn = document.getElementById('clientWizardConfirm');
   if (confirmBtn && !confirmBtn.dataset.bound) {
     confirmBtn.addEventListener('click', () => {
+      if (clientWizardState.mode === 'external') {
+        const externalName = (clientWizardState.externalName || '').trim();
+        if (!externalName) {
+          showToast('Ingresa el nombre del cliente externo.', 'error');
+          return;
+        }
+        applyWizardExternalClientSelection(externalName);
+      }
       applyClientWizardSelections();
       closeClientPicker();
       showToast('Asistente aplicado correctamente.', 'success');
@@ -6954,6 +6974,10 @@ function bindClientPicker() {
     btn.addEventListener('click', () => {
       const useSystem = btn.dataset.priceChoice === 'yes';
       clientWizardState.useSystemPrice = useSystem;
+      if (!useSystem) {
+        const basePrice = vehicles[clientWizardState.selectedVehicleIndex]?.basePrice || 0;
+        clientWizardState.customPrice = basePrice;
+      }
       updateWizardPriceUI();
       applyWizardPriceSelection();
     });
@@ -6977,6 +7001,13 @@ function bindClientPicker() {
       applyWizardPriceSelection();
     });
     customPriceInput.dataset.bound = 'true';
+  }
+  const externalNameInput = document.getElementById('clientWizardExternalName');
+  if (externalNameInput && !externalNameInput.dataset.bound) {
+    externalNameInput.addEventListener('input', () => {
+      clientWizardState.externalName = externalNameInput.value;
+    });
+    externalNameInput.dataset.bound = 'true';
   }
 
   ['clientVehicleClose', 'clientVehicleCancel'].forEach(id => {
@@ -7018,11 +7049,14 @@ function initializeClientWizardState() {
   const customPrice = parseMoney(customPriceInput?.dataset.raw || customPriceInput?.value || 0);
   const basePrice = vehicles[modelIdx]?.basePrice || 0;
   const useSystemPrice = !customPrice || customPrice === basePrice;
+  const isExternal = uiState?.planDraft?.clientSource === 'external';
+  const externalName = uiState?.planDraft?.externalName || document.getElementById('clientName')?.value || '';
   clientWizardState = {
     step: 1,
-    mode: null,
+    mode: isExternal ? 'external' : null,
     searchTerm: '',
-    selectedClientId: selectedPlanClientId || uiState?.planDraft?.selectedClientId || null,
+    selectedClientId: isExternal ? null : (selectedPlanClientId || uiState?.planDraft?.selectedClientId || null),
+    externalName: isExternal ? externalName : '',
     selectedVehicleIndex: Number.isFinite(modelIdx) ? modelIdx : 0,
     tradeIn: document.getElementById('tradeIn')?.checked ?? true,
     tradeInValue,
@@ -7039,6 +7073,8 @@ function hydrateWizardInputsFromState() {
   if (tradeInInput) setMoneyValue(tradeInInput, clientWizardState.tradeInValue || 0);
   const customPriceInput = document.getElementById('clientWizardCustomPrice');
   if (customPriceInput) setMoneyValue(customPriceInput, clientWizardState.customPrice || 0);
+  const externalNameInput = document.getElementById('clientWizardExternalName');
+  if (externalNameInput) externalNameInput.value = clientWizardState.externalName || '';
 }
 
 function setClientWizardStep(step) {
@@ -7078,7 +7114,11 @@ function updateClientWizardUI() {
       5: 'Confirma el valor del vehículo.',
       6: 'Revisa todo antes de continuar.'
     };
-    subtitle.textContent = subtitles[clientWizardState.step] || '';
+    let text = subtitles[clientWizardState.step] || '';
+    if (clientWizardState.step === 2 && clientWizardState.mode === 'external') {
+      text = 'Ingresa el nombre del cliente externo.';
+    }
+    subtitle.textContent = text;
   }
   document.querySelectorAll('.wizard-progress-step').forEach(stepEl => {
     const stepValue = Number(stepEl.dataset.step);
@@ -7086,7 +7126,10 @@ function updateClientWizardUI() {
     stepEl.classList.toggle('complete', stepValue < clientWizardState.step);
   });
   if (backBtn) backBtn.style.visibility = clientWizardState.step > 1 ? 'visible' : 'hidden';
-  if (nextBtn) nextBtn.style.display = [3, 4, 5].includes(clientWizardState.step) ? '' : 'none';
+  if (nextBtn) {
+    const allowNext = [3, 4, 5].includes(clientWizardState.step) || (clientWizardState.step === 2 && clientWizardState.mode === 'external');
+    nextBtn.style.display = allowNext ? '' : 'none';
+  }
   if (confirmBtn) confirmBtn.style.display = clientWizardState.step === 6 ? '' : 'none';
   updateWizardTradeInUI();
   updateWizardPriceUI();
@@ -7102,21 +7145,43 @@ function renderClientWizardMode() {
   const title = document.getElementById('clientWizardModeTitle');
   const subtitle = document.getElementById('clientWizardModeSubtitle');
   const searchSection = document.getElementById('clientWizardSearchSection');
+  const externalSection = document.getElementById('clientWizardExternalSection');
   const status = document.getElementById('clientWizardSearchStatus');
   document.querySelectorAll('[data-client-wizard-choice]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.clientWizardChoice === mode);
   });
-  if (title) title.textContent = mode === 'all' ? 'Listado completo de clientes' : 'Búsqueda por nombre';
+  if (title) {
+    title.textContent = mode === 'all'
+      ? 'Listado completo de clientes'
+      : (mode === 'external' ? 'Cotización externa' : 'Búsqueda por nombre');
+  }
   if (subtitle) {
     subtitle.textContent = mode === 'all'
       ? 'Explora los contactos importados ordenados alfabéticamente.'
-      : 'Escribe el nombre del cliente a buscar y presiona Buscar.';
+      : (mode === 'external'
+        ? 'Ingresa el nombre del cliente que quieres utilizar.'
+        : 'Escribe el nombre del cliente a buscar y presiona Buscar.');
   }
-  if (searchSection) searchSection.style.display = mode === 'all' ? 'none' : 'flex';
-  if (status) status.textContent = 'Selecciona un cliente para continuar.';
+  if (searchSection) searchSection.style.display = mode === 'search' ? 'flex' : 'none';
+  if (externalSection) externalSection.style.display = mode === 'external' ? 'flex' : 'none';
+  const externalInput = document.getElementById('clientWizardExternalName');
+  if (externalInput && mode === 'external') {
+    externalInput.value = clientWizardState.externalName || '';
+  }
+  if (status) {
+    status.textContent = mode === 'external'
+      ? 'Este cliente será tratado como externo.'
+      : 'Selecciona un cliente para continuar.';
+  }
 
   const list = document.getElementById('clientWizardList');
   if (!list) return;
+  list.style.display = mode === 'external' ? 'none' : 'grid';
+  if (mode === 'external') {
+    list.innerHTML = '';
+    clientWizardState.selectedClientId = null;
+    return;
+  }
   if (!managerClients.length) {
     list.innerHTML = '<p class="muted">No hay clientes importados.</p>';
     return;
@@ -7209,7 +7274,27 @@ function applyWizardClientSelection(client) {
   if (input) input.value = client.name || '';
   uiState.planDraft.clientName = client.name || '';
   uiState.planDraft.selectedClientId = client.id;
+  uiState.planDraft.clientSource = 'internal';
+  uiState.planDraft.externalName = '';
+  clientWizardState.externalName = '';
   refreshClientSelectionHint(client);
+  updatePlanClientNameLock();
+  persist();
+}
+
+function applyWizardExternalClientSelection(name) {
+  const trimmed = (name || '').trim();
+  selectedPlanClientId = null;
+  clientWizardState.selectedClientId = null;
+  clientWizardState.externalName = trimmed;
+  uiState.planDraft.selectedClientId = null;
+  uiState.planDraft.clientSource = 'external';
+  uiState.planDraft.externalName = trimmed;
+  uiState.planDraft.clientName = trimmed;
+  const input = document.getElementById('clientName');
+  if (input) input.value = trimmed;
+  refreshClientSelectionHint();
+  updatePlanClientNameLock();
   persist();
 }
 
@@ -7315,7 +7400,9 @@ function updateWizardPlanCard() {
   const priceInfo = document.getElementById('clientWizardPriceInfo');
   if (priceInfo) {
     const priceLabel = getMostRecentPriceTab()?.label || getMostRecentPriceTab()?.month || 'Precios actuales';
-    priceInfo.textContent = `El valor nominal del coche en sistema (según precios actualizados de ${priceLabel}) es ${currency.format(vehicle.basePrice || 0)}.`;
+    const brandName = normalizeBrand(vehicle.brand);
+    const modelName = vehicle.name || '-';
+    priceInfo.innerHTML = `El valor nominal del coche en sistema (según precios actualizados de ${priceLabel}) es <strong>${currency.format(vehicle.basePrice || 0)}.</strong><br><span class="muted">Cotizando: ${brandName} ${modelName}</span>`;
   }
   if (clientWizardState.useSystemPrice) {
     applyWizardPriceSelection();
@@ -7367,7 +7454,9 @@ function applyWizardPriceSelection() {
 function renderWizardSummary() {
   const container = document.getElementById('clientWizardSummary');
   if (!container) return;
-  const client = managerClients.find(c => c.id === clientWizardState.selectedClientId);
+  const isExternal = clientWizardState.mode === 'external' || uiState?.planDraft?.clientSource === 'external';
+  const client = isExternal ? null : managerClients.find(c => c.id === clientWizardState.selectedClientId);
+  const externalName = clientWizardState.externalName || uiState?.planDraft?.externalName || document.getElementById('clientName')?.value || '';
   const vehicle = vehicles[clientWizardState.selectedVehicleIndex] || vehicles[0];
   const planType = getPlanTypeForVehicle(vehicle);
   const planLabelValue = resolveVehiclePlanLabel(vehicle, planType);
@@ -7379,9 +7468,9 @@ function renderWizardSummary() {
     <div class="wizard-summary-card">
       <h4>Cliente seleccionado</h4>
       <div class="wizard-summary-grid">
-        <div class="wizard-summary-row"><span>Cliente</span><strong>${client?.name || 'Sin seleccionar'}</strong></div>
-        <div class="wizard-summary-row"><span>Teléfono</span><strong>${formatPhoneDisplay(client?.phone) || 'Sin teléfono'}</strong></div>
-        <div class="wizard-summary-row"><span>Modelo actual</span><strong>${client?.model || 'Sin modelo'}</strong></div>
+        <div class="wizard-summary-row"><span>Cliente</span><strong>${isExternal ? externalName || 'Sin nombre' : (client?.name || 'Sin seleccionar')}</strong></div>
+        <div class="wizard-summary-row"><span>Teléfono</span><strong>${isExternal ? 'Sin teléfono' : (formatPhoneDisplay(client?.phone) || 'Sin teléfono')}</strong></div>
+        <div class="wizard-summary-row"><span>Modelo actual</span><strong>${isExternal ? 'Sin modelo' : (client?.model || 'Sin modelo')}</strong></div>
       </div>
     </div>
     <div class="wizard-summary-card">
@@ -7404,8 +7493,12 @@ function renderWizardSummary() {
 }
 
 function applyClientWizardSelections() {
-  const client = managerClients.find(c => c.id === clientWizardState.selectedClientId);
-  if (client) applyWizardClientSelection(client);
+  if (clientWizardState.mode === 'external') {
+    applyWizardExternalClientSelection(clientWizardState.externalName || '');
+  } else {
+    const client = managerClients.find(c => c.id === clientWizardState.selectedClientId);
+    if (client) applyWizardClientSelection(client);
+  }
   applyWizardVehicleSelection();
   applyWizardTradeInSelection();
   applyWizardPriceSelection();
@@ -7563,13 +7656,29 @@ function buildPlanModelOptions() {
 function refreshClientSelectionHint(client) {
   const hint = document.getElementById('selectedClientHint');
   if (!hint) return;
+  if (isExternalClientSelection()) {
+    const externalName = uiState?.planDraft?.externalName || document.getElementById('clientName')?.value || '';
+    hint.textContent = externalName ? `Cliente externo: ${externalName}` : 'Cliente externo sin nombre asignado.';
+    return;
+  }
   const applied = client || managerClients.find(c => c.id === selectedPlanClientId);
   if (applied) {
     const phone = applied.phone ? ` · Tel: ${normalizePhone(applied.phone)}` : '';
     hint.textContent = `Usando datos de ${applied.name}${phone}`;
-  } else {
-    hint.textContent = 'Puedes escribir los datos o aplicar uno importado.';
+    return;
   }
+  hint.textContent = 'Puedes escribir los datos o aplicar uno importado.';
+}
+
+function isExternalClientSelection() {
+  return uiState?.planDraft?.clientSource === 'external';
+}
+
+function updatePlanClientNameLock() {
+  const input = document.getElementById('clientName');
+  if (!input) return;
+  const hasInternal = !!selectedPlanClientId && !isExternalClientSelection();
+  input.disabled = hasInternal;
 }
 
 function renderPlanForm() {
@@ -9083,6 +9192,8 @@ function buildQuoteFromForm() {
     advanceAmount,
     timestamp: new Date().toISOString(),
     selectedClientId: selectedPlanClientId,
+    clientSource: isExternalClientSelection() ? 'external' : (selectedPlanClientId ? 'internal' : ''),
+    externalName: isExternalClientSelection() ? name : '',
     summaryText: ''
   };
   quote.summaryText = buildQuoteSummaryText(quote);
@@ -9144,6 +9255,8 @@ function buildQuoteSummaryText(quote) {
 function applyQuoteToForm(quote) {
   if (!quote) return;
   selectedPlanClientId = quote.selectedClientId || null;
+  uiState.planDraft.clientSource = quote.clientSource || (selectedPlanClientId ? 'internal' : '');
+  uiState.planDraft.externalName = quote.externalName || '';
   document.getElementById('clientName').value = quote.name || '';
   const modelIdx = vehicles.findIndex(v => (v.name || '').toLowerCase() === (quote.model || '').toLowerCase());
   document.getElementById('planModel').value = modelIdx >= 0 ? modelIdx : 0;
@@ -9162,6 +9275,7 @@ function applyQuoteToForm(quote) {
   setMoneyValue(document.getElementById('reservation6'), quote.reservation6 || '');
   document.getElementById('notes').value = quote.notes || '';
   refreshClientSelectionHint();
+  updatePlanClientNameLock();
   toggleAdvanceAmountField();
   updateIntegrationDetails(Number(document.getElementById('planModel').value || 0));
   updatePlanSummary();
@@ -9194,9 +9308,15 @@ function applyPlanDraft() {
   if (parseMoney(draft.customPrice)) customPriceInput.dataset.manual = 'true';
   document.getElementById('appliedReservation').value = ['1', '3', '6'].includes(draft.appliedReservation) ? draft.appliedReservation : '1';
   setMoneyValue(document.getElementById('tradeInValue'), draft.tradeInValue || '');
-  document.getElementById('clientName').value = draft.clientName || '';
+  document.getElementById('clientName').value = draft.clientName || draft.externalName || '';
   document.getElementById('notes').value = draft.notes || '';
   selectedPlanClientId = draft.selectedClientId || null;
+  if (draft.clientSource === 'external') {
+    selectedPlanClientId = null;
+  }
+  if (!draft.clientSource && selectedPlanClientId) {
+    uiState.planDraft.clientSource = 'internal';
+  }
   ['reservation1', 'reservation3', 'reservation6'].forEach(key => {
     const el = document.getElementById(key);
     if (el) {
@@ -9205,9 +9325,12 @@ function applyPlanDraft() {
     }
   });
   refreshClientSelectionHint();
+  updatePlanClientNameLock();
 }
 
 function savePlanDraft() {
+  const externalSelected = isExternalClientSelection();
+  const externalName = externalSelected ? document.getElementById('clientName').value : (uiState.planDraft?.externalName || '');
   uiState.planDraft = {
     planModel: document.getElementById('planModel').value,
     planType: document.getElementById('planType').value,
@@ -9220,6 +9343,8 @@ function savePlanDraft() {
     clientName: document.getElementById('clientName').value,
     notes: document.getElementById('notes').value,
     selectedClientId: selectedPlanClientId,
+    clientSource: externalSelected ? 'external' : (selectedPlanClientId ? 'internal' : ''),
+    externalName,
     reservation1: parseMoney(document.getElementById('reservation1').dataset.raw || document.getElementById('reservation1').value),
     reservation3: parseMoney(document.getElementById('reservation3').dataset.raw || document.getElementById('reservation3').value),
     reservation6: parseMoney(document.getElementById('reservation6').dataset.raw || document.getElementById('reservation6').value)
