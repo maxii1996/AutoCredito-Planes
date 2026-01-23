@@ -3319,6 +3319,64 @@ const appLoaderState = {
   steps: [...appLoaderSteps]
 };
 
+function renderLoaderModuleSummary() {
+  const moduleCountEl = document.getElementById('loaderModuleCount');
+  const submoduleCountEl = document.getElementById('loaderSubmoduleCount');
+  const exportableCountEl = document.getElementById('loaderExportableCount');
+  const list = document.getElementById('loaderModuleList');
+  if (!moduleCountEl || !submoduleCountEl || !exportableCountEl || !list) return;
+  const modules = MODULE_CATALOG.filter(item => item.type === 'module');
+  const submodules = MODULE_CATALOG.filter(item => item.type === 'submodule');
+  const exportable = MODULE_CATALOG.filter(item => item.exportable);
+  moduleCountEl.textContent = String(modules.length);
+  submoduleCountEl.textContent = String(submodules.length);
+  exportableCountEl.textContent = String(exportable.length);
+  list.innerHTML = '';
+  const groups = MODULE_GROUPS.length ? MODULE_GROUPS : [{ id: 'default', title: 'Módulos' }];
+  groups.forEach(group => {
+    const groupModules = MODULE_CATALOG.filter(
+      item => item.type === 'module' && (item.group || 'default') === group.id
+    );
+    if (!groupModules.length) return;
+    const groupEl = document.createElement('div');
+    groupEl.className = 'loader-module-group';
+    const title = document.createElement('div');
+    title.className = 'loader-module-group-title';
+    title.textContent = group.title;
+    groupEl.appendChild(title);
+    groupModules.forEach(module => {
+      const item = document.createElement('div');
+      item.className = 'loader-module-item';
+      item.innerHTML = `
+        <div class="loader-module-row">
+          <div>
+            <strong>${module.label}</strong>
+            <p class="muted tiny">Tipo: ${moduleTypeLabel(module)} · ${module.exportable ? 'Exportable' : 'Solo lectura'}</p>
+          </div>
+          <span class="loader-chip ${module.exportable ? 'exportable' : ''}">${moduleTypeLabel(module)}</span>
+        </div>
+      `;
+      const nested = MODULE_CATALOG.filter(entry => entry.parent === module.id);
+      if (nested.length) {
+        const subList = document.createElement('div');
+        subList.className = 'loader-submodule-list';
+        nested.forEach(sub => {
+          const subItem = document.createElement('div');
+          subItem.className = 'loader-submodule-item';
+          subItem.innerHTML = `
+            <span>${sub.label}</span>
+            <span class="loader-chip ${sub.exportable ? 'exportable' : ''}">${moduleTypeLabel(sub)}</span>
+          `;
+          subList.appendChild(subItem);
+        });
+        item.appendChild(subList);
+      }
+      groupEl.appendChild(item);
+    });
+    list.appendChild(groupEl);
+  });
+}
+
 function setAppLoaderSteps(steps = appLoaderSteps) {
   const overlay = document.getElementById('appLoader');
   if (!overlay) return;
@@ -3544,6 +3602,7 @@ init();
 async function init() {
   try {
     document.body.classList.add('modules-loading');
+    renderLoaderModuleSummary();
     setAppLoaderSteps(appLoaderSteps);
     setAppLoaderStep(0);
     await nextFrame();
@@ -4088,6 +4147,12 @@ function bindUtilitiesMenu() {
       settingsPanel?.classList.remove('open');
       actionPanel?.classList.remove('open');
     }
+    updateTopNavVisibility();
+  });
+  panel.addEventListener('click', (e) => {
+    const item = e.target.closest('.menu-item');
+    if (!item) return;
+    panel.classList.remove('open');
     updateTopNavVisibility();
   });
   document.addEventListener('click', (e) => {
