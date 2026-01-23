@@ -4931,7 +4931,12 @@ function renderInitialVariationTabs(template) {
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       const targetId = button.dataset.variationDelete;
-      deleteInitialVariation(template, targetId);
+      confirmAction({
+        title: 'Eliminar variación',
+        message: 'Se eliminará la variación seleccionada.',
+        confirmText: 'Eliminar',
+        onConfirm: () => deleteInitialVariation(template, targetId)
+      });
     });
   });
 }
@@ -4978,7 +4983,6 @@ function renderTemplates({ maintainEditor = false } = {}) {
           <h4>${initialTemplate?.title || 'Mensaje de inicio'}</h4>
           <div class="small-actions">
             <button class="mini-btn" data-action="copy" data-id="${initialTemplate?.id}" title="Copiar"><i class='bx bx-copy'></i></button>
-            <button class="mini-btn" data-action="delete" data-id="${initialTemplate?.id}" title="Eliminar" disabled><i class='bx bx-lock-alt'></i></button>
           </div>
         </div>
         <p class="muted tiny">Variación activa: ${initialVariation?.title || 'Variación'}</p>
@@ -5381,6 +5385,17 @@ function nextVariationTitle(variations = []) {
   return `Variación ${nextIndex}`;
 }
 
+function reindexInitialVariationTitles(variations = []) {
+  variations.forEach((variation, index) => {
+    if (!variation) return;
+    const currentTitle = (variation.title || '').trim();
+    const isDefaultLabel = !currentTitle || /^Variación\s*\d+$/i.test(currentTitle);
+    if (isDefaultLabel) {
+      variation.title = `Variación ${index + 1}`;
+    }
+  });
+}
+
 function addInitialVariation(template) {
   if (!template || !isInitialTemplate(template)) return;
   const variations = getInitialTemplateVariations(template);
@@ -5401,6 +5416,7 @@ function deleteInitialVariation(template, variationId) {
   const targetIndex = variations.findIndex(variation => variation.id === variationId);
   if (targetIndex < 0) return;
   variations.splice(targetIndex, 1);
+  reindexInitialVariationTitles(variations);
   if (template.rotationIndex >= variations.length) {
     template.rotationIndex = 0;
   }
