@@ -23,39 +23,19 @@
         <div class="loader-text">
           <p class="eyebrow">Inicializando módulos...</p>
           <h2>Preparando el panel principal</h2>
-          <p class="loader-status-text" id="loaderStatusText">Cargando módulo: 0/0</p>
         </div>
         <div class="loader-status-pill" id="loaderStatusPercent">0%</div>
       </div>
       <div class="loader-content">
         <div class="loader-progress">
-          <div class="loader-bar"><span id="loaderBar"></span></div>
-          <div class="loader-steps" id="loaderSteps">
-            <div class="loader-step" data-step="0">Cargando cuentas...</div>
-            <div class="loader-step" data-step="1">Cargando Plantillas....</div>
-            <div class="loader-step" data-step="2">Cargando Clientes...</div>
-            <div class="loader-step" data-step="3">Cargando Marcas y Precios...</div>
-          </div>
-        </div>
-        <div class="loader-summary">
-          <div class="loader-summary-card">
-            <p class="eyebrow">Resumen de módulos</p>
-            <div class="loader-metrics">
-              <div class="loader-metric">
-                <span>Módulos</span>
-                <strong id="loaderModuleCount">0</strong>
-              </div>
-              <div class="loader-metric">
-                <span>Sub módulos</span>
-                <strong id="loaderSubmoduleCount">0</strong>
-              </div>
-              <div class="loader-metric">
-                <span>Exportables</span>
-                <strong id="loaderExportableCount">0</strong>
-              </div>
+          <div class="loader-total">
+            <div class="loader-total-row">
+              <span class="loader-total-label">Progreso total</span>
+              <span class="loader-total-count" id="loaderStatusText">0/0</span>
             </div>
+            <div class="loader-bar"><span id="loaderBar"></span></div>
           </div>
-          <div class="loader-module-list" id="loaderModuleList"></div>
+          <div class="loader-steps" id="loaderSteps"></div>
         </div>
       </div>
     </div>

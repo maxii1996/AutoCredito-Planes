@@ -3309,10 +3309,10 @@ let vehicleEditorAutosaveTimer = null;
 let journeyReportState = { from: '', to: '' };
 
 const appLoaderSteps = [
-  'Cargando cuentas...',
-  'Cargando Plantillas....',
-  'Cargando Clientes...',
-  'Cargando Marcas y Precios...'
+  { label: 'Cuentas', total: 0 },
+  { label: 'Plantillas', total: 0 },
+  { label: 'Clientes', total: 0 },
+  { label: 'Marcas y precios', total: 0 }
 ];
 
 const appLoaderState = {
@@ -3413,15 +3413,31 @@ function setAppLoaderSteps(steps = appLoaderSteps) {
   if (!overlay) return;
   const container = document.getElementById('loaderSteps');
   if (!container) return;
-  const normalized = steps.length ? steps : appLoaderSteps;
-  appLoaderState.steps = [...normalized];
+  const normalized = (steps.length ? steps : appLoaderSteps).map((step, index) => {
+    if (typeof step === 'string') {
+      return { label: step, current: 0, total: 0 };
+    }
+    return {
+      label: step.label || `Paso ${index + 1}`,
+      current: step.current ?? 0,
+      total: step.total ?? 0
+    };
+  });
+  appLoaderState.steps = normalized.map(step => step.label);
   container.innerHTML = '';
-  normalized.forEach((label, index) => {
+  normalized.forEach((stepData, index) => {
     const step = document.createElement('div');
     step.className = 'loader-step';
     step.dataset.step = String(index);
-    step.textContent = label;
+    step.innerHTML = `
+      <div class="loader-step-header">
+        <span class="loader-step-title">${stepData.label}</span>
+        <span class="loader-step-count">0/0</span>
+      </div>
+      <div class="loader-step-bar"><span></span></div>
+    `;
     container.appendChild(step);
+    updateAppLoaderStepProgress(index, stepData.current, stepData.total);
   });
   updateLoaderStatus(0, normalized.length);
 }
@@ -3442,7 +3458,28 @@ function updateAppLoaderStepText(stepIndex, text) {
   if (!overlay) return;
   const step = overlay.querySelector(`.loader-step[data-step="${stepIndex}"]`);
   if (!step) return;
-  step.textContent = text;
+  const title = step.querySelector('.loader-step-title');
+  if (title) {
+    title.textContent = text;
+  }
+}
+
+function updateAppLoaderStepProgress(stepIndex, current, total) {
+  const overlay = document.getElementById('appLoader');
+  if (!overlay) return;
+  const step = overlay.querySelector(`.loader-step[data-step="${stepIndex}"]`);
+  if (!step) return;
+  const countEl = step.querySelector('.loader-step-count');
+  const bar = step.querySelector('.loader-step-bar span');
+  const safeTotal = Math.max(total || 0, 0);
+  const safeCurrent = Math.min(Math.max(current || 0, 0), safeTotal || current || 0);
+  if (countEl) {
+    countEl.textContent = `${safeCurrent}/${safeTotal}`;
+  }
+  if (bar) {
+    const percent = safeTotal > 0 ? (safeCurrent / safeTotal) * 100 : safeCurrent > 0 ? 100 : 0;
+    bar.style.width = `${percent}%`;
+  }
 }
 
 function updateLoaderStatus(stepIndex, total) {
@@ -3451,10 +3488,10 @@ function updateLoaderStatus(stepIndex, total) {
   const safeTotal = Math.max(total, 0);
   const safeIndex = Math.min(Math.max(stepIndex + 1, 1), safeTotal || 1);
   if (safeTotal === 0) {
-    statusText.textContent = 'Cargando módulos...';
+    statusText.textContent = '0/0';
     return;
   }
-  statusText.textContent = `Cargando módulo: ${safeIndex}/${safeTotal}`;
+  statusText.textContent = `${safeIndex}/${safeTotal}`;
 }
 
 function setAppLoaderStep(stepIndex) {
@@ -3566,7 +3603,7 @@ function hideImportOverlay() {
 
 function formatLoaderStepLabel(label, current, total) {
   if (total <= 0) return label;
-  return `${label} (${current}/${total})`;
+  return label;
 }
 
 function isProfileCompatible(profile) {
@@ -3581,13 +3618,16 @@ function isProfileCompatible(profile) {
 
 async function runModuleLoadingSequence() {
   const steps = [
-    { label: 'Cargando cuentas', total: (uiState.globalSettings?.accounts || []).length },
-    { label: 'Cargando clientes', total: managerClients.length },
-    { label: 'Cargando utilidades', total: document.querySelectorAll('#utilitiesMenuPanel .menu-item').length },
-    { label: 'Cargando ajustes', total: document.querySelectorAll('#settingsPanel .menu-item, #actionMenuPanel .menu-item').length },
-    { label: 'Cargando pestañas', total: document.querySelectorAll('#mainNav .nav-link').length }
+    { label: 'Cuentas', total: (uiState.globalSettings?.accounts || []).length },
+    { label: 'Plantillas', total: templates.length },
+    { label: 'Clientes', total: managerClients.length },
+    { label: 'Autos y valores', total: vehicles.length },
+    { label: 'Cotizaciones', total: generatedQuotes.length },
+    { label: 'Utilidades', total: document.querySelectorAll('#utilitiesMenuPanel .menu-item').length },
+    { label: 'Ajustes', total: document.querySelectorAll('#settingsPanel .menu-item, #actionMenuPanel .menu-item').length },
+    { label: 'Pestañas', total: document.querySelectorAll('#mainNav .nav-link').length }
   ];
-  setAppLoaderSteps(steps.map(step => step.label));
+  setAppLoaderSteps(steps);
   for (let i = 0; i < steps.length; i += 1) {
     const { total, label } = steps[i];
     const safeTotal = Math.max(total, 0);
@@ -3600,12 +3640,14 @@ async function runModuleLoadingSequence() {
       current = Math.min(Math.round(progress * safeTotal), safeTotal);
       setAppLoaderStep(i);
       updateAppLoaderStepText(i, formatLoaderStepLabel(label, current, safeTotal));
+      updateAppLoaderStepProgress(i, current, safeTotal);
       setAppLoaderProgress(steps.length === 0 ? 0 : ((i + progress) / steps.length) * 100);
       await nextFrame();
       if (progress >= 1) break;
     }
     setAppLoaderStep(i);
     updateAppLoaderStepText(i, formatLoaderStepLabel(label, safeTotal, safeTotal));
+    updateAppLoaderStepProgress(i, safeTotal, safeTotal);
     setAppLoaderProgress(steps.length === 0 ? 0 : ((i + 1) / steps.length) * 100);
     await wait(120);
   }
@@ -3655,7 +3697,6 @@ init();
 async function init() {
   try {
     document.body.classList.add('modules-loading');
-    renderLoaderModuleSummary();
     setAppLoaderSteps(appLoaderSteps);
     setAppLoaderStep(0);
     await nextFrame();

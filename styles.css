@@ -1768,124 +1768,35 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 
 .loader-content {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(240px, 1.1fr);
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
 
-.loader-summary {
-  display: grid;
-  gap: 12px;
-}
+.loader-progress { display: grid; gap: 12px; }
 
-.loader-summary-card {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(12, 18, 30, 0.7);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+.loader-total {
   display: grid;
-  gap: 10px;
-}
-
-.loader-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
 }
 
-.loader-metric {
-  display: grid;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  font-size: 12px;
+.loader-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
-.loader-metric strong {
-  font-size: 18px;
-  color: var(--text);
-}
-
-.loader-module-list {
-  display: grid;
-  gap: 10px;
-  max-height: 280px;
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.loader-module-group {
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(12, 18, 30, 0.68);
-  display: grid;
-  gap: 8px;
-}
-
-.loader-module-group-title {
-  font-size: 13px;
+.loader-total-label {
   font-weight: 600;
   color: var(--text);
 }
 
-.loader-module-item {
-  display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.7);
+.loader-total-count {
+  font-variant-numeric: tabular-nums;
 }
-
-.loader-module-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.loader-module-row strong {
-  font-size: 14px;
-}
-
-.loader-chip {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  background: rgba(148, 163, 184, 0.18);
-  color: #e2e8f0;
-}
-
-.loader-chip.exportable {
-  background: rgba(52, 211, 153, 0.2);
-  color: #86efac;
-}
-
-.loader-submodule-list {
-  display: grid;
-  gap: 6px;
-  margin-left: 10px;
-}
-
-.loader-submodule-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(12, 18, 30, 0.55);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.loader-progress { display: grid; gap: 12px; }
 
 .loader-bar {
   width: 100%;
@@ -1911,29 +1822,50 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 }
 
 .loader-step {
-  padding: 9px 12px;
+  padding: 12px;
   border-radius: 12px;
   background: rgba(15,23,42,0.6);
   border: 1px solid transparent;
   color: var(--muted);
   transition: all 0.3s ease;
   position: relative;
+  display: grid;
+  gap: 10px;
 }
 
-.loader-step::before {
-  content: '';
-  width: 6px;
+.loader-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.loader-step-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.loader-step-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.loader-step-bar {
+  width: 100%;
   height: 6px;
-  border-radius: 50%;
-  background: rgba(148, 163, 184, 0.55);
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
 }
 
-.loader-step {
-  padding-left: 24px;
+.loader-step-bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(56,189,248,0.8), rgba(74,222,128,0.8));
+  border-radius: inherit;
+  transition: width 0.4s ease;
 }
 
 .loader-step.active {
@@ -1947,9 +1879,6 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
   border-color: rgba(74,222,128,0.6);
   background: rgba(74,222,128,0.12);
 }
-
-.loader-step.active::before { background: #38bdf8; }
-.loader-step.done::before { background: #4ade80; }
 
 @keyframes loader-float {
   0%, 100% { transform: translateY(0); }
