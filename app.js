@@ -118,6 +118,9 @@ const defaultPreferenceFontSizes = {
 const defaultUiState = {
   selectedTemplateIndex: 0,
   variableValues: {},
+  templateVariations: {
+    initialSelectedId: null
+  },
   templatePreview: {
     clientId: null
   },
@@ -675,11 +678,21 @@ const clientColumnWidths = {
   actions: '340px'
 };
 
-const defaultTemplates = [
-  {
-    title: 'Mensaje de inicio',
-    body: `Buenas tardes {{cliente}} mi nombre es {{asesor}} me contacto desde Chevrolet Argentina para consultarte si al día de la fecha seguís teniendo la {{modelo_actual}} que retiraste en uno de nuestros concesionarios en el año {{anio_retiro}}?\n\nAnte la gran cantidad de unidades fabricadas en 2025 Chevrolet lanzó la campaña de renovación de unidades con cupos limitados y valores directos de fábrica.\n\nEn caso de ser número equivocado o no ser la persona indicada, te pido disculpas y por favor avísame así no volvemos a escribirte. Muchas gracias.\n{{asesor}}`
-  },
+const DEFAULT_INITIAL_TEMPLATE = {
+  id: 'tpl-initial',
+  type: 'initial',
+  title: 'Mensaje de inicio',
+  rotationIndex: 0,
+  variations: [
+    {
+      id: 'tpl-initial-var-1',
+      title: 'Variación 1',
+      body: `Buenas tardes {{cliente}} mi nombre es {{asesor}} me contacto desde Chevrolet Argentina para consultarte si al día de la fecha seguís teniendo la {{modelo_actual}} que retiraste en uno de nuestros concesionarios en el año {{anio_retiro}}?\n\nAnte la gran cantidad de unidades fabricadas en 2025 Chevrolet lanzó la campaña de renovación de unidades con cupos limitados y valores directos de fábrica.\n\nEn caso de ser número equivocado o no ser la persona indicada, te pido disculpas y por favor avísame así no volvemos a escribirte. Muchas gracias.\n{{asesor}}`
+    }
+  ]
+};
+
+const DEFAULT_ADDITIONAL_TEMPLATES = [
   {
     title: 'Primera respuesta',
     body: `Buen día y gracias por tu respuesta {{cliente}}, te comento que Chevrolet lanzó la CAMPAÑA DE RENOVACIÓN DE UNIDADES para los meses de Septiembre y Octubre de 2025 solo para clientes de la marca.\n\nSe te toma como prioridad y podés entregar tu vehículo usado como parte de pago para retirar un 0 km (unidades seleccionadas). La diferencia la podés financiar en cuotas en pesos y sin interés.\n\nSi te interesa entregar tu {{modelo_actual}}, decime y coordinamos un horario para llamarte y pasarte la información o por este medio. Muchas gracias.\n{{asesor}}`
@@ -697,6 +710,8 @@ const defaultTemplates = [
     body: 'INFORME DE COTIZACIÓN\nMarca: Chevrolet\nModelo: {{modelo_actual}}\nAño: {{anio_retiro}}\nMotor: 1.4 Turbo\nCantidad de puertas: 5\nKilometraje: {{km}}\n\nCotizado en un valor en efectivo de ${{valor_efectivo}} pesos arg.\n\nEstimado cliente recuerde enviar a su asesor de ventas 10 imágenes/foto del usado para validar la cotización.\nFuente: INFOAUTO Guía oficial de Precios Noviembre 2025.'
   }
 ];
+
+const defaultTemplates = [DEFAULT_INITIAL_TEMPLATE, ...DEFAULT_ADDITIONAL_TEMPLATES];
 
 function normalizeBrand(brand = '') {
   const cleaned = String(brand || '').trim();
@@ -1182,11 +1197,75 @@ async function setActivePriceTab(tabId, { silent = true } = {}) {
   updatePriceContextTag();
 }
 
+function createTemplateId(prefix = 'tpl') {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
+}
+
+function isInitialTemplate(template) {
+  return template?.type === 'initial';
+}
+
+function normalizeTemplateVariation(variation = {}, index = 0, templateId = 'tpl') {
+  const body = variation?.body ?? '';
+  const title = (variation?.title || '').trim() || `Variación ${index + 1}`;
+  return {
+    id: variation?.id || createTemplateId(`${templateId}-var`),
+    title,
+    body
+  };
+}
+
+function normalizeInitialTemplate(template = {}) {
+  const baseTitle = (template.title || DEFAULT_INITIAL_TEMPLATE.title || 'Mensaje de inicio').trim();
+  const baseVariations = Array.isArray(template.variations) && template.variations.length
+    ? template.variations
+    : template.body
+      ? [{ title: 'Variación 1', body: template.body }]
+      : DEFAULT_INITIAL_TEMPLATE.variations;
+  const variations = baseVariations.map((variation, index) => normalizeTemplateVariation(variation, index, template.id || 'tpl-initial'));
+  return {
+    id: template.id || DEFAULT_INITIAL_TEMPLATE.id || createTemplateId('tpl-initial'),
+    type: 'initial',
+    title: baseTitle,
+    rotationIndex: Number.isFinite(template.rotationIndex) ? Math.max(0, Math.floor(template.rotationIndex)) : 0,
+    variations
+  };
+}
+
+function normalizeStandardTemplate(template = {}, index = 0) {
+  return {
+    id: template.id || createTemplateId(`tpl-${index}`),
+    title: template.title || `Plantilla ${index + 1}`,
+    body: template.body || ''
+  };
+}
+
 function ensureTemplateIds(list) {
-  return (list || []).map((tpl, idx) => ({
-    id: tpl.id || `tpl-${idx}-${Date.now()}`,
-    ...tpl
-  }));
+  const normalized = (list || []).map((tpl, idx) => {
+    if (isInitialTemplate(tpl) || tpl?.variations) {
+      return normalizeInitialTemplate(tpl);
+    }
+    return normalizeStandardTemplate(tpl, idx);
+  });
+
+  let initialIndex = normalized.findIndex(tpl => isInitialTemplate(tpl));
+  if (initialIndex === -1) {
+    const fallbackIndex = normalized.findIndex(tpl => (tpl.title || '').toLowerCase().includes('inicio'));
+    if (fallbackIndex >= 0) {
+      const fallback = normalized[fallbackIndex];
+      normalized[fallbackIndex] = normalizeInitialTemplate(fallback);
+      initialIndex = fallbackIndex;
+    }
+  }
+  if (initialIndex === -1) {
+    normalized.unshift(normalizeInitialTemplate(DEFAULT_INITIAL_TEMPLATE));
+    initialIndex = 0;
+  }
+  if (initialIndex > 0) {
+    const [initialTemplate] = normalized.splice(initialIndex, 1);
+    normalized.unshift(initialTemplate);
+  }
+  return normalized;
 }
 
 function formatMoney(value) {
@@ -3134,8 +3213,81 @@ function statusLabelFromType(value) {
   return '';
 }
 
-function initialTemplate() {
-  return templates.find(t => (t.title || '').toLowerCase().includes('inicio')) || templates[0];
+function getInitialTemplate() {
+  return templates.find(template => isInitialTemplate(template)) || templates[0];
+}
+
+function getInitialTemplateVariations(template = getInitialTemplate()) {
+  if (!template || !isInitialTemplate(template)) return [];
+  return Array.isArray(template.variations) ? template.variations : [];
+}
+
+function getSelectedInitialVariationId(template = getInitialTemplate()) {
+  const variations = getInitialTemplateVariations(template);
+  if (!variations.length) return null;
+  const storedId = uiState.templateVariations?.initialSelectedId;
+  const selected = variations.find(variation => variation.id === storedId) || variations[0];
+  if (selected?.id !== storedId) {
+    uiState.templateVariations = { ...(uiState.templateVariations || {}), initialSelectedId: selected.id };
+    persist();
+  }
+  return selected?.id || null;
+}
+
+function getSelectedInitialVariation(template = getInitialTemplate()) {
+  const variations = getInitialTemplateVariations(template);
+  if (!variations.length) return null;
+  const selectedId = getSelectedInitialVariationId(template);
+  return variations.find(variation => variation.id === selectedId) || variations[0];
+}
+
+function setSelectedInitialVariationId(template, variationId) {
+  if (!template || !isInitialTemplate(template)) return;
+  const variations = getInitialTemplateVariations(template);
+  const selected = variations.find(variation => variation.id === variationId) || variations[0];
+  if (!selected) return;
+  uiState.templateVariations = { ...(uiState.templateVariations || {}), initialSelectedId: selected.id };
+  persist();
+}
+
+function resolveTemplateBody(template, { variationId } = {}) {
+  if (!template) return '';
+  if (isInitialTemplate(template)) {
+    const variations = getInitialTemplateVariations(template);
+    const selected = variationId
+      ? variations.find(variation => variation.id === variationId)
+      : getSelectedInitialVariation(template);
+    return selected?.body || '';
+  }
+  return template.body || '';
+}
+
+function setTemplateBody(template, value = '', { variationId } = {}) {
+  if (!template) return;
+  if (isInitialTemplate(template)) {
+    const variations = getInitialTemplateVariations(template);
+    const selected = variationId
+      ? variations.find(variation => variation.id === variationId)
+      : getSelectedInitialVariation(template);
+    if (selected) {
+      selected.body = value;
+    }
+    return;
+  }
+  template.body = value;
+}
+
+function getRotatingInitialVariation(template = getInitialTemplate(), { advance = false } = {}) {
+  if (!template || !isInitialTemplate(template)) return null;
+  const variations = getInitialTemplateVariations(template);
+  if (!variations.length) return null;
+  const safeIndex = Math.max(0, Math.floor(template.rotationIndex || 0)) % variations.length;
+  const variation = variations[safeIndex];
+  if (advance) {
+    template.rotationIndex = (safeIndex + 1) % variations.length;
+    persist();
+  }
+  return variation;
 }
 
 function formatCurrencyValue(value) {
@@ -3231,11 +3383,13 @@ function escapeRegExp(value = '') {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function buildMessageForClient(client) {
-  const tpl = initialTemplate();
+function buildMessageForClient(client, { advance = false } = {}) {
+  const tpl = getInitialTemplate();
   if (!tpl) return '';
+  const variation = getRotatingInitialVariation(tpl, { advance }) || getSelectedInitialVariation(tpl);
+  if (!variation) return '';
   const replacements = buildDynamicVariableMap(client);
-  let content = tpl.body || '';
+  let content = variation.body || '';
   extractVariables(content).forEach(key => {
     const value = replacements[key] ?? uiState.variableValues[key] ?? '';
     const regex = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'gi');
@@ -3244,10 +3398,10 @@ function buildMessageForClient(client) {
   return content;
 }
 
-function buildTemplateTextForClient(template, client) {
+function buildTemplateTextForClient(template, client, { variationId } = {}) {
   if (!template) return '';
   const replacements = buildDynamicVariableMap(client);
-  let content = template.body || '';
+  let content = resolveTemplateBody(template, { variationId });
   extractVariables(content).forEach(key => {
     const value = replacements[key] ?? uiState.variableValues[key] ?? '';
     const regex = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'gi');
@@ -4551,10 +4705,17 @@ function bindPreferencesPanel() {
   }
 }
 
+function countTemplateItems() {
+  const initialTemplate = getInitialTemplate();
+  const initialCount = isInitialTemplate(initialTemplate) ? getInitialTemplateVariations(initialTemplate).length : 0;
+  const additionalCount = templates.filter(template => !isInitialTemplate(template)).length;
+  return initialCount + additionalCount;
+}
+
 function renderStats() {
   const templateCount = document.getElementById('templateCount');
   const clientCount = document.getElementById('clientCount');
-  if (templateCount) templateCount.textContent = templates.length;
+  if (templateCount) templateCount.textContent = countTemplateItems();
   if (clientCount) clientCount.textContent = clients.length + managerClients.length;
   renderScheduledSummary();
   renderWelcomeHero();
@@ -4710,6 +4871,71 @@ function renderAdvisorNote() {
   }
 }
 
+function getSelectedTemplate() {
+  return templates.find(template => template.id === selectedTemplateId) || templates[0];
+}
+
+function resolveTemplateSearchMatch(template, term = '') {
+  if (!template) return false;
+  const label = (template.title || '').toLowerCase();
+  if (label.includes(term)) return true;
+  if (isInitialTemplate(template)) {
+    return getInitialTemplateVariations(template).some(variation => {
+      const titleMatch = (variation.title || '').toLowerCase().includes(term);
+      const bodyMatch = (variation.body || '').toLowerCase().includes(term);
+      return titleMatch || bodyMatch;
+    });
+  }
+  return (template.body || '').toLowerCase().includes(term);
+}
+
+function renderInitialVariationTabs(template) {
+  const wrapper = document.getElementById('initialVariations');
+  const list = document.getElementById('variationTabs');
+  if (!wrapper || !list) return;
+  if (!template || !isInitialTemplate(template)) {
+    wrapper.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  const variations = getInitialTemplateVariations(template);
+  wrapper.classList.remove('hidden');
+  if (!variations.length) {
+    list.innerHTML = '<p class="muted tiny">No hay variaciones disponibles.</p>';
+    return;
+  }
+  const selectedId = getSelectedInitialVariationId(template);
+  list.innerHTML = variations.map((variation, index) => {
+    const isActive = variation.id === selectedId;
+    const disableDelete = variations.length <= 1;
+    return `
+      <div class="variation-tab ${isActive ? 'active' : ''}" data-id="${variation.id}">
+        <button class="variation-tab-btn" type="button" data-variation-id="${variation.id}">
+          <span class="variation-label">${variation.title || `Variación ${index + 1}`}</span>
+        </button>
+        <button class="variation-tab-delete" type="button" data-variation-delete="${variation.id}" ${disableDelete ? 'disabled' : ''} title="Eliminar variación">
+          <i class='bx bx-x'></i>
+        </button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-variation-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      setSelectedInitialVariationId(template, button.dataset.variationId);
+      loadTemplate(templates.findIndex(tpl => tpl.id === template.id));
+    });
+  });
+
+  list.querySelectorAll('[data-variation-delete]').forEach(button => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const targetId = button.dataset.variationDelete;
+      deleteInitialVariation(template, targetId);
+    });
+  });
+}
+
 function renderTemplates({ maintainEditor = false } = {}) {
   const list = document.getElementById('templateList');
   const searchInput = document.getElementById('templateSearch');
@@ -4722,26 +4948,85 @@ function renderTemplates({ maintainEditor = false } = {}) {
     return;
   }
   const search = (uiState.templateSearch || '').toLowerCase();
-  const filtered = templates.filter(t => t.title.toLowerCase().includes(search) || t.body.toLowerCase().includes(search));
-  if (!filtered.length) {
+  const initialTemplate = getInitialTemplate();
+  const additionalTemplates = templates.filter(template => !isInitialTemplate(template));
+  const filteredAdditional = additionalTemplates.filter(template => resolveTemplateSearchMatch(template, search));
+  const showInitial = initialTemplate && resolveTemplateSearchMatch(initialTemplate, search);
+
+  if (!filteredAdditional.length && !showInitial) {
     list.innerHTML = '<p class="muted">Sin coincidencias.</p>';
     return;
   }
-  list.innerHTML = filtered.map((tpl) => `
-    <div class="template-item ${tpl.id === selectedTemplateId ? 'active' : ''}" data-id="${tpl.id}">
-      <div class="controls">
-        <h4>${tpl.title}</h4>
-        <div class="small-actions">
-          <button class="mini-btn" data-action="move-up" data-id="${tpl.id}" title="Subir"><i class='bx bx-up-arrow-alt'></i></button>
-          <button class="mini-btn" data-action="move-down" data-id="${tpl.id}" title="Bajar"><i class='bx bx-down-arrow-alt'></i></button>
-          <button class="mini-btn" data-action="copy" data-id="${tpl.id}" title="Copiar"><i class='bx bx-copy'></i></button>
-          <button class="mini-btn" data-action="delete" data-id="${tpl.id}" title="Eliminar"><i class='bx bx-trash'></i></button>
+
+  const initialVariation = getSelectedInitialVariation(initialTemplate);
+  const initialBody = resolveTemplateBody(initialTemplate);
+  const initialPreview = `${initialBody.slice(0, 120)}${initialBody.length > 120 ? '…' : ''}`;
+  const initialVariables = extractVariables(initialBody).length || 0;
+  const initialVariationsCount = getInitialTemplateVariations(initialTemplate).length;
+
+  const initialSection = showInitial ? `
+    <div class="template-section">
+      <div class="template-section-head">
+        <div>
+          <p class="eyebrow">Plantilla Inicial</p>
+          <h4>${initialTemplate?.title || 'Mensaje de inicio'}</h4>
+        </div>
+        <span class="pill">Variaciones: ${initialVariationsCount}</span>
+      </div>
+      <div class="template-item ${initialTemplate?.id === selectedTemplateId ? 'active' : ''} template-item-initial" data-id="${initialTemplate?.id}">
+        <div class="controls">
+          <h4>${initialTemplate?.title || 'Mensaje de inicio'}</h4>
+          <div class="small-actions">
+            <button class="mini-btn" data-action="copy" data-id="${initialTemplate?.id}" title="Copiar"><i class='bx bx-copy'></i></button>
+            <button class="mini-btn" data-action="delete" data-id="${initialTemplate?.id}" title="Eliminar" disabled><i class='bx bx-lock-alt'></i></button>
+          </div>
+        </div>
+        <p class="muted tiny">Variación activa: ${initialVariation?.title || 'Variación'}</p>
+        <p>${initialPreview}</p>
+        <div class="pill-row">
+          <span class="pill">${initialVariables} variables</span>
+          <span class="pill subtle">Se alterna al copiar mensaje</span>
         </div>
       </div>
-      <p>${tpl.body.slice(0, 120)}${tpl.body.length > 120 ? '…' : ''}</p>
-      <span class="pill">${extractVariables(tpl.body).length || 0} variables</span>
     </div>
-  `).join('');
+  ` : '';
+
+  const additionalSection = `
+    <div class="template-section">
+      <div class="template-section-head">
+        <div>
+          <p class="eyebrow">Plantillas Adicionales</p>
+          <h4>Mensajes personalizados</h4>
+        </div>
+        <span class="pill">Total: ${filteredAdditional.length}</span>
+      </div>
+      <div class="template-section-body">
+        ${filteredAdditional.length ? filteredAdditional.map((tpl, index) => {
+          const body = resolveTemplateBody(tpl);
+          const preview = `${body.slice(0, 120)}${body.length > 120 ? '…' : ''}`;
+          const canMoveUp = index > 0;
+          const canMoveDown = index < filteredAdditional.length - 1;
+          return `
+            <div class="template-item ${tpl.id === selectedTemplateId ? 'active' : ''}" data-id="${tpl.id}">
+              <div class="controls">
+                <h4>${tpl.title}</h4>
+                <div class="small-actions">
+                  <button class="mini-btn" data-action="move-up" data-id="${tpl.id}" title="Subir" ${canMoveUp ? '' : 'disabled'}><i class='bx bx-up-arrow-alt'></i></button>
+                  <button class="mini-btn" data-action="move-down" data-id="${tpl.id}" title="Bajar" ${canMoveDown ? '' : 'disabled'}><i class='bx bx-down-arrow-alt'></i></button>
+                  <button class="mini-btn" data-action="copy" data-id="${tpl.id}" title="Copiar"><i class='bx bx-copy'></i></button>
+                  <button class="mini-btn" data-action="delete" data-id="${tpl.id}" title="Eliminar"><i class='bx bx-trash'></i></button>
+                </div>
+              </div>
+              <p>${preview}</p>
+              <span class="pill">${extractVariables(body).length || 0} variables</span>
+            </div>
+          `;
+        }).join('') : '<p class="muted">Sin plantillas adicionales.</p>'}
+      </div>
+    </div>
+  `;
+
+  list.innerHTML = `${initialSection}${additionalSection}`;
 
   list.querySelectorAll('.template-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -4757,7 +5042,7 @@ function renderTemplates({ maintainEditor = false } = {}) {
 
   list.querySelectorAll('.mini-btn').forEach(btn => {
     const id = btn.dataset.id;
-    if (btn.dataset.action === 'delete') {
+    if (btn.dataset.action === 'delete' && !btn.disabled) {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         confirmAction({
@@ -4768,13 +5053,13 @@ function renderTemplates({ maintainEditor = false } = {}) {
         });
       });
     }
-    if (btn.dataset.action === 'move-up') {
+    if (btn.dataset.action === 'move-up' && !btn.disabled) {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         moveTemplate(id, -1);
       });
     }
-    if (btn.dataset.action === 'move-down') {
+    if (btn.dataset.action === 'move-down' && !btn.disabled) {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         moveTemplate(id, 1);
@@ -4789,7 +5074,7 @@ function renderTemplates({ maintainEditor = false } = {}) {
     }
   });
 
-  const currentTemplate = templates.find(t => t.id === selectedTemplateId) || templates[0];
+  const currentTemplate = getSelectedTemplate();
   selectedTemplateId = currentTemplate.id;
   selectedTemplateIndex = templates.findIndex(t => t.id === selectedTemplateId);
   uiState.selectedTemplateIndex = selectedTemplateIndex;
@@ -4896,8 +5181,10 @@ function setTemplateBodyValue(value = '') {
 function loadTemplate(idx) {
   const tpl = templates[idx] || templates[0] || { title: '', body: '' };
   document.getElementById('templateTitle').value = tpl?.title || '';
-  setTemplateBodyValue(tpl?.body || '');
-  renderVariableInputs(extractVariables(tpl?.body || ''));
+  const body = resolveTemplateBody(tpl);
+  setTemplateBodyValue(body);
+  renderVariableInputs(extractVariables(body));
+  renderInitialVariationTabs(tpl);
   uiState.selectedTemplateIndex = idx;
   persist();
   setTimeout(updatePreview, 0);
@@ -5067,8 +5354,9 @@ function insertVariable(variable) {
   editor.focus();
   const updated = `${getTemplateBodyValue()}${insertion}`;
   editor.textContent = updated;
-  if (templates[selectedTemplateIndex]) {
-    templates[selectedTemplateIndex].body = updated;
+  const currentTemplate = getSelectedTemplate();
+  if (currentTemplate) {
+    setTemplateBody(currentTemplate, updated);
   }
   renderVariableInputs(extractVariables(updated));
   updateTemplateBodyHighlight();
@@ -5084,9 +5372,49 @@ function insertVariable(variable) {
   updatePreview();
 }
 
+function nextVariationTitle(variations = []) {
+  const usedIndexes = variations.map(variation => {
+    const match = (variation.title || '').match(/Variación\s*(\d+)/i);
+    return match ? Number(match[1]) : null;
+  }).filter(value => Number.isFinite(value));
+  const nextIndex = usedIndexes.length ? Math.max(...usedIndexes) + 1 : variations.length + 1;
+  return `Variación ${nextIndex}`;
+}
+
+function addInitialVariation(template) {
+  if (!template || !isInitialTemplate(template)) return;
+  const variations = getInitialTemplateVariations(template);
+  const title = nextVariationTitle(variations);
+  const newVariation = normalizeTemplateVariation({ title, body: '' }, variations.length, template.id);
+  variations.push(newVariation);
+  setSelectedInitialVariationId(template, newVariation.id);
+  persist();
+  loadTemplate(templates.findIndex(item => item.id === template.id));
+  renderTemplates();
+  showToast('Variación agregada', 'success');
+}
+
+function deleteInitialVariation(template, variationId) {
+  if (!template || !isInitialTemplate(template)) return;
+  const variations = getInitialTemplateVariations(template);
+  if (variations.length <= 1) return;
+  const targetIndex = variations.findIndex(variation => variation.id === variationId);
+  if (targetIndex < 0) return;
+  variations.splice(targetIndex, 1);
+  if (template.rotationIndex >= variations.length) {
+    template.rotationIndex = 0;
+  }
+  setSelectedInitialVariationId(template, variations[0]?.id || null);
+  persist();
+  loadTemplate(templates.findIndex(item => item.id === template.id));
+  renderTemplates();
+  showToast('Variación eliminada', 'success');
+}
+
 function deleteTemplate(id) {
   const idx = templates.findIndex(t => t.id === id);
   if (idx < 0) return;
+  if (isInitialTemplate(templates[idx])) return;
   templates.splice(idx, 1);
   if (!templates.length) {
     templates = ensureTemplateIds([...defaultTemplates]);
@@ -5101,8 +5429,11 @@ function deleteTemplate(id) {
 function moveTemplate(id, direction) {
   const idx = templates.findIndex(t => t.id === id);
   if (idx < 0) return;
+  if (isInitialTemplate(templates[idx])) return;
   const newIndex = idx + direction;
-  if (newIndex < 0 || newIndex >= templates.length) return;
+  const initialIndex = templates.findIndex(t => isInitialTemplate(t));
+  const minIndex = initialIndex === 0 ? 1 : 0;
+  if (newIndex < minIndex || newIndex >= templates.length) return;
   const [tpl] = templates.splice(idx, 1);
   templates.splice(newIndex, 0, tpl);
   selectedTemplateIndex = newIndex;
@@ -5137,10 +5468,11 @@ function updatePreview() {
   }
 }
 
-async function copyTemplateContent(template = templates[selectedTemplateIndex], { showStatus = true } = {}) {
+async function copyTemplateContent(template = templates[selectedTemplateIndex], { showStatus = true, variationId } = {}) {
   if (!template) return;
   const values = getTemplateValues();
-  const text = buildTemplateText(template.body, values);
+  const body = resolveTemplateBody(template, { variationId });
+  const text = buildTemplateText(body, values);
   await copyText(text, 'Plantilla copiada');
   if (showStatus) {
     const status = document.getElementById('copyStatus');
@@ -5191,8 +5523,9 @@ function attachTemplateActions() {
     });
   }
   document.getElementById('templateTitle').addEventListener('input', e => {
-    if (templates[selectedTemplateIndex]) {
-      templates[selectedTemplateIndex].title = e.target.value;
+    const currentTemplate = getSelectedTemplate();
+    if (currentTemplate) {
+      currentTemplate.title = e.target.value;
       persist();
       renderTemplates();
     }
@@ -5204,8 +5537,9 @@ function attachTemplateActions() {
       if (isTemplateBodyHighlighting) return;
       rememberTemplateSelection();
       const bodyValue = getTemplateBodyValue();
-      if (templates[selectedTemplateIndex]) {
-        templates[selectedTemplateIndex].body = bodyValue;
+      const currentTemplate = getSelectedTemplate();
+      if (currentTemplate) {
+        setTemplateBody(currentTemplate, bodyValue);
         persist();
         renderVariableInputs(extractVariables(bodyValue));
         renderTemplates({ maintainEditor: true });
@@ -5220,6 +5554,15 @@ function attachTemplateActions() {
   }
 
   document.getElementById('copyTemplate').addEventListener('click', () => copyTemplateContent());
+  const addVariationBtn = document.getElementById('addVariation');
+  if (addVariationBtn && !addVariationBtn.dataset.bound) {
+    addVariationBtn.addEventListener('click', () => {
+      const current = getSelectedTemplate();
+      if (!isInitialTemplate(current)) return;
+      addInitialVariation(current);
+    });
+    addVariationBtn.dataset.bound = 'true';
+  }
   const refreshAutoBtn = document.getElementById('refreshAutoVariables');
   if (refreshAutoBtn && !refreshAutoBtn.dataset.bound) {
     refreshAutoBtn.addEventListener('click', () => {
@@ -5263,7 +5606,7 @@ function attachTemplateActions() {
   });
 
   document.getElementById('addTemplate').addEventListener('click', () => {
-    const id = `tpl-${Date.now()}`;
+    const id = createTemplateId('tpl');
     templates.push({ id, title: 'Nueva plantilla', body: 'Mensaje personalizado con {{cliente}}' });
     selectedTemplateIndex = templates.length - 1;
     selectedTemplateId = id;
@@ -10256,7 +10599,7 @@ function bindContactAssistant() {
       copyText(normalizePhone(current.phone || ''), 'Número copiado');
     }
     if (action === 'copy_message') {
-      const message = buildMessageForClient(current);
+      const message = buildMessageForClient(current, { advance: true });
       copyText(message, 'Mensaje copiado');
     }
   };
@@ -10342,22 +10685,65 @@ function renderTemplatePickerList(search = '') {
   const list = document.getElementById('templatePickerList');
   if (!list) return;
   const term = (search || '').toLowerCase();
-  const filtered = templates.filter(t => (t.title || '').toLowerCase().includes(term) || (t.body || '').toLowerCase().includes(term));
-  if (!filtered.length) {
+  const initialTemplate = getInitialTemplate();
+  const initialVariations = getInitialTemplateVariations(initialTemplate)
+    .filter(variation => {
+      if (!term) return true;
+      const titleMatch = (initialTemplate?.title || '').toLowerCase().includes(term);
+      const variationMatch = (variation.title || '').toLowerCase().includes(term);
+      const bodyMatch = (variation.body || '').toLowerCase().includes(term);
+      return titleMatch || variationMatch || bodyMatch;
+    });
+  const additionalTemplates = templates
+    .filter(template => !isInitialTemplate(template))
+    .filter(template => resolveTemplateSearchMatch(template, term));
+
+  if (!initialVariations.length && !additionalTemplates.length) {
     list.innerHTML = '<p class="muted">No hay plantillas que coincidan.</p>';
     return;
   }
-  list.innerHTML = filtered.map(template => {
-    const body = template.body || '';
-    const preview = `${body.slice(0, 140)}${body.length > 140 ? '…' : ''}`;
-    return `
-    <button class="template-picker-item" type="button" data-id="${template.id}">
-      <strong>${template.title || 'Plantilla sin título'}</strong>
-      <p class="muted">${preview}</p>
-      <span class="pill">${extractVariables(body).length || 0} variables</span>
-    </button>
-  `;
-  }).join('');
+
+  const initialSection = initialVariations.length ? `
+    <div class="template-picker-section">
+      <div class="template-picker-section-head">
+        <span>Plantilla Inicial</span>
+        <span class="pill">Variaciones</span>
+      </div>
+      ${initialVariations.map(variation => {
+        const body = variation.body || '';
+        const preview = `${body.slice(0, 140)}${body.length > 140 ? '…' : ''}`;
+        return `
+          <button class="template-picker-item" type="button" data-id="${initialTemplate.id}" data-variation-id="${variation.id}">
+            <strong>${initialTemplate.title || 'Mensaje de inicio'} / ${variation.title || 'Variación'}</strong>
+            <p class="muted">${preview}</p>
+            <span class="pill">${extractVariables(body).length || 0} variables</span>
+          </button>
+        `;
+      }).join('')}
+    </div>
+  ` : '';
+
+  const additionalSection = additionalTemplates.length ? `
+    <div class="template-picker-section">
+      <div class="template-picker-section-head">
+        <span>Plantillas Adicionales</span>
+        <span class="pill">${additionalTemplates.length}</span>
+      </div>
+      ${additionalTemplates.map(template => {
+        const body = resolveTemplateBody(template);
+        const preview = `${body.slice(0, 140)}${body.length > 140 ? '…' : ''}`;
+        return `
+          <button class="template-picker-item" type="button" data-id="${template.id}">
+            <strong>${template.title || 'Plantilla sin título'}</strong>
+            <p class="muted">${preview}</p>
+            <span class="pill">${extractVariables(body).length || 0} variables</span>
+          </button>
+        `;
+      }).join('')}
+    </div>
+  ` : '';
+
+  list.innerHTML = `${initialSection}${additionalSection}`;
 }
 
 function bindTemplatePicker() {
@@ -10383,15 +10769,16 @@ function bindTemplatePicker() {
       if (!item) return;
       const template = templates.find(t => t.id === item.dataset.id);
       if (!template) return;
+      const variationId = item.dataset.variationId || null;
       if (templatePickerClientId) {
         const client = managerClients.find(c => c.id === templatePickerClientId);
         if (client) {
-          copyText(buildTemplateTextForClient(template, client), 'Plantilla copiada');
+          copyText(buildTemplateTextForClient(template, client, { variationId }), 'Plantilla copiada');
         } else {
-          await copyTemplateContent(template, { showStatus: false });
+          await copyTemplateContent(template, { showStatus: false, variationId });
         }
       } else {
-        await copyTemplateContent(template, { showStatus: false });
+        await copyTemplateContent(template, { showStatus: false, variationId });
       }
       closePicker();
     });
@@ -14722,7 +15109,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'update_status') openClientStatusModal(clientId, { returnToMenu: false });
   if (actionKey === 'reassign_account') openClientReassignModal(clientId, { returnToMenu: false });
   if (actionKey === 'open_notes') openClientNotes(clientId);
-  if (actionKey === 'copy_message') copyText(buildMessageForClient(client), 'Mensaje copiado');
+  if (actionKey === 'copy_message') copyText(buildMessageForClient(client, { advance: true }), 'Mensaje copiado');
   if (actionKey === 'copy_template') openTemplatePickerForClient(clientId);
   if (actionKey === 'copy_phone') copyText(normalizePhone(client?.phone || ''), 'Número copiado');
   if (actionKey === 'schedule_contact') openScheduleModal(clientId);
