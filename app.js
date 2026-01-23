@@ -7658,7 +7658,7 @@ function refreshClientSelectionHint(client) {
   if (!hint) return;
   if (isExternalClientSelection()) {
     const externalName = uiState?.planDraft?.externalName || document.getElementById('clientName')?.value || '';
-    hint.textContent = externalName ? `Cliente externo: ${externalName}` : 'Cliente externo sin nombre asignado.';
+    hint.textContent = externalName ? `Es un Cliente externo` : 'Cliente externo sin nombre asignado.';
     return;
   }
   const applied = client || managerClients.find(c => c.id === selectedPlanClientId);
