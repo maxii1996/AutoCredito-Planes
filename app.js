@@ -3319,6 +3319,35 @@ const appLoaderState = {
   steps: [...appLoaderSteps]
 };
 
+function loaderMetricForModule(moduleId) {
+  switch (moduleId) {
+    case 'clientManager':
+      return { label: 'clientes cargados', total: managerClients.length };
+    case 'quickActions':
+      return { label: 'acciones cargadas', total: (clientManagerState.customActions || []).length };
+    case 'contactLog':
+      return { label: 'contactos cargados', total: contactLogEntries().length };
+    case 'journeyReport':
+      return { label: 'registros cargados', total: managerClients.length };
+    case 'scheduledClients':
+      return { label: 'clientes programados', total: scheduledClientsList().length };
+    case 'templates':
+      return { label: 'plantillas cargadas', total: templates.length };
+    case 'plans':
+      return { label: 'cotizaciones cargadas', total: generatedQuotes.length };
+    case 'quoteGenerator':
+      return { label: 'cotizaciones cargadas', total: generatedQuotes.length };
+    case 'vehicles':
+      return { label: 'modelos cargados', total: vehicles.length };
+    case 'preferences':
+      return { label: 'ajustes cargados', total: Object.keys(uiState.preferences || {}).length };
+    case 'accounts':
+      return { label: 'cuentas cargadas', total: (uiState.globalSettings?.accounts || []).length };
+    default:
+      return { label: 'elementos cargados', total: 0 };
+  }
+}
+
 function renderLoaderModuleSummary() {
   const moduleCountEl = document.getElementById('loaderModuleCount');
   const submoduleCountEl = document.getElementById('loaderSubmoduleCount');
@@ -3345,13 +3374,14 @@ function renderLoaderModuleSummary() {
     title.textContent = group.title;
     groupEl.appendChild(title);
     groupModules.forEach(module => {
+      const moduleMetric = loaderMetricForModule(module.id);
       const item = document.createElement('div');
       item.className = 'loader-module-item';
       item.innerHTML = `
         <div class="loader-module-row">
           <div>
             <strong>${module.label}</strong>
-            <p class="muted tiny">Tipo: ${moduleTypeLabel(module)} · ${module.exportable ? 'Exportable' : 'Solo lectura'}</p>
+            <p class="muted tiny">Cargando módulo: ${moduleMetric.total}/${moduleMetric.total} ${moduleMetric.label} · ${module.exportable ? 'Exportable' : 'Solo lectura'}</p>
           </div>
           <span class="loader-chip ${module.exportable ? 'exportable' : ''}">${moduleTypeLabel(module)}</span>
         </div>
@@ -3361,10 +3391,11 @@ function renderLoaderModuleSummary() {
         const subList = document.createElement('div');
         subList.className = 'loader-submodule-list';
         nested.forEach(sub => {
+          const subMetric = loaderMetricForModule(sub.id);
           const subItem = document.createElement('div');
           subItem.className = 'loader-submodule-item';
           subItem.innerHTML = `
-            <span>${sub.label}</span>
+            <span>${sub.label} (${subMetric.total}/${subMetric.total} ${subMetric.label})</span>
             <span class="loader-chip ${sub.exportable ? 'exportable' : ''}">${moduleTypeLabel(sub)}</span>
           `;
           subList.appendChild(subItem);
@@ -3392,6 +3423,7 @@ function setAppLoaderSteps(steps = appLoaderSteps) {
     step.textContent = label;
     container.appendChild(step);
   });
+  updateLoaderStatus(0, normalized.length);
 }
 
 function setAppLoaderProgress(percent) {
@@ -3399,6 +3431,10 @@ function setAppLoaderProgress(percent) {
   if (!bar) return;
   const normalized = Math.min(Math.max(percent, 0), 100);
   bar.style.width = `${normalized}%`;
+  const statusPercent = document.getElementById('loaderStatusPercent');
+  if (statusPercent) {
+    statusPercent.textContent = `${Math.round(normalized)}%`;
+  }
 }
 
 function updateAppLoaderStepText(stepIndex, text) {
@@ -3409,12 +3445,25 @@ function updateAppLoaderStepText(stepIndex, text) {
   step.textContent = text;
 }
 
+function updateLoaderStatus(stepIndex, total) {
+  const statusText = document.getElementById('loaderStatusText');
+  if (!statusText) return;
+  const safeTotal = Math.max(total, 0);
+  const safeIndex = Math.min(Math.max(stepIndex + 1, 1), safeTotal || 1);
+  if (safeTotal === 0) {
+    statusText.textContent = 'Cargando módulos...';
+    return;
+  }
+  statusText.textContent = `Cargando módulo: ${safeIndex}/${safeTotal}`;
+}
+
 function setAppLoaderStep(stepIndex) {
   const overlay = document.getElementById('appLoader');
   if (!overlay) return;
   overlay.classList.add('show');
   const bar = document.getElementById('loaderBar');
   const steps = Array.from(overlay.querySelectorAll('.loader-step'));
+  updateLoaderStatus(stepIndex, steps.length || appLoaderState.steps.length || 0);
   steps.forEach((step, index) => {
     step.classList.toggle('active', index === stepIndex);
     step.classList.toggle('done', index < stepIndex);
@@ -3423,6 +3472,10 @@ function setAppLoaderStep(stepIndex) {
     const total = steps.length || appLoaderState.steps.length || 1;
     const progress = Math.min(((stepIndex + 1) / total) * 100, 100);
     bar.style.width = `${progress}%`;
+    const statusPercent = document.getElementById('loaderStatusPercent');
+    if (statusPercent) {
+      statusPercent.textContent = `${Math.round(progress)}%`;
+    }
   }
 }
 
