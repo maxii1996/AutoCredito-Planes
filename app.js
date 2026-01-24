@@ -16288,43 +16288,120 @@ const FIREBASE_KEY_REVERSE = Object.entries(FIREBASE_KEY_REPLACEMENTS).reduce((a
 }, {});
 
 function encodeFirebaseKey(key = '') {
-  return key.replace(/[.#$\\/\\[\\]]/g, (char) => FIREBASE_KEY_REPLACEMENTS[char] || char);
+  if (typeof key !== 'string') {
+    key = String(key);
+  }
+  // Escapar caracteres prohibidos en Firebase
+  return key
+    .replace(/\./g, '__dot__')
+    .replace(/#/g, '__hash__')
+    .replace(/\$/g, '__dollar__')
+    .replace(/\\/g, '__backslash__')
+    .replace(/\[/g, '__lb__')
+    .replace(/\]/g, '__rb__')
+    .replace(/\//g, '__slash__');
 }
 
 function decodeFirebaseKey(key = '') {
-  return key.replace(/__fb__\w{2}__/g, (token) => FIREBASE_KEY_REVERSE[token] || token);
+  if (typeof key !== 'string') {
+    key = String(key);
+  }
+  return key
+    .replace(/__dot__/g, '.')
+    .replace(/__hash__/g, '#')
+    .replace(/__dollar__/g, '$')
+    .replace(/__backslash__/g, '\\')
+    .replace(/__lb__/g, '[')
+    .replace(/__rb__/g, ']')
+    .replace(/__slash__/g, '/');
 }
 
-function encodeFirebasePayload(payload) {
+function encodeFirebasePayload(payload, depth = 0) {
+  // Protección contra recursión infinita
+  if (depth > 50) {
+    console.warn('Profundidad máxima alcanzada al codificar payload');
+    return null;
+  }
+  
   if (payload === null || payload === undefined) {
     return null;
   }
+  
+  // Para booleanos, números y strings - retornar tal cual
+  if (typeof payload === 'boolean' || typeof payload === 'number' || typeof payload === 'string') {
+    return payload;
+  }
+  
+  // Para arrays
   if (Array.isArray(payload)) {
-    return payload.map(item => encodeFirebasePayload(item)).filter(item => item !== null && item !== undefined);
+    const encoded = payload
+      .map(item => encodeFirebasePayload(item, depth + 1))
+      .filter(item => item !== null && item !== undefined);
+    return encoded.length > 0 ? encoded : null;
   }
+  
+  // Para objetos
   if (typeof payload === 'object') {
-    return Object.entries(payload).reduce((acc, [key, value]) => {
-      if (value !== null && value !== undefined) {
-        const encodedKey = encodeFirebaseKey(key);
-        acc[encodedKey] = encodeFirebasePayload(value);
+    const encoded = {};
+    let hasValidKey = false;
+    
+    for (const [key, value] of Object.entries(payload)) {
+      // Saltar valores null/undefined
+      if (value === null || value === undefined) {
+        continue;
       }
-      return acc;
-    }, {});
+      
+      // Codificar la clave para hacerla compatible con Firebase
+      const encodedKey = encodeFirebaseKey(key);
+      
+      // Recursivamente codificar el valor
+      const encodedValue = encodeFirebasePayload(value, depth + 1);
+      
+      // Solo agregar si el valor es válido
+      if (encodedValue !== null && encodedValue !== undefined) {
+        encoded[encodedKey] = encodedValue;
+        hasValidKey = true;
+      }
+    }
+    
+    return hasValidKey ? encoded : null;
   }
-  return payload;
+  
+  // Para cualquier otro tipo, intentar serializar o descartar
+  return null;
 }
 
-function decodeFirebasePayload(payload) {
+function decodeFirebasePayload(payload, depth = 0) {
+  // Protección contra recursión infinita
+  if (depth > 50) {
+    console.warn('Profundidad máxima alcanzada al decodificar payload');
+    return null;
+  }
+  
+  if (payload === null || payload === undefined) {
+    return payload;
+  }
+  
+  // Para booleanos, números y strings - retornar tal cual
+  if (typeof payload === 'boolean' || typeof payload === 'number' || typeof payload === 'string') {
+    return payload;
+  }
+  
+  // Para arrays
   if (Array.isArray(payload)) {
-    return payload.map(item => decodeFirebasePayload(item));
+    return payload.map(item => decodeFirebasePayload(item, depth + 1));
   }
-  if (payload && typeof payload === 'object') {
-    return Object.entries(payload).reduce((acc, [key, value]) => {
+  
+  // Para objetos
+  if (typeof payload === 'object') {
+    const decoded = {};
+    for (const [key, value] of Object.entries(payload)) {
       const decodedKey = decodeFirebaseKey(key);
-      acc[decodedKey] = decodeFirebasePayload(value);
-      return acc;
-    }, {});
+      decoded[decodedKey] = decodeFirebasePayload(value, depth + 1);
+    }
+    return decoded;
   }
+  
   return payload;
 }
 
