@@ -16663,7 +16663,16 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
 }
 
 function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  const serialized = JSON.stringify(value);
+  const current = localStorage.getItem(key);
+  if (current === serialized) {
+    return;
+  }
+  if (serialized === undefined) {
+    localStorage.removeItem(key);
+  } else {
+    localStorage.setItem(key, serialized);
+  }
   queueRemoteSync(key, value);
 }
 
