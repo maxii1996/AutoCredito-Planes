@@ -40,6 +40,30 @@
       </div>
     </div>
   </div>
+  <div class="auth-overlay hidden" id="loginOverlay" aria-live="polite">
+    <div class="auth-card">
+      <div class="auth-head">
+        <div class="auth-icon">🔐</div>
+        <div>
+          <p class="eyebrow">Acceso seguro</p>
+          <h2>Iniciar sesión</h2>
+          <p class="muted">Ingresa con tu usuario autorizado para continuar.</p>
+        </div>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <label class="field">
+          <span>Usuario</span>
+          <input type="text" id="loginUsername" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>Contraseña</span>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+        </label>
+        <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
+        <p class="muted tiny" id="loginHelper">Tu sesión se ajusta automáticamente según tu rol.</p>
+      </form>
+    </div>
+  </div>
   <div class="profile-switch-overlay" id="profileSwitchOverlay" aria-live="polite" aria-hidden="true">
     <div class="profile-switch-card">
       <div class="profile-switch-spinner" aria-hidden="true"></div>
@@ -116,13 +140,14 @@
             <div class="icon-menu" id="settingsMenu">
               <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
                 <div class="menu-panel" id="settingsPanel">
-                  <div class="menu-head">
-                    <p class="eyebrow">Opciones</p>
-                  </div>
-                  <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
-                  <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
+                <div class="menu-head">
+                  <p class="eyebrow">Opciones</p>
                 </div>
+                <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
+                <button class="menu-item hidden" id="openAdminPanel"><i class='bx bx-shield-quarter'></i>Control de Admin</button>
+                <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -1308,7 +1333,13 @@
       </section>
     </main>
     <footer class="app-footer">
-      <p>Creado por Maximiliano Martinez | version 1.3.3 | Solo uso interno autorizado</p>
+      <div>
+        <p>Creado por Maximiliano Martinez | version 1.3.3 | Solo uso interno autorizado</p>
+      </div>
+      <div class="session-footer" id="sessionFooter">
+        <span class="muted tiny" id="sessionStatus">Sesión no iniciada.</span>
+        <button class="ghost-btn mini hidden" id="logoutButton"><i class='bx bx-log-out'></i>Cerrar sesión</button>
+      </div>
     </footer>
   </div>
   <div class="popover-overlay fade" id="actionCustomizerOverlay">
@@ -2762,9 +2793,78 @@
       </div>
     </div>
   </div>
+  <div id="adminPanelModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Control de acceso</p>
+          <h3>Administración de usuarios</h3>
+          <p class="muted">Crea, edita permisos y controla las sesiones en tiempo real.</p>
+        </div>
+        <button id="adminPanelClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="admin-panel">
+          <section class="admin-user-list">
+            <header>
+              <h4>Usuarios activos</h4>
+              <p class="muted tiny">Selecciona un usuario para editarlo o desactivarlo.</p>
+            </header>
+            <div class="admin-user-cards" id="adminUserList"></div>
+          </section>
+          <section class="admin-user-form">
+            <header>
+              <h4 id="adminFormTitle">Crear usuario</h4>
+              <p class="muted tiny">Completa los datos y guarda para aplicar cambios.</p>
+            </header>
+            <form id="adminUserForm">
+              <div class="form-grid">
+                <label class="field">
+                  <span>Usuario</span>
+                  <input type="text" id="adminUserUsername" required>
+                </label>
+                <label class="field">
+                  <span>Nombre visible</span>
+                  <input type="text" id="adminUserName" required>
+                </label>
+                <label class="field">
+                  <span>Rol</span>
+                  <select id="adminUserRole" required>
+                    <option value="Administrador">Administrador</option>
+                    <option value="Team Leader">Team Leader</option>
+                    <option value="Usuario">Usuario</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Duración de sesión (horas)</span>
+                  <input type="number" id="adminUserSessionHours" min="1" step="1">
+                </label>
+                <label class="field">
+                  <span>Contraseña</span>
+                  <input type="password" id="adminUserPassword">
+                </label>
+                <label class="field">
+                  <span>Estado</span>
+                  <select id="adminUserStatus">
+                    <option value="active">Activo</option>
+                    <option value="disabled">Desactivado</option>
+                  </select>
+                </label>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="ghost-btn" id="adminFormReset">Limpiar</button>
+                <button type="submit" class="primary-btn"><i class='bx bx-save'></i>Guardar usuario</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
   <button class="scroll-top-btn" id="scrollTopButton" aria-label="Volver arriba" aria-hidden="true">
     <i class='bx bx-chevron-up'></i>
   </button>
+  <script type="module" src="firebase-config.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

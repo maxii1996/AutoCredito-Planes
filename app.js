@@ -1,3 +1,5 @@
+import { firebaseConfig } from './firebase-config.js';
+
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat('es-AR');
 const BRANDS = ['Chevrolet', 'Renault', 'FIAT', 'Volkswagen', 'Peugeot'];
@@ -156,6 +158,27 @@ const defaultUiState = {
   },
   advisorNote: ''
 };
+
+const ROLE_SESSION_HOURS = {
+  Administrador: 24,
+  'Team Leader': 12,
+  Usuario: 8
+};
+
+const REMOTE_DATA_KEYS = [
+  'vehicles',
+  'templates',
+  'clients',
+  'managerClients',
+  'uiState',
+  'clientManagerState',
+  'snapshots',
+  'activePriceTabId',
+  'activePriceSource',
+  'priceDrafts',
+  'brandSettings',
+  'generatedQuotes'
+];
 
 const MODULE_GROUPS = [
   { id: 'general', title: 'Módulos Generales' },
@@ -3464,6 +3487,10 @@ let scheduleClockInterval = null;
 let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab: 'models' };
 let vehicleEditorAutosaveTimer = null;
 let journeyReportState = { from: '', to: '' };
+let authState = { user: null, session: null, stream: null, isReady: false, loading: false };
+let remoteSyncQueue = {};
+let remoteSyncTimer = null;
+let isApplyingRemote = false;
 
 const appLoaderState = {
   steps: []
@@ -3906,9 +3933,11 @@ async function init() {
     bindActionCustomizer();
     bindCustomContextMenu();
     bindQuoteCreation();
+    bindAuthUI();
     startContactLogTicker();
     startScheduleClock();
     startRealtimePersistence();
+    await initializeAuth();
     await initializePriceTabs();
     renderPriceTabs();
     renderVehicleTable();
@@ -16237,8 +16266,93 @@ function syncFromStorage() {
   startContactLogTicker();
 }
 
+function buildDatabaseUrl(path = '') {
+  const normalizedPath = path.replace(/^\/+/, '');
+  const base = firebaseConfig.databaseURL.replace(/\/$/, '');
+  const authParam = firebaseConfig.databaseSecret ? `?auth=${encodeURIComponent(firebaseConfig.databaseSecret)}` : '';
+  return `${base}/${normalizedPath}.json${authParam}`;
+}
+
+async function dbGet(path) {
+  const response = await fetch(buildDatabaseUrl(path));
+  if (!response.ok) {
+    throw new Error('No se pudo acceder a la base de datos.');
+  }
+  return response.json();
+}
+
+async function dbPut(path, payload) {
+  const response = await fetch(buildDatabaseUrl(path), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error('No se pudo guardar la información.');
+  }
+  return response.json();
+}
+
+async function dbPatch(path, payload) {
+  const response = await fetch(buildDatabaseUrl(path), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error('No se pudo actualizar la información.');
+  }
+  return response.json();
+}
+
+function queueRemoteSync(key, value) {
+  if (!authState.user || isApplyingRemote) {
+    return;
+  }
+  remoteSyncQueue[key] = value;
+  if (remoteSyncTimer) {
+    clearTimeout(remoteSyncTimer);
+  }
+  remoteSyncTimer = setTimeout(() => {
+    flushRemoteSync().catch(err => console.error('Error sincronizando datos remotos:', err));
+  }, 1500);
+}
+
+async function flushRemoteSync() {
+  if (!authState.user) return;
+  const payload = { ...remoteSyncQueue };
+  remoteSyncQueue = {};
+  if (!Object.keys(payload).length) return;
+  await dbPatch(`data/${authState.user.uid}`, payload);
+}
+
+function applyRemotePayload(payload = {}) {
+  if (!payload || typeof payload !== 'object') return;
+  isApplyingRemote = true;
+  Object.entries(payload).forEach(([key, value]) => {
+    if (!REMOTE_DATA_KEYS.includes(key)) return;
+    localStorage.setItem(key, JSON.stringify(value));
+  });
+  syncFromStorage();
+  isApplyingRemote = false;
+}
+
+function applyRemotePathUpdate(path, value) {
+  const key = path.replace(/^\//, '');
+  if (!key) {
+    applyRemotePayload(value || {});
+    return;
+  }
+  if (!REMOTE_DATA_KEYS.includes(key)) return;
+  isApplyingRemote = true;
+  localStorage.setItem(key, JSON.stringify(value));
+  syncFromStorage();
+  isApplyingRemote = false;
+}
+
 function save(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+  queueRemoteSync(key, value);
 }
 
 function load(key) {
@@ -16294,8 +16408,433 @@ function clearStorage() {
         renderSnapshots();
         renderStats();
         persist();
+        if (authState.user) {
+          dbPut(`data/${authState.user.uid}`, {
+            vehicles,
+            templates,
+            clients,
+            managerClients,
+            uiState,
+            clientManagerState,
+            snapshots,
+            activePriceTabId,
+            activePriceSource,
+            priceDrafts,
+            brandSettings,
+            generatedQuotes
+          }).catch(err => console.error('Error limpiando datos remotos:', err));
+        }
         showToast('Datos locales eliminados', 'success');
       });
     }
   });
+}
+
+const DEFAULT_ADMIN_CREDENTIALS = {
+  username: 'admin',
+  password: 'admin1234',
+  name: 'Administrador Principal',
+  role: 'Administrador'
+};
+
+function normalizeUsername(value = '') {
+  return value.trim().toLowerCase();
+}
+
+async function hashPassword(value = '') {
+  const data = new TextEncoder().encode(value.trim());
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function sessionInfo() {
+  const raw = localStorage.getItem('sessionInfo');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
+}
+
+function storeSessionInfo(info) {
+  localStorage.setItem('sessionInfo', JSON.stringify(info));
+}
+
+function clearSessionInfo() {
+  localStorage.removeItem('sessionInfo');
+}
+
+function showLoginOverlay() {
+  document.getElementById('loginOverlay')?.classList.remove('hidden');
+}
+
+function hideLoginOverlay() {
+  document.getElementById('loginOverlay')?.classList.add('hidden');
+}
+
+function updateSessionFooter() {
+  const footer = document.getElementById('sessionFooter');
+  const status = document.getElementById('sessionStatus');
+  const logoutButton = document.getElementById('logoutButton');
+  if (!footer || !status || !logoutButton) return;
+  if (!authState.session) {
+    status.textContent = 'Sesión no iniciada.';
+    logoutButton.classList.add('hidden');
+    return;
+  }
+  const expiresAt = new Date(authState.session.expiresAt);
+  const formatted = `${expiresAt.toLocaleDateString('es-AR')} a las ${expiresAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+  status.textContent = `Usuario: ${authState.session.displayName} | Rol: ${authState.session.role} | La sesión activa expirará el día: ${formatted}.`;
+  logoutButton.classList.remove('hidden');
+}
+
+function scheduleSessionTicker() {
+  clearInterval(authState.sessionTimer);
+  authState.sessionTimer = setInterval(() => {
+    if (!authState.session) return;
+    if (Date.now() >= authState.session.expiresAt) {
+      handleLogout(true);
+    } else {
+      updateSessionFooter();
+    }
+  }, 60000);
+}
+
+async function ensureInitialAdmin() {
+  const existingIndex = await dbGet('userIndex');
+  if (existingIndex && Object.keys(existingIndex).length) return false;
+  const uid = `user-${Date.now()}`;
+  const passwordHash = await hashPassword(DEFAULT_ADMIN_CREDENTIALS.password);
+  const userRecord = {
+    username: DEFAULT_ADMIN_CREDENTIALS.username,
+    displayName: DEFAULT_ADMIN_CREDENTIALS.name,
+    role: DEFAULT_ADMIN_CREDENTIALS.role,
+    status: 'active',
+    sessionHours: ROLE_SESSION_HOURS[DEFAULT_ADMIN_CREDENTIALS.role],
+    passwordHash,
+    createdAt: Date.now()
+  };
+  await dbPut(`users/${uid}`, userRecord);
+  await dbPut(`userIndex/${normalizeUsername(DEFAULT_ADMIN_CREDENTIALS.username)}`, uid);
+  return true;
+}
+
+async function attemptRestoreSession() {
+  const info = sessionInfo();
+  if (!info) return false;
+  if (Date.now() >= info.expiresAt) {
+    clearSessionInfo();
+    return false;
+  }
+  const userRecord = await dbGet(`users/${info.uid}`);
+  if (!userRecord || userRecord.status !== 'active') {
+    clearSessionInfo();
+    return false;
+  }
+  authState.user = { uid: info.uid, ...userRecord };
+  authState.session = {
+    uid: info.uid,
+    displayName: userRecord.displayName || userRecord.username,
+    role: userRecord.role,
+    expiresAt: info.expiresAt
+  };
+  return true;
+}
+
+function startUserStream() {
+  if (!authState.user) return;
+  if (authState.stream) {
+    authState.stream.close();
+  }
+  const streamUrl = buildDatabaseUrl(`data/${authState.user.uid}`);
+  const stream = new EventSource(streamUrl);
+  authState.stream = stream;
+  stream.addEventListener('message', (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      applyRemotePathUpdate(payload.path || '/', payload.data);
+    } catch (err) {
+      console.error('Error procesando streaming:', err);
+    }
+  });
+  stream.addEventListener('error', () => {
+    console.warn('Streaming desconectado, reintentando...');
+    stream.close();
+    setTimeout(() => {
+      if (authState.user) {
+        startUserStream();
+      }
+    }, 3000);
+  });
+}
+
+function stopUserStream() {
+  if (authState.stream) {
+    authState.stream.close();
+    authState.stream = null;
+  }
+}
+
+async function loadRemoteState() {
+  if (!authState.user) return;
+  const payload = await dbGet(`data/${authState.user.uid}`);
+  if (payload) {
+    applyRemotePayload(payload);
+  } else {
+    await dbPut(`data/${authState.user.uid}`, {
+      vehicles,
+      templates,
+      clients,
+      managerClients,
+      uiState,
+      clientManagerState,
+      snapshots,
+      activePriceTabId,
+      activePriceSource,
+      priceDrafts,
+      brandSettings,
+      generatedQuotes
+    });
+  }
+}
+
+function updateAdminAccessVisibility() {
+  const adminButton = document.getElementById('openAdminPanel');
+  if (!adminButton) return;
+  if (authState.session?.role === 'Administrador') {
+    adminButton.classList.remove('hidden');
+  } else {
+    adminButton.classList.add('hidden');
+  }
+}
+
+async function handleLogin(username, password) {
+  const normalized = normalizeUsername(username);
+  if (!normalized || !password) {
+    showToast('Completa usuario y contraseña.', 'warning');
+    return false;
+  }
+  const uid = await dbGet(`userIndex/${normalized}`);
+  if (!uid) {
+    showToast('Usuario no encontrado.', 'error');
+    return false;
+  }
+  const userRecord = await dbGet(`users/${uid}`);
+  if (!userRecord || userRecord.status !== 'active') {
+    showToast('Usuario desactivado o inválido.', 'error');
+    return false;
+  }
+  const passwordHash = await hashPassword(password);
+  if (passwordHash !== userRecord.passwordHash) {
+    showToast('Contraseña incorrecta.', 'error');
+    return false;
+  }
+  const sessionHours = Number(userRecord.sessionHours) || ROLE_SESSION_HOURS[userRecord.role] || 8;
+  const expiresAt = Date.now() + sessionHours * 60 * 60 * 1000;
+  authState.user = { uid, ...userRecord };
+  authState.session = {
+    uid,
+    displayName: userRecord.displayName || userRecord.username,
+    role: userRecord.role,
+    expiresAt
+  };
+  storeSessionInfo({ uid, expiresAt });
+  updateSessionFooter();
+  scheduleSessionTicker();
+  updateAdminAccessVisibility();
+  hideLoginOverlay();
+  await loadRemoteState();
+  startUserStream();
+  showToast('Sesión iniciada correctamente.', 'success');
+  return true;
+}
+
+function handleLogout(expired = false) {
+  stopUserStream();
+  authState.user = null;
+  authState.session = null;
+  clearSessionInfo();
+  updateSessionFooter();
+  updateAdminAccessVisibility();
+  showLoginOverlay();
+  if (expired) {
+    showToast('La sesión expiró. Ingresa nuevamente.', 'warning');
+  }
+}
+
+async function initializeAuth() {
+  try {
+    const didCreateAdmin = await ensureInitialAdmin();
+    const helper = document.getElementById('loginHelper');
+    if (didCreateAdmin && helper) {
+      helper.textContent = `Se creó el administrador inicial: ${DEFAULT_ADMIN_CREDENTIALS.username} / ${DEFAULT_ADMIN_CREDENTIALS.password}.`;
+    }
+    const restored = await attemptRestoreSession();
+    updateSessionFooter();
+    updateAdminAccessVisibility();
+    if (restored) {
+      hideLoginOverlay();
+      scheduleSessionTicker();
+      await loadRemoteState();
+      startUserStream();
+    } else {
+      showLoginOverlay();
+    }
+  } catch (err) {
+    console.error('Error inicializando autenticación:', err);
+    showLoginOverlay();
+    showToast('No se pudo inicializar la sesión.', 'error');
+  }
+}
+
+async function fetchUserList() {
+  const userRecords = await dbGet('users');
+  if (!userRecords) return [];
+  return Object.entries(userRecords).map(([uid, data]) => ({ uid, ...data }));
+}
+
+function renderAdminList(users, selectedUid) {
+  const list = document.getElementById('adminUserList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!users.length) {
+    list.innerHTML = '<p class="muted">No hay usuarios registrados.</p>';
+    return;
+  }
+  users.forEach(user => {
+    const card = document.createElement('div');
+    card.className = `admin-user-card ${selectedUid === user.uid ? 'active' : ''}`;
+    card.innerHTML = `
+      <div class="card-title">${user.displayName || user.username} <span class="muted tiny">(${user.username})</span></div>
+      <div class="muted tiny">Rol: ${user.role || 'Usuario'} · Estado: ${user.status || 'active'}</div>
+      <div class="card-actions">
+        <button class="ghost-btn mini" data-action="edit" data-uid="${user.uid}"><i class='bx bx-edit'></i>Editar</button>
+        <button class="ghost-btn mini" data-action="toggle" data-uid="${user.uid}"><i class='bx bx-power-off'></i>${user.status === 'active' ? 'Desactivar' : 'Activar'}</button>
+        <button class="ghost-btn mini" data-action="reset" data-uid="${user.uid}"><i class='bx bx-lock-open'></i>Reset clave</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+async function refreshAdminPanel(selectedUid = null) {
+  const users = await fetchUserList();
+  renderAdminList(users, selectedUid);
+  return users;
+}
+
+function resetAdminForm() {
+  document.getElementById('adminUserForm')?.reset();
+  document.getElementById('adminFormTitle').textContent = 'Crear usuario';
+  document.getElementById('adminUserForm').dataset.uid = '';
+}
+
+async function populateAdminForm(user) {
+  document.getElementById('adminFormTitle').textContent = 'Editar usuario';
+  document.getElementById('adminUserUsername').value = user.username || '';
+  document.getElementById('adminUserName').value = user.displayName || '';
+  document.getElementById('adminUserRole').value = user.role || 'Usuario';
+  document.getElementById('adminUserSessionHours').value = user.sessionHours || '';
+  document.getElementById('adminUserPassword').value = '';
+  document.getElementById('adminUserStatus').value = user.status || 'active';
+  document.getElementById('adminUserForm').dataset.uid = user.uid;
+}
+
+async function handleAdminPanelAction(event) {
+  const action = event.target?.closest('button')?.dataset?.action;
+  const uid = event.target?.closest('button')?.dataset?.uid;
+  if (!action || !uid) return;
+  const user = await dbGet(`users/${uid}`);
+  if (!user) return;
+  if (action === 'edit') {
+    populateAdminForm({ uid, ...user });
+    await refreshAdminPanel(uid);
+  }
+  if (action === 'toggle') {
+    const nextStatus = user.status === 'active' ? 'disabled' : 'active';
+    await dbPatch(`users/${uid}`, { status: nextStatus });
+    await refreshAdminPanel(uid);
+  }
+  if (action === 'reset') {
+    const newPassword = prompt('Nueva contraseña para este usuario:');
+    if (!newPassword) return;
+    const passwordHash = await hashPassword(newPassword);
+    await dbPatch(`users/${uid}`, { passwordHash });
+    showToast('Contraseña actualizada.', 'success');
+  }
+}
+
+async function handleAdminFormSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const uid = form.dataset.uid;
+  const username = document.getElementById('adminUserUsername').value.trim();
+  const displayName = document.getElementById('adminUserName').value.trim();
+  const role = document.getElementById('adminUserRole').value;
+  const sessionHours = Number(document.getElementById('adminUserSessionHours').value) || ROLE_SESSION_HOURS[role];
+  const password = document.getElementById('adminUserPassword').value;
+  const status = document.getElementById('adminUserStatus').value;
+  const normalized = normalizeUsername(username);
+  if (!normalized || !displayName) {
+    showToast('Completa los campos requeridos.', 'warning');
+    return;
+  }
+  let passwordHash = null;
+  if (password) {
+    passwordHash = await hashPassword(password);
+  }
+  const payload = {
+    username: normalized,
+    displayName,
+    role,
+    sessionHours,
+    status,
+    updatedAt: Date.now()
+  };
+  if (passwordHash) {
+    payload.passwordHash = passwordHash;
+  }
+  if (uid) {
+    await dbPatch(`users/${uid}`, payload);
+  } else {
+    const newUid = `user-${Date.now()}`;
+    if (!passwordHash) {
+      showToast('Debes asignar una contraseña inicial.', 'warning');
+      return;
+    }
+    await dbPut(`users/${newUid}`, { ...payload, passwordHash, createdAt: Date.now() });
+    await dbPut(`userIndex/${normalized}`, newUid);
+  }
+  resetAdminForm();
+  await refreshAdminPanel();
+  showToast('Usuario guardado.', 'success');
+}
+
+function bindAuthUI() {
+  const loginForm = document.getElementById('loginForm');
+  loginForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    authState.loading = true;
+    try {
+      await handleLogin(username, password);
+    } finally {
+      authState.loading = false;
+    }
+  });
+  document.getElementById('logoutButton')?.addEventListener('click', () => handleLogout(false));
+  document.getElementById('openAdminPanel')?.addEventListener('click', async () => {
+    const modal = document.getElementById('adminPanelModal');
+    modal?.classList.remove('hidden');
+    resetAdminForm();
+    await refreshAdminPanel();
+  });
+  document.getElementById('adminPanelClose')?.addEventListener('click', () => {
+    document.getElementById('adminPanelModal')?.classList.add('hidden');
+  });
+  document.getElementById('adminFormReset')?.addEventListener('click', () => resetAdminForm());
+  document.getElementById('adminUserList')?.addEventListener('click', handleAdminPanelAction);
+  document.getElementById('adminUserForm')?.addEventListener('submit', handleAdminFormSubmit);
 }
