@@ -1972,6 +1972,7 @@ async function applyProfileData(parsed) {
   renderGlobalSettings();
   renderSnapshots();
   renderStats();
+  await syncRemoteSnapshot({ reason: 'import-profile' });
 }
 
 function saveSnapshot() {
@@ -3461,6 +3462,7 @@ let accountManagerState = { selectedId: null, drafts: {} };
 let accountManagerTimers = { name: null, phone: null };
 let accountApplyState = { isRunning: false };
 let profileSwitchTimer = null;
+let adminState = { selectedUid: null, users: [], userDataCache: {} };
 let importedManagerState = { selectedIds: new Set(), loading: false, searchTerm: '' };
 let importedManagerTimer = null;
 let moduleImportState = null;
@@ -16040,6 +16042,7 @@ async function applyModuleImport(state) {
     await applyModulePayload(module.id, payload);
   }
   persist();
+  await syncRemoteSnapshot({ reason: 'import-modules' });
   hideImportOverlay();
   showToast('Módulos importados correctamente', 'success');
   resetModuleImportState();
@@ -16505,6 +16508,16 @@ async function dbPatch(path, payload) {
   }
 }
 
+async function dbDelete(path) {
+  const url = buildDatabaseUrl(path);
+  const response = await fetch(url, { method: 'DELETE' });
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`No se pudo eliminar la información (${response.status}): ${error.substring(0, 100)}`);
+  }
+  return response.json().catch(() => null);
+}
+
 // Claves que se sincronizan con Firebase (evitar datos muy grandes)
 const FIREBASE_SYNCABLE_KEYS = new Set([
   'vehicles',
@@ -16580,6 +16593,30 @@ function applyRemotePathUpdate(path, value) {
   localStorage.setItem(key, JSON.stringify(decodedValue));
   syncFromStorage();
   isApplyingRemote = false;
+}
+
+async function syncRemoteSnapshot({ reason = '' } = {}) {
+  if (!authState.user) return;
+  const payload = {
+    vehicles,
+    templates,
+    clients,
+    managerClients,
+    uiState,
+    clientManagerState,
+    snapshots,
+    activePriceTabId,
+    activePriceSource,
+    priceDrafts,
+    brandSettings,
+    generatedQuotes,
+    updatedAt: Date.now()
+  };
+  try {
+    await dbPatch(`data/${authState.user.uid}`, payload);
+  } catch (error) {
+    console.warn(`Sincronización inmediata falló${reason ? ` (${reason})` : ''}:`, error);
+  }
 }
 
 function save(key, value) {
@@ -16950,8 +16987,61 @@ async function fetchUserList() {
   return Object.entries(userRecords).map(([uid, data]) => ({ uid, ...data }));
 }
 
+function formatAdminDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('es-AR');
+}
+
+function formatBytes(bytes = 0) {
+  if (!Number.isFinite(bytes)) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let index = 0;
+  let value = bytes;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+async function loadAdminUserData(uid, { force = false } = {}) {
+  if (!uid) return null;
+  if (!force && adminState.userDataCache[uid]) {
+    return adminState.userDataCache[uid].data;
+  }
+  const payload = await dbGet(`data/${uid}`);
+  const decoded = payload ? decodeFirebasePayload(payload) : null;
+  adminState.userDataCache[uid] = { data: decoded, fetchedAt: Date.now() };
+  return decoded;
+}
+
+function computeUserMetrics(payload) {
+  const safePayload = payload || {};
+  const sizeBytes = payload ? new Blob([JSON.stringify(payload)]).size : 0;
+  const counts = {
+    clients: Array.isArray(safePayload.clients) ? safePayload.clients.length : 0,
+    managerClients: Array.isArray(safePayload.managerClients) ? safePayload.managerClients.length : 0,
+    templates: Array.isArray(safePayload.templates) ? safePayload.templates.length : 0,
+    vehicles: Array.isArray(safePayload.vehicles) ? safePayload.vehicles.length : 0,
+    snapshots: Array.isArray(safePayload.snapshots) ? safePayload.snapshots.length : 0,
+    generatedQuotes: Array.isArray(safePayload.generatedQuotes) ? safePayload.generatedQuotes.length : 0,
+    priceDrafts: safePayload.priceDrafts ? Object.keys(safePayload.priceDrafts).length : 0,
+    brandSettings: Array.isArray(safePayload.brandSettings) ? safePayload.brandSettings.length : 0
+  };
+  return {
+    sizeBytes,
+    counts,
+    updatedAt: safePayload.updatedAt || null,
+    createdAt: safePayload.createdAt || null
+  };
+}
+
 function renderAdminList(users, selectedUid) {
   const list = document.getElementById('adminUserList');
+  const count = document.getElementById('adminUserCount');
+  if (count) count.textContent = `${users.length} ${users.length === 1 ? 'usuario' : 'usuarios'}`;
   if (!list) return;
   list.innerHTML = '';
   if (!users.length) {
@@ -16960,111 +17050,295 @@ function renderAdminList(users, selectedUid) {
   }
   users.forEach(user => {
     const card = document.createElement('div');
+    const statusLabel = user.status === 'active' ? 'Activo' : 'Inactivo';
     card.className = `admin-user-card ${selectedUid === user.uid ? 'active' : ''}`;
     card.innerHTML = `
-      <div class="card-title">${user.displayName || user.username} <span class="muted tiny">(${user.username})</span></div>
-      <div class="muted tiny">Rol: ${user.role || 'Usuario'} · Estado: ${user.status || 'active'}</div>
-      <div class="card-actions">
-        <button class="ghost-btn mini" data-action="edit" data-uid="${user.uid}"><i class='bx bx-edit'></i>Editar</button>
+      <div class="admin-user-card-head">
+        <div class="admin-user-card-title">
+          <span>${user.displayName || user.username}</span>
+          <span class="muted tiny">@${user.username}</span>
+        </div>
+        <span class="pill">${statusLabel}</span>
+      </div>
+      <div class="admin-user-card-meta">Rol: ${user.role || 'Usuario'} · Sesión: ${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8}h</div>
+      <div class="admin-user-card-actions">
+        <button class="ghost-btn mini" data-action="select" data-uid="${user.uid}"><i class='bx bx-show-alt'></i>Ver detalle</button>
         <button class="ghost-btn mini" data-action="toggle" data-uid="${user.uid}"><i class='bx bx-power-off'></i>${user.status === 'active' ? 'Desactivar' : 'Activar'}</button>
-        <button class="ghost-btn mini" data-action="reset" data-uid="${user.uid}"><i class='bx bx-lock-open'></i>Reset clave</button>
       </div>
     `;
     list.appendChild(card);
   });
 }
 
+function renderAdminMeta(user, metrics) {
+  const container = document.getElementById('adminUserMeta');
+  const title = document.getElementById('adminDetailTitle');
+  const subtitle = document.getElementById('adminDetailSubtitle');
+  if (!container || !title || !subtitle) return;
+  if (!user) {
+    title.textContent = 'Detalle de usuario';
+    subtitle.textContent = 'Selecciona un usuario para comenzar.';
+    container.innerHTML = '';
+    return;
+  }
+  title.textContent = user.displayName || user.username;
+  subtitle.textContent = `UID: ${user.uid}`;
+  container.innerHTML = `
+    <div class="admin-user-meta-row"><span>Usuario</span><strong>@${user.username}</strong></div>
+    <div class="admin-user-meta-row"><span>Rol</span><strong>${user.role || 'Usuario'}</strong></div>
+    <div class="admin-user-meta-row"><span>Estado</span><strong>${user.status === 'active' ? 'Activo' : 'Inactivo'}</strong></div>
+    <div class="admin-user-meta-row"><span>Sesión</span><strong>${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8} horas</strong></div>
+    <div class="admin-user-meta-row"><span>Creado</span><strong>${formatAdminDate(user.createdAt)}</strong></div>
+    <div class="admin-user-meta-row"><span>Actualizado</span><strong>${formatAdminDate(user.updatedAt)}</strong></div>
+    <div class="admin-user-meta-row"><span>Última sincronización</span><strong>${formatAdminDate(metrics?.updatedAt || metrics?.createdAt)}</strong></div>
+  `;
+}
+
+function renderAdminMetrics(metrics) {
+  const container = document.getElementById('adminUserMetrics');
+  if (!container) return;
+  if (!metrics) {
+    container.innerHTML = '<p class="muted">Sin datos sincronizados.</p>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="admin-metric-card">
+      <span class="metric-label">Espacio usado</span>
+      <span class="metric-value">${formatBytes(metrics.sizeBytes)}</span>
+      <span class="muted tiny">Payload sincronizado</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Clientes</span>
+      <span class="metric-value">${metrics.counts.clients}</span>
+      <span class="muted tiny">Registros principales</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Gestor de clientes</span>
+      <span class="metric-value">${metrics.counts.managerClients}</span>
+      <span class="muted tiny">Clientes gestionados</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Plantillas</span>
+      <span class="metric-value">${metrics.counts.templates}</span>
+      <span class="muted tiny">Mensajes guardados</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Vehículos</span>
+      <span class="metric-value">${metrics.counts.vehicles}</span>
+      <span class="muted tiny">Modelos cargados</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Cotizaciones</span>
+      <span class="metric-value">${metrics.counts.generatedQuotes}</span>
+      <span class="muted tiny">Generadas</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Snapshots</span>
+      <span class="metric-value">${metrics.counts.snapshots}</span>
+      <span class="muted tiny">Respaldos locales</span>
+    </div>
+    <div class="admin-metric-card">
+      <span class="metric-label">Borradores de precio</span>
+      <span class="metric-value">${metrics.counts.priceDrafts}</span>
+      <span class="muted tiny">Fuentes activas</span>
+    </div>
+  `;
+}
+
+function populateAdminEditForm(user) {
+  const form = document.getElementById('adminEditForm');
+  if (!form) return;
+  form.dataset.uid = user?.uid || '';
+  document.getElementById('adminEditUsername').value = user?.username || '';
+  document.getElementById('adminEditName').value = user?.displayName || '';
+  document.getElementById('adminEditRole').value = user?.role || 'Usuario';
+  document.getElementById('adminEditSessionHours').value = user?.sessionHours || '';
+  document.getElementById('adminEditStatus').value = user?.status || 'active';
+  document.getElementById('adminEditPassword').value = '';
+}
+
 async function refreshAdminPanel(selectedUid = null) {
   const users = await fetchUserList();
-  renderAdminList(users, selectedUid);
+  adminState.users = users;
+  const resolvedUid = selectedUid || adminState.selectedUid || users[0]?.uid || null;
+  adminState.selectedUid = resolvedUid;
+  renderAdminList(users, resolvedUid);
+  await renderAdminDetail(resolvedUid);
   return users;
 }
 
-function resetAdminForm() {
-  document.getElementById('adminUserForm')?.reset();
-  document.getElementById('adminFormTitle').textContent = 'Crear usuario';
-  document.getElementById('adminUserForm').dataset.uid = '';
+async function renderAdminDetail(uid, { forceData = false } = {}) {
+  if (!uid) {
+    renderAdminMeta(null, null);
+    renderAdminMetrics(null);
+    populateAdminEditForm(null);
+    return;
+  }
+  const user = adminState.users.find(item => item.uid === uid);
+  if (!user) return;
+  renderAdminMeta(user, null);
+  populateAdminEditForm(user);
+  const data = await loadAdminUserData(uid, { force: forceData });
+  const metrics = data ? computeUserMetrics(data) : null;
+  renderAdminMeta(user, metrics);
+  renderAdminMetrics(metrics);
 }
 
-async function populateAdminForm(user) {
-  document.getElementById('adminFormTitle').textContent = 'Editar usuario';
-  document.getElementById('adminUserUsername').value = user.username || '';
-  document.getElementById('adminUserName').value = user.displayName || '';
-  document.getElementById('adminUserRole').value = user.role || 'Usuario';
-  document.getElementById('adminUserSessionHours').value = user.sessionHours || '';
-  document.getElementById('adminUserPassword').value = '';
-  document.getElementById('adminUserStatus').value = user.status || 'active';
-  document.getElementById('adminUserForm').dataset.uid = user.uid;
-}
-
-async function handleAdminPanelAction(event) {
-  const action = event.target?.closest('button')?.dataset?.action;
-  const uid = event.target?.closest('button')?.dataset?.uid;
+async function handleAdminListAction(event) {
+  const button = event.target?.closest('button');
+  if (!button) return;
+  const action = button.dataset.action;
+  const uid = button.dataset.uid;
   if (!action || !uid) return;
   const user = await dbGet(`users/${uid}`);
   if (!user) return;
-  if (action === 'edit') {
-    populateAdminForm({ uid, ...user });
-    await refreshAdminPanel(uid);
+  if (action === 'select') {
+    adminState.selectedUid = uid;
+    renderAdminList(adminState.users, uid);
+    await renderAdminDetail(uid);
+    return;
   }
   if (action === 'toggle') {
     const nextStatus = user.status === 'active' ? 'disabled' : 'active';
-    await dbPatch(`users/${uid}`, { status: nextStatus });
+    await dbPatch(`users/${uid}`, { status: nextStatus, updatedAt: Date.now() });
     await refreshAdminPanel(uid);
-  }
-  if (action === 'reset') {
-    const newPassword = prompt('Nueva contraseña para este usuario:');
-    if (!newPassword) return;
-    const passwordHash = await hashPassword(newPassword);
-    await dbPatch(`users/${uid}`, { passwordHash });
-    showToast('Contraseña actualizada.', 'success');
   }
 }
 
-async function handleAdminFormSubmit(event) {
+async function handleAdminEditSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const uid = form.dataset.uid;
-  const username = document.getElementById('adminUserUsername').value.trim();
-  const displayName = document.getElementById('adminUserName').value.trim();
-  const role = document.getElementById('adminUserRole').value;
-  const sessionHours = Number(document.getElementById('adminUserSessionHours').value) || ROLE_SESSION_HOURS[role];
-  const password = document.getElementById('adminUserPassword').value;
-  const status = document.getElementById('adminUserStatus').value;
-  const normalized = normalizeUsername(username);
-  if (!normalized || !displayName) {
+  if (!uid) {
+    showToast('Selecciona un usuario para editar.', 'warning');
+    return;
+  }
+  const displayName = document.getElementById('adminEditName').value.trim();
+  const role = document.getElementById('adminEditRole').value;
+  const sessionHours = Number(document.getElementById('adminEditSessionHours').value) || ROLE_SESSION_HOURS[role];
+  const status = document.getElementById('adminEditStatus').value;
+  const password = document.getElementById('adminEditPassword').value;
+  if (!displayName) {
     showToast('Completa los campos requeridos.', 'warning');
     return;
   }
-  let passwordHash = null;
-  if (password) {
-    passwordHash = await hashPassword(password);
-  }
   const payload = {
-    username: normalized,
     displayName,
     role,
     sessionHours,
     status,
     updatedAt: Date.now()
   };
-  if (passwordHash) {
-    payload.passwordHash = passwordHash;
+  if (password) {
+    payload.passwordHash = await hashPassword(password);
   }
-  if (uid) {
-    await dbPatch(`users/${uid}`, payload);
-  } else {
-    const newUid = `user-${Date.now()}`;
-    if (!passwordHash) {
-      showToast('Debes asignar una contraseña inicial.', 'warning');
-      return;
+  await dbPatch(`users/${uid}`, payload);
+  showToast('Usuario actualizado.', 'success');
+  await refreshAdminPanel(uid);
+}
+
+async function handleAdminCreateSubmit(event) {
+  event.preventDefault();
+  const username = document.getElementById('adminCreateUsername').value.trim();
+  const displayName = document.getElementById('adminCreateName').value.trim();
+  const role = document.getElementById('adminCreateRole').value;
+  const sessionHours = Number(document.getElementById('adminCreateSessionHours').value) || ROLE_SESSION_HOURS[role];
+  const password = document.getElementById('adminCreatePassword').value;
+  const status = document.getElementById('adminCreateStatus').value;
+  const normalized = normalizeUsername(username);
+  if (!normalized || !displayName || !password) {
+    showToast('Completa los campos requeridos.', 'warning');
+    return;
+  }
+  const exists = await dbGet(`userIndex/${normalized}`);
+  if (exists) {
+    showToast('Ya existe un usuario con ese identificador.', 'error');
+    return;
+  }
+  const passwordHash = await hashPassword(password);
+  const newUid = `user-${Date.now()}`;
+  await dbPut(`users/${newUid}`, {
+    username: normalized,
+    displayName,
+    role,
+    sessionHours,
+    status,
+    passwordHash,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  });
+  await dbPut(`userIndex/${normalized}`, newUid);
+  document.getElementById('adminCreateForm')?.reset();
+  showToast('Usuario creado.', 'success');
+  activateAdminTab('overview');
+  await refreshAdminPanel(newUid);
+}
+
+async function handleAdminDeleteUser() {
+  const uid = document.getElementById('adminEditForm')?.dataset.uid;
+  if (!uid) return;
+  if (uid === authState.user?.uid) {
+    showToast('No puedes eliminar tu propio usuario activo.', 'warning');
+    return;
+  }
+  const user = await dbGet(`users/${uid}`);
+  if (!user) return;
+  confirmAction({
+    title: 'Eliminar usuario',
+    message: `Se eliminará el usuario ${user.displayName || user.username} y sus datos asociados.`,
+    confirmText: 'Eliminar',
+    onConfirm: async () => {
+      await dbDelete(`users/${uid}`);
+      await dbDelete(`data/${uid}`);
+      if (user.username) {
+        await dbDelete(`userIndex/${normalizeUsername(user.username)}`);
+      }
+      adminState.userDataCache[uid] = null;
+      showToast('Usuario eliminado.', 'success');
+      await refreshAdminPanel();
     }
-    await dbPut(`users/${newUid}`, { ...payload, passwordHash, createdAt: Date.now() });
-    await dbPut(`userIndex/${normalized}`, newUid);
+  });
+}
+
+function activateAdminTab(tabId) {
+  const tabs = document.querySelectorAll('.admin-tab');
+  const panels = document.querySelectorAll('.admin-tab-panel');
+  tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.adminTab === tabId));
+  panels.forEach(panel => panel.classList.toggle('active', panel.dataset.adminPanel === tabId));
+}
+
+function resetPasswordForm() {
+  document.getElementById('passwordForm')?.reset();
+}
+
+async function handlePasswordChangeSubmit(event) {
+  event.preventDefault();
+  if (!authState.user) {
+    showToast('Debes iniciar sesión para cambiar tu contraseña.', 'warning');
+    return;
   }
-  resetAdminForm();
-  await refreshAdminPanel();
-  showToast('Usuario guardado.', 'success');
+  const current = document.getElementById('passwordCurrent').value;
+  const next = document.getElementById('passwordNew').value;
+  const confirm = document.getElementById('passwordConfirm').value;
+  if (!current || !next || !confirm) {
+    showToast('Completa todos los campos.', 'warning');
+    return;
+  }
+  if (next !== confirm) {
+    showToast('Las nuevas contraseñas no coinciden.', 'error');
+    return;
+  }
+  const currentHash = await hashPassword(current);
+  if (currentHash !== authState.user.passwordHash) {
+    showToast('La contraseña actual es incorrecta.', 'error');
+    return;
+  }
+  const newHash = await hashPassword(next);
+  await dbPatch(`users/${authState.user.uid}`, { passwordHash: newHash, updatedAt: Date.now() });
+  authState.user.passwordHash = newHash;
+  showToast('Contraseña actualizada correctamente.', 'success');
+  toggleModal(document.getElementById('passwordModal'), false);
+  resetPasswordForm();
 }
 
 function bindAuthUI() {
@@ -17089,7 +17363,7 @@ function bindAuthUI() {
     }
     const modal = document.getElementById('adminPanelModal');
     toggleModal(modal, true);
-    resetAdminForm();
+    activateAdminTab('overview');
     try {
       await refreshAdminPanel();
     } catch (error) {
@@ -17100,7 +17374,31 @@ function bindAuthUI() {
   document.getElementById('adminPanelClose')?.addEventListener('click', () => {
     toggleModal(document.getElementById('adminPanelModal'), false);
   });
-  document.getElementById('adminFormReset')?.addEventListener('click', () => resetAdminForm());
-  document.getElementById('adminUserList')?.addEventListener('click', handleAdminPanelAction);
-  document.getElementById('adminUserForm')?.addEventListener('submit', handleAdminFormSubmit);
+  document.getElementById('adminTabs')?.addEventListener('click', (event) => {
+    const tab = event.target.closest('.admin-tab');
+    if (!tab) return;
+    activateAdminTab(tab.dataset.adminTab);
+  });
+  document.getElementById('adminRefreshList')?.addEventListener('click', async () => {
+    await refreshAdminPanel(adminState.selectedUid);
+  });
+  document.getElementById('adminRefreshUserData')?.addEventListener('click', async () => {
+    await renderAdminDetail(adminState.selectedUid, { forceData: true });
+  });
+  document.getElementById('adminUserList')?.addEventListener('click', handleAdminListAction);
+  document.getElementById('adminEditForm')?.addEventListener('submit', handleAdminEditSubmit);
+  document.getElementById('adminCreateForm')?.addEventListener('submit', handleAdminCreateSubmit);
+  document.getElementById('adminDeleteUser')?.addEventListener('click', handleAdminDeleteUser);
+  document.getElementById('openPasswordModal')?.addEventListener('click', () => {
+    resetPasswordForm();
+    toggleModal(document.getElementById('passwordModal'), true);
+    document.getElementById('settingsPanel')?.classList.remove('open');
+  });
+  document.getElementById('passwordModalClose')?.addEventListener('click', () => {
+    toggleModal(document.getElementById('passwordModal'), false);
+  });
+  document.getElementById('passwordCancel')?.addEventListener('click', () => {
+    toggleModal(document.getElementById('passwordModal'), false);
+  });
+  document.getElementById('passwordForm')?.addEventListener('submit', handlePasswordChangeSubmit);
 }

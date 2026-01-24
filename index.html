@@ -146,6 +146,7 @@
                 <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
                 <button class="menu-item hidden" id="openAdminPanel"><i class='bx bx-shield-quarter'></i>Control de Admin</button>
                 <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
+                <button class="menu-item" id="openPasswordModal"><i class='bx bx-key'></i> Cambiar contraseña</button>
               </div>
             </div>
             </div>
@@ -2794,7 +2795,7 @@
     </div>
   </div>
   <div id="adminPanelModal" class="modal hidden">
-    <div class="modal-content wide">
+    <div class="modal-content wide admin-modal">
       <div class="modal-head">
         <div>
           <p class="eyebrow">Control de acceso</p>
@@ -2804,61 +2805,161 @@
         <button id="adminPanelClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
       <div class="modal-body">
-        <div class="admin-panel">
-          <section class="admin-user-list">
-            <header>
-              <h4>Usuarios activos</h4>
-              <p class="muted tiny">Selecciona un usuario para editarlo o desactivarlo.</p>
-            </header>
-            <div class="admin-user-cards" id="adminUserList"></div>
-          </section>
-          <section class="admin-user-form">
-            <header>
-              <h4 id="adminFormTitle">Crear usuario</h4>
-              <p class="muted tiny">Completa los datos y guarda para aplicar cambios.</p>
-            </header>
-            <form id="adminUserForm">
-              <div class="form-grid">
-                <label class="field">
-                  <span>Usuario</span>
-                  <input type="text" id="adminUserUsername" required>
-                </label>
-                <label class="field">
-                  <span>Nombre visible</span>
-                  <input type="text" id="adminUserName" required>
-                </label>
-                <label class="field">
-                  <span>Rol</span>
-                  <select id="adminUserRole" required>
-                    <option value="Administrador">Administrador</option>
-                    <option value="Team Leader">Team Leader</option>
-                    <option value="Usuario">Usuario</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Duración de sesión (horas)</span>
-                  <input type="number" id="adminUserSessionHours" min="1" step="1">
-                </label>
-                <label class="field">
-                  <span>Contraseña</span>
-                  <input type="password" id="adminUserPassword">
-                </label>
-                <label class="field">
-                  <span>Estado</span>
-                  <select id="adminUserStatus">
-                    <option value="active">Activo</option>
-                    <option value="disabled">Desactivado</option>
-                  </select>
-                </label>
-              </div>
-              <div class="modal-actions">
-                <button type="button" class="ghost-btn" id="adminFormReset">Limpiar</button>
-                <button type="submit" class="primary-btn"><i class='bx bx-save'></i>Guardar usuario</button>
-              </div>
-            </form>
-          </section>
+        <div class="admin-tabs" id="adminTabs">
+          <button class="admin-tab active" data-admin-tab="overview"><i class='bx bx-group'></i>Usuarios</button>
+          <button class="admin-tab" data-admin-tab="create"><i class='bx bx-user-plus'></i>Crear usuario</button>
+        </div>
+        <div class="admin-tab-panels">
+          <div class="admin-tab-panel active" data-admin-panel="overview">
+            <div class="admin-panel-grid">
+              <section class="admin-user-list">
+                <header>
+                  <div>
+                    <h4>Usuarios activos</h4>
+                    <p class="muted tiny">Selecciona un usuario para ver su detalle completo.</p>
+                  </div>
+                  <div class="admin-toolbar">
+                    <span class="pill" id="adminUserCount">0 usuarios</span>
+                    <button class="ghost-btn mini" id="adminRefreshList"><i class='bx bx-refresh'></i>Actualizar</button>
+                  </div>
+                </header>
+                <div class="admin-user-cards" id="adminUserList"></div>
+              </section>
+              <section class="admin-user-detail">
+                <header>
+                  <div>
+                    <h4 id="adminDetailTitle">Detalle de usuario</h4>
+                    <p class="muted tiny" id="adminDetailSubtitle">Selecciona un usuario para comenzar.</p>
+                  </div>
+                  <button class="ghost-btn mini" id="adminRefreshUserData"><i class='bx bx-cloud-download'></i>Recargar datos</button>
+                </header>
+                <div class="admin-user-scroll">
+                  <div class="admin-user-meta" id="adminUserMeta"></div>
+                  <div class="admin-metrics-grid" id="adminUserMetrics"></div>
+                  <form id="adminEditForm" data-uid="">
+                    <div class="form-grid">
+                      <label class="field">
+                        <span>Usuario</span>
+                        <input type="text" id="adminEditUsername" readonly>
+                      </label>
+                      <label class="field">
+                        <span>Nombre visible</span>
+                        <input type="text" id="adminEditName" required>
+                      </label>
+                      <label class="field">
+                        <span>Rol</span>
+                        <select id="adminEditRole" required>
+                          <option value="Administrador">Administrador</option>
+                          <option value="Team Leader">Team Leader</option>
+                          <option value="Usuario">Usuario</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Duración de sesión (horas)</span>
+                        <input type="number" id="adminEditSessionHours" min="1" step="1">
+                      </label>
+                      <label class="field">
+                        <span>Estado</span>
+                        <select id="adminEditStatus">
+                          <option value="active">Activo</option>
+                          <option value="disabled">Desactivado</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Nueva contraseña (opcional)</span>
+                        <input type="password" id="adminEditPassword" autocomplete="new-password">
+                      </label>
+                    </div>
+                    <div class="modal-actions">
+                      <button type="submit" class="primary-btn"><i class='bx bx-save'></i>Guardar cambios</button>
+                      <button type="button" class="ghost-btn danger" id="adminDeleteUser"><i class='bx bx-trash'></i>Eliminar usuario</button>
+                    </div>
+                  </form>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="admin-tab-panel" data-admin-panel="create">
+            <section class="admin-user-form">
+              <header>
+                <h4>Crear nuevo usuario</h4>
+                <p class="muted tiny">Completa los datos y guarda para habilitar su acceso.</p>
+              </header>
+              <form id="adminCreateForm">
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Usuario</span>
+                    <input type="text" id="adminCreateUsername" required>
+                  </label>
+                  <label class="field">
+                    <span>Nombre visible</span>
+                    <input type="text" id="adminCreateName" required>
+                  </label>
+                  <label class="field">
+                    <span>Rol</span>
+                    <select id="adminCreateRole" required>
+                      <option value="Administrador">Administrador</option>
+                      <option value="Team Leader">Team Leader</option>
+                      <option value="Usuario">Usuario</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Duración de sesión (horas)</span>
+                    <input type="number" id="adminCreateSessionHours" min="1" step="1">
+                  </label>
+                  <label class="field">
+                    <span>Contraseña inicial</span>
+                    <input type="password" id="adminCreatePassword" required>
+                  </label>
+                  <label class="field">
+                    <span>Estado</span>
+                    <select id="adminCreateStatus">
+                      <option value="active">Activo</option>
+                      <option value="disabled">Desactivado</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="modal-actions">
+                  <button type="reset" class="ghost-btn" id="adminCreateReset">Limpiar</button>
+                  <button type="submit" class="primary-btn"><i class='bx bx-save'></i>Crear usuario</button>
+                </div>
+              </form>
+            </section>
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div id="passwordModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Seguridad</p>
+          <h3>Cambiar contraseña</h3>
+          <p class="muted">Actualiza tu acceso personal para mantener tu cuenta segura.</p>
+        </div>
+        <button id="passwordModalClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <form id="passwordForm">
+        <div class="form-grid">
+          <label class="field">
+            <span>Contraseña actual</span>
+            <input type="password" id="passwordCurrent" autocomplete="current-password" required>
+          </label>
+          <label class="field">
+            <span>Nueva contraseña</span>
+            <input type="password" id="passwordNew" autocomplete="new-password" required>
+          </label>
+          <label class="field">
+            <span>Confirmar nueva contraseña</span>
+            <input type="password" id="passwordConfirm" autocomplete="new-password" required>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ghost-btn" id="passwordCancel">Cancelar</button>
+          <button type="submit" class="primary-btn"><i class='bx bx-lock'></i>Actualizar contraseña</button>
+        </div>
+      </form>
     </div>
   </div>
   <button class="scroll-top-btn" id="scrollTopButton" aria-label="Volver arriba" aria-hidden="true">
