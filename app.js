@@ -16296,13 +16296,18 @@ function decodeFirebaseKey(key = '') {
 }
 
 function encodeFirebasePayload(payload) {
-  if (Array.isArray(payload)) {
-    return payload.map(item => encodeFirebasePayload(item));
+  if (payload === null || payload === undefined) {
+    return null;
   }
-  if (payload && typeof payload === 'object') {
+  if (Array.isArray(payload)) {
+    return payload.map(item => encodeFirebasePayload(item)).filter(item => item !== null && item !== undefined);
+  }
+  if (typeof payload === 'object') {
     return Object.entries(payload).reduce((acc, [key, value]) => {
-      const encodedKey = encodeFirebaseKey(key);
-      acc[encodedKey] = encodeFirebasePayload(value);
+      if (value !== null && value !== undefined) {
+        const encodedKey = encodeFirebaseKey(key);
+        acc[encodedKey] = encodeFirebasePayload(value);
+      }
       return acc;
     }, {});
   }
