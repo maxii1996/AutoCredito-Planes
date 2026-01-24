@@ -17064,6 +17064,45 @@ function setLoginStatus(step) {
   }
 }
 
+function setLoginTransitionStep(step, displayName = '') {
+  const overlay = document.getElementById('loginTransitionOverlay');
+  if (!overlay) return;
+  const title = document.getElementById('loginTransitionTitle');
+  const name = document.getElementById('loginTransitionName');
+  const primary = document.getElementById('loginTransitionMessagePrimary');
+  const secondary = document.getElementById('loginTransitionMessageSecondary');
+  if (!title || !name || !primary || !secondary) return;
+  const safeName = displayName || 'Usuario';
+  if (step === 'start') {
+    title.textContent = 'Iniciando sesión como:';
+    name.textContent = `${safeName}...`;
+    primary.textContent = 'Validando credenciales...';
+    secondary.textContent = 'Conectando con el panel principal.';
+    primary.classList.add('login-transition-pulse');
+  } else if (step === 'success') {
+    title.textContent = 'Inicio de sesión exitoso!';
+    name.textContent = safeName;
+    primary.textContent = 'Iniciando sistema';
+    secondary.textContent = 'Cargando módulos y preferencias.';
+    primary.classList.remove('login-transition-pulse');
+  }
+}
+
+function showLoginTransition(displayName) {
+  const overlay = document.getElementById('loginTransitionOverlay');
+  if (!overlay) return;
+  setLoginTransitionStep('start', displayName);
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+
+function hideLoginTransition() {
+  const overlay = document.getElementById('loginTransitionOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+  overlay.setAttribute('aria-hidden', 'true');
+}
+
 function updateSessionFooter() {
   const footer = document.getElementById('sessionFooter');
   const status = document.getElementById('sessionStatus');
@@ -17319,11 +17358,15 @@ async function handleLogin(username, password) {
   updateSessionFooter();
   scheduleSessionTicker();
   updateAdminAccessVisibility();
+  showLoginTransition(authState.session.displayName);
+  hideLoginOverlay();
   await loadRemoteState();
   startUserStream();
   await startPresenceTracking();
-  hideLoginOverlay();
+  setLoginTransitionStep('success', authState.session.displayName);
+  await wait(700);
   await bootModules();
+  hideLoginTransition();
   setLoginStatus('ready');
   showToast('Sesión iniciada correctamente.', 'success');
   return true;
@@ -17356,9 +17399,13 @@ async function handleOfflineLogin() {
   scheduleSessionTicker();
   updateAdminAccessVisibility();
   setSyncStatus({ online: false, lastCheckAt: Date.now() });
-  setLoginStatus('ready');
+  showLoginTransition(authState.session.displayName);
   hideLoginOverlay();
+  setLoginTransitionStep('success', authState.session.displayName);
+  await wait(700);
   await bootModules();
+  hideLoginTransition();
+  setLoginStatus('ready');
   showToast('Acceso sin conexión activado.', 'success');
   return true;
 }

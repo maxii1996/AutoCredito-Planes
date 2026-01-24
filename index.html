@@ -68,7 +68,6 @@
             <div class="auth-actions">
               <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
             </div>
-            <p class="muted tiny" id="loginHelper">Tu sesión se ajusta automáticamente según tu rol.</p>
           </form>
           <div class="auth-status" id="loginStatus">
             <div class="auth-status-item" data-status-step="connect">Conectando con la base de datos...</div>
@@ -79,9 +78,21 @@
           <div class="auth-offline-card">
             <span class="eyebrow">Modo sin conexión</span>
             <h3>Ingresar sin conexión</h3>
-            <p class="muted">Usa los datos locales guardados cuando no tengas internet disponible.</p>
             <button class="secondary-btn" type="button" id="offlineLogin"><i class='bx bx-cloud-off'></i>Ingresar sin conexión</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="login-transition-overlay" id="loginTransitionOverlay" aria-live="polite" aria-hidden="true">
+    <div class="login-transition-card">
+      <div class="login-transition-icon">🚀</div>
+      <div class="login-transition-text">
+        <p class="eyebrow" id="loginTransitionTitle">Iniciando sesión como:</p>
+        <h3 id="loginTransitionName">Usuario</h3>
+        <div class="login-transition-messages">
+          <p class="login-transition-pulse" id="loginTransitionMessagePrimary">Validando credenciales...</p>
+          <p class="muted" id="loginTransitionMessageSecondary">Preparando tu entorno.</p>
         </div>
       </div>
     </div>
