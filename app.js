@@ -16338,28 +16338,60 @@ async function dbGet(path) {
 
 async function dbPut(path, payload) {
   const sanitizedPayload = encodeFirebasePayload(payload);
-  const response = await fetch(buildDatabaseUrl(path), {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sanitizedPayload)
-  });
-  if (!response.ok) {
-    throw new Error('No se pudo guardar la información.');
+  
+  // Validación: no permitir payloads vacíos
+  if (!sanitizedPayload || Object.keys(sanitizedPayload).length === 0) {
+    console.warn(`dbPut: Payload vacío para ruta ${path}, omitiendo`);
+    return null;
   }
-  return response.json();
+  
+  const url = buildDatabaseUrl(path);
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sanitizedPayload)
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(`dbPut error ${response.status} en ${path}:`, error);
+      throw new Error(`No se pudo guardar la información (${response.status}): ${error.substring(0, 100)}`);
+    }
+    return response.json();
+  } catch (error) {
+    console.error(`dbPut fallo para ${path}:`, error);
+    throw error;
+  }
 }
 
 async function dbPatch(path, payload) {
   const sanitizedPayload = encodeFirebasePayload(payload);
-  const response = await fetch(buildDatabaseUrl(path), {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sanitizedPayload)
-  });
-  if (!response.ok) {
-    throw new Error('No se pudo actualizar la información.');
+  
+  // Validación: no permitir payloads vacíos
+  if (!sanitizedPayload || Object.keys(sanitizedPayload).length === 0) {
+    console.warn(`dbPatch: Payload vacío para ruta ${path}, omitiendo`);
+    return null;
   }
-  return response.json();
+  
+  const url = buildDatabaseUrl(path);
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sanitizedPayload)
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(`dbPatch error ${response.status} en ${path}:`, error);
+      throw new Error(`No se pudo actualizar la información (${response.status}): ${error.substring(0, 100)}`);
+    }
+    return response.json();
+  } catch (error) {
+    console.error(`dbPatch fallo para ${path}:`, error);
+    throw error;
+  }
 }
 
 function queueRemoteSync(key, value) {
@@ -16380,7 +16412,13 @@ async function flushRemoteSync() {
   const payload = { ...remoteSyncQueue };
   remoteSyncQueue = {};
   if (!Object.keys(payload).length) return;
-  await dbPatch(`data/${authState.user.uid}`, payload);
+  
+  try {
+    await dbPatch(`data/${authState.user.uid}`, payload);
+  } catch (error) {
+    console.warn('Sincronización remota falló, datos se guardarán localmente:', error);
+    // No re-lanzar el error, permitir que la aplicación continúe funcionando
+  }
 }
 
 function applyRemotePayload(payload = {}) {
@@ -16637,25 +16675,44 @@ function stopUserStream() {
 
 async function loadRemoteState() {
   if (!authState.user) return;
-  const payload = await dbGet(`data/${authState.user.uid}`);
-  if (payload) {
-    applyRemotePayload(payload);
-  } else {
-    await dbPut(`data/${authState.user.uid}`, {
-      vehicles,
-      templates,
-      clients,
-      managerClients,
-      uiState,
-      clientManagerState,
-      snapshots,
-      activePriceTabId,
-      activePriceSource,
-      priceDrafts,
-      brandSettings,
-      generatedQuotes
-    });
+  try {
+    const payload = await dbGet(`data/${authState.user.uid}`);
+    if (payload) {
+      applyRemotePayload(payload);
+    } else {
+      // Crear registro inicial si no existe
+      await initializeUserData();
+    }
+  } catch (error) {
+    console.warn('No se pudo cargar datos remotos, usando valores locales:', error);
+    // Si falla, continuar con datos locales
+    try {
+      await initializeUserData();
+    } catch (err) {
+      console.warn('No se pudo inicializar datos en Firebase:', err);
+    }
   }
+}
+
+async function initializeUserData() {
+  if (!authState.user) return;
+  const initialData = {
+    vehicles,
+    templates,
+    clients,
+    managerClients,
+    uiState,
+    clientManagerState,
+    snapshots,
+    activePriceTabId,
+    activePriceSource,
+    priceDrafts,
+    brandSettings,
+    generatedQuotes,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  await dbPut(`data/${authState.user.uid}`, initialData);
 }
 
 function updateAdminAccessVisibility() {
