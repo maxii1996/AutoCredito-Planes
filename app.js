@@ -16507,15 +16507,18 @@ async function dbPatch(path, payload) {
 
 // Claves que se sincronizan con Firebase (evitar datos muy grandes)
 const FIREBASE_SYNCABLE_KEYS = new Set([
+  'vehicles',
+  'templates',
   'clients',
   'managerClients',
   'uiState',
   'clientManagerState',
   'snapshots',
+  'activePriceTabId',
+  'activePriceSource',
   'priceDrafts',
-  'generatedQuotes',
-  'activeQuoteId',
-  'activePriceTabId'
+  'brandSettings',
+  'generatedQuotes'
 ]);
 
 function queueRemoteSync(key, value) {
@@ -16530,6 +16533,7 @@ function queueRemoteSync(key, value) {
   }
   
   remoteSyncQueue[key] = value;
+  remoteSyncQueue.updatedAt = Date.now();
   if (remoteSyncTimer) {
     clearTimeout(remoteSyncTimer);
   }
@@ -17077,11 +17081,21 @@ function bindAuthUI() {
     }
   });
   document.getElementById('logoutButton')?.addEventListener('click', () => handleLogout(false));
-  document.getElementById('openAdminPanel')?.addEventListener('click', async () => {
+  document.getElementById('openAdminPanel')?.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (!authState.session || authState.session.role !== 'Administrador') {
+      showToast('Solo administradores pueden acceder a este panel.', 'warning');
+      return;
+    }
     const modal = document.getElementById('adminPanelModal');
     modal?.classList.remove('hidden');
     resetAdminForm();
-    await refreshAdminPanel();
+    try {
+      await refreshAdminPanel();
+    } catch (error) {
+      console.error('No se pudo cargar el panel de administración:', error);
+      showToast('No se pudo cargar la lista de usuarios.', 'error');
+    }
   });
   document.getElementById('adminPanelClose')?.addEventListener('click', () => {
     document.getElementById('adminPanelModal')?.classList.add('hidden');
