@@ -16316,6 +16316,32 @@ function decodeFirebaseKey(key = '') {
     .replace(/__slash__/g, '/');
 }
 
+function validateFirebasePayload(obj, path = '') {
+  if (obj === null || obj === undefined) {
+    return true;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.every((item, idx) => validateFirebasePayload(item, `${path}[${idx}]`));
+  }
+  
+  if (typeof obj === 'object') {
+    for (const [key, value] of Object.entries(obj)) {
+      // Validar que la clave no tenga caracteres prohibidos SIN codificar
+      if (key.match(/[.#$\\/\[\]]/)) {
+        console.warn(`Clave con caracteres prohibidos en ${path}.${key}: "${key}"`);
+        // Continuar, ya que será codificada
+      }
+      
+      if (!validateFirebasePayload(value, `${path}.${key}`)) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
 function encodeFirebasePayload(payload, depth = 0) {
   // Protección contra recursión infinita
   if (depth > 50) {
@@ -16417,22 +16443,26 @@ async function dbPut(path, payload) {
   const sanitizedPayload = encodeFirebasePayload(payload);
   
   // Validación: no permitir payloads vacíos
-  if (!sanitizedPayload || Object.keys(sanitizedPayload).length === 0) {
+  if (!sanitizedPayload || (typeof sanitizedPayload === 'object' && Object.keys(sanitizedPayload).length === 0)) {
     console.warn(`dbPut: Payload vacío para ruta ${path}, omitiendo`);
     return null;
   }
   
   const url = buildDatabaseUrl(path);
   try {
+    // Validar que el JSON sea válido
+    const jsonString = JSON.stringify(sanitizedPayload);
+    
     const response = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sanitizedPayload)
+      body: jsonString
     });
     
     if (!response.ok) {
       const error = await response.text();
       console.error(`dbPut error ${response.status} en ${path}:`, error);
+      console.error(`Payload que causó el error:`, sanitizedPayload);
       throw new Error(`No se pudo guardar la información (${response.status}): ${error.substring(0, 100)}`);
     }
     return response.json();
@@ -16446,22 +16476,26 @@ async function dbPatch(path, payload) {
   const sanitizedPayload = encodeFirebasePayload(payload);
   
   // Validación: no permitir payloads vacíos
-  if (!sanitizedPayload || Object.keys(sanitizedPayload).length === 0) {
+  if (!sanitizedPayload || (typeof sanitizedPayload === 'object' && Object.keys(sanitizedPayload).length === 0)) {
     console.warn(`dbPatch: Payload vacío para ruta ${path}, omitiendo`);
     return null;
   }
   
   const url = buildDatabaseUrl(path);
   try {
+    // Validar que el JSON sea válido
+    const jsonString = JSON.stringify(sanitizedPayload);
+    
     const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sanitizedPayload)
+      body: jsonString
     });
     
     if (!response.ok) {
       const error = await response.text();
       console.error(`dbPatch error ${response.status} en ${path}:`, error);
+      console.error(`Payload que causó el error:`, sanitizedPayload);
       throw new Error(`No se pudo actualizar la información (${response.status}): ${error.substring(0, 100)}`);
     }
     return response.json();
@@ -16471,16 +16505,36 @@ async function dbPatch(path, payload) {
   }
 }
 
+// Claves que se sincronizan con Firebase (evitar datos muy grandes)
+const FIREBASE_SYNCABLE_KEYS = new Set([
+  'clients',
+  'managerClients',
+  'uiState',
+  'clientManagerState',
+  'snapshots',
+  'priceDrafts',
+  'generatedQuotes',
+  'activeQuoteId',
+  'activePriceTabId'
+]);
+
 function queueRemoteSync(key, value) {
   if (!authState.user || isApplyingRemote) {
     return;
   }
+  
+  // Solo sincronizar claves permitidas para evitar payloads muy grandes
+  if (!FIREBASE_SYNCABLE_KEYS.has(key)) {
+    console.debug(`Sincronización remota omitida para clave no permitida: ${key}`);
+    return;
+  }
+  
   remoteSyncQueue[key] = value;
   if (remoteSyncTimer) {
     clearTimeout(remoteSyncTimer);
   }
   remoteSyncTimer = setTimeout(() => {
-    flushRemoteSync().catch(err => console.error('Error sincronizando datos remotos:', err));
+    flushRemoteSync().catch(err => console.warn('Error sincronizando datos remotos:', err));
   }, 1500);
 }
 
@@ -16773,23 +16827,28 @@ async function loadRemoteState() {
 
 async function initializeUserData() {
   if (!authState.user) return;
+  
+  // Crear un payload mínimo inicialmente
+  // Los datos grandes (vehicles, templates) se sincronizan cuando cambian
   const initialData = {
-    vehicles,
-    templates,
-    clients,
-    managerClients,
-    uiState,
-    clientManagerState,
-    snapshots,
-    activePriceTabId,
-    activePriceSource,
-    priceDrafts,
-    brandSettings,
-    generatedQuotes,
+    clients: clients && clients.length > 0 ? clients : [],
+    managerClients: managerClients && managerClients.length > 0 ? managerClients : [],
+    uiState: uiState || {},
+    clientManagerState: clientManagerState || {},
+    snapshots: snapshots && snapshots.length > 0 ? snapshots : [],
+    priceDrafts: priceDrafts || {},
+    generatedQuotes: generatedQuotes && generatedQuotes.length > 0 ? generatedQuotes : [],
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  await dbPut(`data/${authState.user.uid}`, initialData);
+  
+  try {
+    await dbPut(`data/${authState.user.uid}`, initialData);
+    console.log('Datos de usuario inicializados exitosamente');
+  } catch (error) {
+    console.warn('No se pudieron inicializar los datos del usuario:', error);
+    // No lanzar el error, permitir que continúe
+  }
 }
 
 function updateAdminAccessVisibility() {
