@@ -3492,6 +3492,17 @@ let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab
 let vehicleEditorAutosaveTimer = null;
 let journeyReportState = { from: '', to: '' };
 let authState = { user: null, session: null, stream: null, isReady: false, loading: false, offline: false };
+const PRESENCE_HEARTBEAT_MS = 60000;
+const PRESENCE_ACTIVE_GRACE_MS = 150000;
+let presenceState = {
+  sessionId: null,
+  sessionStartedAt: null,
+  heartbeatTimer: null,
+  stream: null,
+  adminStream: null,
+  adminSnapshot: {},
+  visibilityBound: false
+};
 let appBooted = false;
 let relativeTimeTicker = null;
 const syncStatus = {
@@ -16786,6 +16797,238 @@ function clearSessionInfo() {
   localStorage.removeItem('sessionInfo');
 }
 
+function createSessionId() {
+  return `session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function presenceIdentityPayload() {
+  if (!authState.user) return {};
+  return {
+    displayName: authState.user.displayName || authState.user.username,
+    username: authState.user.username || '',
+    role: authState.user.role || 'Usuario',
+    sessionId: presenceState.sessionId,
+    sessionStartedAt: presenceState.sessionStartedAt
+  };
+}
+
+async function updatePresenceStatus(overrides = {}, { includeIdentity = false } = {}) {
+  if (!authState.user || authState.offline) return;
+  const payload = includeIdentity ? { ...presenceIdentityPayload(), ...overrides } : { ...overrides };
+  await dbPatch(`presence/${authState.user.uid}`, payload);
+}
+
+function applyPresenceUpdate(snapshot, path, data) {
+  if (!snapshot || typeof snapshot !== 'object') return;
+  if (path === '/' || path === '') {
+    Object.keys(snapshot).forEach((key) => delete snapshot[key]);
+    if (data && typeof data === 'object') {
+      Object.assign(snapshot, data);
+    }
+    return;
+  }
+  const parts = path.replace(/^\/+/, '').split('/').filter(Boolean);
+  if (!parts.length) return;
+  const [uid, ...rest] = parts;
+  if (!uid) return;
+  if (data === null && rest.length === 0) {
+    delete snapshot[uid];
+    return;
+  }
+  if (!snapshot[uid] || typeof snapshot[uid] !== 'object') {
+    snapshot[uid] = {};
+  }
+  if (!rest.length) {
+    if (data === null) {
+      delete snapshot[uid];
+    } else {
+      snapshot[uid] = data;
+    }
+    return;
+  }
+  let target = snapshot[uid];
+  const lastKey = rest.pop();
+  rest.forEach((key) => {
+    if (!target[key] || typeof target[key] !== 'object') {
+      target[key] = {};
+    }
+    target = target[key];
+  });
+  if (data === null) {
+    delete target[lastKey];
+  } else {
+    target[lastKey] = data;
+  }
+}
+
+function isPresenceActive(record, now = Date.now()) {
+  if (!record) return false;
+  const lastActiveAt = Number(record.lastActiveAt || record.sessionStartedAt || 0);
+  if (!record.online || !lastActiveAt) return false;
+  return now - lastActiveAt <= PRESENCE_ACTIVE_GRACE_MS;
+}
+
+function renderConnectedUsers(records = {}) {
+  const list = document.getElementById('adminConnectedList');
+  const count = document.getElementById('adminConnectedCount');
+  if (!list || !count) return;
+  const now = Date.now();
+  const connected = Object.entries(records)
+    .map(([uid, data]) => ({ uid, ...data }))
+    .filter(item => isPresenceActive(item, now));
+  count.textContent = `${connected.length} ${connected.length === 1 ? 'conectado' : 'conectados'}`;
+  list.innerHTML = '';
+  if (!connected.length) {
+    list.innerHTML = '<p class="muted">Sin usuarios conectados.</p>';
+    return;
+  }
+  connected
+    .sort((a, b) => (a.displayName || a.username || '').localeCompare(b.displayName || b.username || ''))
+    .forEach((user) => {
+      const card = document.createElement('div');
+      const lastSeen = user.lastActiveAt ? formatRelativeTime(user.lastActiveAt) : 'recién conectado';
+      const isSelf = user.uid === authState.user?.uid;
+      card.className = 'admin-connected-card';
+      card.innerHTML = `
+        <div class="admin-connected-info">
+          <span>${user.displayName || user.username || 'Usuario'}</span>
+          <div class="admin-connected-meta">Rol: ${user.role || 'Usuario'} · Última señal: ${lastSeen}</div>
+        </div>
+        <div class="admin-connected-actions">
+          <button class="ghost-btn mini danger" data-action="kick" data-uid="${user.uid}" ${isSelf ? 'disabled' : ''}>
+            <i class='bx bx-user-x'></i>${isSelf ? 'Tu sesión' : 'Expulsar'}
+          </button>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+}
+
+async function refreshAdminConnectedUsers() {
+  try {
+    const presence = await dbGet('presence');
+    presenceState.adminSnapshot = presence || {};
+    renderConnectedUsers(presenceState.adminSnapshot);
+  } catch (error) {
+    console.warn('No se pudo cargar usuarios conectados:', error);
+  }
+}
+
+function startAdminPresenceStream() {
+  if (presenceState.adminStream) {
+    presenceState.adminStream.close();
+  }
+  const streamUrl = buildDatabaseUrl('presence');
+  const stream = new EventSource(streamUrl);
+  presenceState.adminStream = stream;
+  stream.addEventListener('message', (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      applyPresenceUpdate(presenceState.adminSnapshot, payload.path || '/', payload.data);
+      renderConnectedUsers(presenceState.adminSnapshot);
+    } catch (err) {
+      console.error('Error procesando presencia admin:', err);
+    }
+  });
+  stream.addEventListener('error', () => {
+    console.warn('Streaming de presencia admin desconectado, reintentando...');
+    stream.close();
+    setTimeout(() => {
+      if (document.getElementById('adminPanelModal')?.classList.contains('hidden')) return;
+      startAdminPresenceStream();
+    }, 5000);
+  });
+}
+
+function stopAdminPresenceStream() {
+  if (presenceState.adminStream) {
+    presenceState.adminStream.close();
+    presenceState.adminStream = null;
+  }
+}
+
+function startPresenceStream() {
+  if (!authState.user || authState.offline) return;
+  if (presenceState.stream) {
+    presenceState.stream.close();
+  }
+  const streamUrl = buildDatabaseUrl(`presence/${authState.user.uid}`);
+  const stream = new EventSource(streamUrl);
+  presenceState.stream = stream;
+  stream.addEventListener('message', (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      const path = payload.path || '/';
+      const data = payload.data;
+      const forceLogoutAt = path === '/forceLogoutAt'
+        ? data
+        : data?.forceLogoutAt;
+      if (forceLogoutAt && presenceState.sessionStartedAt && forceLogoutAt > presenceState.sessionStartedAt) {
+        handleLogout(false, true);
+      }
+    } catch (err) {
+      console.error('Error procesando presencia:', err);
+    }
+  });
+  stream.addEventListener('error', () => {
+    console.warn('Streaming de presencia desconectado, reintentando...');
+    stream.close();
+    setTimeout(() => {
+      if (authState.user && !authState.offline) {
+        startPresenceStream();
+      }
+    }, 5000);
+  });
+}
+
+function stopPresenceStream() {
+  if (presenceState.stream) {
+    presenceState.stream.close();
+    presenceState.stream = null;
+  }
+}
+
+function bindPresenceVisibility() {
+  if (presenceState.visibilityBound) return;
+  presenceState.visibilityBound = true;
+  document.addEventListener('visibilitychange', () => {
+    if (!authState.user || authState.offline) return;
+    updatePresenceStatus({ lastActiveAt: Date.now(), online: !document.hidden }).catch(() => {});
+  });
+}
+
+async function startPresenceTracking() {
+  if (!authState.user || authState.offline) return;
+  if (!presenceState.sessionId) {
+    presenceState.sessionId = createSessionId();
+  }
+  if (!presenceState.sessionStartedAt) {
+    presenceState.sessionStartedAt = Date.now();
+  }
+  await updatePresenceStatus({ online: true, lastActiveAt: Date.now() }, { includeIdentity: true });
+  startPresenceStream();
+  bindPresenceVisibility();
+  if (presenceState.heartbeatTimer) {
+    clearInterval(presenceState.heartbeatTimer);
+  }
+  presenceState.heartbeatTimer = setInterval(() => {
+    updatePresenceStatus({ online: true, lastActiveAt: Date.now() }).catch(() => {});
+  }, PRESENCE_HEARTBEAT_MS);
+}
+
+async function stopPresenceTracking() {
+  if (presenceState.heartbeatTimer) {
+    clearInterval(presenceState.heartbeatTimer);
+    presenceState.heartbeatTimer = null;
+  }
+  stopPresenceStream();
+  if (authState.user && !authState.offline) {
+    await updatePresenceStatus({ online: false, lastActiveAt: Date.now() });
+  }
+  presenceState.sessionId = null;
+  presenceState.sessionStartedAt = null;
+}
+
 function showLoginOverlay() {
   document.getElementById('loginOverlay')?.classList.remove('hidden');
 }
@@ -16905,6 +17148,13 @@ async function attemptRestoreSession() {
     expiresAt: info.expiresAt
   };
   authState.offline = false;
+  const sessionId = info.sessionId || createSessionId();
+  const sessionStartedAt = info.sessionStartedAt || Date.now();
+  presenceState.sessionId = sessionId;
+  presenceState.sessionStartedAt = sessionStartedAt;
+  if (!info.sessionId || !info.sessionStartedAt) {
+    storeSessionInfo({ ...info, sessionId, sessionStartedAt });
+  }
   return true;
 }
 
@@ -17061,12 +17311,17 @@ async function handleLogin(username, password) {
     expiresAt
   };
   authState.offline = false;
-  storeSessionInfo({ uid, expiresAt });
+  const sessionId = createSessionId();
+  const sessionStartedAt = Date.now();
+  presenceState.sessionId = sessionId;
+  presenceState.sessionStartedAt = sessionStartedAt;
+  storeSessionInfo({ uid, expiresAt, sessionId, sessionStartedAt });
   updateSessionFooter();
   scheduleSessionTicker();
   updateAdminAccessVisibility();
   await loadRemoteState();
   startUserStream();
+  await startPresenceTracking();
   hideLoginOverlay();
   await bootModules();
   setLoginStatus('ready');
@@ -17108,8 +17363,9 @@ async function handleOfflineLogin() {
   return true;
 }
 
-function handleLogout(expired = false) {
+async function handleLogout(expired = false, forced = false) {
   stopUserStream();
+  await stopPresenceTracking();
   authState.user = null;
   authState.session = null;
   authState.offline = false;
@@ -17120,6 +17376,9 @@ function handleLogout(expired = false) {
   setLoginStatus('connect');
   if (expired) {
     showToast('La sesión expiró. Ingresa nuevamente.', 'warning');
+  }
+  if (forced) {
+    showToast('Un administrador cerró tu sesión.', 'warning');
   }
 }
 
@@ -17141,6 +17400,7 @@ async function initializeAuth() {
       if (!authState.offline) {
         await loadRemoteState();
         startUserStream();
+        await startPresenceTracking();
       } else {
         setSyncStatus({ online: false, lastCheckAt: Date.now() });
       }
@@ -17550,6 +17810,29 @@ async function handleAdminListAction(event) {
   await renderAdminDetail(uid);
 }
 
+async function handleAdminConnectedAction(event) {
+  const kickButton = event.target?.closest('button[data-action="kick"]');
+  if (!kickButton) return;
+  const uid = kickButton.dataset.uid;
+  if (!uid) return;
+  if (uid === authState.user?.uid) {
+    showToast('No puedes expulsar tu propia sesión.', 'warning');
+    return;
+  }
+  confirmAction({
+    title: 'Expulsar usuario',
+    message: 'La sesión activa se cerrará de inmediato en el dispositivo del usuario.',
+    confirmText: 'Expulsar',
+    onConfirm: async () => {
+      await dbPatch(`presence/${uid}`, {
+        forceLogoutAt: Date.now(),
+        forcedBy: authState.user?.uid || ''
+      });
+      showToast('Se envió la orden de cierre.', 'success');
+    }
+  });
+}
+
 async function handleAdminEditSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -17707,13 +17990,15 @@ function bindAuthUI() {
       authState.loading = false;
     }
   });
-  document.getElementById('loginOnlineAction')?.addEventListener('click', () => {
-    setLoginStatus('connect');
-    setSyncStatus({ online: navigator.onLine, lastCheckAt: Date.now() });
-    document.getElementById('loginUsername')?.focus();
-    if (!navigator.onLine) {
-      showToast('Sin conexión a internet.', 'warning');
-    }
+  document.getElementById('loginPasswordToggle')?.addEventListener('click', () => {
+    const input = document.getElementById('loginPassword');
+    const icon = document.querySelector('#loginPasswordToggle i');
+    if (!input || !icon) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    icon.classList.toggle('bx-show', !isHidden);
+    icon.classList.toggle('bx-hide', isHidden);
+    document.getElementById('loginPasswordToggle')?.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
   });
   document.getElementById('logoutButton')?.addEventListener('click', () => handleLogout(false));
   document.getElementById('openAdminPanel')?.addEventListener('click', async (event) => {
@@ -17727,6 +18012,8 @@ function bindAuthUI() {
     activateAdminTab('overview');
     try {
       await refreshAdminPanel();
+      await refreshAdminConnectedUsers();
+      startAdminPresenceStream();
     } catch (error) {
       console.error('No se pudo cargar el panel de administración:', error);
       showToast('No se pudo cargar la lista de usuarios.', 'error');
@@ -17734,6 +18021,7 @@ function bindAuthUI() {
   });
   document.getElementById('adminPanelClose')?.addEventListener('click', () => {
     toggleModal(document.getElementById('adminPanelModal'), false);
+    stopAdminPresenceStream();
   });
   document.getElementById('adminTabs')?.addEventListener('click', (event) => {
     const tab = event.target.closest('.admin-tab');
@@ -17742,11 +18030,13 @@ function bindAuthUI() {
   });
   document.getElementById('adminRefreshList')?.addEventListener('click', async () => {
     await refreshAdminPanel(adminState.selectedUid);
+    await refreshAdminConnectedUsers();
   });
   document.getElementById('adminRefreshUserData')?.addEventListener('click', async () => {
     await renderAdminDetail(adminState.selectedUid, { forceData: true });
   });
   document.getElementById('adminUserList')?.addEventListener('click', handleAdminListAction);
+  document.getElementById('adminConnectedList')?.addEventListener('click', handleAdminConnectedAction);
   document.getElementById('adminEditForm')?.addEventListener('submit', handleAdminEditSubmit);
   document.getElementById('adminCreateForm')?.addEventListener('submit', handleAdminCreateSubmit);
   document.getElementById('adminDeleteUser')?.addEventListener('click', handleAdminDeleteUser);

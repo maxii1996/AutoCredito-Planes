@@ -45,31 +45,45 @@
       <div class="auth-head">
         <div class="auth-icon">🔐</div>
         <div>
-          <p class="eyebrow">Acceso seguro</p>
           <h2>Iniciar sesión</h2>
           <p class="muted">Ingresa con tu usuario autorizado para continuar.</p>
         </div>
       </div>
-      <button class="ghost-btn full" type="button" id="loginOnlineAction"><i class='bx bx-globe'></i>Iniciar sesión Online</button>
-      <div class="auth-status" id="loginStatus">
-        <div class="auth-status-item" data-status-step="connect">Conectando con la base de datos...</div>
-        <div class="auth-status-item" data-status-step="fetch">Obteniendo información...</div>
-      </div>
-      <form id="loginForm" class="auth-form">
-        <label class="field">
-          <span>Usuario</span>
-          <input type="text" id="loginUsername" autocomplete="username" required>
-        </label>
-        <label class="field">
-          <span>Contraseña</span>
-          <input type="password" id="loginPassword" autocomplete="current-password" required>
-        </label>
-        <div class="auth-actions">
-          <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
-          <button class="secondary-btn" type="button" id="offlineLogin"><i class='bx bx-cloud-off'></i>Ingresar sin conexión</button>
+      <div class="auth-body">
+        <div class="auth-column auth-column-main">
+          <form id="loginForm" class="auth-form">
+            <label class="field">
+              <span>Usuario</span>
+              <input type="text" id="loginUsername" autocomplete="username" required>
+            </label>
+            <label class="field">
+              <span>Contraseña</span>
+              <div class="password-field">
+                <input type="password" id="loginPassword" autocomplete="current-password" required>
+                <button class="icon-btn" type="button" id="loginPasswordToggle" aria-label="Mostrar contraseña">
+                  <i class='bx bx-show'></i>
+                </button>
+              </div>
+            </label>
+            <div class="auth-actions">
+              <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
+            </div>
+            <p class="muted tiny" id="loginHelper">Tu sesión se ajusta automáticamente según tu rol.</p>
+          </form>
+          <div class="auth-status" id="loginStatus">
+            <div class="auth-status-item" data-status-step="connect">Conectando con la base de datos...</div>
+            <div class="auth-status-item" data-status-step="fetch">Obteniendo información...</div>
+          </div>
         </div>
-        <p class="muted tiny" id="loginHelper">Tu sesión se ajusta automáticamente según tu rol.</p>
-      </form>
+        <div class="auth-column auth-column-offline">
+          <div class="auth-offline-card">
+            <span class="eyebrow">Modo sin conexión</span>
+            <h3>Ingresar sin conexión</h3>
+            <p class="muted">Usa los datos locales guardados cuando no tengas internet disponible.</p>
+            <button class="secondary-btn" type="button" id="offlineLogin"><i class='bx bx-cloud-off'></i>Ingresar sin conexión</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="profile-switch-overlay" id="profileSwitchOverlay" aria-live="polite" aria-hidden="true">
@@ -2883,6 +2897,16 @@
                   </div>
                 </header>
                 <div class="admin-user-cards" id="adminUserList"></div>
+                <div class="admin-connected">
+                  <header>
+                    <div>
+                      <h4>Usuarios conectados</h4>
+                      <p class="muted tiny">Conexiones activas en tiempo real.</p>
+                    </div>
+                    <span class="pill" id="adminConnectedCount">0 conectados</span>
+                  </header>
+                  <div class="admin-connected-list" id="adminConnectedList"></div>
+                </div>
               </section>
               <section class="admin-user-detail">
                 <header>
