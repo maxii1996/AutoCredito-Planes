@@ -2891,6 +2891,7 @@
       <div class="modal-body">
         <div class="admin-tabs" id="adminTabs">
           <button class="admin-tab active" data-admin-tab="overview"><i class='bx bx-group'></i>Usuarios</button>
+          <button class="admin-tab" data-admin-tab="connected"><i class='bx bx-wifi'></i>Conectados</button>
           <button class="admin-tab" data-admin-tab="create"><i class='bx bx-user-plus'></i>Crear usuario</button>
         </div>
         <div class="admin-tab-panels">
@@ -2908,16 +2909,6 @@
                   </div>
                 </header>
                 <div class="admin-user-cards" id="adminUserList"></div>
-                <div class="admin-connected">
-                  <header>
-                    <div>
-                      <h4>Usuarios conectados</h4>
-                      <p class="muted tiny">Conexiones activas en tiempo real.</p>
-                    </div>
-                    <span class="pill" id="adminConnectedCount">0 conectados</span>
-                  </header>
-                  <div class="admin-connected-list" id="adminConnectedList"></div>
-                </div>
               </section>
               <section class="admin-user-detail">
                 <header>
@@ -2972,6 +2963,21 @@
                 </div>
               </section>
             </div>
+          </div>
+          <div class="admin-tab-panel" data-admin-panel="connected">
+            <section class="admin-connected">
+              <header>
+                <div>
+                  <h4>Usuarios conectados</h4>
+                  <p class="muted tiny">Conexiones activas en tiempo real.</p>
+                </div>
+                <div class="admin-toolbar">
+                  <span class="pill" id="adminConnectedCount">0 conectados</span>
+                  <button class="ghost-btn mini" id="adminRefreshConnected"><i class='bx bx-refresh'></i>Actualizar</button>
+                </div>
+              </header>
+              <div class="admin-connected-list" id="adminConnectedList"></div>
+            </section>
           </div>
           <div class="admin-tab-panel" data-admin-panel="create">
             <section class="admin-user-form">

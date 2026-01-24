@@ -15623,9 +15623,19 @@ function bindProfileActions() {
       updateImportOverlayProgress(100, 100);
       await wait(400);
       hideImportOverlay();
+      const localSummary = buildLocalSyncSummary();
+      const incomingSummary = buildSyncSummary(normalizeProfilePayload(parsed), 'import');
+      const summaryHtml = buildSyncCompareHtml(localSummary, incomingSummary, {
+        localLabel: 'Datos locales actuales',
+        incomingLabel: 'Perfil a importar'
+      });
       confirmAction({
         title: 'Importar perfil',
-        message: `Este perfil es compatible con la importación.\n\n¿Quieres importar este perfil?\nEsto reemplazará toda la información actual cargada. Si no tienes copia de respaldo, la perderás.\n\nArchivo seleccionado: ${file.name}`,
+        messageHtml: `
+          <p class="muted">Este perfil es compatible con la importación. Revisa qué datos se reemplazarán antes de continuar.</p>
+          <p class="muted tiny">Archivo seleccionado: ${file.name}</p>
+          ${summaryHtml}
+        `,
         confirmText: 'Importar',
         onConfirm: async () => {
           showImportOverlay({
@@ -16770,7 +16780,13 @@ const DEFAULT_ADMIN_CREDENTIALS = {
 };
 
 function normalizeUsername(value = '') {
-  return value.trim().toLowerCase();
+  return value.trim().toLowerCase().replace(/^@+/, '');
+}
+
+function isPrimaryAdmin(user) {
+  if (!user) return false;
+  return normalizeUsername(user.username || '') === normalizeUsername(DEFAULT_ADMIN_CREDENTIALS.username)
+    && user.role === DEFAULT_ADMIN_CREDENTIALS.role;
 }
 
 async function hashPassword(value = '') {
@@ -17241,14 +17257,15 @@ async function loadRemoteState() {
       const decoded = decodeFirebasePayload(payload);
       const localSummary = buildLocalSyncSummary();
       const remoteSummary = buildSyncSummary(decoded, 'remote');
-      const localTotal = Object.values(localSummary.counts || {}).reduce((acc, value) => acc + value, 0);
-      const remoteTotal = Object.values(remoteSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+      const localTotal = localSummary.items.reduce((acc, item) => acc + (item.count || 0), 0);
+      const remoteTotal = remoteSummary.items.reduce((acc, item) => acc + (item.count || 0), 0);
+      const comparison = buildSyncComparison(localSummary, remoteSummary);
       if (remoteTotal === 0 && localTotal > 0) {
         await syncRemoteSnapshot({ reason: 'local-preferred' });
         setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
         showToast('Se usaron los datos locales para sincronizar.', 'info');
-      } else if (shouldPromptSyncChoice(localSummary, remoteSummary)) {
-        const choice = await openSyncConflictModal({ localSummary, remoteSummary });
+      } else if (hasSyncDifferences(comparison)) {
+        const choice = await openSyncConflictModal({ localSummary, remoteSummary, comparison });
         if (choice === 'local') {
           await syncRemoteSnapshot({ reason: 'local-preferred' });
           setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
@@ -17374,7 +17391,7 @@ async function handleLogin(username, password) {
 
 async function handleOfflineLogin() {
   const localSummary = buildLocalSyncSummary();
-  const total = Object.values(localSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+  const total = localSummary.items.reduce((acc, item) => acc + (item.count || 0), 0);
   if (!total) {
     showToast('No hay datos locales para usar sin conexión.', 'warning');
     return false;
@@ -17549,58 +17566,211 @@ function updateSyncStatusUI() {
   updateRelativeTimes();
 }
 
+const SYNC_GROUP_LABELS = {
+  data: 'Datos',
+  modules: 'Módulos',
+  content: 'Contenido',
+  config: 'Configuración',
+  info: 'Información',
+  backup: 'Respaldo'
+};
+
+const SYNC_ITEM_DEFINITIONS = [
+  { key: 'clients', label: 'Clientes', group: 'data', kind: 'array', description: 'Clientes principales registrados.' },
+  { key: 'generatedQuotes', label: 'Cotizaciones', group: 'data', kind: 'array', description: 'Cotizaciones generadas y guardadas.' },
+  { key: 'managerClients', label: 'Gestor de clientes', group: 'modules', kind: 'array', description: 'Registros del módulo de gestión de clientes.' },
+  { key: 'templates', label: 'Plantillas', group: 'content', kind: 'array', description: 'Mensajes y textos guardados.' },
+  { key: 'vehicles', label: 'Vehículos', group: 'content', kind: 'array', description: 'Listado de autos y valores.' },
+  { key: 'uiState', label: 'Preferencias de interfaz', group: 'config', kind: 'object', description: 'Preferencias, filtros y ajustes visuales.' },
+  { key: 'clientManagerState', label: 'Configuración del gestor', group: 'config', kind: 'object', description: 'Columnas, filtros y estado del gestor de clientes.' },
+  { key: 'brandSettings', label: 'Configuración de marcas', group: 'config', kind: 'array', description: 'Esquemas y colores por marca.' },
+  { key: 'priceDrafts', label: 'Borradores de precios', group: 'config', kind: 'object', description: 'Borradores y fuentes de precios.' },
+  { key: 'activePriceTabId', label: 'Pestaña de precios activa', group: 'info', kind: 'value', description: 'Identificador de la pestaña activa.' },
+  { key: 'activePriceSource', label: 'Fuente de precios activa', group: 'info', kind: 'value', description: 'Origen de los precios activos.' },
+  { key: 'snapshots', label: 'Snapshots (copias rápidas)', group: 'backup', kind: 'array', description: 'Copias rápidas del perfil guardadas manualmente.' }
+];
+
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
+function hashString(input = '') {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash.toString(16);
+}
+
+function buildSyncItemValue(item, payload) {
+  const raw = payload?.[item.key];
+  if (item.kind === 'array') {
+    const count = Array.isArray(raw) ? raw.length : 0;
+    return { raw, display: number.format(count), count };
+  }
+  if (item.kind === 'object') {
+    const count = raw && typeof raw === 'object' ? Object.keys(raw).length : 0;
+    return { raw, display: number.format(count), count };
+  }
+  if (item.kind === 'value') {
+    const display = raw ? String(raw) : 'Sin definir';
+    return { raw, display, count: raw ? 1 : 0 };
+  }
+  return { raw, display: raw ? String(raw) : '0', count: raw ? 1 : 0 };
+}
+
 function buildSyncSummary(payload, sourceLabel) {
   const safePayload = payload || {};
+  const items = SYNC_ITEM_DEFINITIONS.map((item) => {
+    const value = buildSyncItemValue(item, safePayload);
+    return {
+      ...item,
+      groupLabel: SYNC_GROUP_LABELS[item.group] || item.group,
+      display: value.display,
+      count: value.count,
+      hash: hashString(stableStringify(value.raw))
+    };
+  });
   return {
     source: sourceLabel,
     updatedAt: safePayload.updatedAt || safePayload.createdAt || null,
-    counts: {
-      clients: Array.isArray(safePayload.clients) ? safePayload.clients.length : 0,
-      managerClients: Array.isArray(safePayload.managerClients) ? safePayload.managerClients.length : 0,
-      templates: Array.isArray(safePayload.templates) ? safePayload.templates.length : 0,
-      vehicles: Array.isArray(safePayload.vehicles) ? safePayload.vehicles.length : 0,
-      generatedQuotes: Array.isArray(safePayload.generatedQuotes) ? safePayload.generatedQuotes.length : 0,
-      snapshots: Array.isArray(safePayload.snapshots) ? safePayload.snapshots.length : 0
-    }
+    items
   };
 }
 
 function buildLocalSyncSummary() {
-  return buildSyncSummary({
+  const summary = buildSyncSummary({
     clients,
     managerClients,
     templates,
     vehicles,
     generatedQuotes,
     snapshots,
+    uiState,
+    clientManagerState,
+    brandSettings,
+    priceDrafts,
+    activePriceTabId,
+    activePriceSource,
     updatedAt: load('localUpdatedAt')
   }, 'local');
+  return summary;
+}
+
+function buildSyncComparison(localSummary, remoteSummary) {
+  const comparison = {};
+  localSummary?.items?.forEach((item) => {
+    comparison[item.key] = { local: item, remote: null, different: false };
+  });
+  remoteSummary?.items?.forEach((item) => {
+    if (!comparison[item.key]) {
+      comparison[item.key] = { local: null, remote: item, different: false };
+    } else {
+      comparison[item.key].remote = item;
+    }
+  });
+  Object.values(comparison).forEach((entry) => {
+    if (!entry.local || !entry.remote) {
+      entry.different = true;
+    } else {
+      entry.different = entry.local.hash !== entry.remote.hash;
+    }
+  });
+  return comparison;
+}
+
+function hasSyncDifferences(comparison = {}) {
+  return Object.values(comparison).some(entry => entry.different);
 }
 
 function shouldPromptSyncChoice(localSummary, remoteSummary) {
   if (!localSummary || !remoteSummary) return false;
-  const localTotal = Object.values(localSummary.counts || {}).reduce((acc, value) => acc + value, 0);
-  const remoteTotal = Object.values(remoteSummary.counts || {}).reduce((acc, value) => acc + value, 0);
-  if (!localTotal || !remoteTotal) return false;
-  if (localSummary.updatedAt && remoteSummary.updatedAt && localSummary.updatedAt !== remoteSummary.updatedAt) {
-    return true;
-  }
-  return Object.keys(localSummary.counts).some(key => localSummary.counts[key] !== remoteSummary.counts[key]);
+  const comparison = buildSyncComparison(localSummary, remoteSummary);
+  return hasSyncDifferences(comparison);
 }
 
-function renderSyncSummary(container, summary) {
-  if (!container || !summary) return;
-  container.innerHTML = `
-    <div class="sync-conflict-item"><span>Clientes</span><strong>${summary.counts.clients}</strong></div>
-    <div class="sync-conflict-item"><span>Gestión clientes</span><strong>${summary.counts.managerClients}</strong></div>
-    <div class="sync-conflict-item"><span>Plantillas</span><strong>${summary.counts.templates}</strong></div>
-    <div class="sync-conflict-item"><span>Vehículos</span><strong>${summary.counts.vehicles}</strong></div>
-    <div class="sync-conflict-item"><span>Cotizaciones</span><strong>${summary.counts.generatedQuotes}</strong></div>
-    <div class="sync-conflict-item"><span>Snapshots</span><strong>${summary.counts.snapshots}</strong></div>
+function buildSyncSummaryMarkup(summary, comparison = {}) {
+  if (!summary) return '';
+  return summary.items.map((item) => {
+    const diff = comparison[item.key]?.different;
+    const diffLabel = diff ? 'Diferente' : 'Igual';
+    const diffClass = diff ? 'diff' : 'same';
+    return `
+      <div class="sync-conflict-item ${diffClass}">
+        <div class="sync-conflict-item-main">
+          <span title="${item.description || ''}">${item.label}</span>
+          <strong>${item.display}</strong>
+        </div>
+        <div class="sync-conflict-item-meta">
+          <span class="sync-conflict-group">${item.groupLabel}</span>
+          <span class="sync-conflict-pill ${diffClass}">${diffLabel}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function normalizeProfilePayload(parsed = {}) {
+  return {
+    clients: parsed.clients || [],
+    managerClients: parsed.managerClients || [],
+    templates: parsed.templates || [],
+    vehicles: parsed.vehicles || [],
+    generatedQuotes: parsed.generatedQuotes || [],
+    snapshots: parsed.snapshots || [],
+    uiState: parsed.uiState || {},
+    clientManagerState: parsed.clientManagerState || {},
+    brandSettings: parsed.brandSettings || [],
+    priceDrafts: parsed.priceDrafts || {},
+    activePriceTabId: parsed.activePriceTabId || '',
+    activePriceSource: parsed.activePriceSource || '',
+    updatedAt: parsed.updatedAt || parsed.createdAt || null
+  };
+}
+
+function buildSyncCompareHtml(localSummary, incomingSummary, { localLabel = 'Datos actuales', incomingLabel = 'Perfil a importar' } = {}) {
+  const comparison = buildSyncComparison(localSummary, incomingSummary);
+  return `
+    <div class="sync-compare-grid">
+      <div class="sync-conflict-card">
+        <div class="sync-conflict-head">
+          <i class='bx bx-hard-drive'></i>
+          <div>
+            <strong>${localLabel}</strong>
+            <p class="muted tiny">${localSummary?.updatedAt ? `Actualizado: ${formatAdminDate(localSummary.updatedAt)} (${formatRelativeTime(localSummary.updatedAt)})` : 'Actualizado: -'}</p>
+          </div>
+        </div>
+        <div class="sync-conflict-list">
+          ${buildSyncSummaryMarkup(localSummary, comparison)}
+        </div>
+      </div>
+      <div class="sync-conflict-card">
+        <div class="sync-conflict-head">
+          <i class='bx bx-cloud'></i>
+          <div>
+            <strong>${incomingLabel}</strong>
+            <p class="muted tiny">${incomingSummary?.updatedAt ? `Actualizado: ${formatAdminDate(incomingSummary.updatedAt)} (${formatRelativeTime(incomingSummary.updatedAt)})` : 'Actualizado: -'}</p>
+          </div>
+        </div>
+        <div class="sync-conflict-list">
+          ${buildSyncSummaryMarkup(incomingSummary, comparison)}
+        </div>
+      </div>
+    </div>
+    <p class="muted tiny">Todo lo diferente se reemplazará y se sincronizará en línea al finalizar la importación.</p>
   `;
 }
 
-function openSyncConflictModal({ localSummary, remoteSummary } = {}) {
+function renderSyncSummary(container, summary, comparison = {}) {
+  if (!container || !summary) return;
+  container.innerHTML = buildSyncSummaryMarkup(summary, comparison);
+}
+
+function openSyncConflictModal({ localSummary, remoteSummary, comparison } = {}) {
   return new Promise(resolve => {
     const modal = document.getElementById('syncConflictModal');
     const localList = document.getElementById('syncLocalSummary');
@@ -17615,8 +17785,8 @@ function openSyncConflictModal({ localSummary, remoteSummary } = {}) {
       resolve('cancel');
       return;
     }
-    renderSyncSummary(localList, localSummary);
-    renderSyncSummary(remoteList, remoteSummary);
+    renderSyncSummary(localList, localSummary, comparison);
+    renderSyncSummary(remoteList, remoteSummary, comparison);
     if (localUpdated) {
       localUpdated.textContent = localSummary?.updatedAt
         ? `Actualizado: ${formatAdminDate(localSummary.updatedAt)} (${formatRelativeTime(localSummary.updatedAt)})`
@@ -17702,6 +17872,7 @@ function renderAdminList(users, selectedUid) {
   users.forEach(user => {
     const card = document.createElement('div');
     const statusLabel = user.status === 'active' ? 'Activo' : 'Inactivo';
+    const primaryAdmin = isPrimaryAdmin(user);
     card.className = `admin-user-card ${selectedUid === user.uid ? 'active' : ''}`;
     card.dataset.uid = user.uid;
     card.innerHTML = `
@@ -17710,11 +17881,13 @@ function renderAdminList(users, selectedUid) {
           <span>${user.displayName || user.username}</span>
           <span class="muted tiny">@${user.username}</span>
         </div>
-        <span class="pill">${statusLabel}</span>
+        <span class="pill">${primaryAdmin ? 'Principal' : statusLabel}</span>
       </div>
       <div class="admin-user-card-meta">Rol: ${user.role || 'Usuario'} · Sesión: ${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8}h</div>
       <div class="admin-user-card-actions">
-        <button class="ghost-btn mini" data-action="toggle" data-uid="${user.uid}"><i class='bx bx-power-off'></i>${user.status === 'active' ? 'Desactivar' : 'Activar'}</button>
+        <button class="ghost-btn mini" data-action="toggle" data-uid="${user.uid}" ${primaryAdmin ? 'disabled' : ''} title="${primaryAdmin ? 'El administrador principal no puede desactivarse.' : ''}">
+          <i class='bx bx-power-off'></i>${user.status === 'active' ? 'Desactivar' : 'Activar'}
+        </button>
       </div>
     `;
     list.appendChild(card);
@@ -17799,13 +17972,18 @@ function renderAdminMetrics(metrics) {
 function populateAdminEditForm(user) {
   const form = document.getElementById('adminEditForm');
   if (!form) return;
+  const primaryAdmin = isPrimaryAdmin(user);
   form.dataset.uid = user?.uid || '';
   document.getElementById('adminEditUsername').value = user?.username || '';
   document.getElementById('adminEditName').value = user?.displayName || '';
   document.getElementById('adminEditRole').value = user?.role || 'Usuario';
   document.getElementById('adminEditSessionHours').value = user?.sessionHours || '';
-  document.getElementById('adminEditStatus').value = user?.status || 'active';
+  const statusInput = document.getElementById('adminEditStatus');
+  statusInput.value = user?.status || 'active';
+  statusInput.disabled = primaryAdmin;
   document.getElementById('adminEditPassword').value = '';
+  const deleteButton = document.getElementById('adminDeleteUser');
+  if (deleteButton) deleteButton.disabled = primaryAdmin;
 }
 
 async function refreshAdminPanel(selectedUid = null) {
@@ -17843,6 +18021,10 @@ async function handleAdminListAction(event) {
     if (!uid) return;
     const user = await dbGet(`users/${uid}`);
     if (!user) return;
+    if (isPrimaryAdmin(user)) {
+      showToast('El administrador principal no puede desactivarse.', 'warning');
+      return;
+    }
     const nextStatus = user.status === 'active' ? 'disabled' : 'active';
     await dbPatch(`users/${uid}`, { status: nextStatus, updatedAt: Date.now() });
     await refreshAdminPanel(uid);
@@ -17893,6 +18075,7 @@ async function handleAdminEditSubmit(event) {
   const sessionHours = Number(document.getElementById('adminEditSessionHours').value) || ROLE_SESSION_HOURS[role];
   const status = document.getElementById('adminEditStatus').value;
   const password = document.getElementById('adminEditPassword').value;
+  const currentUser = adminState.users.find(item => item.uid === uid);
   if (!displayName) {
     showToast('Completa los campos requeridos.', 'warning');
     return;
@@ -17901,9 +18084,12 @@ async function handleAdminEditSubmit(event) {
     displayName,
     role,
     sessionHours,
-    status,
+    status: isPrimaryAdmin(currentUser) ? 'active' : status,
     updatedAt: Date.now()
   };
+  if (isPrimaryAdmin(currentUser) && status !== 'active') {
+    showToast('El administrador principal siempre debe permanecer activo.', 'info');
+  }
   if (password) {
     payload.passwordHash = await hashPassword(password);
   }
@@ -17958,6 +18144,10 @@ async function handleAdminDeleteUser() {
   }
   const user = await dbGet(`users/${uid}`);
   if (!user) return;
+  if (isPrimaryAdmin(user)) {
+    showToast('El administrador principal no puede eliminarse.', 'warning');
+    return;
+  }
   confirmAction({
     title: 'Eliminar usuario',
     message: `Se eliminará el usuario ${user.displayName || user.username} y sus datos asociados.`,
@@ -18077,6 +18267,9 @@ function bindAuthUI() {
   });
   document.getElementById('adminRefreshList')?.addEventListener('click', async () => {
     await refreshAdminPanel(adminState.selectedUid);
+    await refreshAdminConnectedUsers();
+  });
+  document.getElementById('adminRefreshConnected')?.addEventListener('click', async () => {
     await refreshAdminConnectedUsers();
   });
   document.getElementById('adminRefreshUserData')?.addEventListener('click', async () => {
