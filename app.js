@@ -165,6 +165,8 @@ const ROLE_SESSION_HOURS = {
   Usuario: 8
 };
 
+const BUENOS_AIRES_TIMEZONE = 'America/Argentina/Buenos_Aires';
+
 const REMOTE_DATA_KEYS = [
   'vehicles',
   'templates',
@@ -2951,8 +2953,8 @@ function formatDateTimeForDisplay(value) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
-  const datePart = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  const timePart = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const datePart = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: BUENOS_AIRES_TIMEZONE });
+  const timePart = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BUENOS_AIRES_TIMEZONE });
   return `${datePart} - ${timePart}`;
 }
 
@@ -2960,8 +2962,8 @@ function formatContactMetaLine(value) {
   if (!value) return 'Sin fecha registrada';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Sin fecha registrada';
-  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: BUENOS_AIRES_TIMEZONE });
+  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BUENOS_AIRES_TIMEZONE });
   return `El día: ${day} a las: ${time}`;
 }
 
@@ -2969,8 +2971,8 @@ function formatDetailedDateTime(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: BUENOS_AIRES_TIMEZONE });
+  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BUENOS_AIRES_TIMEZONE });
   return `${day} a las ${time}`;
 }
 
@@ -2978,8 +2980,8 @@ function formatContactMetaDetail(value) {
   if (!value) return 'Contacto realizado el día: Sin fecha registrada';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Contacto realizado el día: Sin fecha registrada';
-  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const day = date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: BUENOS_AIRES_TIMEZONE });
+  const time = date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BUENOS_AIRES_TIMEZONE });
   return `Contacto realizado el día: ${day} a las ${time}`;
 }
 
@@ -3001,7 +3003,7 @@ function formatTimeValue(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BUENOS_AIRES_TIMEZONE });
 }
 
 function scheduleTone(scheduleAt) {
@@ -3489,7 +3491,14 @@ let scheduleClockInterval = null;
 let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab: 'models' };
 let vehicleEditorAutosaveTimer = null;
 let journeyReportState = { from: '', to: '' };
-let authState = { user: null, session: null, stream: null, isReady: false, loading: false };
+let authState = { user: null, session: null, stream: null, isReady: false, loading: false, offline: false };
+let appBooted = false;
+let relativeTimeTicker = null;
+const syncStatus = {
+  online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  lastSyncAt: null,
+  lastCheckAt: null
+};
 let remoteSyncQueue = {};
 let remoteSyncTimer = null;
 let isApplyingRemote = false;
@@ -3619,6 +3628,13 @@ function setAppLoaderSteps(steps = []) {
     updateAppLoaderStepProgress(index, stepData.current, stepData.total);
   });
   updateLoaderStatus(0, normalized.length);
+}
+
+function updateLoaderHeader({ eyebrow, headline } = {}) {
+  const eyebrowEl = document.getElementById('loaderEyebrow');
+  const headlineEl = document.getElementById('loaderHeadline');
+  if (eyebrowEl && eyebrow) eyebrowEl.textContent = eyebrow;
+  if (headlineEl && headline) headlineEl.textContent = headline;
 }
 
 function setAppLoaderProgress(percent) {
@@ -3876,9 +3892,12 @@ let selectedPlanClientId = uiState.planDraft.selectedClientId || null;
 
 init();
 
-async function init() {
+async function bootModules() {
+  if (appBooted) return;
+  appBooted = true;
   try {
     document.body.classList.add('modules-loading');
+    updateLoaderHeader({ eyebrow: 'Inicializando módulos...', headline: 'Preparando el panel principal' });
     const initialSteps = getModuleLoadingSteps();
     setAppLoaderSteps(initialSteps);
     setAppLoaderStep(0);
@@ -3935,11 +3954,9 @@ async function init() {
     bindActionCustomizer();
     bindCustomContextMenu();
     bindQuoteCreation();
-    bindAuthUI();
     startContactLogTicker();
     startScheduleClock();
     startRealtimePersistence();
-    await initializeAuth();
     await initializePriceTabs();
     renderPriceTabs();
     renderVehicleTable();
@@ -3955,6 +3972,25 @@ async function init() {
     hideAppLoader();
     document.body.classList.remove('modules-loading');
     document.body.classList.add('modules-loaded');
+  }
+}
+
+async function init() {
+  try {
+    hideAppLoader();
+    updateLoaderHeader({ eyebrow: 'Conectando con la base de datos...', headline: 'Obteniendo información...' });
+    bindAuthUI();
+    startRelativeTimeTicker();
+    setSyncStatus({ online: navigator.onLine, lastCheckAt: Date.now() });
+    window.addEventListener('online', () => setSyncStatus({ online: true, lastCheckAt: Date.now() }));
+    window.addEventListener('offline', () => setSyncStatus({ online: false, lastCheckAt: Date.now() }));
+    await initializeAuth();
+    if (authState.session) {
+      await bootModules();
+    }
+  } catch (err) {
+    console.error('Error during initialization:', err);
+    hideAppLoader();
   }
 }
 
@@ -14202,8 +14238,8 @@ function updateScheduleClock() {
   const now = document.getElementById('scheduledNow');
   if (!today || !now) return;
   const current = new Date();
-  today.textContent = current.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  now.textContent = current.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  today.textContent = current.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: BUENOS_AIRES_TIMEZONE });
+  now.textContent = current.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: BUENOS_AIRES_TIMEZONE });
 }
 
 function renderScheduledClients() {
@@ -14431,7 +14467,7 @@ function openScheduleModal(clientId) {
 
 function startContactLogTicker() {
   if (contactLogInterval) clearInterval(contactLogInterval);
-  contactLogInterval = setInterval(() => renderContactLog(), 60000);
+  contactLogInterval = setInterval(() => renderContactLog(), 1000);
 }
 
 function startScheduleClock() {
@@ -16215,6 +16251,7 @@ function persist() {
   save('generatedQuotes', generatedQuotes);
   save('clientManagerState', clientManagerState);
   save('snapshots', snapshots);
+  save('localUpdatedAt', Date.now());
 }
 
 function startRealtimePersistence() {
@@ -16535,7 +16572,7 @@ const FIREBASE_SYNCABLE_KEYS = new Set([
 ]);
 
 function queueRemoteSync(key, value) {
-  if (!authState.user || isApplyingRemote) {
+  if (!authState.user || authState.offline || isApplyingRemote) {
     return;
   }
   
@@ -16556,7 +16593,7 @@ function queueRemoteSync(key, value) {
 }
 
 async function flushRemoteSync() {
-  if (!authState.user) return;
+  if (!authState.user || authState.offline) return;
   const payload = { ...remoteSyncQueue };
   remoteSyncQueue = {};
   if (!Object.keys(payload).length) return;
@@ -16577,8 +16614,12 @@ function applyRemotePayload(payload = {}) {
     if (!REMOTE_DATA_KEYS.includes(key)) return;
     localStorage.setItem(key, JSON.stringify(value));
   });
+  if (decodedPayload.updatedAt) {
+    localStorage.setItem('localUpdatedAt', JSON.stringify(decodedPayload.updatedAt));
+  }
   syncFromStorage();
   isApplyingRemote = false;
+  setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
 }
 
 function applyRemotePathUpdate(path, value) {
@@ -16596,7 +16637,7 @@ function applyRemotePathUpdate(path, value) {
 }
 
 async function syncRemoteSnapshot({ reason = '' } = {}) {
-  if (!authState.user) return;
+  if (!authState.user || authState.offline) return;
   const payload = {
     vehicles,
     templates,
@@ -16614,8 +16655,10 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
   };
   try {
     await dbPatch(`data/${authState.user.uid}`, payload);
+    setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
   } catch (error) {
     console.warn(`Sincronización inmediata falló${reason ? ` (${reason})` : ''}:`, error);
+    setSyncStatus({ online: false, lastCheckAt: Date.now() });
   }
 }
 
@@ -16742,6 +16785,33 @@ function hideLoginOverlay() {
   document.getElementById('loginOverlay')?.classList.add('hidden');
 }
 
+function setLoginStatus(step) {
+  const statusItems = document.querySelectorAll('#loginStatus .auth-status-item');
+  statusItems.forEach((item) => {
+    const key = item.dataset.statusStep;
+    item.classList.remove('active', 'done');
+    if (key === step) {
+      item.classList.add('active');
+    }
+    if (step === 'ready') {
+      item.classList.add('done');
+    }
+  });
+  if (step === 'ready') {
+    statusItems.forEach(item => item.classList.add('done'));
+  }
+  if (step === 'connect') {
+    const connectItem = document.querySelector('#loginStatus [data-status-step="connect"]');
+    if (connectItem) connectItem.classList.add('active');
+  }
+  if (step === 'fetch') {
+    const connectItem = document.querySelector('#loginStatus [data-status-step="connect"]');
+    if (connectItem) connectItem.classList.add('done');
+    const fetchItem = document.querySelector('#loginStatus [data-status-step="fetch"]');
+    if (fetchItem) fetchItem.classList.add('active');
+  }
+}
+
 function updateSessionFooter() {
   const footer = document.getElementById('sessionFooter');
   const status = document.getElementById('sessionStatus');
@@ -16753,7 +16823,7 @@ function updateSessionFooter() {
     return;
   }
   const expiresAt = new Date(authState.session.expiresAt);
-  const formatted = `${expiresAt.toLocaleDateString('es-AR')} a las ${expiresAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+  const formatted = `${expiresAt.toLocaleDateString('es-AR', { timeZone: BUENOS_AIRES_TIMEZONE })} a las ${expiresAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: BUENOS_AIRES_TIMEZONE })}`;
   status.textContent = `Usuario: ${authState.session.displayName} | Rol: ${authState.session.role} | La sesión activa expirará el día: ${formatted}.`;
   logoutButton.classList.remove('hidden');
 }
@@ -16767,7 +16837,7 @@ function scheduleSessionTicker() {
     } else {
       updateSessionFooter();
     }
-  }, 60000);
+  }, 1000);
 }
 
 async function ensureInitialAdmin() {
@@ -16796,6 +16866,23 @@ async function attemptRestoreSession() {
     clearSessionInfo();
     return false;
   }
+  if (info.offline) {
+    authState.user = {
+      uid: info.uid || 'offline',
+      username: 'offline',
+      displayName: info.displayName || 'Modo sin conexión',
+      role: info.role || 'Offline',
+      status: 'active'
+    };
+    authState.session = {
+      uid: authState.user.uid,
+      displayName: authState.user.displayName,
+      role: authState.user.role,
+      expiresAt: info.expiresAt
+    };
+    authState.offline = true;
+    return true;
+  }
   const userRecord = await dbGet(`users/${info.uid}`);
   if (!userRecord || userRecord.status !== 'active') {
     clearSessionInfo();
@@ -16808,6 +16895,7 @@ async function attemptRestoreSession() {
     role: userRecord.role,
     expiresAt: info.expiresAt
   };
+  authState.offline = false;
   return true;
 }
 
@@ -16823,12 +16911,14 @@ function startUserStream() {
     try {
       const payload = JSON.parse(event.data);
       applyRemotePathUpdate(payload.path || '/', payload.data);
+      setSyncStatus({ online: true, lastCheckAt: Date.now() });
     } catch (err) {
       console.error('Error procesando streaming:', err);
     }
   });
   stream.addEventListener('error', () => {
     console.warn('Streaming desconectado, reintentando...');
+    setSyncStatus({ online: false, lastCheckAt: Date.now() });
     stream.close();
     setTimeout(() => {
       if (authState.user) {
@@ -16850,13 +16940,40 @@ async function loadRemoteState() {
   try {
     const payload = await dbGet(`data/${authState.user.uid}`);
     if (payload) {
-      applyRemotePayload(payload);
+      const decoded = decodeFirebasePayload(payload);
+      const localSummary = buildLocalSyncSummary();
+      const remoteSummary = buildSyncSummary(decoded, 'remote');
+      const localTotal = Object.values(localSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+      const remoteTotal = Object.values(remoteSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+      if (remoteTotal === 0 && localTotal > 0) {
+        await syncRemoteSnapshot({ reason: 'local-preferred' });
+        setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
+        showToast('Se usaron los datos locales para sincronizar.', 'info');
+      } else if (shouldPromptSyncChoice(localSummary, remoteSummary)) {
+        const choice = await openSyncConflictModal({ localSummary, remoteSummary });
+        if (choice === 'local') {
+          await syncRemoteSnapshot({ reason: 'local-preferred' });
+          setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
+          showToast('Usando datos locales y sincronizando en línea.', 'success');
+        } else if (choice === 'remote') {
+          applyRemotePayload(payload);
+          setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
+          showToast('Datos online aplicados.', 'success');
+        } else {
+          showToast('Manteniendo datos locales sin sincronizar.', 'warning');
+        }
+      } else {
+        applyRemotePayload(payload);
+        setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
+      }
     } else {
       // Crear registro inicial si no existe
       await initializeUserData();
+      setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
     }
   } catch (error) {
     console.warn('No se pudo cargar datos remotos, usando valores locales:', error);
+    setSyncStatus({ online: false, lastCheckAt: Date.now() });
     // Si falla, continuar con datos locales
     try {
       await initializeUserData();
@@ -16908,11 +17025,13 @@ async function handleLogin(username, password) {
     showToast('Completa usuario y contraseña.', 'warning');
     return false;
   }
+  setLoginStatus('connect');
   const uid = await dbGet(`userIndex/${normalized}`);
   if (!uid) {
     showToast('Usuario no encontrado.', 'error');
     return false;
   }
+  setLoginStatus('fetch');
   const userRecord = await dbGet(`users/${uid}`);
   if (!userRecord || userRecord.status !== 'active') {
     showToast('Usuario desactivado o inválido.', 'error');
@@ -16932,14 +17051,51 @@ async function handleLogin(username, password) {
     role: userRecord.role,
     expiresAt
   };
+  authState.offline = false;
   storeSessionInfo({ uid, expiresAt });
   updateSessionFooter();
   scheduleSessionTicker();
   updateAdminAccessVisibility();
-  hideLoginOverlay();
   await loadRemoteState();
   startUserStream();
+  hideLoginOverlay();
+  await bootModules();
+  setLoginStatus('ready');
   showToast('Sesión iniciada correctamente.', 'success');
+  return true;
+}
+
+async function handleOfflineLogin() {
+  const localSummary = buildLocalSyncSummary();
+  const total = Object.values(localSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+  if (!total) {
+    showToast('No hay datos locales para usar sin conexión.', 'warning');
+    return false;
+  }
+  const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+  authState.user = {
+    uid: 'offline',
+    username: 'offline',
+    displayName: 'Modo sin conexión',
+    role: 'Offline',
+    status: 'active'
+  };
+  authState.session = {
+    uid: 'offline',
+    displayName: 'Modo sin conexión',
+    role: 'Offline',
+    expiresAt
+  };
+  authState.offline = true;
+  storeSessionInfo({ uid: 'offline', expiresAt, offline: true, displayName: 'Modo sin conexión', role: 'Offline' });
+  updateSessionFooter();
+  scheduleSessionTicker();
+  updateAdminAccessVisibility();
+  setSyncStatus({ online: false, lastCheckAt: Date.now() });
+  setLoginStatus('ready');
+  hideLoginOverlay();
+  await bootModules();
+  showToast('Acceso sin conexión activado.', 'success');
   return true;
 }
 
@@ -16947,10 +17103,12 @@ function handleLogout(expired = false) {
   stopUserStream();
   authState.user = null;
   authState.session = null;
+  authState.offline = false;
   clearSessionInfo();
   updateSessionFooter();
   updateAdminAccessVisibility();
   showLoginOverlay();
+  setLoginStatus('connect');
   if (expired) {
     showToast('La sesión expiró. Ingresa nuevamente.', 'warning');
   }
@@ -16958,19 +17116,26 @@ function handleLogout(expired = false) {
 
 async function initializeAuth() {
   try {
+    setLoginStatus('connect');
     const didCreateAdmin = await ensureInitialAdmin();
     const helper = document.getElementById('loginHelper');
     if (didCreateAdmin && helper) {
       helper.textContent = `Se creó el administrador inicial: ${DEFAULT_ADMIN_CREDENTIALS.username} / ${DEFAULT_ADMIN_CREDENTIALS.password}.`;
     }
+    setLoginStatus('fetch');
     const restored = await attemptRestoreSession();
     updateSessionFooter();
     updateAdminAccessVisibility();
     if (restored) {
       hideLoginOverlay();
       scheduleSessionTicker();
-      await loadRemoteState();
-      startUserStream();
+      if (!authState.offline) {
+        await loadRemoteState();
+        startUserStream();
+      } else {
+        setSyncStatus({ online: false, lastCheckAt: Date.now() });
+      }
+      setLoginStatus('ready');
     } else {
       showLoginOverlay();
     }
@@ -16991,7 +17156,177 @@ function formatAdminDate(value) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleString('es-AR');
+  return date.toLocaleString('es-AR', { timeZone: BUENOS_AIRES_TIMEZONE });
+}
+
+function formatRelativeTime(value) {
+  if (!value) return '-';
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp)) return '-';
+  const diffMs = Date.now() - timestamp;
+  const future = diffMs < 0;
+  const diff = Math.abs(diffMs);
+  const seconds = Math.round(diff / 1000);
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.round(minutes / 60);
+  const days = Math.round(hours / 24);
+  let amount;
+  let unit;
+  if (seconds < 60) {
+    amount = seconds;
+    unit = seconds === 1 ? 'segundo' : 'segundos';
+  } else if (minutes < 60) {
+    amount = minutes;
+    unit = minutes === 1 ? 'minuto' : 'minutos';
+  } else if (hours < 24) {
+    amount = hours;
+    unit = hours === 1 ? 'hora' : 'horas';
+  } else {
+    amount = days;
+    unit = days === 1 ? 'día' : 'días';
+  }
+  return future ? `en ${amount} ${unit}` : `hace ${amount} ${unit}`;
+}
+
+function updateRelativeTimes() {
+  document.querySelectorAll('[data-relative-time]').forEach((el) => {
+    const timestamp = el.dataset.relativeTime;
+    if (!timestamp) return;
+    el.textContent = formatRelativeTime(timestamp);
+  });
+}
+
+function startRelativeTimeTicker() {
+  if (relativeTimeTicker) clearInterval(relativeTimeTicker);
+  updateRelativeTimes();
+  relativeTimeTicker = setInterval(updateRelativeTimes, 1000);
+}
+
+function setSyncStatus({ online, lastSyncAt, lastCheckAt } = {}) {
+  if (typeof online === 'boolean') syncStatus.online = online;
+  if (lastSyncAt) syncStatus.lastSyncAt = lastSyncAt;
+  if (lastCheckAt) syncStatus.lastCheckAt = lastCheckAt;
+  updateSyncStatusUI();
+}
+
+function updateSyncStatusUI() {
+  const card = document.getElementById('syncStatusCard');
+  const label = document.getElementById('syncStatusLabel');
+  const detail = document.getElementById('syncStatusDetail');
+  const icon = document.getElementById('syncStatusIcon');
+  if (!card || !label || !detail || !icon) return;
+  card.classList.toggle('online', syncStatus.online);
+  card.classList.toggle('offline', !syncStatus.online);
+  const statusText = syncStatus.online ? 'Estás Online' : 'Estás Offline';
+  label.textContent = statusText;
+  const lastSync = syncStatus.lastSyncAt ? formatRelativeTime(syncStatus.lastSyncAt) : '-';
+  if (syncStatus.online) {
+    detail.innerHTML = `Última sincronización: <span data-relative-time="${syncStatus.lastSyncAt || ''}">${lastSync}</span>`;
+  } else {
+    detail.textContent = 'Sin conexión activa';
+  }
+  const tooltip = syncStatus.online
+    ? `Estás Online (Última sincronización: ${lastSync})`
+    : 'Estás Offline';
+  card.title = tooltip;
+  icon.innerHTML = `<i class='bx ${syncStatus.online ? 'bx-wifi' : 'bx-wifi-off'}'></i>`;
+  updateRelativeTimes();
+}
+
+function buildSyncSummary(payload, sourceLabel) {
+  const safePayload = payload || {};
+  return {
+    source: sourceLabel,
+    updatedAt: safePayload.updatedAt || safePayload.createdAt || null,
+    counts: {
+      clients: Array.isArray(safePayload.clients) ? safePayload.clients.length : 0,
+      managerClients: Array.isArray(safePayload.managerClients) ? safePayload.managerClients.length : 0,
+      templates: Array.isArray(safePayload.templates) ? safePayload.templates.length : 0,
+      vehicles: Array.isArray(safePayload.vehicles) ? safePayload.vehicles.length : 0,
+      generatedQuotes: Array.isArray(safePayload.generatedQuotes) ? safePayload.generatedQuotes.length : 0,
+      snapshots: Array.isArray(safePayload.snapshots) ? safePayload.snapshots.length : 0
+    }
+  };
+}
+
+function buildLocalSyncSummary() {
+  return buildSyncSummary({
+    clients,
+    managerClients,
+    templates,
+    vehicles,
+    generatedQuotes,
+    snapshots,
+    updatedAt: load('localUpdatedAt')
+  }, 'local');
+}
+
+function shouldPromptSyncChoice(localSummary, remoteSummary) {
+  if (!localSummary || !remoteSummary) return false;
+  const localTotal = Object.values(localSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+  const remoteTotal = Object.values(remoteSummary.counts || {}).reduce((acc, value) => acc + value, 0);
+  if (!localTotal || !remoteTotal) return false;
+  if (localSummary.updatedAt && remoteSummary.updatedAt && localSummary.updatedAt !== remoteSummary.updatedAt) {
+    return true;
+  }
+  return Object.keys(localSummary.counts).some(key => localSummary.counts[key] !== remoteSummary.counts[key]);
+}
+
+function renderSyncSummary(container, summary) {
+  if (!container || !summary) return;
+  container.innerHTML = `
+    <div class="sync-conflict-item"><span>Clientes</span><strong>${summary.counts.clients}</strong></div>
+    <div class="sync-conflict-item"><span>Gestión clientes</span><strong>${summary.counts.managerClients}</strong></div>
+    <div class="sync-conflict-item"><span>Plantillas</span><strong>${summary.counts.templates}</strong></div>
+    <div class="sync-conflict-item"><span>Vehículos</span><strong>${summary.counts.vehicles}</strong></div>
+    <div class="sync-conflict-item"><span>Cotizaciones</span><strong>${summary.counts.generatedQuotes}</strong></div>
+    <div class="sync-conflict-item"><span>Snapshots</span><strong>${summary.counts.snapshots}</strong></div>
+  `;
+}
+
+function openSyncConflictModal({ localSummary, remoteSummary } = {}) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('syncConflictModal');
+    const localList = document.getElementById('syncLocalSummary');
+    const remoteList = document.getElementById('syncRemoteSummary');
+    const localUpdated = document.getElementById('syncLocalUpdated');
+    const remoteUpdated = document.getElementById('syncRemoteUpdated');
+    const localBtn = document.getElementById('syncConflictLocal');
+    const remoteBtn = document.getElementById('syncConflictRemote');
+    const cancelBtn = document.getElementById('syncConflictCancel');
+    const closeBtn = document.getElementById('syncConflictClose');
+    if (!modal) {
+      resolve('cancel');
+      return;
+    }
+    renderSyncSummary(localList, localSummary);
+    renderSyncSummary(remoteList, remoteSummary);
+    if (localUpdated) {
+      localUpdated.textContent = localSummary?.updatedAt
+        ? `Actualizado: ${formatAdminDate(localSummary.updatedAt)} (${formatRelativeTime(localSummary.updatedAt)})`
+        : 'Actualizado: -';
+    }
+    if (remoteUpdated) {
+      remoteUpdated.textContent = remoteSummary?.updatedAt
+        ? `Actualizado: ${formatAdminDate(remoteSummary.updatedAt)} (${formatRelativeTime(remoteSummary.updatedAt)})`
+        : 'Actualizado: -';
+    }
+
+    const cleanup = (choice) => {
+      toggleModal(modal, false);
+      localBtn.onclick = null;
+      remoteBtn.onclick = null;
+      cancelBtn.onclick = null;
+      closeBtn.onclick = null;
+      resolve(choice);
+    };
+
+    localBtn.onclick = () => cleanup('local');
+    remoteBtn.onclick = () => cleanup('remote');
+    cancelBtn.onclick = () => cleanup('cancel');
+    closeBtn.onclick = () => cleanup('cancel');
+    toggleModal(modal, true);
+  });
 }
 
 function formatBytes(bytes = 0) {
@@ -17052,6 +17387,7 @@ function renderAdminList(users, selectedUid) {
     const card = document.createElement('div');
     const statusLabel = user.status === 'active' ? 'Activo' : 'Inactivo';
     card.className = `admin-user-card ${selectedUid === user.uid ? 'active' : ''}`;
+    card.dataset.uid = user.uid;
     card.innerHTML = `
       <div class="admin-user-card-head">
         <div class="admin-user-card-title">
@@ -17062,7 +17398,6 @@ function renderAdminList(users, selectedUid) {
       </div>
       <div class="admin-user-card-meta">Rol: ${user.role || 'Usuario'} · Sesión: ${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8}h</div>
       <div class="admin-user-card-actions">
-        <button class="ghost-btn mini" data-action="select" data-uid="${user.uid}"><i class='bx bx-show-alt'></i>Ver detalle</button>
         <button class="ghost-btn mini" data-action="toggle" data-uid="${user.uid}"><i class='bx bx-power-off'></i>${user.status === 'active' ? 'Desactivar' : 'Activar'}</button>
       </div>
     `;
@@ -17088,9 +17423,9 @@ function renderAdminMeta(user, metrics) {
     <div class="admin-user-meta-row"><span>Rol</span><strong>${user.role || 'Usuario'}</strong></div>
     <div class="admin-user-meta-row"><span>Estado</span><strong>${user.status === 'active' ? 'Activo' : 'Inactivo'}</strong></div>
     <div class="admin-user-meta-row"><span>Sesión</span><strong>${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8} horas</strong></div>
-    <div class="admin-user-meta-row"><span>Creado</span><strong>${formatAdminDate(user.createdAt)}</strong></div>
-    <div class="admin-user-meta-row"><span>Actualizado</span><strong>${formatAdminDate(user.updatedAt)}</strong></div>
-    <div class="admin-user-meta-row"><span>Última sincronización</span><strong>${formatAdminDate(metrics?.updatedAt || metrics?.createdAt)}</strong></div>
+    <div class="admin-user-meta-row"><span>Creado</span><strong>${formatAdminDate(user.createdAt)} <span class="muted tiny" data-relative-time="${user.createdAt || ''}"></span></strong></div>
+    <div class="admin-user-meta-row"><span>Actualizado</span><strong>${formatAdminDate(user.updatedAt)} <span class="muted tiny" data-relative-time="${user.updatedAt || ''}"></span></strong></div>
+    <div class="admin-user-meta-row"><span>Última sincronización</span><strong>${formatAdminDate(metrics?.updatedAt || metrics?.createdAt)} <span class="muted tiny" data-relative-time="${metrics?.updatedAt || metrics?.createdAt || ''}"></span></strong></div>
   `;
 }
 
@@ -17182,27 +17517,28 @@ async function renderAdminDetail(uid, { forceData = false } = {}) {
   const metrics = data ? computeUserMetrics(data) : null;
   renderAdminMeta(user, metrics);
   renderAdminMetrics(metrics);
+  updateRelativeTimes();
 }
 
 async function handleAdminListAction(event) {
-  const button = event.target?.closest('button');
-  if (!button) return;
-  const action = button.dataset.action;
-  const uid = button.dataset.uid;
-  if (!action || !uid) return;
-  const user = await dbGet(`users/${uid}`);
-  if (!user) return;
-  if (action === 'select') {
-    adminState.selectedUid = uid;
-    renderAdminList(adminState.users, uid);
-    await renderAdminDetail(uid);
-    return;
-  }
-  if (action === 'toggle') {
+  const toggleButton = event.target?.closest('button[data-action="toggle"]');
+  if (toggleButton) {
+    const uid = toggleButton.dataset.uid;
+    if (!uid) return;
+    const user = await dbGet(`users/${uid}`);
+    if (!user) return;
     const nextStatus = user.status === 'active' ? 'disabled' : 'active';
     await dbPatch(`users/${uid}`, { status: nextStatus, updatedAt: Date.now() });
     await refreshAdminPanel(uid);
+    return;
   }
+  const card = event.target?.closest('.admin-user-card');
+  if (!card) return;
+  const uid = card.dataset.uid;
+  if (!uid) return;
+  adminState.selectedUid = uid;
+  renderAdminList(adminState.users, uid);
+  await renderAdminDetail(uid);
 }
 
 async function handleAdminEditSubmit(event) {
@@ -17352,6 +17688,22 @@ function bindAuthUI() {
       await handleLogin(username, password);
     } finally {
       authState.loading = false;
+    }
+  });
+  document.getElementById('offlineLogin')?.addEventListener('click', async () => {
+    authState.loading = true;
+    try {
+      await handleOfflineLogin();
+    } finally {
+      authState.loading = false;
+    }
+  });
+  document.getElementById('loginOnlineAction')?.addEventListener('click', () => {
+    setLoginStatus('connect');
+    setSyncStatus({ online: navigator.onLine, lastCheckAt: Date.now() });
+    document.getElementById('loginUsername')?.focus();
+    if (!navigator.onLine) {
+      showToast('Sin conexión a internet.', 'warning');
     }
   });
   document.getElementById('logoutButton')?.addEventListener('click', () => handleLogout(false));

@@ -16,13 +16,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 </head>
 <body>
-  <div class="app-loader show" id="appLoader" aria-live="polite">
+  <div class="app-loader" id="appLoader" aria-live="polite">
     <div class="loader-card">
       <div class="loader-header">
         <div class="loader-icon">✨</div>
         <div class="loader-text">
-          <p class="eyebrow">Inicializando módulos...</p>
-          <h2>Preparando el panel principal</h2>
+          <p class="eyebrow" id="loaderEyebrow">Inicializando módulos...</p>
+          <h2 id="loaderHeadline">Preparando el panel principal</h2>
         </div>
         <div class="loader-status-pill" id="loaderStatusPercent">0%</div>
       </div>
@@ -50,6 +50,11 @@
           <p class="muted">Ingresa con tu usuario autorizado para continuar.</p>
         </div>
       </div>
+      <button class="ghost-btn full" type="button" id="loginOnlineAction"><i class='bx bx-globe'></i>Iniciar sesión Online</button>
+      <div class="auth-status" id="loginStatus">
+        <div class="auth-status-item" data-status-step="connect">Conectando con la base de datos...</div>
+        <div class="auth-status-item" data-status-step="fetch">Obteniendo información...</div>
+      </div>
       <form id="loginForm" class="auth-form">
         <label class="field">
           <span>Usuario</span>
@@ -59,7 +64,10 @@
           <span>Contraseña</span>
           <input type="password" id="loginPassword" autocomplete="current-password" required>
         </label>
-        <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
+        <div class="auth-actions">
+          <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
+          <button class="secondary-btn" type="button" id="offlineLogin"><i class='bx bx-cloud-off'></i>Ingresar sin conexión</button>
+        </div>
         <p class="muted tiny" id="loginHelper">Tu sesión se ajusta automáticamente según tu rol.</p>
       </form>
     </div>
@@ -100,6 +108,18 @@
             <div class="client-file-actions">
               <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
               <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+            </div>
+          </div>
+          <div class="sync-status-card" id="syncStatusCard" title="Sincronización sin datos">
+            <div class="sync-status-head">
+              <p class="eyebrow">Sincronización</p>
+            </div>
+            <div class="sync-status-body">
+              <span class="sync-status-icon" id="syncStatusIcon"><i class='bx bx-wifi'></i></span>
+              <div class="sync-status-text">
+                <strong id="syncStatusLabel">Sin datos</strong>
+                <span class="muted tiny" id="syncStatusDetail">Última sincronización: -</span>
+              </div>
             </div>
           </div>
           <div class="utilities-card" id="utilitiesContainer">
@@ -2698,6 +2718,45 @@
       <div class="modal-actions">
         <button id="modalCancel" class="ghost-btn">Cancelar</button>
         <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <div id="syncConflictModal" class="modal hidden">
+    <div class="modal-content wide sync-conflict-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Sincronización</p>
+          <h3>Se detectó información diferente</h3>
+          <p class="muted">Elige qué versión quieres usar antes de continuar.</p>
+        </div>
+        <button id="syncConflictClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body sync-conflict-body">
+        <div class="sync-conflict-card" data-source="local">
+          <div class="sync-conflict-head">
+            <i class='bx bx-hard-drive'></i>
+            <div>
+              <strong>Datos locales</strong>
+              <p class="muted tiny" id="syncLocalUpdated">Actualizado: -</p>
+            </div>
+          </div>
+          <div class="sync-conflict-list" id="syncLocalSummary"></div>
+        </div>
+        <div class="sync-conflict-card" data-source="remote">
+          <div class="sync-conflict-head">
+            <i class='bx bx-cloud'></i>
+            <div>
+              <strong>Datos online</strong>
+              <p class="muted tiny" id="syncRemoteUpdated">Actualizado: -</p>
+            </div>
+          </div>
+          <div class="sync-conflict-list" id="syncRemoteSummary"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="syncConflictLocal" class="secondary-btn"><i class='bx bx-hard-drive'></i>Usar datos locales</button>
+        <button id="syncConflictRemote" class="primary-btn"><i class='bx bx-cloud'></i>Usar datos online</button>
+        <button id="syncConflictCancel" class="ghost-btn">Cancelar</button>
       </div>
     </div>
   </div>
