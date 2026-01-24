@@ -17088,7 +17088,7 @@ function bindAuthUI() {
       return;
     }
     const modal = document.getElementById('adminPanelModal');
-    modal?.classList.remove('hidden');
+    toggleModal(modal, true);
     resetAdminForm();
     try {
       await refreshAdminPanel();
@@ -17098,7 +17098,7 @@ function bindAuthUI() {
     }
   });
   document.getElementById('adminPanelClose')?.addEventListener('click', () => {
-    document.getElementById('adminPanelModal')?.classList.add('hidden');
+    toggleModal(document.getElementById('adminPanelModal'), false);
   });
   document.getElementById('adminFormReset')?.addEventListener('click', () => resetAdminForm());
   document.getElementById('adminUserList')?.addEventListener('click', handleAdminPanelAction);
