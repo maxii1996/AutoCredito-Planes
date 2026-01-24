@@ -16273,6 +16273,56 @@ function buildDatabaseUrl(path = '') {
   return `${base}/${normalizedPath}.json${authParam}`;
 }
 
+const FIREBASE_KEY_REPLACEMENTS = {
+  '.': '__fb__2E__',
+  '#': '__fb__23__',
+  '$': '__fb__24__',
+  '[': '__fb__5B__',
+  ']': '__fb__5D__',
+  '/': '__fb__2F__'
+};
+
+const FIREBASE_KEY_REVERSE = Object.entries(FIREBASE_KEY_REPLACEMENTS).reduce((acc, [key, value]) => {
+  acc[value] = key;
+  return acc;
+}, {});
+
+function encodeFirebaseKey(key = '') {
+  return key.replace(/[.#$\\/\\[\\]]/g, (char) => FIREBASE_KEY_REPLACEMENTS[char] || char);
+}
+
+function decodeFirebaseKey(key = '') {
+  return key.replace(/__fb__\w{2}__/g, (token) => FIREBASE_KEY_REVERSE[token] || token);
+}
+
+function encodeFirebasePayload(payload) {
+  if (Array.isArray(payload)) {
+    return payload.map(item => encodeFirebasePayload(item));
+  }
+  if (payload && typeof payload === 'object') {
+    return Object.entries(payload).reduce((acc, [key, value]) => {
+      const encodedKey = encodeFirebaseKey(key);
+      acc[encodedKey] = encodeFirebasePayload(value);
+      return acc;
+    }, {});
+  }
+  return payload;
+}
+
+function decodeFirebasePayload(payload) {
+  if (Array.isArray(payload)) {
+    return payload.map(item => decodeFirebasePayload(item));
+  }
+  if (payload && typeof payload === 'object') {
+    return Object.entries(payload).reduce((acc, [key, value]) => {
+      const decodedKey = decodeFirebaseKey(key);
+      acc[decodedKey] = decodeFirebasePayload(value);
+      return acc;
+    }, {});
+  }
+  return payload;
+}
+
 async function dbGet(path) {
   const response = await fetch(buildDatabaseUrl(path));
   if (!response.ok) {
@@ -16282,10 +16332,11 @@ async function dbGet(path) {
 }
 
 async function dbPut(path, payload) {
+  const sanitizedPayload = encodeFirebasePayload(payload);
   const response = await fetch(buildDatabaseUrl(path), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(sanitizedPayload)
   });
   if (!response.ok) {
     throw new Error('No se pudo guardar la información.');
@@ -16294,10 +16345,11 @@ async function dbPut(path, payload) {
 }
 
 async function dbPatch(path, payload) {
+  const sanitizedPayload = encodeFirebasePayload(payload);
   const response = await fetch(buildDatabaseUrl(path), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(sanitizedPayload)
   });
   if (!response.ok) {
     throw new Error('No se pudo actualizar la información.');
@@ -16328,8 +16380,9 @@ async function flushRemoteSync() {
 
 function applyRemotePayload(payload = {}) {
   if (!payload || typeof payload !== 'object') return;
+  const decodedPayload = decodeFirebasePayload(payload);
   isApplyingRemote = true;
-  Object.entries(payload).forEach(([key, value]) => {
+  Object.entries(decodedPayload).forEach(([key, value]) => {
     if (!REMOTE_DATA_KEYS.includes(key)) return;
     localStorage.setItem(key, JSON.stringify(value));
   });
@@ -16345,7 +16398,8 @@ function applyRemotePathUpdate(path, value) {
   }
   if (!REMOTE_DATA_KEYS.includes(key)) return;
   isApplyingRemote = true;
-  localStorage.setItem(key, JSON.stringify(value));
+  const decodedValue = decodeFirebasePayload(value);
+  localStorage.setItem(key, JSON.stringify(decodedValue));
   syncFromStorage();
   isApplyingRemote = false;
 }
