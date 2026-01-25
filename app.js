@@ -18213,9 +18213,30 @@ function stableStringify(value) {
 
 const SYNC_METADATA_KEYS = new Set(['updatedAt', 'createdAt', 'lastUpdatedAt', 'lastSyncAt']);
 
-function normalizeSyncValue(value) {
+const SYNC_NUMERIC_STRING_REGEX = /^-?\d+(\.\d+)?$/;
+
+function normalizeSyncScalar(value) {
   if (value === null || value === undefined) return undefined;
-  if (typeof value !== 'object') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '');
+    const trimmed = normalized.trim();
+    if (SYNC_NUMERIC_STRING_REGEX.test(trimmed)) {
+      return Number(trimmed);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+function normalizeSyncValue(value) {
+  const scalar = normalizeSyncScalar(value);
+  if (scalar !== undefined && typeof scalar !== 'object') return scalar;
+  if (scalar === undefined) return undefined;
+  if (typeof scalar !== 'object') return scalar;
   if (Array.isArray(value)) {
     const normalizedItems = value.map(item => normalizeSyncValue(item)).filter(item => item !== undefined);
     if (!normalizedItems.length) return undefined;
