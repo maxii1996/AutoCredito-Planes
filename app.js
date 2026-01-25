@@ -1465,6 +1465,37 @@ function confirmAction({ title = 'Confirmar', message = '', messageHtml = '', co
   closeBtn.onclick = cleanup;
 }
 
+function openDataResetWarning({ title = 'Advertencia', onConfirm } = {}) {
+  const modal = document.getElementById('dataResetModal');
+  if (!modal) return;
+  const titleEl = document.getElementById('dataResetTitle');
+  const checkbox = document.getElementById('dataResetCheck');
+  const confirmBtn = document.getElementById('dataResetConfirm');
+  const exportBtn = document.getElementById('dataResetExport');
+  const closeBtn = document.getElementById('dataResetClose');
+  if (!titleEl || !checkbox || !confirmBtn || !exportBtn || !closeBtn) return;
+  titleEl.textContent = title;
+  checkbox.checked = false;
+  confirmBtn.disabled = true;
+  checkbox.onchange = () => {
+    confirmBtn.disabled = !checkbox.checked;
+  };
+  const closeModal = () => {
+    hideModal(modal);
+  };
+  closeBtn.onclick = closeModal;
+  modal.onclick = (event) => {
+    if (event.target === modal) closeModal();
+  };
+  exportBtn.onclick = () => exportProfileData();
+  confirmBtn.onclick = () => {
+    if (confirmBtn.disabled) return;
+    closeModal();
+    if (onConfirm) onConfirm();
+  };
+  showModal(modal);
+}
+
 function showQuoteRestoreModal({ onContinue, onReload, onReset } = {}) {
   const modal = document.getElementById('quoteRestoreModal');
   if (!modal) return;
@@ -15644,23 +15675,26 @@ function exportManagerClients({ scope = 'filtered' } = {}) {
   showToast('Exportación lista', 'success');
 }
 
-function bindProfileActions() {
+function exportProfileData() {
+  const payload = { version: 7, vehicles, brandSettings: ensureBrandSettings(), priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots, generatedQuotes };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chevrolet-plan-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Perfil exportado', 'success');
+}
 
+function bindProfileActions() {
   document.getElementById('exportProfile').addEventListener('click', () => {
-      confirmAction({
-        title: 'Exportar perfil',
-        message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
-        confirmText: 'Exportar',
-        onConfirm: () => {
-        const payload = { version: 7, vehicles, brandSettings: ensureBrandSettings(), priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots, generatedQuotes };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `chevrolet-plan-${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('Perfil exportado', 'success');
+    confirmAction({
+      title: 'Exportar perfil',
+      message: 'Descargarás un respaldo con vehículos, plantillas, clientes, recontactos, notas y preferencias.',
+      confirmText: 'Exportar',
+      onConfirm: () => {
+        exportProfileData();
       }
     });
   });
@@ -15759,16 +15793,14 @@ function bindProfileActions() {
   const resetBtn = document.getElementById('resetDefaults');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      confirmAction({
+      openDataResetWarning({
         title: 'Restaurar valores base',
-        message: 'Se repondrán vehículos y plantillas originales, manteniendo los clientes.',
-          confirmText: 'Restaurar',
-          onConfirm: async () => {
-            priceDrafts = {};
-            activePriceTabId = '';
-            activePriceSource = 'local';
-            vehicles = cloneVehicles(defaultVehicles);
-            templates = ensureTemplateIds([...defaultTemplates]);
+        onConfirm: async () => {
+          priceDrafts = {};
+          activePriceTabId = '';
+          activePriceSource = 'local';
+          vehicles = cloneVehicles(defaultVehicles);
+          templates = ensureTemplateIds([...defaultTemplates]);
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
           uiState = {
@@ -17003,10 +17035,8 @@ function clearStorage() {
   if (!ensureWriteAccess('No puedes limpiar datos en modo sin conexión.')) {
     return;
   }
-  confirmAction({
-    title: 'Limpiar datos locales',
-    message: 'Esto eliminará los datos guardados, ten en cuenta que si no tienes una copia resguardada, la información se perderá.',
-    confirmText: 'Limpiar',
+  openDataResetWarning({
+    title: 'Eliminar datos del sitio',
     onConfirm: async () => {
       const currentUid = authState.user?.uid || null;
       const shouldLogout = !!authState.session;
@@ -17552,24 +17582,8 @@ async function attemptRestoreSession() {
     return false;
   }
   if (info.offline) {
-    const storageUid = info.uid || getLastUserId() || STORAGE_GUEST_ID;
-    switchUserContext(storageUid, { migrateLegacy: false });
-    authState.user = {
-      uid: info.uid || 'offline',
-      username: 'offline',
-      displayName: info.displayName || 'Modo sin conexión',
-      role: info.role || 'Offline',
-      status: 'active'
-    };
-    authState.session = {
-      uid: authState.user.uid,
-      displayName: authState.user.displayName,
-      role: authState.user.role,
-      expiresAt: info.expiresAt
-    };
-    authState.offline = true;
-    setReadOnlyMode(true);
-    return true;
+    clearSessionInfo();
+    return false;
   }
   const userRecord = await dbGet(`users/${info.uid}`);
   if (!userRecord || userRecord.status !== 'active') {
@@ -17861,48 +17875,6 @@ async function handleLogin(username, password) {
   hideLoginTransition();
   setLoginStatus('ready');
   showToast('Sesión iniciada correctamente.', 'success');
-  return true;
-}
-
-async function handleOfflineLogin() {
-  const fallbackUid = getLastUserId() || STORAGE_GUEST_ID;
-  switchUserContext(fallbackUid, { migrateLegacy: false });
-  const localSummary = buildLocalSyncSummary();
-  const total = localSummary.items.reduce((acc, item) => acc + (item.count || 0), 0);
-  if (!total) {
-    showToast('No hay datos locales para usar sin conexión.', 'warning');
-    return false;
-  }
-  const expiresAt = Date.now() + OFFLINE_SESSION_MS;
-  authState.user = {
-    uid: fallbackUid,
-    username: 'offline',
-    displayName: 'Modo sin conexión',
-    role: 'Offline',
-    status: 'active'
-  };
-  authState.session = {
-    uid: fallbackUid,
-    displayName: 'Modo sin conexión',
-    role: 'Offline',
-    expiresAt
-  };
-  authState.offline = true;
-  storeSessionInfo({ uid: fallbackUid, expiresAt, offline: true, displayName: 'Modo sin conexión', role: 'Offline' });
-  updateSessionFooter();
-  scheduleSessionTicker();
-  setReadOnlyMode(true);
-  updateAdminAccessVisibility();
-  setSyncStatus({ online: false, lastCheckAt: Date.now() });
-  showLoginTransition(authState.session.displayName);
-  hideLoginOverlay();
-  setLoginTransitionStep('success', authState.session.displayName);
-  await wait(700);
-  await bootModules();
-  hideLoginTransition();
-  setLoginStatus('ready');
-  recordModification();
-  showToast('Acceso sin conexión activado.', 'success');
   return true;
 }
 
@@ -18944,14 +18916,6 @@ function bindAuthUI() {
     authState.loading = true;
     try {
       await handleLogin(username, password);
-    } finally {
-      authState.loading = false;
-    }
-  });
-  document.getElementById('offlineLogin')?.addEventListener('click', async () => {
-    authState.loading = true;
-    try {
-      await handleOfflineLogin();
     } finally {
       authState.loading = false;
     }

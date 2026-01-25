@@ -70,13 +70,6 @@
             </div>
           </form>
         </div>
-        <div class="auth-column auth-column-offline">
-          <div class="auth-offline-card">
-            <span class="eyebrow">Modo sin conexión</span>
-            <h3>Ingresar sin conexión</h3>
-            <button class="secondary-btn" type="button" id="offlineLogin"><i class='bx bx-cloud-off'></i>Ingresar sin conexión</button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -1376,7 +1369,7 @@
     </main>
     <footer class="app-footer">
       <div>
-        <p>Creado por Maximiliano Martinez | version 1.3.3 | Solo uso interno autorizado</p>
+        <p>Creado por Maximiliano Martinez | version v1.4.0 (beta) | Solo uso interno autorizado</p>
       </div>
       <div class="session-footer" id="sessionFooter">
         <span class="muted tiny" id="sessionStatus">Sesión no iniciada.</span>
@@ -2739,6 +2732,30 @@
       <div class="modal-actions">
         <button id="modalCancel" class="ghost-btn">Cancelar</button>
         <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <div id="dataResetModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Advertencia</p>
+          <h3 id="dataResetTitle">Advertencia</h3>
+          <p class="muted data-reset-message">
+            Esto eliminará toda la configuración guardada localmente, te recomendamos hacer una copia de seguridad de tu perfil para no perder los datos. Esto tambien limpiará tus datos "en linea", si no tienes copia de respaldo, podrias perder todo.
+          </p>
+        </div>
+        <button id="dataResetClose" class="ghost-btn icon-only" aria-label="Cerrar advertencia"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body data-reset-body">
+        <label class="checkbox-row data-reset-check">
+          <input type="checkbox" id="dataResetCheck">
+          <span>Entiendo lo que estoy haciendo.</span>
+        </label>
+      </div>
+      <div class="modal-actions data-reset-actions">
+        <button id="dataResetExport" class="secondary-btn"><i class='bx bx-download'></i>Exportar Mi Perfil</button>
+        <button id="dataResetConfirm" class="primary-btn" disabled>Continuar</button>
       </div>
     </div>
   </div>
