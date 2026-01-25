@@ -3547,7 +3547,7 @@ let scheduleClockInterval = null;
 let vehicleEditorState = { selectedIndex: 0, search: '', brandFilter: 'all', tab: 'models' };
 let vehicleEditorAutosaveTimer = null;
 let journeyReportState = { from: '', to: '' };
-let authState = { user: null, session: null, stream: null, isReady: false, loading: false, offline: false };
+let authState = { user: null, session: null, stream: null, isReady: false, loading: false, loggingOut: false, offline: false };
 const PRESENCE_HEARTBEAT_MS = 60000;
 const PRESENCE_ACTIVE_GRACE_MS = 150000;
 const FORCE_LOGOUT_CHECK_MS = 30000;
@@ -17007,7 +17007,9 @@ function clearStorage() {
     title: 'Limpiar datos locales',
     message: 'Esto eliminará los datos guardados, ten en cuenta que si no tienes una copia resguardada, la información se perderá.',
     confirmText: 'Limpiar',
-      onConfirm: () => {
+    onConfirm: async () => {
+      const currentUid = authState.user?.uid || null;
+      const shouldLogout = !!authState.session;
       const scopedPrefix = `${STORAGE_USER_PREFIX}${storageState.uid || STORAGE_GUEST_ID}:`;
       Object.keys(localStorage).forEach((key) => {
         if (key.startsWith(scopedPrefix)) {
@@ -17018,36 +17020,38 @@ function clearStorage() {
       resetInMemoryState();
       syncState.lastHashes = {};
       setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
-      initializePriceTabs().then(() => {
-        applyToggleState();
-        applyPreferences();
-        applyStatusPalette();
-        renderPriceTabs();
-        renderVehicleTable();
-        renderTemplates();
-        renderPlanForm();
-        renderClients();
-        renderClientManager();
-        renderWelcomeHero();
-        renderAdvisorNote();
-        renderGlobalSettings();
-        renderSnapshots();
-        renderStats();
-        persist();
-        if (authState.user) {
-          dbPut(`data/${authState.user.uid}`, {
-            vehicles,
-            templates,
-            clients,
-            managerClients,
-            uiState: sanitizeUiStateForSync(uiState),
-            clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
-            brandSettings,
-            generatedQuotes
-          }).catch(err => console.error('Error limpiando datos remotos:', err));
-        }
-        showToast('Datos locales eliminados', 'success');
-      });
+      await initializePriceTabs();
+      applyToggleState();
+      applyPreferences();
+      applyStatusPalette();
+      renderPriceTabs();
+      renderVehicleTable();
+      renderTemplates();
+      renderPlanForm();
+      renderClients();
+      renderClientManager();
+      renderWelcomeHero();
+      renderAdvisorNote();
+      renderGlobalSettings();
+      renderSnapshots();
+      renderStats();
+      persist();
+      if (currentUid) {
+        dbPut(`data/${currentUid}`, {
+          vehicles,
+          templates,
+          clients,
+          managerClients,
+          uiState: sanitizeUiStateForSync(uiState),
+          clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
+          brandSettings,
+          generatedQuotes
+        }).catch(err => console.error('Error limpiando datos remotos:', err));
+      }
+      showToast('Datos locales eliminados', 'success');
+      if (shouldLogout) {
+        await handleLogout(false);
+      }
     }
   });
 }
@@ -17903,30 +17907,45 @@ async function handleOfflineLogin() {
 }
 
 async function handleLogout(expired = false, forced = false, inactive = false) {
+  if (authState.loggingOut) return;
+  authState.loggingOut = true;
   stopUserStream();
-  await stopPresenceTracking();
-  authState.user = null;
-  authState.session = null;
-  authState.offline = false;
-  clearSessionInfo();
-  setStorageScope(STORAGE_GUEST_ID, { migrateLegacy: false });
-  resetInMemoryState();
-  syncState.lastHashes = {};
-  remoteSyncQueue = {};
-  setReadOnlyMode(false);
-  stopIdleTimer();
-  updateSessionFooter();
-  updateAdminAccessVisibility();
-  showLoginOverlay();
-  setLoginStatus('connect');
-  if (expired) {
-    showToast('La sesión expiró. Ingresa nuevamente.', 'warning');
-  }
-  if (forced) {
-    showToast('Un administrador cerró tu sesión.', 'warning');
-  }
-  if (inactive) {
-    showToast('Sesión cerrada por inactividad.', 'warning');
+  try {
+    await stopPresenceTracking();
+    authState.user = null;
+    authState.session = null;
+    authState.offline = false;
+    clearSessionInfo();
+    setStorageScope(STORAGE_GUEST_ID, { migrateLegacy: false });
+    resetInMemoryState();
+    syncState.lastHashes = {};
+    remoteSyncQueue = {};
+    setReadOnlyMode(false);
+    stopIdleTimer();
+    if (authState.sessionTimer) {
+      clearInterval(authState.sessionTimer);
+      authState.sessionTimer = null;
+    }
+    if (presenceState.activityTimer) {
+      clearTimeout(presenceState.activityTimer);
+      presenceState.activityTimer = null;
+    }
+    setSyncStatus({ online: false, lastCheckAt: Date.now() });
+    updateSessionFooter();
+    updateAdminAccessVisibility();
+    showLoginOverlay();
+    setLoginStatus('connect');
+    if (expired) {
+      showToast('La sesión expiró. Ingresa nuevamente.', 'warning');
+    }
+    if (forced) {
+      showToast('Un administrador cerró tu sesión.', 'warning');
+    }
+    if (inactive) {
+      showToast('Sesión cerrada por inactividad.', 'warning');
+    }
+  } finally {
+    authState.loggingOut = false;
   }
 }
 
@@ -18160,10 +18179,11 @@ function stableStringify(value) {
 const SYNC_METADATA_KEYS = new Set(['updatedAt', 'createdAt', 'lastUpdatedAt', 'lastSyncAt']);
 
 function normalizeSyncValue(value) {
-  if (value === null || value === undefined) return null;
+  if (value === null || value === undefined) return undefined;
   if (typeof value !== 'object') return value;
   if (Array.isArray(value)) {
     const normalizedItems = value.map(item => normalizeSyncValue(item)).filter(item => item !== undefined);
+    if (!normalizedItems.length) return undefined;
     return normalizedItems
       .map(item => ({ item, key: stableStringify(item) }))
       .sort((a, b) => a.key.localeCompare(b.key))
@@ -18179,6 +18199,7 @@ function normalizeSyncValue(value) {
         normalized[key] = normalizedValue;
       }
     });
+  if (!Object.keys(normalized).length) return undefined;
   return normalized;
 }
 
