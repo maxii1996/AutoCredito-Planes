@@ -734,6 +734,8 @@ body.menu-overlay-active .nav-row { visibility: hidden; opacity: 0; pointer-even
   padding: 14px;
   background: rgba(15, 23, 42, 0.65);
   min-width: 220px;
+  width: 260px;
+  max-width: 260px;
   display: grid;
   gap: 12px;
 }
@@ -772,6 +774,15 @@ body.menu-overlay-active .nav-row { visibility: hidden; opacity: 0; pointer-even
   display: grid;
   gap: 4px;
   font-size: 13px;
+  min-width: 0;
+}
+.sync-status-text span {
+  display: block;
+  white-space: normal;
+}
+.sync-status-card.syncing .sync-status-icon i {
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
 }
 
 .sync-conflict-modal .modal-body {

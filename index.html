@@ -168,6 +168,7 @@
                 </div>
                 <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
                 <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+                <button id="downloadProfile" class="menu-item"><i class='bx bx-download'></i> Descargar mi perfil</button>
                 <button class="menu-item" id="openModuleManagement"><i class='bx bx-grid-alt'></i>Gestión de módulos</button>
               </div>
             </div>
@@ -2768,7 +2769,6 @@
           <p class="muted">Elige qué versión quieres usar antes de continuar.</p>
           <p class="muted tiny">Haz clic en cualquier elemento para ver su detalle y peso de diferencia.</p>
         </div>
-        <button id="syncConflictClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
       <div class="modal-body sync-conflict-body">
         <div class="sync-conflict-card" data-source="local">
@@ -2795,7 +2795,6 @@
       <div class="modal-actions">
         <button id="syncConflictLocal" class="secondary-btn"><i class='bx bx-hard-drive'></i>Usar datos locales</button>
         <button id="syncConflictRemote" class="primary-btn"><i class='bx bx-cloud'></i>Usar datos online</button>
-        <button id="syncConflictCancel" class="ghost-btn">Cancelar</button>
       </div>
     </div>
   </div>
@@ -2954,10 +2953,6 @@
                         </select>
                       </label>
                       <label class="field">
-                        <span>Duración de sesión (horas)</span>
-                        <input type="number" id="adminEditSessionHours" min="1" step="1">
-                      </label>
-                      <label class="field">
                         <span>Estado</span>
                         <select id="adminEditStatus">
                           <option value="active">Activo</option>
@@ -3017,10 +3012,6 @@
                       <option value="Team Leader">Team Leader</option>
                       <option value="Usuario">Usuario</option>
                     </select>
-                  </label>
-                  <label class="field">
-                    <span>Duración de sesión (horas)</span>
-                    <input type="number" id="adminCreateSessionHours" min="1" step="1">
                   </label>
                   <label class="field">
                     <span>Contraseña inicial</span>

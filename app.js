@@ -159,14 +159,10 @@ const defaultUiState = {
   advisorNote: ''
 };
 
-const ROLE_SESSION_HOURS = {
-  Administrador: 24,
-  'Team Leader': 12,
-  Usuario: 8
-};
-
-const OFFLINE_SESSION_MS = 10 * 60 * 1000;
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_IDLE_HOURS = 4;
+const SESSION_IDLE_TIMEOUT_MS = SESSION_IDLE_HOURS * 60 * 60 * 1000;
+const OFFLINE_SESSION_MS = SESSION_IDLE_TIMEOUT_MS;
+const IDLE_TIMEOUT_MS = SESSION_IDLE_TIMEOUT_MS;
 const REMOTE_SYNC_DEBOUNCE_MS = 5000;
 const REMOTE_SYNC_MIN_INTERVAL_MS = 30000;
 const PRESENCE_ACTIVITY_DEBOUNCE_MS = 30000;
@@ -1570,6 +1566,16 @@ function toggleModal(modal, show) {
   } else {
     hideModal(modal);
   }
+}
+
+function closeAllOverlays() {
+  document.querySelectorAll('.modal.show, .popover-overlay.show').forEach((overlay) => {
+    hideModal(overlay);
+  });
+  document.getElementById('actionMenuPanel')?.classList.remove('open');
+  document.getElementById('settingsPanel')?.classList.remove('open');
+  document.getElementById('utilitiesMenuPanel')?.classList.remove('open');
+  updateTopNavVisibility();
 }
 
 function getAccountManagerDraft(account) {
@@ -3621,7 +3627,8 @@ let relativeTimeTicker = null;
 const syncStatus = {
   online: typeof navigator !== 'undefined' ? navigator.onLine : true,
   lastSyncAt: null,
-  lastCheckAt: null
+  lastCheckAt: null,
+  syncing: false
 };
 let remoteSyncQueue = {};
 let remoteSyncTimer = null;
@@ -15698,6 +15705,9 @@ function bindProfileActions() {
       }
     });
   });
+  document.getElementById('downloadProfile')?.addEventListener('click', () => {
+    exportProfileData();
+  });
 
   document.getElementById('importProfile').addEventListener('change', async e => {
     if (!ensureWriteAccess('La importación de perfiles está deshabilitada en modo sin conexión.')) {
@@ -16890,6 +16900,7 @@ async function flushRemoteSync() {
   if (!Object.keys(payload).length) return;
   
   try {
+    setSyncStatus({ syncing: true });
     await dbPatch(`data/${authState.user.uid}`, payload);
     Object.keys(payload).forEach((key) => {
       if (key === 'updatedAt') return;
@@ -16903,6 +16914,8 @@ async function flushRemoteSync() {
   } catch (error) {
     console.warn('Sincronización remota falló, datos se guardarán localmente:', error);
     // No re-lanzar el error, permitir que la aplicación continúe funcionando
+  } finally {
+    setSyncStatus({ syncing: false });
   }
 }
 
@@ -16992,6 +17005,7 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
     updatedAt: Date.now()
   };
   try {
+    setSyncStatus({ syncing: true });
     await dbPatch(`data/${authState.user.uid}`, payload);
     Object.keys(payload).forEach((key) => {
       if (key === 'updatedAt') return;
@@ -17005,6 +17019,8 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
   } catch (error) {
     console.warn(`Sincronización inmediata falló${reason ? ` (${reason})` : ''}:`, error);
     setSyncStatus({ online: false, lastCheckAt: Date.now() });
+  } finally {
+    setSyncStatus({ syncing: false });
   }
 }
 
@@ -17141,6 +17157,23 @@ function clearSessionInfo() {
 
 function createSessionId() {
   return `session-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function updateStoredSessionInfo(overrides = {}) {
+  if (!authState.session) return;
+  storeSessionInfo({
+    uid: authState.session.uid,
+    expiresAt: authState.session.expiresAt,
+    sessionId: presenceState.sessionId,
+    sessionStartedAt: presenceState.sessionStartedAt,
+    ...overrides
+  });
+}
+
+function refreshSessionExpiry(now = Date.now()) {
+  if (!authState.session) return;
+  authState.session.expiresAt = now + SESSION_IDLE_TIMEOUT_MS;
+  updateStoredSessionInfo();
 }
 
 function presenceIdentityPayload() {
@@ -17537,9 +17570,9 @@ function updateSessionFooter() {
     logoutButton.classList.add('hidden');
     return;
   }
-  const expiresAt = new Date(authState.session.expiresAt);
-  const formatted = `${expiresAt.toLocaleDateString('es-AR', { timeZone: BUENOS_AIRES_TIMEZONE })} a las ${expiresAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: BUENOS_AIRES_TIMEZONE })}`;
-  status.textContent = `Usuario: ${authState.session.displayName} | Rol: ${authState.session.role} | La sesión activa expirará el día: ${formatted}.`;
+  const remaining = authState.session.expiresAt - Date.now();
+  const remainingLabel = formatSessionRemaining(remaining);
+  status.textContent = `Usuario: ${authState.session.displayName} | Rol: ${authState.session.role} | La sesión expirará si no se producen cambios ${remainingLabel}.`;
   logoutButton.classList.remove('hidden');
 }
 
@@ -17565,7 +17598,7 @@ async function ensureInitialAdmin() {
     displayName: DEFAULT_ADMIN_CREDENTIALS.name,
     role: DEFAULT_ADMIN_CREDENTIALS.role,
     status: 'active',
-    sessionHours: ROLE_SESSION_HOURS[DEFAULT_ADMIN_CREDENTIALS.role],
+    sessionHours: SESSION_IDLE_HOURS,
     passwordHash,
     createdAt: Date.now()
   };
@@ -17592,11 +17625,13 @@ async function attemptRestoreSession() {
   }
   switchUserContext(info.uid, { migrateLegacy: true });
   authState.user = { uid: info.uid, ...userRecord };
+  const storedExpiresAt = Number(info.expiresAt);
+  const expiresAt = Number.isFinite(storedExpiresAt) ? storedExpiresAt : Date.now() + SESSION_IDLE_TIMEOUT_MS;
   authState.session = {
     uid: info.uid,
     displayName: userRecord.displayName || userRecord.username,
     role: userRecord.role,
-    expiresAt: info.expiresAt
+    expiresAt
   };
   authState.offline = false;
   setReadOnlyMode(false);
@@ -17604,9 +17639,11 @@ async function attemptRestoreSession() {
   const sessionStartedAt = info.sessionStartedAt || Date.now();
   presenceState.sessionId = sessionId;
   presenceState.sessionStartedAt = sessionStartedAt;
-  if (!info.sessionId || !info.sessionStartedAt) {
-    storeSessionInfo({ ...info, sessionId, sessionStartedAt });
+  if (!info.sessionId || !info.sessionStartedAt || !Number.isFinite(storedExpiresAt)) {
+    updateStoredSessionInfo({ uid: info.uid, expiresAt });
   }
+  const inferredLastModificationAt = expiresAt - SESSION_IDLE_TIMEOUT_MS;
+  idleState.lastModificationAt = Number.isFinite(inferredLastModificationAt) ? inferredLastModificationAt : Date.now();
   setLastUserId(info.uid);
   return true;
 }
@@ -17769,8 +17806,11 @@ function startIdleTimer() {
 }
 
 function recordModification() {
-  idleState.lastModificationAt = Date.now();
+  const now = Date.now();
+  idleState.lastModificationAt = now;
+  refreshSessionExpiry(now);
   startIdleTimer();
+  updateSessionFooter();
 }
 
 function resetIdleTimer() {
@@ -17841,8 +17881,7 @@ async function handleLogin(username, password) {
     showToast('Contraseña incorrecta.', 'error');
     return false;
   }
-  const sessionHours = Number(userRecord.sessionHours) || ROLE_SESSION_HOURS[userRecord.role] || 8;
-  const expiresAt = Date.now() + sessionHours * 60 * 60 * 1000;
+  const expiresAt = Date.now() + SESSION_IDLE_TIMEOUT_MS;
   authState.user = { uid, ...userRecord };
   authState.session = {
     uid,
@@ -17856,7 +17895,7 @@ async function handleLogin(username, password) {
   const sessionStartedAt = Date.now();
   presenceState.sessionId = sessionId;
   presenceState.sessionStartedAt = sessionStartedAt;
-  storeSessionInfo({ uid, expiresAt, sessionId, sessionStartedAt });
+  updateStoredSessionInfo({ uid });
   setLastUserId(uid);
   updateSessionFooter();
   scheduleSessionTicker();
@@ -17905,6 +17944,7 @@ async function handleLogout(expired = false, forced = false, inactive = false) {
     setSyncStatus({ online: false, lastCheckAt: Date.now() });
     updateSessionFooter();
     updateAdminAccessVisibility();
+    closeAllOverlays();
     showLoginOverlay();
     setLoginStatus('connect');
     if (expired) {
@@ -17936,7 +17976,7 @@ async function initializeAuth() {
     if (restored) {
       hideLoginOverlay();
       scheduleSessionTicker();
-      recordModification();
+      startIdleTimer();
       if (!authState.offline) {
         await loadRemoteState();
         startUserStream();
@@ -17997,6 +18037,17 @@ function formatRelativeTime(value) {
   return future ? `en ${amount} ${unit}` : `hace ${amount} ${unit}`;
 }
 
+function formatSessionRemaining(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return 'menos de 30 segundos';
+  const seconds = Math.ceil(ms / 1000);
+  if (seconds <= 30) return 'menos de 30 segundos';
+  if (seconds < 60) return `en ${seconds} ${seconds === 1 ? 'segundo' : 'segundos'}`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+  const hours = Math.ceil(minutes / 60);
+  return `en ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+}
+
 function updateRelativeTimes() {
   document.querySelectorAll('[data-relative-time]').forEach((el) => {
     const timestamp = el.dataset.relativeTime;
@@ -18011,10 +18062,11 @@ function startRelativeTimeTicker() {
   relativeTimeTicker = setInterval(updateRelativeTimes, 1000);
 }
 
-function setSyncStatus({ online, lastSyncAt, lastCheckAt } = {}) {
+function setSyncStatus({ online, lastSyncAt, lastCheckAt, syncing } = {}) {
   if (typeof online === 'boolean') syncStatus.online = online;
   if (lastSyncAt) syncStatus.lastSyncAt = lastSyncAt;
   if (lastCheckAt) syncStatus.lastCheckAt = lastCheckAt;
+  if (typeof syncing === 'boolean') syncStatus.syncing = syncing;
   updateSyncStatusUI();
 }
 
@@ -18056,6 +18108,7 @@ async function runManualSync() {
     showToast('No hay cambios para sincronizar.', 'info');
     return;
   }
+  setSyncStatus({ syncing: true });
   showImportOverlay({
     eyebrow: 'Sincronización manual',
     title: 'Sincronizando con el servidor',
@@ -18080,6 +18133,7 @@ async function runManualSync() {
     showToast('No se pudo completar la sincronización manual.', 'error');
   } finally {
     hideImportOverlay();
+    setSyncStatus({ syncing: false });
   }
 }
 
@@ -18104,7 +18158,16 @@ function updateSyncStatusUI() {
   if (!card || !label || !detail || !icon) return;
   card.classList.toggle('online', syncStatus.online);
   card.classList.toggle('offline', !syncStatus.online);
+  const isSyncing = syncStatus.syncing && syncStatus.online;
+  card.classList.toggle('syncing', isSyncing);
   card.classList.toggle('clickable', syncStatus.online && !!authState.session && !authState.offline);
+  if (isSyncing) {
+    label.textContent = 'Sincronizando';
+    detail.textContent = 'Sincronizando datos con el servidor...';
+    card.title = 'Sincronizando datos con el servidor...';
+    icon.innerHTML = "<i class='bx bx-wifi sync-spinner'></i>";
+    return;
+  }
   const statusText = syncStatus.online ? 'Estás Online' : 'Estás Offline';
   label.textContent = statusText;
   const lastSync = syncStatus.lastSyncAt ? formatRelativeTime(syncStatus.lastSyncAt) : '-';
@@ -18441,8 +18504,6 @@ function openSyncConflictModal({ localSummary, remoteSummary, comparison } = {})
     const remoteUpdated = document.getElementById('syncRemoteUpdated');
     const localBtn = document.getElementById('syncConflictLocal');
     const remoteBtn = document.getElementById('syncConflictRemote');
-    const cancelBtn = document.getElementById('syncConflictCancel');
-    const closeBtn = document.getElementById('syncConflictClose');
     if (!modal) {
       resolve('cancel');
       return;
@@ -18475,8 +18536,6 @@ function openSyncConflictModal({ localSummary, remoteSummary, comparison } = {})
       toggleModal(modal, false);
       localBtn.onclick = null;
       remoteBtn.onclick = null;
-      cancelBtn.onclick = null;
-      closeBtn.onclick = null;
       localList?.removeEventListener('click', handleDetailClick);
       remoteList?.removeEventListener('click', handleDetailClick);
       resolve(choice);
@@ -18484,8 +18543,6 @@ function openSyncConflictModal({ localSummary, remoteSummary, comparison } = {})
 
     localBtn.onclick = () => cleanup('local');
     remoteBtn.onclick = () => cleanup('remote');
-    cancelBtn.onclick = () => cleanup('cancel');
-    closeBtn.onclick = () => cleanup('cancel');
     toggleModal(modal, true);
   });
 }
@@ -18556,7 +18613,7 @@ function renderAdminList(users, selectedUid) {
         </div>
         <span class="pill">${primaryAdmin ? 'Principal' : statusLabel}</span>
       </div>
-      <div class="admin-user-card-meta">Rol: ${user.role || 'Usuario'} · Sesión: ${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8}h</div>
+      <div class="admin-user-card-meta">Rol: ${user.role || 'Usuario'}</div>
       <div class="admin-user-card-actions">
         <button class="ghost-btn mini" data-action="toggle" data-uid="${user.uid}" ${primaryAdmin ? 'disabled' : ''} title="${primaryAdmin ? 'El administrador principal no puede desactivarse.' : ''}">
           <i class='bx bx-power-off'></i>${user.status === 'active' ? 'Desactivar' : 'Activar'}
@@ -18584,7 +18641,6 @@ function renderAdminMeta(user, metrics) {
     <div class="admin-user-meta-row"><span>Usuario</span><strong>@${user.username}</strong></div>
     <div class="admin-user-meta-row"><span>Rol</span><strong>${user.role || 'Usuario'}</strong></div>
     <div class="admin-user-meta-row"><span>Estado</span><strong>${user.status === 'active' ? 'Activo' : 'Inactivo'}</strong></div>
-    <div class="admin-user-meta-row"><span>Sesión</span><strong>${user.sessionHours || ROLE_SESSION_HOURS[user.role] || 8} horas</strong></div>
     <div class="admin-user-meta-row"><span>Creado</span><strong>${formatAdminDate(user.createdAt)} <span class="muted tiny" data-relative-time="${user.createdAt || ''}"></span></strong></div>
     <div class="admin-user-meta-row"><span>Actualizado</span><strong>${formatAdminDate(user.updatedAt)} <span class="muted tiny" data-relative-time="${user.updatedAt || ''}"></span></strong></div>
     <div class="admin-user-meta-row"><span>Última sincronización</span><strong>${formatAdminDate(metrics?.updatedAt || metrics?.createdAt)} <span class="muted tiny" data-relative-time="${metrics?.updatedAt || metrics?.createdAt || ''}"></span></strong></div>
@@ -18640,7 +18696,6 @@ function populateAdminEditForm(user) {
   document.getElementById('adminEditUsername').value = user?.username || '';
   document.getElementById('adminEditName').value = user?.displayName || '';
   document.getElementById('adminEditRole').value = user?.role || 'Usuario';
-  document.getElementById('adminEditSessionHours').value = user?.sessionHours || '';
   const statusInput = document.getElementById('adminEditStatus');
   statusInput.value = user?.status || 'active';
   statusInput.disabled = primaryAdmin;
@@ -18769,7 +18824,6 @@ async function handleAdminEditSubmit(event) {
   }
   const displayName = document.getElementById('adminEditName').value.trim();
   const role = document.getElementById('adminEditRole').value;
-  const sessionHours = Number(document.getElementById('adminEditSessionHours').value) || ROLE_SESSION_HOURS[role];
   const status = document.getElementById('adminEditStatus').value;
   const password = document.getElementById('adminEditPassword').value;
   const currentUser = adminState.users.find(item => item.uid === uid);
@@ -18780,7 +18834,7 @@ async function handleAdminEditSubmit(event) {
   const payload = {
     displayName,
     role,
-    sessionHours,
+    sessionHours: SESSION_IDLE_HOURS,
     status: isPrimaryAdmin(currentUser) ? 'active' : status,
     updatedAt: Date.now()
   };
@@ -18800,7 +18854,6 @@ async function handleAdminCreateSubmit(event) {
   const username = document.getElementById('adminCreateUsername').value.trim();
   const displayName = document.getElementById('adminCreateName').value.trim();
   const role = document.getElementById('adminCreateRole').value;
-  const sessionHours = Number(document.getElementById('adminCreateSessionHours').value) || ROLE_SESSION_HOURS[role];
   const password = document.getElementById('adminCreatePassword').value;
   const status = document.getElementById('adminCreateStatus').value;
   const normalized = normalizeUsername(username);
@@ -18819,7 +18872,7 @@ async function handleAdminCreateSubmit(event) {
     username: normalized,
     displayName,
     role,
-    sessionHours,
+    sessionHours: SESSION_IDLE_HOURS,
     status,
     passwordHash,
     createdAt: Date.now(),
