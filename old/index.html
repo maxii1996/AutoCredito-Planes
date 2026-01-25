@@ -3,91 +3,162 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chevrolet Plan Manager 2025</title>
+  <title>Gestor de Clientes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">🚗</div>
-        <div>
-          <p class="brand-title">Asesor:</p>
-          <p class="brand-subtitle" id="sidebarAdvisor">Chevrolet Argentina</p>
+  <div class="app-loader show" id="appLoader" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-header">
+        <div class="loader-icon">✨</div>
+        <div class="loader-text">
+          <p class="eyebrow">Inicializando módulos...</p>
+          <h2>Preparando el panel principal</h2>
+        </div>
+        <div class="loader-status-pill" id="loaderStatusPercent">0%</div>
+      </div>
+      <div class="loader-content">
+        <div class="loader-progress">
+          <div class="loader-total">
+            <div class="loader-total-row">
+              <span class="loader-total-label">Progreso total</span>
+              <span class="loader-total-count" id="loaderStatusText">0/0</span>
+            </div>
+            <div class="loader-bar"><span id="loaderBar"></span></div>
+          </div>
+          <div class="loader-steps" id="loaderSteps"></div>
         </div>
       </div>
-      <nav class="nav">
-        <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
-        <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
-        <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
-        <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
-        <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
-      </nav>
-      <div class="sidebar-foot">
-        <p class="mini">Datos locales, respaldo inmediato.</p>
+    </div>
+  </div>
+  <div class="profile-switch-overlay" id="profileSwitchOverlay" aria-live="polite" aria-hidden="true">
+    <div class="profile-switch-card">
+      <div class="profile-switch-spinner" aria-hidden="true"></div>
+      <div class="profile-switch-text">
+        <p class="eyebrow">Cambio de cuenta activa</p>
+        <h3 id="profileSwitchTitle">Cambiando cuenta activa a:</h3>
+        <p class="profile-switch-name" id="profileSwitchAccount">Cuenta</p>
+        <p class="muted" id="profileSwitchSubtitle">Espera un momento...</p>
       </div>
-    </aside>
-    <main class="content">
-      <header class="topbar">
-        <div class="title-area">
-          <button id="sidebarToggle" class="ghost-btn icon-only menu-toggle" title="Mostrar u ocultar menú"><i class='bx bx-menu-alt-left'></i></button>
-          <div>
-            <h1 id="sectionTitle">Inicio</h1>
+    </div>
+  </div>
+  <div class="app-shell">
+    <header class="topbar app-header">
+      <div class="topbar-row">
+        <div class="account-section">
+          <div class="account-selector-card">
+            <div class="account-selector-head">
+              <p class="eyebrow">Cuenta activa</p>
+            </div>
+            <div class="account-selector-field">
+              <div class="menu-field account-field-modern">
+                <i class='bx bx-user-circle'></i>
+                <select id="accountSelector"></select>
+                <i class='bx bx-chevron-down'></i>
+              </div>
+            </div>
           </div>
         </div>
         <div class="top-actions">
-          <div class="client-file-actions">
-            <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
-            <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+          <div class="data-management-card">
+            <div class="data-management-head">
+              <p class="eyebrow">Gestión de datos</p>
+            </div>
+            <div class="client-file-actions">
+              <label class="secondary-btn upload-btn" title="Subir archivo Excel"><i class='bx bx-upload'></i> Importar Excel<input type="file" id="clientExcel" accept=".xlsx,.xls,.csv"></label>
+              <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
+            </div>
           </div>
-          <div class="action-menu" id="actionMenu">
-            <button class="primary-btn" id="actionMenuToggle"><i class='bx bx-collection'></i> Opciones</button>
-            <div class="menu-panel" id="actionMenuPanel">
-              <button id="quickSnapshot" class="menu-item"><i class='bx bx-layer'></i> Guardar snapshot</button>
-              <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
-              <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
-              <div class="menu-sub">
-                <p class="menu-subtitle"><i class='bx bx-palette'></i> Colores de estado</p>
-                <button class="menu-item" id="openPaletteFromMenu"><i class='bx bx-adjust'></i> Ajustar colores</button>
+          <div class="utilities-card" id="utilitiesContainer">
+            <div class="utilities-head">
+              <p class="eyebrow">Utilidades</p>
+            </div>
+            <div class="utilities-menu" id="utilitiesMenu">
+              <button class="menu-trigger ghost" id="utilitiesMenuToggle"><i class='bx bx-extension'></i><span>Utilidades</span><i class='bx bx-chevron-down'></i></button>
+              <div class="menu-panel" id="utilitiesMenuPanel">
+                <div class="menu-head">
+                  <p class="eyebrow">Utilidades</p>
+                </div>
+                <button class="menu-item highlight" id="openContactAssistant"><i class='bx bx-bot'></i>Modo de Contacto Express</button>
+                <button class="menu-item" id="toggleEditMode"></button>
+                <button class="menu-item" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar acciones rápidas</button>
+                <button class="menu-item" id="openContactLog"><i class='bx bx-time-five'></i>Registro de Contactados</button>
+                <button class="menu-item" id="openJourneyReport"><i class='bx bx-bar-chart-alt-2'></i>Informe de Jornada</button>
+                <button class="menu-item" id="openImportedDataManager"><i class='bx bx-data'></i>Administrar datos importados</button>
               </div>
             </div>
           </div>
-          <div class="icon-menu" id="settingsMenu">
-            <button class="ghost-btn icon-only" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i></button>
-            <div class="menu-panel" id="settingsPanel">
-              <button class="menu-item" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
-              <button class="menu-item" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+          <div class="menu-cluster">
+            <div class="menu-cluster-head">
+              <p class="eyebrow">Ajustes y configuraciones</p>
+            </div>
+            <div class="menu-cluster-actions">
+              <div class="action-menu" id="actionMenu">
+                <button class="menu-trigger primary" id="actionMenuToggle"><i class='bx bx-collection'></i><span>Mi Perfil</span><i class='bx bx-chevron-down'></i></button>
+                <div class="menu-panel" id="actionMenuPanel">
+                <div class="menu-head">
+                  <p class="eyebrow">Mi Perfil</p>
+                </div>
+                <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
+                <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
+                <button class="menu-item" id="openModuleManagement"><i class='bx bx-grid-alt'></i>Gestión de módulos</button>
+              </div>
+            </div>
+            <div class="icon-menu" id="settingsMenu">
+              <button class="menu-trigger ghost" id="settingsToggle" title="Centro de control"><i class='bx bx-cog'></i><span>Opciones</span><i class='bx bx-dots-vertical-rounded'></i></button>
+                <div class="menu-panel" id="settingsPanel">
+                  <div class="menu-head">
+                    <p class="eyebrow">Opciones</p>
+                  </div>
+                  <button class="menu-item" id="openAccountManager"><i class='bx bx-layer-plus'></i>Gestión de cuentas</button>
+                  <button class="menu-item" id="openPreferences"><i class='bx bx-slider-alt'></i> Mis preferencias</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </header>
+      </div>
+      <div class="topbar-row nav-row">
+        <nav class="nav top-nav" id="mainNav">
+          <button class="nav-link active" data-target="dashboard"><i class='bx bxs-dashboard'></i><span class="label"> Inicio</span></button>
+          <button class="nav-link" data-target="clientManager"><i class='bx bx-group'></i><span class="label"> Gestor de Clientes</span></button>
+          <button class="nav-link" data-target="scheduledClients"><i class='bx bx-calendar-check'></i><span class="label"> Clientes Programados</span></button>
+          <button class="nav-link" data-target="templates"><i class='bx bx-message-dots'></i><span class="label"> Plantillas</span></button>
+          <button class="nav-link" data-target="plans"><i class='bx bx-notepad'></i><span class="label"> Cotizaciones</span></button>
+          <button class="nav-link" data-target="quoteGenerator" id="myQuotesToggle"><i class='bx bx-folder'></i><span class="label"> Mis Cotizaciones</span></button>
+          <button class="nav-link" data-target="vehicles"><i class='bx bx-car'></i><span class="label"> Autos y Valores</span></button>
+        </nav>
+      </div>
+    </header>
+    <main class="content">
 
       <section id="dashboard" class="panel active">
         <div class="dashboard-hero" id="welcomeHero">
-          <div class="hero-main modern">
-            <div class="eyebrow">Inicio</div>
-            <h2 id="dashboardHeading">Control principal</h2>
-            <p class="muted" id="dashboardSubtitle">Define quién atiende y ajusta tu jornada.</p>
+            <div class="hero-main modern">
+              <div class="eyebrow">Inicio</div>
+              <h2 id="dashboardHeading">Control principal</h2>
+              <p class="muted" id="dashboardSubtitle"></p>
             <div class="advisor-card">
               <div class="field">
-                <label for="advisorInput">Nombre del vendedor</label>
+                <label>Cuenta activa</label>
                 <div class="advisor-input">
-                  <input id="advisorInput" list="advisorSuggestions" placeholder="Ej: Sofía Alvarez" />
-                  <datalist id="advisorSuggestions"></datalist>
+                  <div class="combo-shell readonly">
+                    <i class='bx bx-user-circle'></i>
+                    <span id="activeAccountDisplay">Selecciona una cuenta activa en el selector superior.</span>
+                  </div>
                 </div>
               </div>
-              <p class="muted tiny" id="advisorHelper">Personaliza el inicio, se guarda en tiempo real.</p>
-            </div>
-            <div class="hero-actions tight">
-              <button class="primary-btn" data-jump="clientManager"><i class='bx bx-group'></i>Gestor de clientes</button>
-              <button class="secondary-btn" data-jump="plans"><i class='bx bx-notepad'></i>Crear plan</button>
-              <button class="ghost-btn" data-jump="templates"><i class='bx bx-message-dots'></i>Plantillas</button>
-            </div>
+              <p class="muted tiny" id="advisorHelper">Selecciona la cuenta activa para personalizar el panel.</p>
+              </div>
           </div>
           <div class="hero-side metrics">
             <div class="stat-tiles">
@@ -106,6 +177,15 @@
                 </div>
               </div>
             </div>
+            <div class="scheduled-summary-card">
+              <p class="label">Total Clientes Programados</p>
+              <p class="value" id="scheduledTotalCount">0</p>
+              <div class="scheduled-summary-row">
+                <span>Clientes Programados para hoy:</span>
+                <strong id="scheduledTodayCount">0</strong>
+              </div>
+              <button class="secondary-btn mini" data-jump="scheduledClients"><i class='bx bx-right-arrow-alt'></i>Ir a Clientes Programados</button>
+            </div>
           </div>
         </div>
 
@@ -114,20 +194,26 @@
       <section id="templates" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Mensajes</p>
-            <h2>Plantillas con variables</h2>
-            <p class="muted subtle">Gestión completa con previsualización y búsqueda.</p>
-          </div>
-          <div class="actions">
-            <div class="search-field">
-              <i class='bx bx-search'></i>
-              <input id="templateSearch" placeholder="Buscar plantillas" />
-            </div>
-            <button id="addTemplate" class="ghost-btn"><i class='bx bx-plus'></i>Nueva plantilla</button>
+            <p class="eyebrow">Plantillas con variables</p>
+            <h2>Gestor de Plantillas</h2>
+            <p class="muted subtle">Permite modificar, editar y crear nuevas plantillas para copiar y utilizar rápidamente en los mensajes.</p>
           </div>
         </div>
         <div class="templates-layout">
-          <aside class="template-list" id="templateList"></aside>
+          <aside class="template-list">
+            <div class="template-list-head">
+              <div>
+                <p class="eyebrow">Plantillas guardadas</p>
+                <h3>Biblioteca</h3>
+              </div>
+              <button id="addTemplate" class="primary-btn ghosted"><i class='bx bx-plus'></i>Nueva plantilla</button>
+            </div>
+            <div class="search-field template-search">
+              <i class='bx bx-search'></i>
+              <input id="templateSearch" placeholder="Buscar plantillas" />
+            </div>
+            <div class="template-list-body" id="templateList"></div>
+          </aside>
           <div class="template-editor">
             <div class="preview-stack">
               <div class="preview-box">
@@ -140,6 +226,17 @@
                 <span id="copyStatus" class="muted"></span>
               </div>
             </div>
+            <div class="variation-tabs hidden" id="initialVariations">
+              <div class="variation-tabs-head">
+                <div>
+                  <p class="eyebrow">Plantilla inicial</p>
+                  <h4>Variaciones del mensaje</h4>
+                  <p class="muted tiny">Se alternan automáticamente al copiar el mensaje.</p>
+                </div>
+                <button id="addVariation" class="ghost-btn mini"><i class='bx bx-plus'></i>Agregar variación</button>
+              </div>
+              <div class="variation-tabs-list" id="variationTabs"></div>
+            </div>
             <div class="field">
               <label for="templateTitle">Título</label>
               <input id="templateTitle" placeholder="Ej: Mensaje de inicio" />
@@ -147,15 +244,38 @@
             <div class="field textarea-field">
               <label for="templateBody">Contenido</label>
               <div class="textarea-shell">
-                <textarea id="templateBody" rows="10" placeholder="Escribe el mensaje con variables"></textarea>
-                <div class="chips inline" id="variableChips"></div>
+                <div class="template-editor-toolbar">
+                  <button class="ghost-btn mini" id="openDynamicData"><i class='bx bx-code-alt'></i>Agregar Dato Dinámico...</button>
+                  <div class="dynamic-data-panel hidden" id="dynamicDataPanel">
+                    <div class="dynamic-data-head">
+                      <div>
+                        <p class="eyebrow">Datos dinámicos</p>
+                        <h4>Insertar variables</h4>
+                      </div>
+                      <button class="ghost-btn icon-only" id="closeDynamicData" title="Cerrar"><i class='bx bx-x'></i></button>
+                    </div>
+                    <div class="search-field compact">
+                      <i class='bx bx-search'></i>
+                      <input id="dynamicDataSearch" placeholder="Buscar variable..." />
+                    </div>
+                    <div class="dynamic-data-list" id="dynamicDataList"></div>
+                  </div>
+                </div>
+                <div id="templateBody" class="template-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el mensaje con variables"></div>
               </div>
             </div>
-            <div class="variables-head">
-              <p class="eyebrow">Variables activas</p>
-              <p class="muted tiny">Solo las que están en el mensaje.</p>
+            <div class="variables-shell">
+              <div class="variables-head">
+                <p class="eyebrow">Variables activas</p>
+                <p class="muted tiny">Solo las que están en el mensaje.</p>
+              </div>
+              <div class="chips variable-chip-row" id="variableChips"></div>
+              <div class="variable-actions">
+                <button class="secondary-btn mini" id="refreshAutoVariables"><i class='bx bx-refresh'></i>Cargar otros valores automáticos...</button>
+                <span class="muted tiny" id="autoVariableHint"></span>
+              </div>
+              <div class="variable-grid" id="variableInputs"></div>
             </div>
-            <div class="variable-grid" id="variableInputs"></div>
           </div>
         </div>
       </section>
@@ -163,39 +283,46 @@
       <section id="vehicles" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Valores oficiales</p>
-            <h2>Tabla Chevrolet Noviembre 2025</h2>
-            <p class="muted">Basada en la lista oficial: Onix, Onix Plus, Montana, S10, Tracker y Spin. Ajusta los importes a conveniencia.</p>
+            <p class="eyebrow">Productos y precios</p>
+            <h2>Gestor de Productos y Precios</h2>
+            <p class="muted">Te damos la bienvenida al Gestor de Productos y Precios.</p>
+            <p class="muted subtle" id="vehicleUpdateTag">Última actualización: Diciembre 2025</p>
           </div>
           <div class="toggles">
-            <button id="viewPriceImage" class="ghost-btn" type="button"><i class='bx bx-image'></i>Ver imagen online</button>
-            <label class="toggle">
-              <input type="checkbox" id="showReservations" checked>
-              <span>Ver reservas (1, 3 y 6 cuotas)</span>
-            </label>
-            <label class="toggle">
-              <input type="checkbox" id="showIntegration" checked>
-              <span>Ver integración</span>
-            </label>
+            <div class="field compact">
+              <label for="vehicleBrandFilter">Filtrar por marca</label>
+              <select id="vehicleBrandFilter"></select>
+            </div>
+            <button id="viewOnlineFiles" class="ghost-btn" type="button"><i class='bx bx-cloud'></i>Ver archivos online</button>
           </div>
         </div>
-        <div class="table-wrapper">
-          <table id="vehicleTable">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
+        <div class="price-tabs">
+          <div class="tab-manager">
+            <div>
+              <p class="eyebrow">Marcas de precios detectadas</p>
+              <p class="muted tiny" id="priceTabSubtitle">Precios en modo local</p>
+            </div>
+            <div id="priceAlerts" class="alert-stack compact"></div>
+            <div class="actions compact price-selector">
+              <div class="field compact">
+                <label for="priceTabSelect">Lista disponible</label>
+                <select id="priceTabSelect"></select>
+              </div>
+              <button class="ghost-btn" id="openVehicleEditor" type="button"><i class='bx bx-edit'></i>Modo editor</button>
+            </div>
+          </div>
         </div>
+        <div class="vehicle-table-stack" id="vehicleTables"></div>
       </section>
 
       <section id="plans" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Simulador</p>
-            <h2>Armar plan para cliente</h2>
-            <p class="muted subtle">Control total de cuotas y llave por llave.</p>
+            <p class="muted subtle">Simulador de Cotizaciones <br><h5>Advertencia: Esto es meramente experimental:</h5> Las cotizaciones se recomienda hacerlas a mano con la información aprendida.</p>
           </div>
           <div class="actions">
             <button id="saveClient" class="primary-btn"><i class='bx bx-save'></i>Guardar cotización</button>
+            <button id="addQuoteToMyQuotes" class="secondary-btn" type="button"><i class='bx bx-file'></i>Agregar a "Mis Cotizaciones"</button>
             <button id="copyQuote" class="secondary-btn" type="button"><i class='bx bx-copy'></i>Copiar cotización</button>
             <button id="openQuoteModal" class="ghost-btn" type="button"><i class='bx bx-archive'></i>Ver cotizaciones guardadas</button>
           </div>
@@ -224,94 +351,748 @@
             </div>
           </div>
         </div>
-        <div class="grid two">
-          <div class="card form">
-            <div class="field">
-              <label for="clientName">Cliente</label>
-              <div class="picker-row">
-                <input id="clientName" placeholder="Nombre y apellido" />
-                <button id="openClientPicker" class="secondary-btn" type="button"><i class='bx bx-user-voice'></i>Seleccionar...</button>
-              </div>
-              <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
+        <div class="quote-layout">
+          <aside class="card form quote-form">
+            <div class="card-head compact">
+              <p class="eyebrow">Carga rápida</p>
+              <h3>Datos de cotización</h3>
             </div>
-            <div class="field">
-              <label for="planModel">Modelo</label>
-              <select id="planModel"></select>
-            </div>
-            <div class="field">
-              <label for="planType">Plan</label>
-              <select id="planType">
-                <option value="2a12">2 a 12</option>
-                <option value="13a21">13 a 21</option>
-                <option value="22a84">22 a 84</option>
-                <option value="85a120">85 a 120</option>
-                <option value="ctapura">Cuota pura</option>
-              </select>
-              <p class="muted tiny" id="planProfileHelper">Plan sugerido según el modelo.</p>
-            </div>
-            <div class="field inline">
-              <label class="toggle">
-                <input type="checkbox" id="tradeIn" checked>
-                <span>Entrega llave por llave</span>
-              </label>
-              <div class="money-field">
-                <span class="prefix">$</span>
-                <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+            
+            <!-- Sección Cliente - Ancho completo -->
+            <div class="quote-section-client">
+              <div class="field">
+                <label for="clientName"><i class='bx bx-user-circle'></i>Cliente</label>
+                <div class="picker-row dense client-picker-row">
+                  <input id="clientName" placeholder="Nombre y apellido" />
+                  <button id="openClientPicker" class="secondary-btn mini" type="button"><i class='bx bx-user-voice'></i>Asistente de selección...</button>
+                </div>
+                <p class="muted tiny" id="selectedClientHint">Puedes escribir los datos o aplicar uno importado.</p>
               </div>
             </div>
-            <div class="field-group">
+
+            <!-- Sección Auto y Información -->
+            <div class="quote-section-vehicle">
+              <div class="form-grid three">
+                <div class="field">
+                  <div class="label-row">
+                    <label for="planModel">Auto a cotizar</label>
+                    <span class="muted tiny micro-tag" id="priceContextTag">Utilizando precios de: Diciembre 2025</span>
+                  </div>
+                  <select id="planModel"></select>
+                </div>
+                <div class="field readonly">
+                  <label>Plan asignado automáticamente</label>
+                  <div class="plan-profile-cell readonly">
+                    <span class="chip muted" id="planProfileChip"></span>
+                    <small class="muted tiny" id="planProfileHelper">El plan se selecciona solo según el modelo.</small>
+                  </div>
+                  <input type="hidden" id="planType" value="85a120" />
+                </div>
+                <div class="field">
+                  <label class="toggle compact">
+                    <input type="checkbox" id="tradeIn" checked>
+                    <span>Entrega llave x llave</span>
+                  </label>
+                  <div class="money-field">
+                    <span class="prefix">$</span>
+                    <input id="tradeInValue" class="money" type="text" inputmode="numeric" placeholder="Valor estimado usado" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Valor del Coche -->
+              <div class="field">
+                <label for="customPrice">Ingresa el Valor del coche a Cotizar</label>
+                <div class="money-field">
+                  <span class="prefix">$</span>
+                  <input id="customPrice" class="money" type="text" inputmode="numeric" placeholder="Valor del coche a cotizar" />
+                </div>
+              </div>
+
+              <!-- Integración Posible - Debajo del valor -->
+              <div class="field readonly integration-card">
+                <label>Integración posible</label>
+                <div class="integration-details" id="integrationDetails">
+                  <p id="integration1">1 cuota promocionada: $0</p>
+                  <p id="integration3">3 cuotas "sin interés" de: $0 cada una</p>
+                  <p id="integration6">6 cuotas "sin interés" de: $0 cada una</p>
+                </div>
+                <input type="hidden" id="appliedReservation" value="1" />
+              </div>
+            </div>
+
+            <!-- Sección Reservas -->
+            <div class="field-group compact">
               <div class="field-head">
                 <div>
                   <p class="eyebrow">Reservas editables</p>
-                  <p class="muted tiny">Usa los valores sugeridos por modelo o ajusta para tentar al cliente.</p>
+                  <p class="muted tiny">Valores del mes traducidos de la lista oficial.</p>
                 </div>
                 <div class="reservation-actions">
-                  <button id="calcReservation3" class="ghost-btn" type="button"><i class='bx bx-calculator'></i>Calcular 3 cuotas sin interés</button>
-                  <button id="calcReservation6" class="ghost-btn" type="button"><i class='bx bx-math'></i>Calcular 6 cuotas</button>
+                  <button id="calcReservation3" class="ghost-btn mini" type="button"><i class='bx bx-calculator'></i>3 cuotas</button>
+                  <button id="calcReservation6" class="ghost-btn mini" type="button"><i class='bx bx-math'></i>6 cuotas</button>
                 </div>
               </div>
-              <div class="reservation-grid">
+              <div class="reservation-grid compact">
                 <div class="field">
-                  <label for="reservation1">Precio en 1 cuota</label>
+                  <label for="reservation1">1 cuota</label>
                   <div class="money-field">
                     <span class="prefix">$</span>
-                    <input id="reservation1" class="money" type="text" inputmode="numeric" placeholder="Valor de reserva en 1 cuota" />
+                    <input id="reservation1" class="money" type="text" inputmode="numeric" placeholder="Reserva única" />
                   </div>
                 </div>
                 <div class="field">
-                  <label for="reservation3">Precio en 3 cuotas</label>
+                  <label for="reservation3">3 cuotas</label>
                   <div class="money-field">
                     <span class="prefix">$</span>
-                    <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 3" />
+                    <input id="reservation3" class="money" type="text" inputmode="numeric" placeholder="Reserva 3 pagos" />
                   </div>
                 </div>
                 <div class="field">
-                  <label for="reservation6">Precio en 6 cuotas</label>
+                  <label for="reservation6">6 cuotas</label>
                   <div class="money-field">
                     <span class="prefix">$</span>
-                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva repartida en 6" />
+                    <input id="reservation6" class="money" type="text" inputmode="numeric" placeholder="Reserva 6 pagos" />
                   </div>
                 </div>
               </div>
             </div>
+
+            <!-- Observaciones -->
             <div class="field">
-              <label for="notes">Notas internas</label>
-              <textarea id="notes" rows="4" placeholder="Condiciones, color elegido, plazos, etc."></textarea>
+              <label for="notes">Observaciones</label>
+              <textarea id="notes" rows="3" placeholder="Chevrolet Onix LTZ Febrero 2026"></textarea>
             </div>
-          </div>
-          <div class="card">
-            <div class="card-head">
-              <p class="eyebrow">Resultado</p>
-              <h3>Resumen del plan</h3>
-            </div>
-            <div id="planSummary" class="summary"></div>
-            <div class="card-foot note">
-              <p class="muted tiny">Las cotizaciones se gestionan ahora desde el pop up dedicado con carga, copia, descarga y confirmaciones.</p>
-            </div>
+          </aside>
+
+          <div class="quote-details">
+            <section class="plan-folio">
+              <div class="folio-head">
+                <div>
+                  <p class="eyebrow">Detalle simplificado</p>
+                  <h3>Folleto del plan</h3>
+                </div>
+                <div class="folio-switch">
+                  <label class="toggle">
+                    <input type="checkbox" id="advancePayments">
+                    <span>¿El cliente quiere adelantar cuotas?</span>
+                  </label>
+                  <div class="money-field compact" id="advanceAmountField">
+                    <span class="prefix">$</span>
+                    <input id="advanceAmount" class="money" type="text" inputmode="numeric" placeholder="Monto a adelantar" />
+                  </div>
+                  <p class="muted tiny">Si adelanta, se descuentan las últimas cuotas primero usando la cuota pura.</p>
+                </div>
+              </div>
+              <div class="folio-cta-row">
+                <button id="openInstallmentBreakdown" class="secondary-btn" type="button"><i class='bx bx-list-ol'></i>Ver desglose completo</button>
+              </div>
+              <div class="folio-body">
+                <div class="folio-section">
+                  <h4>Datos principales</h4>
+                  <div id="planBasicsList" class="folio-list"></div>
+                </div>
+                <div class="folio-section">
+                  <h4>Integración y cuota 1</h4>
+                  <div id="planIntegrationSummary" class="folio-list"></div>
+                </div>
+              </div>
+              <div class="folio-body">
+                <div class="folio-section">
+                  <h4>Saldo y aportes</h4>
+                  <div id="planBalanceSummary" class="folio-list"></div>
+                </div>
+                <div class="folio-section">
+                  <h4>Cuotas por tramo</h4>
+                  <div id="planRangeList" class="range-grid"></div>
+                </div>
+              </div>
+              <div class="folio-section wide">
+                <h4>Estado de cuotas</h4>
+                <div id="planCoverageList" class="coverage-grid"></div>
+              </div>
+            </section>
           </div>
         </div>
       </section>
-
+      <section id="quoteGenerator" class="panel quote-generator-panel" data-view="hub">
+        <div class="panel-head">
+          <div>
+            <h2>Mis Cotizaciones</h2>
+          </div>
+          <div class="actions">
+            <button id="quoteGeneratorDeleteActive" class="ghost-btn danger" type="button"><i class='bx bx-trash'></i>Eliminar esta cotización</button>
+            <div class="quote-export-actions">
+              <span class="export-label">Exportar</span>
+              <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>PDF</button>
+              <button id="quoteGeneratorExportPng" class="ghost-btn" type="button"><i class='bx bx-image'></i>PNG</button>
+            </div>
+          </div>
+        </div>
+        <div class="quote-generator-shell">
+          <section class="quote-generator-hub" id="quoteGeneratorHub">
+            <div class="card quote-hub-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Mis Cotizaciones</p>
+                  <h3>Gestiona tus cotizaciones</h3>
+                </div>
+                <div class="actions">
+                  <button id="quoteGeneratorCreate" class="primary-btn" type="button"><i class='bx bx-plus'></i>Nueva cotización</button>
+                </div>
+              </div>
+              <div class="quote-hub-empty" id="quoteGeneratorEmpty">
+                <i class='bx bx-folder-open'></i>
+                <div>
+                  <h4>No tienes actualmente ninguna Cotización abierta</h4>
+                  <p class="muted">Crea una nueva cotización o importa una existente para comenzar.</p>
+                </div>
+              </div>
+              <div class="quote-hub-list" id="quoteGeneratorList"></div>
+            </div>
+          </section>
+          <section class="quote-generator-workspace is-hidden" id="quoteGeneratorWorkspace">
+            <div class="quote-generator-layout">
+              <aside class="card quote-generator-form" id="quoteGeneratorForm">
+            <div class="card-head compact">
+              <p class="eyebrow">Panel de control</p>
+              <h3>Datos principales</h3>
+            </div>
+            <div class="quote-tabs">
+              <div class="quote-tabs-nav" role="tablist" aria-label="Secciones de la cotización">
+                <button class="quote-tab active" id="quote-tab-btn-main" type="button" data-tab-target="quote-tab-main" role="tab" aria-selected="true" aria-controls="quote-tab-main" title="Datos principales" aria-label="Datos principales">
+                  <i class='bx bx-detail' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-client" type="button" data-tab-target="quote-tab-client" role="tab" aria-selected="false" aria-controls="quote-tab-client" title="Datos cliente" aria-label="Datos cliente">
+                  <i class='bx bx-user' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-vehicle" type="button" data-tab-target="quote-tab-vehicle" role="tab" aria-selected="false" aria-controls="quote-tab-vehicle" title="Vehículo usado" aria-label="Vehículo usado">
+                  <i class='bx bx-car' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-new-vehicle" type="button" data-tab-target="quote-tab-new-vehicle" role="tab" aria-selected="false" aria-controls="quote-tab-new-vehicle" title="Nuevo vehículo" aria-label="Nuevo vehículo">
+                  <i class='bx bx-plus-circle' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-payments" type="button" data-tab-target="quote-tab-payments" role="tab" aria-selected="false" aria-controls="quote-tab-payments" title="Esquema de pagos" aria-label="Esquema de pagos">
+                  <i class='bx bx-credit-card' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-prequote" type="button" data-tab-target="quote-tab-prequote" role="tab" aria-selected="false" aria-controls="quote-tab-prequote" title="Seleccionar modo de cotización" aria-label="Seleccionar modo de cotización">
+                  <i class='bx bx-toggle-left' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-notes" type="button" data-tab-target="quote-tab-notes" role="tab" aria-selected="false" aria-controls="quote-tab-notes" title="Notas" aria-label="Notas">
+                  <i class='bx bx-note' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-extras" type="button" data-tab-target="quote-tab-extras" role="tab" aria-selected="false" aria-controls="quote-tab-extras" title="Beneficios y gastos" aria-label="Beneficios y gastos">
+                  <i class='bx bx-edit' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-visibility" type="button" data-tab-target="quote-tab-visibility" role="tab" aria-selected="false" aria-controls="quote-tab-visibility" title="Visibilidad" aria-label="Visibilidad">
+                  <i class='bx bx-show' aria-hidden="true"></i>
+                </button>
+                <button class="quote-tab" id="quote-tab-btn-storage" type="button" data-tab-target="quote-tab-storage" role="tab" aria-selected="false" aria-controls="quote-tab-storage" title="Guardar y cargar" aria-label="Guardar y cargar">
+                  <i class='bx bx-save' aria-hidden="true"></i>
+                </button>
+              </div>
+              <div class="quote-tabs-panels">
+                <section class="quote-tab-panel active" id="quote-tab-main" role="tabpanel" aria-labelledby="quote-tab-btn-main">
+                  <div class="form-grid two">
+                    <div class="field is-required">
+                      <label for="quoteNumber">Cotización #</label>
+                      <div class="auto-row">
+                        <input id="quoteNumber" data-quote-field="meta.quoteNumber" placeholder="00000000" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteNumber" type="button">Auto</button>
+                      </div>
+                    </div>
+                    <div class="field is-required">
+                      <label for="quoteDate">Fecha de Cotización</label>
+                      <div class="auto-row">
+                        <input id="quoteDate" data-quote-field="meta.quoteDate" placeholder="dd/mm/aaaa" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteDate" type="button">Auto</button>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="quoteExpiry">Vencimiento</label>
+                      <div class="auto-row">
+                        <input id="quoteExpiry" data-quote-field="meta.quoteExpiry" placeholder="dd/mm/aaaa" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.quoteExpiry" type="button">Auto</button>
+                      </div>
+                    </div>
+                    <div class="field is-required">
+                      <label for="quoteAdvisor">Asesor Comercial</label>
+                      <div class="auto-row">
+                        <input id="quoteAdvisor" data-quote-field="meta.advisor" placeholder="Nombre del asesor" />
+                        <button class="ghost-btn mini auto-btn" data-auto-field="meta.advisor" type="button">Auto</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-client" role="tabpanel" aria-labelledby="quote-tab-btn-client">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Datos Cliente</p>
+                        <p class="muted tiny">Completa manualmente o usa automático.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-fill="client" type="button">Auto cliente</button>
+                      </div>
+                    </div>
+                    <div class="form-grid three">
+                      <div class="field is-required">
+                        <label for="clientFullName">Nombre</label>
+                        <div class="auto-row">
+                          <input id="clientFullName" data-quote-field="client.name" placeholder="Nombre completo" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.name" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="clientDni">DNI</label>
+                        <div class="auto-row">
+                          <input id="clientDni" data-quote-field="client.dni" placeholder="00.000.000" inputmode="numeric" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.dni" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="clientCuil">CUIL</label>
+                        <div class="auto-row">
+                          <input id="clientCuil" data-quote-field="client.cuil" placeholder="20-00000000-0" inputmode="numeric" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.cuil" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="clientCel">CEL</label>
+                        <div class="auto-row">
+                          <input id="clientCel" data-quote-field="client.cel" placeholder="+54 9 11 0000 0000" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.cel" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="clientProvince">Provincia</label>
+                        <div class="auto-row">
+                          <input id="clientProvince" data-quote-field="client.province" placeholder="Provincia" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.province" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="clientCity">Localidad</label>
+                        <div class="auto-row">
+                          <input id="clientCity" data-quote-field="client.city" placeholder="Localidad" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.city" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="clientPostal">CP</label>
+                        <div class="auto-row">
+                          <input id="clientPostal" data-quote-field="client.postalCode" placeholder="0000" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="client.postalCode" type="button">Auto</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-vehicle" role="tabpanel" aria-labelledby="quote-tab-btn-vehicle">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Datos Vehículo</p>
+                        <p class="muted tiny">Vehículo a entregar y valores de referencia.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-fill="vehicle" type="button">Auto vehículo</button>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field is-required">
+                        <label for="vehicleBrand">Marca</label>
+                        <div class="auto-row">
+                          <input id="vehicleBrand" list="quoteBrandSuggestions" data-quote-field="vehicle.brand" placeholder="Marca" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.brand" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="vehicleModel">Modelo y Versión</label>
+                        <div class="auto-row">
+                          <input id="vehicleModel" data-quote-field="vehicle.model" placeholder="Modelo y versión" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="vehicle.model" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="vehicleYear">Año</label>
+                        <input id="vehicleYear" data-quote-field="vehicle.year" placeholder="2024" />
+                      </div>
+                      <div class="field">
+                        <label for="vehiclePlate">Patente</label>
+                        <input id="vehiclePlate" data-quote-field="vehicle.plate" placeholder="ABC123" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleKms">Kms</label>
+                        <input id="vehicleKms" data-quote-field="vehicle.kms" placeholder="0 km" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleFactoryPriceLabel">Texto del precio cotizado</label>
+                        <input id="vehicleFactoryPriceLabel" data-quote-field="vehicle.factoryPriceLabel" placeholder="Precio cotizado por Fábrica" />
+                      </div>
+                      <div class="field">
+                        <label for="vehicleFactoryPrice">Monto del precio cotizado</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="vehicleFactoryPrice" class="money" type="text" inputmode="numeric" data-quote-field="vehicle.factoryPrice" placeholder="0" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-new-vehicle" role="tabpanel" aria-labelledby="quote-tab-btn-new-vehicle">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Datos nuevo Vehículo</p>
+                        <p class="muted tiny">Información del 0km.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-fill="newVehicle" type="button">Auto 0km</button>
+                      </div>
+                    </div>
+                    <label class="toggle inline selection-mode">
+                      <input type="checkbox" id="newVehicleCustomToggle">
+                      <span>Otro Modelo / Personalizado</span>
+                    </label>
+                    <div class="form-grid two new-vehicle-auto">
+                      <div class="field is-required">
+                        <label for="newVehicleBrandSelect">Marca (selección automática)</label>
+                        <select id="newVehicleBrandSelect"></select>
+                      </div>
+                      <div class="field is-required">
+                        <label for="newVehicleModelSelect">Auto (selección automática)</label>
+                        <select id="newVehicleModelSelect"></select>
+                      </div>
+                    </div>
+                    <div class="form-grid two new-vehicle-manual is-hidden">
+                      <div class="field is-required">
+                        <label for="newVehicleBrand">Marca</label>
+                        <div class="auto-row">
+                          <input id="newVehicleBrand" list="quoteBrandSuggestions" data-quote-field="newVehicle.brand" placeholder="Marca" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.brand" type="button">Auto</button>
+                        </div>
+                      </div>
+                      <div class="field is-required">
+                        <label for="newVehicleModel">Modelo y Versión</label>
+                        <div class="auto-row">
+                          <input id="newVehicleModel" data-quote-field="newVehicle.model" placeholder="Modelo y versión" />
+                          <button class="ghost-btn mini auto-btn" data-auto-field="newVehicle.model" type="button">Auto</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-payments" role="tabpanel" aria-labelledby="quote-tab-btn-payments">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Cuota pura</p>
+                        <p class="muted tiny">Valor base que se imprime como una cuota adicional.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-cuota-pura type="button">Auto cuota pura</button>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="quoteCuotaPuraAmount">Monto</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="quoteCuotaPuraAmount" class="money" type="text" inputmode="numeric" data-quote-field="cuotaPura.amount" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="quoteCuotaPuraDetail">Detalle</label>
+                        <input id="quoteCuotaPuraDetail" data-quote-field="cuotaPura.detail" placeholder="Ej: Cuota pura base del plan" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Esquema de pagos</p>
+                        <p class="muted tiny">Agrega o edita tramos según tu propuesta.</p>
+                      </div>
+                      <div class="actions compact">
+                        <button class="ghost-btn mini auto-btn" data-auto-payments type="button">Auto esquema</button>
+                        <button class="secondary-btn mini" id="addPaymentRow" type="button"><i class='bx bx-plus'></i>Agregar cuota</button>
+                      </div>
+                    </div>
+                    <div id="paymentRows" class="payment-rows"></div>
+                  </div>
+                  <div class="bonified-options">
+                  <div class="field-group compact bonified-option">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Opción 1: 1 Pago Bonificado</p>
+                        <p class="muted tiny">Configura la bonificación y el valor percibido por el cliente.</p>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="bonifiedOneOriginal">Valor Original</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedOneOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.fakeOriginal" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field bonified-bonification-field">
+                        <label for="bonifiedOneDiscount">Bonif.</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedOneDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.bonification" placeholder="0" readonly disabled />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedOneConcept">Concepto (interno)</label>
+                        <input id="bonifiedOneConcept" data-quote-field="bonifiedPayments.one.concept" placeholder="Ej: Bonificación contado" />
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedOneAmount">A pagar (1 pago)</label>
+                        <div class="auto-row">
+                          <div class="money-field">
+                            <span class="prefix">$</span>
+                            <input id="bonifiedOneAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.one.amount" placeholder="0" />
+                          </div>
+                          <button class="ghost-btn mini auto-btn" data-auto-bonified="one" type="button">Recargar</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field-group compact bonified-option">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Opción 2: 3 cuotas sin interes</p>
+                        <p class="muted tiny">Aplica una bonificación distinta para pagos fraccionados.</p>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="bonifiedThreeOriginal">Valor Original</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedThreeOriginal" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.fakeOriginal" placeholder="0" />
+                        </div>
+                      </div>
+                      <div class="field bonified-bonification-field">
+                        <label for="bonifiedThreeDiscount">Bonif.</label>
+                        <div class="money-field">
+                          <span class="prefix">$</span>
+                          <input id="bonifiedThreeDiscount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.bonification" placeholder="0" readonly disabled />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedThreeConcept">Concepto (interno)</label>
+                        <input id="bonifiedThreeConcept" data-quote-field="bonifiedPayments.three.concept" placeholder="Ej: Bonificación 3 pagos" />
+                      </div>
+                      <div class="field">
+                        <label for="bonifiedThreeAmount">A pagar (3 pagos)</label>
+                        <div class="auto-row">
+                          <div class="money-field">
+                            <span class="prefix">$</span>
+                            <input id="bonifiedThreeAmount" class="money" type="text" inputmode="numeric" data-quote-field="bonifiedPayments.three.amount" placeholder="0" />
+                          </div>
+                          <button class="ghost-btn mini auto-btn" data-auto-bonified="three" type="button">Recargar</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-prequote" role="tabpanel" aria-labelledby="quote-tab-btn-prequote">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Seleccionar modo de cotización</p>
+                        <p class="muted tiny">Activa el modo Pre-Cotización cuando necesites validaciones adicionales.</p>
+                      </div>
+                    </div>
+                    <label class="toggle inline">
+                      <input type="checkbox" id="preQuoteEnabled" data-quote-field="preQuote.enabled">
+                      <span>Activar modo Pre Cotización</span>
+                    </label>
+                    <div class="field textarea-field">
+                      <label for="preQuoteMessage">Mensaje visible en el documento</label>
+                      <textarea id="preQuoteMessage" data-quote-field="preQuote.message" rows="4" placeholder="Escribe la leyenda para el cliente."></textarea>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-tab-btn-notes">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Notas</p>
+                        <p class="muted tiny">Información adicional del documento.</p>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label for="quoteNotes">Notas y aclaraciones</label>
+                      <textarea id="quoteNotes" data-quote-field="notes" rows="4" placeholder="Escribe el detalle que quieras imprimir."></textarea>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-extras" role="tabpanel" aria-labelledby="quote-tab-btn-extras">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Beneficios y gastos</p>
+                        <p class="muted tiny">Edita los beneficios visibles y los gastos de retiro.</p>
+                      </div>
+                    </div>
+                    <div class="field textarea-field">
+                      <label for="quoteBenefits">Beneficios adicionales (uno por línea)</label>
+                      <textarea id="quoteBenefits" data-quote-field="benefitsText" rows="5" placeholder="Escribe cada beneficio en una línea."></textarea>
+                    </div>
+                    <div class="field textarea-field">
+                      <label for="quoteFooter">Gastos de retiro (texto final)</label>
+                      <textarea id="quoteFooter" data-quote-field="footerNote" rows="3" placeholder="Texto legal o aclaratorio."></textarea>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-visibility" role="tabpanel" aria-labelledby="quote-tab-btn-visibility">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Visibilidad de campos</p>
+                        <p class="muted tiny">Oculta lo que no quieras mostrar en la cotización.</p>
+                      </div>
+                    </div>
+                    <div class="visibility-grid">
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteNumber" checked> Cotización #</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteDate" checked> Fecha de cotización</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.quoteExpiry" checked> Vencimiento</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="meta.advisor" checked> Asesor comercial</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.name" checked> Nombre del cliente</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.dni" checked> DNI</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.cuil" checked> CUIL</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.cel" checked> Celular</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.location" checked> Provincia y localidad</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="client.postalCode" checked> Código postal</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.title" checked> Título vehículo a entregar</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.brand" checked> Marca usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.model" checked> Modelo y versión usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.year" checked> Año usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.plate" checked> Patente usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.kms" checked> Kms usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="vehicle.factoryPrice" checked> Precio fábrica usado</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.section" checked> Datos nuevo vehículo</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.brand" checked> Marca 0km</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="newVehicle.model" checked> Modelo y versión 0km</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="payments" checked> Esquema de pagos</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="preQuote" checked> Modo Pre Cotización</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="notes" checked> Notas</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="benefits" checked> Beneficios adicionales</label>
+                      <label class="check-pill"><input type="checkbox" data-visibility-field="footer" checked> Texto legal final</label>
+                    </div>
+                  </div>
+                </section>
+                <section class="quote-tab-panel" id="quote-tab-storage" role="tabpanel" aria-labelledby="quote-tab-btn-storage">
+                  <div class="field-group compact">
+                    <div class="field-head">
+                      <div>
+                        <p class="eyebrow">Guardar y cargar</p>
+                        <p class="muted tiny">Administra cotizaciones guardadas.</p>
+                      </div>
+                    </div>
+                    <div class="form-grid two">
+                      <div class="field">
+                        <label for="quoteGeneratorSavedList">Cotizaciones guardadas</label>
+                        <select id="quoteGeneratorSavedList"></select>
+                      </div>
+                      <div class="field action-stack">
+                        <button id="quoteGeneratorLoad" class="secondary-btn mini" type="button"><i class='bx bx-folder-open'></i>Cargar</button>
+                        <button id="quoteGeneratorDelete" class="ghost-btn mini danger" type="button"><i class='bx bx-trash'></i>Eliminar</button>
+                        <button id="quoteGeneratorReset" class="ghost-btn mini" type="button"><i class='bx bx-eraser'></i>Limpiar</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+                <datalist id="quoteBrandSuggestions"></datalist>
+              </aside>
+              <div class="quote-generator-preview card">
+                <div class="quote-preview-shell">
+                  <div class="quote-preview" id="quotePreview">
+                  <div class="quote-preview-header">
+                    <div>
+                      <h3 data-quote-visible="meta.quoteNumber" data-focus-target="quoteNumber" data-focus-tab="quote-tab-main">Cotización <span id="previewQuoteNumber">00000000</span></h3>
+                    </div>
+                    <div class="quote-preview-meta">
+                      <div data-quote-visible="meta.quoteDate" data-focus-target="quoteDate" data-focus-tab="quote-tab-main"><strong>Fecha de Cotización:</strong> <span id="previewQuoteDate">--/--/----</span></div>
+                      <div data-quote-visible="meta.quoteExpiry" data-focus-target="quoteExpiry" data-focus-tab="quote-tab-main"><strong>Vencimiento:</strong> <span id="previewQuoteExpiry">--/--/----</span></div>
+                      <div data-quote-visible="meta.advisor" data-focus-target="quoteAdvisor" data-focus-tab="quote-tab-main"><strong>Asesor Comercial:</strong> <span id="previewQuoteAdvisor">-</span></div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-alert" id="previewPreQuote" data-quote-visible="preQuote">
+                    <i class='bx bx-info-circle'></i>
+                    <div>
+                      <p id="previewPreQuoteMessage"></p>
+                    </div>
+                  </div>
+                  <div class="quote-preview-section">
+                    <h4>Datos Cliente</h4>
+                    <div class="quote-preview-grid">
+                      <div data-quote-visible="client.name" data-focus-target="clientFullName" data-focus-tab="quote-tab-client"><strong>Nombre:</strong> <span id="previewClientName">-</span></div>
+                      <div data-quote-visible="client.dni" data-focus-target="clientDni" data-focus-tab="quote-tab-client"><strong>DNI:</strong> <span id="previewClientDni">-</span></div>
+                      <div data-quote-visible="client.cuil" data-focus-target="clientCuil" data-focus-tab="quote-tab-client"><strong>CUIL:</strong> <span id="previewClientCuil">-</span></div>
+                      <div data-quote-visible="client.cel" data-focus-target="clientCel" data-focus-tab="quote-tab-client"><strong>CEL:</strong> <span id="previewClientCel">-</span></div>
+                      <div data-quote-visible="client.location" data-focus-target="clientProvince" data-focus-tab="quote-tab-client"><strong>PROV. y LOCALIDAD:</strong> <span id="previewClientLocation">-</span></div>
+                      <div data-quote-visible="client.postalCode" data-focus-target="clientPostal" data-focus-tab="quote-tab-client"><strong>CP:</strong> <span id="previewClientPostal">-</span></div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-divider"></div>
+                  <div class="quote-preview-section">
+                    <h4>Datos Vehículo</h4>
+                    <div class="quote-preview-title" id="previewVehicleTitle" data-quote-visible="vehicle.title">Vehículo a entregar</div>
+                    <div class="quote-preview-grid">
+                      <div data-quote-visible="vehicle.brand" data-focus-target="vehicleBrand" data-focus-tab="quote-tab-vehicle"><strong>Marca:</strong> <span id="previewVehicleBrand">-</span></div>
+                      <div data-quote-visible="vehicle.model" data-focus-target="vehicleModel" data-focus-tab="quote-tab-vehicle"><strong>Modelo y Versión:</strong> <span id="previewVehicleModel">-</span></div>
+                      <div data-quote-visible="vehicle.year" data-focus-target="vehicleYear" data-focus-tab="quote-tab-vehicle"><strong>Año:</strong> <span id="previewVehicleYear">-</span></div>
+                      <div data-quote-visible="vehicle.plate" data-focus-target="vehiclePlate" data-focus-tab="quote-tab-vehicle"><strong>Patente:</strong> <span id="previewVehiclePlate">-</span></div>
+                      <div data-quote-visible="vehicle.kms" data-focus-target="vehicleKms" data-focus-tab="quote-tab-vehicle"><strong>Kms:</strong> <span id="previewVehicleKms">-</span></div>
+                      <div class="quote-preview-row spaced" data-quote-visible="vehicle.factoryPrice" data-focus-target="vehicleFactoryPrice" data-focus-tab="quote-tab-vehicle"><strong id="previewVehicleFactoryLabel">Precio cotizado por Fábrica:</strong> <span id="previewVehicleFactoryPrice">-</span></div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-divider"></div>
+                  <div class="quote-preview-section" data-quote-visible="newVehicle.section">
+                    <h4>Datos nuevo Vehículo</h4>
+                    <div class="quote-preview-grid">
+                      <div data-quote-visible="newVehicle.brand" data-focus-target="newVehicleBrand" data-focus-tab="quote-tab-new-vehicle"><strong>Marca:</strong> <span id="previewNewVehicleBrand">-</span></div>
+                      <div data-quote-visible="newVehicle.model" data-focus-target="newVehicleModel" data-focus-tab="quote-tab-new-vehicle"><strong>Modelo y Versión:</strong> <span id="previewNewVehicleModel">-</span></div>
+                    </div>
+                  </div>
+                  <div class="quote-preview-divider"></div>
+                    <div class="quote-preview-section" data-quote-visible="payments">
+                      <h4>Esquema de pagos</h4>
+                      <div id="previewBonifiedPayments" class="quote-preview-bonified"></div>
+                      <div id="previewPaymentList" class="quote-preview-payments"></div>
+                    </div>
+                  <div class="quote-preview-section" data-quote-visible="notes">
+                    <h4>Notas y aclaraciones</h4>
+                    <div class="quote-preview-notes" id="previewNotes" data-focus-target="quoteNotes" data-focus-tab="quote-tab-notes">
+                      <p></p>
+                    </div>
+                  </div>
+                  <div class="quote-preview-section" data-quote-visible="benefits">
+                    <div class="quote-preview-title-row">
+                      <h4>Benef. Adicionales otorgados</h4>
+                    </div>
+                    <ul class="quote-preview-list" id="previewBenefitsList" data-focus-target="quoteBenefits" data-focus-tab="quote-tab-extras"></ul>
+                  </div>
+                  <div class="quote-preview-footer" data-quote-visible="footer">
+                    <div class="quote-preview-footer-row">
+                      <span id="previewFooterText" data-focus-target="quoteFooter" data-focus-tab="quote-tab-extras">Gastos de Retiro: Acarreo, flete, patentamiento, prenda, formulario, gestoría, sellado, aranceles admin. ya incluidos en valor de la cuota</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </section>
+        </div>
+      </section>
       <section id="clientManager" class="panel">
         <div class="panel-head">
           <div>
@@ -322,44 +1103,65 @@
 
         <div class="card">
           <div class="client-controls">
-            <div class="advisor-combo">
-              <div class="combo-head">Asesor activo</div>
-              <div class="combo-shell">
-                <i class='bx bx-user-voice'></i>
-                <select id="advisorSelector" disabled></select>
-              </div>
-            </div>
-            <div class="toggles">
-              <label class="toggle" title="Agrupar registros por modelo de vehículo">
-                <input type="checkbox" id="groupByModel" checked>
-                <span>Agrupar por modelo</span>
-              </label>
-              <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
-                <i class='bx bx-filter-alt'></i>
-                <div class="filter-label">
-                  <span class="muted tiny">Mostrar:</span>
+            <div class="client-actions-row">
+              <div class="advisor-filters">
+                <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
+                  <i class='bx bx-filter-alt'></i>
                   <strong id="statusFilterLabel">Todos</strong>
+                  <select id="statusFilter">
+                    <option value="all">Todos</option>
+                    <option value="contacted">Contactado</option>
+                    <option value="no_number">Número no disponible</option>
+                    <option value="favorite">Favoritos</option>
+                    <option value="pending">Pendientes</option>
+                  </select>
                 </div>
-                <select id="statusFilter">
-                  <option value="all">Todos</option>
-                  <option value="contacted">Contactado</option>
-                  <option value="no_number">Número no disponible</option>
-                  <option value="favorite">Favoritos</option>
-                  <option value="pending">Pendientes</option>
-                </select>
+                <div class="toggle filter-toggle" title="Filtrar por cuenta de contacto">
+                  <i class='bx bx-user-pin'></i>
+                  <strong id="accountFilterLabel">Todas</strong>
+                  <select id="accountFilter"></select>
+                </div>
+                <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
               </div>
-              <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
-            </div>
-          </div>
-          <div class="search-row">
-            <div class="search-field expanded">
-              <i class='bx bx-search'></i>
-              <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
             </div>
           </div>
           <div id="dateFilterHelper" class="muted tiny"></div>
           <div class="column-pills" id="columnToggles"></div>
+          <div class="search-notice hidden" id="clientSearchNotice">
+            <div class="search-notice-text">
+              <i class='bx bx-filter-alt'></i>
+              <span>Se están mostrando los resultados de la búsqueda: <strong id="clientSearchTerm"></strong></span>
+            </div>
+            <button class="ghost-btn mini" id="clientSearchReset">Restablecer</button>
+          </div>
           <div class="table-wrapper dense">
+            <div class="table-toolbar">
+              <div class="search-group">
+                <div class="search-field compact expandable">
+                  <i class='bx bx-search'></i>
+                  <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+                </div>
+                <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
+              </div>
+              <div class="table-toolbar-actions">
+                <div class="field compact-field inline" id="paginationToggleField">
+                  <label for="clientPaginationSelect">Paginación</label>
+                  <select id="clientPaginationSelect">
+                    <option value="none">Desactivada</option>
+                    <option value="20">Cada 20</option>
+                    <option value="50">Cada 50</option>
+                    <option value="100">Cada 100</option>
+                  </select>
+                </div>
+                <div class="pagination-bar inline hidden" id="clientPaginationBar">
+                  <div class="pagination-controls">
+                    <button class="ghost-btn mini" id="clientPaginationPrev"><i class='bx bx-chevron-left'></i>Anterior</button>
+                    <span id="clientPaginationInfo" class="muted tiny"></span>
+                    <button class="ghost-btn mini" id="clientPaginationNext">Siguiente<i class='bx bx-chevron-right'></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="data-grid" id="clientManagerTable">
               <div class="grid-head"></div>
               <div class="grid-body"></div>
@@ -368,64 +1170,615 @@
           <p id="clientManagerHelper" class="muted tiny"></p>
         </div>
       </section>
+
+      <section id="importedDataManager" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Gestión de Clientes Ingresados</p>
+            <h2>Administrar Datos Importados</h2>
+            <p class="muted subtle">Revisa los registros importados, organiza por fecha de carga y elimina lotes completos o filas puntuales.</p>
+          </div>
+        </div>
+        <div class="card import-manager-card">
+          <div class="import-manager-header">
+            <div>
+              <p class="eyebrow">Base de clientes importados</p>
+              <h3>Administración de registros</h3>
+              <p class="muted tiny" id="importedManagerSummary">Selecciona registros para eliminar o auditar.</p>
+            </div>
+            <div class="import-manager-actions">
+              <div class="search-group import-manager-search">
+                <div class="search-field compact">
+                  <i class='bx bx-search'></i>
+                  <input id="importedManagerSearch" placeholder="Buscar por nombre..." />
+                </div>
+                <button class="secondary-btn mini" id="importedManagerSearchBtn"><i class='bx bx-right-arrow-alt'></i>Buscar</button>
+              </div>
+              <button class="ghost-btn mini" id="importedManagerClear"><i class='bx bx-check-double'></i>Limpiar selección</button>
+              <button class="secondary-btn" id="importedManagerManual"><i class='bx bx-user-plus'></i>Nuevo cliente manual</button>
+              <button class="primary-btn" id="importedManagerDelete"><i class='bx bx-trash'></i>Eliminar seleccionados</button>
+            </div>
+          </div>
+          <div class="search-notice hidden import-manager-notice" id="importedManagerSearchNotice">
+            <div class="search-notice-text">
+              <i class='bx bx-filter-alt'></i>
+              <span>Mostrando resultados de: <strong id="importedManagerSearchTerm"></strong></span>
+            </div>
+            <button class="ghost-btn mini" id="importedManagerSearchReset">Restablecer</button>
+          </div>
+          <div class="import-manager-loader" id="importedManagerLoader" aria-live="polite">
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+            <span>Obteniendo clientes...</span>
+          </div>
+          <div class="import-manager-content" id="importedManagerContent"></div>
+        </div>
+      </section>
+
+      <section id="scheduledClients" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Agenda de recontactos</p>
+            <h2>Clientes Programados</h2>
+            <p class="muted subtle">Organiza tus seguimientos y mantén tu cronograma al día.</p>
+          </div>
+        </div>
+        <div class="card schedule-summary">
+          <div class="schedule-meta">
+            <div>
+              <p class="muted">Hoy es: <strong id="scheduledToday">--</strong></p>
+              <p class="muted">Y son actualmente las: <strong id="scheduledNow">--</strong></p>
+            </div>
+            <div class="schedule-count">
+              <span class="eyebrow">Clientes Programados</span>
+              <p class="value" id="scheduledCount">0</p>
+            </div>
+          </div>
+          <div class="schedule-divider"></div>
+          <div class="schedule-agenda">
+            <h3>Esta es tu agenda:</h3>
+            <div id="scheduledTimeline" class="schedule-timeline"></div>
+          </div>
+        </div>
+      </section>
+      <section id="moduleManagement" class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Gestión de Mi Perfil</p>
+            <h2>Gestión de Módulos</h2>
+            <p class="muted subtle">Administra la importación y exportación individual de módulos y submódulos del sistema.</p>
+          </div>
+        </div>
+        <div class="module-management-grid">
+          <div class="card module-card">
+            <div class="module-card-head">
+              <div>
+                <p class="eyebrow">Exportación</p>
+                <h3>Selecciona módulos y submódulos</h3>
+                <p class="muted tiny">El perfil completo incluye todo, aquí puedes exportar solo lo necesario.</p>
+              </div>
+              <div class="module-card-actions">
+                <button class="ghost-btn mini" id="moduleSelectAll">Seleccionar todo</button>
+                <button class="ghost-btn mini" id="moduleClearSelection">Limpiar</button>
+              </div>
+            </div>
+            <div id="moduleList" class="module-list"></div>
+            <div class="module-export-footer">
+              <span class="muted tiny" id="moduleExportCount">0 módulos seleccionados</span>
+              <button class="primary-btn" id="exportModules"><i class='bx bx-download'></i>Exportar selección</button>
+            </div>
+          </div>
+          <div class="card module-card">
+            <div class="module-card-head">
+              <div>
+                <p class="eyebrow">Importación</p>
+                <h3>Importar módulos y submódulos</h3>
+                <p class="muted tiny">Carga un archivo y revisa lo que se reemplazará antes de continuar.</p>
+              </div>
+            </div>
+            <div class="module-import-body">
+              <div class="module-import-drop">
+                <i class='bx bx-upload'></i>
+                <div>
+                  <p><strong>Arrastra aquí tu archivo o busca desde tu equipo.</strong></p>
+                  <p class="muted tiny">Formatos compatibles: .json, .module</p>
+                </div>
+                <button class="secondary-btn" id="moduleImportTrigger"><i class='bx bx-folder-open'></i>Buscar archivo</button>
+                <input type="file" id="moduleImportInput" accept="application/json,.module" hidden>
+              </div>
+              <div class="module-import-summary" id="moduleImportSummary">
+                <div class="summary-row">
+                  <span class="label">Archivo cargado:</span>
+                  <strong id="moduleImportFile">Sin archivo seleccionado</strong>
+                </div>
+                <div class="summary-row">
+                  <span class="label">Elementos detectados:</span>
+                  <strong id="moduleImportItems">-</strong>
+                </div>
+                <p class="muted tiny" id="moduleImportHint">Una vez cargado el archivo podrás revisar los elementos antes de continuar.</p>
+              </div>
+            </div>
+            <div class="module-import-footer">
+              <button class="ghost-btn" id="moduleImportReset">Cancelar</button>
+              <button class="primary-btn" id="moduleImportReview" disabled><i class='bx bx-check-circle'></i>Continuar</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
+    <footer class="app-footer">
+      <p>Creado por Maximiliano Martinez | version 1.3.3 | Solo uso interno autorizado</p>
+    </footer>
   </div>
-  <div class="popover-overlay" id="paletteOverlay">
-    <div class="popover" id="palettePopover">
+  <div class="popover-overlay fade" id="actionCustomizerOverlay">
+    <div class="popover wide">
       <div class="popover-head">
         <div>
-          <p class="eyebrow">Colores de estados</p>
-          <h3>Personaliza los resaltados de filas</h3>
-          <p class="muted subtle">Se aplican a toda la fila, columna de estado y etiquetas.</p>
+          <p class="eyebrow">Configuración de acciones</p>
+          <h3>Personalizar acciones rápidas</h3>
+          <p class="muted subtle">Oculta las predeterminadas o crea tus propias acciones con icono y color.</p>
         </div>
-        <button class="ghost-btn icon-only" id="closePalette"><i class='bx bx-x'></i></button>
+        <button class="ghost-btn icon-only" id="closeActionCustomizer"><i class='bx bx-x'></i></button>
       </div>
-      <div class="palette-grid">
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Cliente contactado</p>
-            <input type="color" data-status-color="contacted" />
+      <div class="customizer-content">
+        <section class="action-group">
+          <header class="group-head">
+            <div>
+              <p class="eyebrow">Acciones por defecto</p>
+              <h4>Mostrar u ocultar</h4>
+            </div>
+          </header>
+          <div class="action-list" id="defaultActionList"></div>
+        </section>
+        <section class="action-group">
+          <header class="group-head">
+            <div>
+              <p class="eyebrow">Acciones personalizadas</p>
+              <h4>Tus accesos rápidos</h4>
+            </div>
+          </header>
+          <div class="action-list" id="customActionList"></div>
+          <div class="actions center" id="customActionCreate">
+            <button class="primary-btn" id="newCustomAction"><i class='bx bx-plus'></i>Crear Nueva acción Personalizada</button>
           </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="contacted" />
-          </div>
-        </div>
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Número no disponible</p>
-            <input type="color" data-status-color="noNumber" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="noNumber" />
-          </div>
-        </div>
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Favorito</p>
-            <input type="color" data-status-color="favorite" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="favorite" />
-          </div>
-        </div>
-        <div class="palette-row">
-          <div>
-            <p class="muted tiny">Pendiente</p>
-            <input type="color" data-status-color="pending" />
-          </div>
-          <div class="slider-group">
-            <label>Opacidad</label>
-            <input type="range" min="5" max="80" data-status-opacity="pending" />
-          </div>
-        </div>
-      </div>
-      <div class="actions compact end">
-        <button class="primary-btn" id="applyPalette"><i class='bx bx-check-double'></i> Guardar colores</button>
+        </section>
       </div>
     </div>
+  </div>
+  <div class="popover-overlay fade" id="customActionOverlay">
+    <div class="popover compact" id="customActionPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow" id="customActionSubtitle">Nueva acción</p>
+          <h3 id="customActionTitle">Crear acción personalizada</h3>
+          <p class="muted subtle">Define icono, color y texto para tu acceso rápido.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeCustomAction"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="customActionLabel">Texto a mostrar</label>
+          <input id="customActionLabel" placeholder="Ej: Contactado por Whatsapp" />
+        </div>
+        <div class="field">
+          <label for="customActionColor">Color a usar</label>
+          <input type="color" id="customActionColor" value="#38bdf8" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Icono a mostrar</label>
+        <div class="icon-row">
+          <div class="icon-preview" id="customIconPreview"><i class='bx bx-check-circle'></i></div>
+          <button class="secondary-btn" id="openIconPicker"><i class='bx bx-grid-alt'></i>Elegir icono</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="customActionStatus">Estado automático al ejecutar</label>
+        <select id="customActionStatus"></select>
+      </div>
+      <div class="form-actions">
+        <button class="ghost-btn" id="cancelCustomAction">Cancelar</button>
+        <button class="primary-btn" id="saveCustomAction"><i class='bx bx-save'></i>Guardar esta acción personalizada</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="scheduleContactOverlay">
+    <div class="popover" id="scheduleContactPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Programar Contacto</p>
+          <h3>Agenda un nuevo recontacto</h3>
+          <p class="muted subtle">Estás programando recontactar a: <strong id="scheduleClientName">Cliente</strong></p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeScheduleContact"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="form-grid two">
+        <div class="field">
+          <label for="scheduleDate">Selecciona una fecha</label>
+          <input type="date" id="scheduleDate">
+        </div>
+        <div class="field">
+          <label for="scheduleTime">Selecciona un horario</label>
+          <input type="time" id="scheduleTime">
+        </div>
+      </div>
+      <div class="field textarea-field">
+        <label for="scheduleMessage">Motivo de Recontacto</label>
+        <div class="textarea-shell">
+          <textarea id="scheduleMessage" rows="4" placeholder="Escribe el mensaje o motivo principal..."></textarea>
+          <div class="chips inline" id="scheduleQuickReasons">
+            <button class="chip compact" type="button" data-message="Seguimiento del plan solicitado.">Seguimiento del plan</button>
+            <button class="chip compact" type="button" data-message="Enviar información y valores actualizados.">Enviar información</button>
+            <button class="chip compact" type="button" data-message="Confirmar documentación y próximos pasos.">Confirmar documentación</button>
+            <button class="chip compact" type="button" data-message="Recordatorio de propuesta y beneficios.">Recordatorio</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Forma de Contacto</label>
+        <div class="schedule-contact-options">
+          <label class="toggle option-card">
+            <input type="radio" name="scheduleContactMethod" value="whatsapp" checked>
+            <span>Mensaje de Whatsapp</span>
+          </label>
+          <label class="toggle option-card">
+            <input type="radio" name="scheduleContactMethod" value="phone">
+            <span>Llamada telefónica</span>
+          </label>
+          <label class="toggle option-card">
+            <input type="radio" name="scheduleContactMethod" value="other">
+            <span>Otro</span>
+          </label>
+        </div>
+      </div>
+      <div class="field hidden" id="scheduleOtherContactField">
+        <label for="scheduleOtherContact">Especificar otra forma</label>
+        <input id="scheduleOtherContact" placeholder="Ej: Videollamada, email, reunión presencial">
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-btn" id="cancelScheduleContact">Cancelar</button>
+        <button class="primary-btn" id="confirmScheduleContact"><i class='bx bx-check-circle'></i>Programar</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="iconPickerOverlay">
+    <div class="popover nested" id="iconPickerPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Selector de iconos</p>
+          <h3>Elige un ícono</h3>
+          <p class="muted subtle">Explora la biblioteca y selecciona el que mejor identifique tu acción.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeIconPicker"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="icon-picker" id="customActionIcons"></div>
+    </div>
+  </div>
+  <div class="popover-overlay" id="clientActionOverlay">
+    <div class="popover wide" id="clientActionMenu">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Menú de acciones</p>
+          <h3 id="clientActionTitle">Editar contacto</h3>
+          <p class="muted subtle" id="clientActionSubtitle"></p>
+        </div>
+        <button class="ghost-btn icon-only" id="clientActionClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="action-grid" id="clientActionList"></div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="contactAssistantOverlay">
+    <div class="popover assistant" id="contactAssistantPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Ronda de pendientes</p>
+          <h3>Asistente de Contactos</h3>
+        </div>
+        <button class="ghost-btn icon-only" id="closeContactAssistant"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="assistant-shell">
+        <div class="assistant-undo hidden" id="assistantUndo">
+          <div>
+            <p class="muted tiny">El cliente anterior fue:</p>
+            <p class="assistant-undo-text">"<span id="assistantUndoName">-</span>" y ha sido marcado como: "<span id="assistantUndoStatus">-</span>".</p>
+          </div>
+          <button class="secondary-btn" id="assistantUndoBtn"><i class='bx bx-undo'></i>Deshacer esta acción</button>
+        </div>
+        <div class="assistant-header">
+          <p class="muted tiny">Cliente actual</p>
+          <h3 id="assistantClientName">-</h3>
+          <p class="muted tiny" id="assistantHelper"></p>
+        </div>
+        <div class="assistant-layout" id="contactAssistantCard">
+          <div class="assistant-card clickable" data-tone="cyan" data-assistant-action="copy_phone" role="button" tabindex="0" aria-label="Copiar teléfono">
+            <div class="card-head">
+              <p class="eyebrow">Teléfono</p>
+              <span class="assistant-hint">Toca para copiar</span>
+            </div>
+            <p class="assistant-value" id="assistantClientPhone">-</p>
+          </div>
+          <div class="assistant-card clickable" data-tone="purple" data-assistant-action="copy_message" role="button" tabindex="0" aria-label="Copiar mensaje">
+            <div class="card-head">
+              <p class="eyebrow">Copiar mensaje</p>
+              <span class="assistant-hint">Toca para copiar</span>
+            </div>
+            <p class="muted" id="assistantMessagePreview"></p>
+          </div>
+          <div class="assistant-card actions" data-tone="green">
+            <p class="eyebrow">Marcar como...</p>
+            <div class="action-buttons">
+              <button class="glow-btn" id="assistantMarkContacted" data-tone="green"><i class='bx bx-check-circle'></i> Contactado</button>
+              <button class="glow-btn" id="assistantMarkNoNumber" data-tone="red"><i class='bx bx-block'></i> Número no disponible</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="preferencesOverlay">
+    <div class="popover wide" id="preferencesPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Mis preferencias</p>
+          <h3>Personaliza tu vista</h3>
+          <p class="muted subtle">Ajusta el tamaño de texto y el formato visual de los datos.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closePreferences"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="preferences-content preferences-layout">
+        <aside class="preferences-nav">
+          <button class="preferences-tab active" data-pref-tab="fonts"><i class='bx bx-font'></i> Tipografía</button>
+          <button class="preferences-tab" data-pref-tab="context"><i class='bx bx-layout'></i> Menú contextual</button>
+          <button class="preferences-tab" data-pref-tab="display"><i class='bx bx-low-vision'></i> Visualización</button>
+          <button class="preferences-tab" data-pref-tab="site"><i class='bx bx-cog'></i> Ajustes del sitio</button>
+        </aside>
+        <div class="preferences-panels">
+          <section class="preferences-section pref-panel active" data-pref-panel="fonts">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Tamaño de fuente</p>
+                <h4>Campos del gestor</h4>
+                <p class="muted tiny">Cada ajuste afecta al Gestor de Clientes y al Asistente de Contactos.</p>
+              </div>
+            </div>
+            <div class="preferences-grid" id="fontPreferencesList"></div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="context">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Menú contextual</p>
+                <h4>Tamaño de fuente</h4>
+                <p class="muted tiny">Define cómo se muestran los textos dentro del menú contextual.</p>
+              </div>
+            </div>
+            <div class="preferences-grid" id="contextFontPreferencesList"></div>
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Contenido visible</p>
+                <h4>Elige qué mostrar</h4>
+                <p class="muted tiny">Activa o desactiva cada dato y acción por separado.</p>
+              </div>
+            </div>
+            <div class="preferences-grid" id="contextVisibilityList"></div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="display">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Visualización</p>
+                <h4>Celulares en formato simple</h4>
+                <p class="muted tiny">Solo afecta a la tabla y al Asistente, no al copiado.</p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="phoneDisplaySelect">Visualización sencilla de celulares</label>
+              <select id="phoneDisplaySelect">
+                <option value="plain">Desactivada</option>
+                <option value="split2">Activada con separador de 2</option>
+                <option value="split3">Activada con separador de 3</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="toggle inline" for="scrollTopToggle">
+                <input type="checkbox" id="scrollTopToggle">
+                <span>Mostrar botón flotante para volver arriba</span>
+              </label>
+              <p class="muted tiny">Aparece cuando te desplazas en la lista y permite regresar al inicio rápidamente.</p>
+            </div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="site">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Ajustes del sitio</p>
+                <h4>Datos locales y mantenimiento</h4>
+                <p class="muted tiny">Gestiona datos guardados, restablece valores base y optimiza la experiencia.</p>
+              </div>
+            </div>
+            <div class="preferences-actions">
+              <button class="secondary-btn" id="clearStorage"><i class='bx bx-trash'></i> Limpiar datos locales</button>
+              <button class="ghost-btn danger" id="resetDefaults"><i class='bx bx-refresh'></i> Restaurar valores base</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="templatePickerOverlay">
+    <div class="popover" id="templatePickerPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Copiar plantilla</p>
+          <h3>Selecciona una plantilla para copiar</h3>
+          <p class="muted subtle">Elige la plantilla y se copiará con los datos dinámicos disponibles.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="closeTemplatePicker"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="template-picker-body">
+        <div class="search-field">
+          <i class='bx bx-search'></i>
+          <input id="templatePickerSearch" placeholder="Buscar plantilla..." />
+        </div>
+        <div class="template-picker-list" id="templatePickerList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal hidden" id="clientEditModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="clientEditEyebrow">Edición</p>
+          <h3 id="clientEditTitle"></h3>
+          <p class="muted" id="clientEditSubtitle"></p>
+        </div>
+        <button id="clientEditClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="field" id="clientEditCurrent"></div>
+      <div class="field" id="clientEditField"></div>
+      <label class="toggle" id="uppercaseToggle" style="display:none;">
+        <input type="checkbox" id="clientUppercase">
+        <span>Forzar mayúsculas</span>
+      </label>
+      <div class="modal-actions">
+        <button id="clientEditCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientEditSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal hidden" id="clientStatusModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Modificación de estado</p>
+          <h3 id="clientStatusTitle">Actualizar estado</h3>
+          <p class="muted" id="clientStatusSubtitle">Actualiza el estado del cliente seleccionado.</p>
+        </div>
+        <button id="clientStatusClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="status-update-card">
+          <p class="muted tiny" id="clientStatusLastUpdate">Última actualización: Sin datos.</p>
+          <div class="field">
+            <label for="clientStatusSelect">Actualizar el estado del cliente a:</label>
+            <select id="clientStatusSelect"></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="clientStatusCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientStatusSave" class="primary-btn"><i class='bx bx-check-circle'></i>Actualizar estado</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal hidden" id="clientReassignModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Reasignación de cuenta</p>
+          <h3 id="clientReassignTitle">Reasignar cliente</h3>
+          <p class="muted" id="clientReassignSubtitle"></p>
+        </div>
+        <button id="clientReassignClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="status-update-card">
+          <p class="muted" id="clientReassignStatusLine"></p>
+          <p class="muted" id="clientReassignAccountLine"></p>
+          <div class="field">
+            <label for="clientReassignSelect">Reasignar este cliente a la cuenta:</label>
+            <select id="clientReassignSelect"></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="clientReassignCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientReassignSave" class="primary-btn"><i class='bx bx-refresh'></i>Reasignar cuenta</button>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay" id="contactLogOverlay">
+    <div class="popover wide" id="contactLogPanel">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Registro de Contactados</p>
+          <h3>Seguimiento en tiempo real</h3>
+          <p class="muted subtle">Últimas acciones marcadas: contactado, número no disponible o favoritos.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="contactLogClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="search-field">
+        <i class='bx bx-search'></i>
+        <input id="contactLogSearch" placeholder="Buscar por nombre, estado o teléfono" />
+      </div>
+      <div class="contact-log-body" id="contactLogList"></div>
+      <div id="contactLogEmpty" class="empty-state hidden">
+        <i class='bx bx-time-five'></i>
+        <p class="muted">Aún no hay registros de contacto. Marca clientes como contactados, número no disponible o favoritos para verlos aquí.</p>
+      </div>
+    </div>
+  </div>
+  <div id="journeyReportModal" class="modal hidden">
+    <div class="modal-content wide journey-report-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Informe de Jornada</p>
+          <h3>Control de gestión por periodo</h3>
+          <p class="muted subtle">Selecciona el rango de fechas para generar un informe detallado y descargarlo en PDF.</p>
+        </div>
+        <button id="journeyReportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="journey-report-grid">
+          <div class="journey-report-filters">
+            <h4>Selecciona el rango de fecha que deseas obtener el informe:</h4>
+            <div class="journey-date-row">
+              <label for="journeyReportFrom">Desde:</label>
+              <input type="date" id="journeyReportFrom" />
+              <label for="journeyReportTo">Hasta:</label>
+              <input type="date" id="journeyReportTo" />
+            </div>
+            <div class="journey-quick-buttons">
+              <button class="ghost-btn mini" data-range="0">Hoy</button>
+              <button class="ghost-btn mini" data-range="3">Últimos 3 días</button>
+              <button class="ghost-btn mini" data-range="7">Últimos 7 días</button>
+              <button class="ghost-btn mini" data-range="15">Últimos 15 días</button>
+              <button class="ghost-btn mini" data-range="30">Últimos 30 días</button>
+            </div>
+            <div class="journey-report-actions">
+              <button id="journeyReportDownload" class="primary-btn"><i class='bx bx-download'></i>Descargar PDF</button>
+            </div>
+          </div>
+          <div class="journey-report-summary">
+            <div class="journey-summary-card">
+              <p class="eyebrow">Informe de Jornada</p>
+              <h4 id="journeyReportAdvisor">Informe del asesor: -</h4>
+              <p class="muted" id="journeyReportPeriod">Periodo del informe: -</p>
+              <div class="journey-stat">
+                <span>Cantidad de teléfonos contactados en el periodo</span>
+                <strong id="journeyReportTotal">0</strong>
+              </div>
+            </div>
+            <div class="journey-report-detail">
+              <h4>Detalle del informe</h4>
+              <div class="journey-report-list" id="journeyReportList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="journeyReportCloseFooter" class="ghost-btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div class="context-menu hidden" id="clientContextMenu">
+    <div class="context-menu-head">
+      <div>
+        <p class="eyebrow">Seleccionaste a:</p>
+        <h4 id="contextClientName">Cliente</h4>
+        <p class="muted tiny" id="contextClientModel"></p>
+      </div>
+      <button class="ghost-btn icon-only" id="closeContextMenu"><i class='bx bx-x'></i></button>
+    </div>
+    <div class="context-menu-body" id="contextMenuContent"></div>
   </div>
   <div id="toastContainer" class="toast-container"></div>
   <div id="exportModal" class="modal hidden">
@@ -437,6 +1790,10 @@
           <p class="muted" id="exportHelperText">Configura el método y las columnas a incluir.</p>
         </div>
         <button id="exportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions top">
+        <button id="exportCancel" class="ghost-btn">Cancelar</button>
+        <button id="exportConfirm" class="primary-btn"><i class='bx bx-download'></i>Exportar ahora</button>
       </div>
       <div class="option-stack two-cols">
         <label class="option-card">
@@ -450,7 +1807,7 @@
           <input type="radio" name="exportMode" value="preset">
           <div>
             <strong>Excel - Igualar Cabezales Predet.</strong>
-            <p class="muted tiny">Exporta con encabezados fijos: CUIT0, DOC, FECNAC, NOMBRE, OLOC, OPCIA, CP, CELULAR12, FECHA1, MARCA, MODELO, TIPO.</p>
+            <p class="muted tiny">Exporta con encabezados fijos: CUIT0, DOC, FECNAC, NOMBRE, OLOC, OPCIA, CP, CELULAR12, FECHA1, MARCA, MODELO, TIPO, ESTADO.</p>
           </div>
         </label>
       </div>
@@ -465,29 +1822,211 @@
         </div>
         <div id="exportColumnsList" class="export-columns"></div>
       </div>
-      <div class="modal-actions">
-        <button id="exportCancel" class="ghost-btn">Cancelar</button>
-        <button id="exportConfirm" class="primary-btn"><i class='bx bx-download'></i>Exportar ahora</button>
-      </div>
     </div>
   </div>
   <div id="clientPickerModal" class="modal hidden">
-    <div class="modal-content wide">
+    <div class="modal-content wide wizard">
       <div class="modal-head">
         <div>
-          <p class="eyebrow">Seleccionar cliente</p>
-          <h3>Contactos importados</h3>
-          <p class="muted">Busca en la lista de clientes importados y aplica sus datos al plan.</p>
+          <p class="eyebrow">Asistente de selección</p>
+          <h3>Cliente y cotización</h3>
+          <p class="muted" id="clientWizardSubtitle">Elige cómo deseas buscar al cliente.</p>
         </div>
         <button id="clientPickerClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
-      <div class="search-field expanded">
-        <i class='bx bx-search'></i>
-        <input id="clientPickerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+      <div class="wizard-track" id="clientWizardTrack">
+        <section class="wizard-panel" data-step="1">
+          <div class="wizard-choice">
+            <h4>¿Cómo deseas buscar al cliente?</h4>
+            <div class="wizard-choice-group">
+              <p class="wizard-choice-title">Usando mis clientes...</p>
+              <div class="wizard-choice-grid">
+                <button class="wizard-choice-card" type="button" data-client-wizard-choice="search">
+                  <div>
+                    <strong>Búsqueda por nombre</strong>
+                    <p class="muted tiny">Escribe y confirma la búsqueda manualmente.</p>
+                  </div>
+                  <i class='bx bx-search-alt-2'></i>
+                </button>
+                <button class="wizard-choice-card" type="button" data-client-wizard-choice="all">
+                  <div>
+                    <strong>Ver todos los clientes</strong>
+                    <p class="muted tiny">Lista alfabética completa para elegir.</p>
+                  </div>
+                  <i class='bx bx-list-ul'></i>
+                </button>
+              </div>
+            </div>
+            <div class="wizard-choice-group alt">
+              <p class="wizard-choice-title">No utilizar ningún cliente registrado</p>
+              <div class="wizard-choice-grid">
+                <button class="wizard-choice-card" type="button" data-client-wizard-choice="external">
+                  <div>
+                    <strong>Cotización Externa...</strong>
+                    <p class="muted tiny">Usa un nombre manual sin datos asociados.</p>
+                  </div>
+                  <i class='bx bx-id-card'></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="2">
+          <div class="wizard-panel-head">
+            <h4 id="clientWizardModeTitle">Búsqueda por nombre</h4>
+            <p class="muted" id="clientWizardModeSubtitle">Escribe el nombre del cliente a buscar y presiona Buscar.</p>
+          </div>
+          <div class="wizard-search" id="clientWizardSearchSection">
+            <div class="search-field expanded">
+              <i class='bx bx-search'></i>
+              <input id="clientWizardSearchInput" placeholder="Escribe el nombre del cliente a buscar..." />
+            </div>
+            <button id="clientWizardSearchBtn" class="primary-btn" type="button"><i class='bx bx-loader-circle'></i>Buscar...</button>
+          </div>
+          <div class="wizard-search" id="clientWizardExternalSection">
+            <div class="field">
+              <label for="clientWizardExternalName">Ingresa el nombre del cliente que quieres utilizar.</label>
+              <input id="clientWizardExternalName" placeholder="Ej: Juan Pérez" />
+            </div>
+          </div>
+          <p class="muted tiny" id="clientWizardSearchStatus">Selecciona un cliente para continuar.</p>
+          <div id="clientWizardList" class="picker-list wizard-list"></div>
+        </section>
+        <section class="wizard-panel" data-step="3">
+          <div class="wizard-panel-head">
+            <h4>Selecciona el auto a cotizar</h4>
+            <p class="muted">Elige marca y modelo. El plan se ajusta automáticamente.</p>
+          </div>
+          <div class="form-grid two wizard-form-grid">
+            <div class="field">
+              <label for="clientWizardBrand">Marca</label>
+              <select id="clientWizardBrand"></select>
+            </div>
+            <div class="field">
+              <label for="clientWizardModel">Modelo</label>
+              <select id="clientWizardModel"></select>
+            </div>
+          </div>
+          <div class="wizard-plan-card" id="clientWizardPlanCard">
+            <div class="wizard-plan-head">
+              <div>
+                <p class="eyebrow">Detalles del plan</p>
+                <h4 id="clientWizardPlanTitle">Plan sugerido</h4>
+              </div>
+              <span class="wizard-plan-badge" id="clientWizardPlanBadge">Plan</span>
+            </div>
+            <div class="wizard-plan-grid" id="clientWizardPlanDetails"></div>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="4">
+          <div class="wizard-panel-head">
+            <h4>¿El cliente usará Llave x Llave?</h4>
+            <p class="muted">Define si se tomará un usado como parte de pago.</p>
+          </div>
+          <div class="wizard-choice-grid compact">
+            <button class="wizard-choice-card small" type="button" data-trade-in-choice="yes">
+              <strong>Si</strong>
+              <p class="muted tiny">Registrar el valor del usado.</p>
+            </button>
+            <button class="wizard-choice-card small" type="button" data-trade-in-choice="no">
+              <strong>No</strong>
+              <p class="muted tiny">Continuar sin usado.</p>
+            </button>
+          </div>
+          <div class="field wizard-money-field" id="clientWizardTradeInField">
+            <label for="clientWizardTradeInValue">¿En cuánto se lo tomarán?</label>
+            <div class="money-field">
+              <span class="prefix">$</span>
+              <input id="clientWizardTradeInValue" class="money" type="text" inputmode="numeric" placeholder="Ej: 1.000.000" />
+            </div>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="5">
+          <div class="wizard-panel-head">
+            <h4>Valor del coche en sistema</h4>
+            <p class="muted" id="clientWizardPriceInfo">Según precios actualizados.</p>
+          </div>
+          <div class="wizard-choice-grid compact">
+            <button class="wizard-choice-card small" type="button" data-price-choice="yes">
+              <strong>Si, usar valores por defecto</strong>
+              <p class="muted tiny">Tomar el valor oficial del catálogo.</p>
+            </button>
+            <button class="wizard-choice-card small" type="button" data-price-choice="no">
+              <strong>No, usaré otro</strong>
+              <p class="muted tiny">Cambio de versión o ajuste manual.</p>
+            </button>
+          </div>
+          <div class="field wizard-money-field" id="clientWizardCustomPriceField">
+            <label for="clientWizardCustomPrice">Ingresar otro valor</label>
+            <div class="money-field">
+              <span class="prefix">$</span>
+              <input id="clientWizardCustomPrice" class="money" type="text" inputmode="numeric" placeholder="Valor del coche a cotizar" />
+            </div>
+            <p class="muted tiny">Ejemplo: versión superior o ajustes personalizados.</p>
+          </div>
+        </section>
+        <section class="wizard-panel" data-step="6">
+          <div class="wizard-panel-head">
+            <h4>Confirmar operación</h4>
+            <p class="muted">Revisa y confirma los datos seleccionados.</p>
+          </div>
+          <div class="wizard-summary" id="clientWizardSummary"></div>
+        </section>
       </div>
-      <div id="clientPickerList" class="picker-list"></div>
+      <div class="modal-actions wizard-actions">
+        <div class="wizard-progress wizard-progress-footer" id="clientWizardProgress">
+          <div class="wizard-progress-step" data-step="1">
+            <span>1</span>
+            <small>Buscar</small>
+          </div>
+          <div class="wizard-progress-step" data-step="2">
+            <span>2</span>
+            <small>Cliente</small>
+          </div>
+          <div class="wizard-progress-step" data-step="3">
+            <span>3</span>
+            <small>Auto</small>
+          </div>
+          <div class="wizard-progress-step" data-step="4">
+            <span>4</span>
+            <small>Llave</small>
+          </div>
+          <div class="wizard-progress-step" data-step="5">
+            <span>5</span>
+            <small>Valor</small>
+          </div>
+          <div class="wizard-progress-step" data-step="6">
+            <span>6</span>
+            <small>Confirmar</small>
+          </div>
+        </div>
+        <div class="wizard-actions-buttons">
+          <button id="clientWizardBack" class="ghost-btn">Atrás</button>
+          <div class="wizard-actions-right">
+            <button id="clientWizardNext" class="primary-btn">Siguiente</button>
+            <button id="clientWizardConfirm" class="primary-btn"><i class='bx bx-check'></i>Continuar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="clientVehicleModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Modelo asociado</p>
+          <h3>Confirmar vehículo del cliente</h3>
+          <p class="muted" id="clientVehicleContext">Selecciona el vehículo vinculado al cliente.</p>
+        </div>
+        <button id="clientVehicleClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="field">
+        <label for="clientVehicleOptions">El cliente tiene asociado el auto:</label>
+        <select id="clientVehicleOptions"></select>
+      </div>
       <div class="modal-actions">
-        <button id="clientPickerCancel" class="ghost-btn">Cerrar</button>
+        <button id="clientVehicleCancel" class="ghost-btn">Cancelar</button>
+        <button id="clientVehicleApply" class="primary-btn"><i class='bx bx-check'></i>Utilizar selección</button>
       </div>
     </div>
   </div>
@@ -508,6 +2047,111 @@
       <div class="modal-actions">
         <button id="clientNoteCancel" class="ghost-btn">Cerrar</button>
         <button id="clientNoteSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div id="accountInfoModal" class="modal hidden">
+    <div class="modal-content account-info-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Cuenta activa</p>
+          <h3>Detalles de la cuenta</h3>
+        </div>
+        <button id="accountInfoClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="account-info-body">
+        <div class="account-info-avatar"><i class='bx bx-user'></i></div>
+        <h4 id="accountInfoName">Cuenta</h4>
+        <div class="account-info-sections">
+          <div class="info-block">
+            <h5>Información de la cuenta</h5>
+            <div class="info-row">
+              <span>Número de Teléfono de esta cuenta:</span>
+              <strong id="accountInfoPhone">-</strong>
+            </div>
+            <div class="info-row">
+              <span>Dispositivo de esta cuenta:</span>
+              <strong id="accountInfoDevice">-</strong>
+            </div>
+          </div>
+          <div class="info-block">
+            <h5>Detalles de la operación</h5>
+            <p class="muted" id="accountInfoContact">Contacto realizado el día: -</p>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="accountInfoDismiss" class="primary-btn">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="accountManagerModal" class="modal hidden">
+    <div class="modal-content wide account-manager-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Cuentas múltiples</p>
+          <h3>Gestión de Cuentas</h3>
+        </div>
+        <button id="closeAccountManager" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="account-manager-body">
+        <aside class="account-manager-nav">
+          <div class="account-manager-actions">
+            <button class="primary-btn ghosted" id="addAccount"><i class='bx bx-plus'></i>Agregar nueva cuenta</button>
+          </div>
+          <div class="account-manager-list" id="accountManagerList"></div>
+        </aside>
+        <div class="account-manager-panel">
+          <div class="field">
+            <label for="accountNameInput">Nombre de la cuenta</label>
+            <input id="accountNameInput" placeholder="Ej: Julián Alvarez" />
+          </div>
+          <div class="field">
+            <label for="accountAliasInput">Alias de la cuenta (Nombre Asesor)</label>
+            <input id="accountAliasInput" placeholder="Ej: Julián Alvarez" />
+          </div>
+          <div class="field">
+            <label for="accountPhoneInput">Número de teléfono asociado a esta cuenta</label>
+            <input id="accountPhoneInput" placeholder="Ej: 11 2345 6789" />
+          </div>
+          <div class="field">
+            <label for="accountDeviceInput">Referencia del Dispositivo</label>
+            <input id="accountDeviceInput" placeholder="Ej. Samsung Galaxy A33" />
+          </div>
+          <div class="account-manager-hint muted tiny">Los cambios se guardan al cerrar este panel.</div>
+          <div class="modal-actions with-status">
+            <span class="muted tiny" id="accountManagerStatus"></span>
+            <div class="action-buttons">
+              <button class="secondary-btn" id="applyAccountToClients"><i class='bx bx-group'></i>Aplicar esta cuenta a Mis Clientes...</button>
+              <button class="ghost-btn danger" id="deleteAccount"><i class='bx bx-trash'></i>Eliminar esta cuenta</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="accountApplyModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Asignación masiva</p>
+          <h3>Aplicar cuenta a todos los contactos</h3>
+          <p class="muted">Esta función asignará a TODOS TUS CONTACTOS importados la vinculación a esta cuenta. Usar esta opción con precaución.</p>
+        </div>
+        <button id="accountApplyClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="option-stack compact">
+        <label class="option-card checkbox-card">
+          <input type="checkbox" id="accountApplyConfirmCheck">
+          <div>
+            <strong>Se lo que estoy haciendo</strong>
+            <p class="muted tiny">Confirmo que deseo aplicar la vinculación masiva.</p>
+          </div>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="accountApplyCancel" class="ghost-btn">Cancelar</button>
+        <button id="accountApplyConfirm" class="primary-btn" disabled>Aplicar</button>
       </div>
     </div>
   </div>
@@ -549,6 +2193,104 @@
         <button id="importDateCancel" class="ghost-btn">Cancelar</button>
         <button id="importDateConfirm" class="primary-btn"><i class='bx bx-check-double'></i>Confirmar</button>
       </div>
+    </div>
+  </div>
+  <div id="importMappingModal" class="modal hidden">
+    <div class="modal-content wide tall">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Comprobación de cabezales</p>
+          <h3>Revisa y asigna las columnas del Excel</h3>
+          <p class="muted">Selecciona dónde está cada dato obligatorio. Solo se usarán las columnas asignadas.</p>
+        </div>
+        <button id="importMappingClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="import-mapping-hint" id="importMappingHint"></div>
+      <div class="import-mapping-grid" id="importMappingFields"></div>
+      <div class="modal-actions with-status">
+        <div id="importMappingStatus" class="mapping-status"></div>
+        <div class="action-buttons">
+          <button id="importMappingCancel" class="ghost-btn">Cancelar</button>
+          <button id="importMappingConfirm" class="primary-btn"><i class='bx bx-check'></i>Importar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="manualImportModal" class="modal hidden">
+    <div class="modal-content wide manual-import-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Ingreso manual de datos</p>
+          <h3>Nuevo cliente manual</h3>
+          <p class="muted">Completa todos los datos que necesites para registrar un cliente en el paquete correspondiente.</p>
+        </div>
+        <button id="manualImportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <form id="manualImportForm" class="modal-body">
+        <div class="form-grid three manual-import-grid">
+          <div class="field">
+            <label for="manualName">Nombre del cliente</label>
+            <input id="manualName" name="name" required placeholder="Nombre completo" />
+          </div>
+          <div class="field">
+            <label for="manualDocument">DNI</label>
+            <input id="manualDocument" name="document" required placeholder="Documento" />
+          </div>
+          <div class="field">
+            <label for="manualPhone">Teléfono</label>
+            <input id="manualPhone" name="phone" required placeholder="Celular" />
+          </div>
+          <div class="field">
+            <label for="manualBirthDate">Fecha de nacimiento</label>
+            <input id="manualBirthDate" name="birthDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="manualCity">Localidad</label>
+            <input id="manualCity" name="city" placeholder="Localidad" />
+          </div>
+          <div class="field">
+            <label for="manualProvince">Provincia</label>
+            <input id="manualProvince" name="province" placeholder="Provincia" />
+          </div>
+          <div class="field">
+            <label for="manualPostalCode">Código Postal</label>
+            <input id="manualPostalCode" name="postalCode" placeholder="CP" />
+          </div>
+          <div class="field">
+            <label for="manualBrand">Marca</label>
+            <input id="manualBrand" name="brand" placeholder="Marca del coche" />
+          </div>
+          <div class="field">
+            <label for="manualModel">Modelo</label>
+            <input id="manualModel" name="model" placeholder="Modelo del coche" />
+          </div>
+          <div class="field">
+            <label for="manualPurchaseDate">Fecha de compra</label>
+            <input id="manualPurchaseDate" name="purchaseDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="manualCuit">CUIT</label>
+            <input id="manualCuit" name="cuit" placeholder="CUIT" />
+          </div>
+          <div class="field">
+            <label for="manualContactDate">Fecha/Hora de contacto</label>
+            <input id="manualContactDate" name="contactDate" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="manualSystemDate">Fecha de carga (paquete)</label>
+            <input id="manualSystemDate" name="systemDate" type="date" />
+          </div>
+          <div class="field wide">
+            <label for="manualNotes">Notas</label>
+            <textarea id="manualNotes" name="type" rows="2" placeholder="Notas o comentarios"></textarea>
+          </div>
+        </div>
+        <p class="muted tiny">Los campos obligatorios son Nombre, DNI y Teléfono.</p>
+        <div class="modal-actions">
+          <button type="button" class="ghost-btn" id="manualImportCancel">Cancelar</button>
+          <button type="submit" class="primary-btn"><i class='bx bx-save'></i>Guardar cliente</button>
+        </div>
+      </form>
     </div>
   </div>
   <div id="dateFilterModal" class="modal hidden">
@@ -595,6 +2337,322 @@
       </div>
     </div>
   </div>
+  <div id="installmentModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Detalle de cuotas</p>
+          <h3>Calendario y adelantos</h3>
+          <p class="muted">Usa la cuota pura vigente para mostrar adelantos y coberturas.</p>
+        </div>
+        <button id="installmentClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div id="installmentSummary" class="folio-list"></div>
+      <div id="installmentList" class="coverage-grid"></div>
+      <div class="modal-actions">
+        <button id="installmentCancel" class="ghost-btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="priceFilesModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Archivos del mes</p>
+          <h3>Explorador</h3>
+        </div>
+        <button id="priceFilesClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div id="priceFilesList" class="file-list"></div>
+    </div>
+  </div>
+  <div id="onlineFilesModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Archivos online</p>
+          <h3>Explorador general</h3>
+        </div>
+        <button id="onlineFilesClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="search-field compact">
+        <i class='bx bx-search'></i>
+        <input id="onlineFilesSearch" placeholder="Buscar por nombre..." />
+      </div>
+      <div id="onlineFilesList" class="file-list"></div>
+    </div>
+  </div>
+  <div id="priceImportModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Precios del mes</p>
+          <h3>Importar o exportar valores</h3>
+          <p class="muted tiny">Sincroniza con precios_[marca].json del mes o carga un archivo manual.</p>
+        </div>
+        <button id="priceImportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body import-grid">
+        <div class="card ghost">
+          <div class="card-head compact">
+            <p class="eyebrow">Carga automática</p>
+            <h4>Desde la carpeta del mes</h4>
+            <p class="muted tiny">Busca precios_[marca].json dentro de la carpeta activa.</p>
+          </div>
+          <p class="muted tiny" id="serverPricePath">Ruta: -</p>
+          <div class="actions compact">
+            <button id="reloadServerPrices" class="secondary-btn" type="button"><i class='bx bx-refresh'></i>Cargar desde servidor</button>
+          </div>
+          <p class="muted tiny" id="serverPriceStatus">Estado: sin cargar</p>
+        </div>
+        <div class="card ghost">
+          <div class="card-head compact">
+            <p class="eyebrow">Importación manual</p>
+            <h4>Sube un archivo de precios</h4>
+            <p class="muted tiny">Usa un archivo compatible generado por la plataforma.</p>
+          </div>
+          <div class="upload-box" id="priceUploadBox">
+            <i class='bx bx-upload'></i>
+            <p>Arrastra o haz clic para seleccionar</p>
+            <p class="muted tiny">Solo archivos .json</p>
+            <input type="file" id="priceFileInput" accept="application/json" />
+          </div>
+          <div class="actions compact">
+            <button id="applyPriceFile" class="primary-btn" type="button"><i class='bx bx-check-circle'></i>Aplicar archivo</button>
+          </div>
+          <p class="muted tiny" id="localPriceStatus">Estado: esperando archivo</p>
+        </div>
+        <div class="card ghost">
+          <div class="card-head compact">
+            <p class="eyebrow">Respaldo inmediato</p>
+            <h4>Exportar precios actuales</h4>
+            <p class="muted tiny">Descarga los precios_[marca].json listos para subir al servidor.</p>
+          </div>
+          <div class="actions compact">
+            <button id="downloadPriceFile" class="secondary-btn" type="button"><i class='bx bx-download'></i>Descargar precios por marca</button>
+            <button id="copyPriceJson" class="ghost-btn" type="button"><i class='bx bx-copy'></i>Copiar JSON</button>
+          </div>
+          <p class="muted tiny" id="exportPriceHint">Incluye todos los importes editados.</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="priceImportCancel" class="ghost-btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  <div id="vehicleEditorModal" class="modal hidden">
+    <div class="modal-content wide">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Modo editor</p>
+          <h3>Gestión de modelos y valores</h3>
+          <p class="muted tiny">Edita el catálogo actual y exporta precios_[marca].json cuando termines.</p>
+        </div>
+        <div class="editor-head-actions">
+          <button id="exportPricesFromEditor" class="secondary-btn"><i class='bx bx-download'></i>Descargar Archivos de Precios</button>
+          <button id="vehicleEditorClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+        </div>
+      </div>
+      <div class="modal-body editor-body">
+        <div class="editor-tabs">
+          <button class="tab-btn active" type="button" data-editor-tab="models">Modelos</button>
+          <button class="tab-btn" type="button" data-editor-tab="brands">Gestión de Marcas</button>
+        </div>
+        <div class="editor-tab-panels">
+          <div class="editor-tab-panel active" data-editor-panel="models">
+            <div class="editor-grid">
+              <aside class="editor-sidebar">
+                <div class="editor-filter-row">
+                  <div class="search-field compact">
+                    <i class='bx bx-search'></i>
+                    <input id="vehicleEditorSearch" placeholder="Buscar modelo" />
+                  </div>
+                  <div class="field compact">
+                    <label for="vehicleEditorBrandFilter">Filtrar marca</label>
+                    <select id="vehicleEditorBrandFilter"></select>
+                  </div>
+                </div>
+                <div id="vehicleEditorList" class="editor-list"></div>
+                <p id="vehicleEditorEmpty" class="muted tiny hidden">No se encontraron modelos.</p>
+                <div class="actions compact center editor-list-actions">
+                  <button id="addVehicle" class="secondary-btn mini"><i class='bx bx-plus'></i>Agregar modelo</button>
+                  <button id="duplicateVehicle" class="ghost-btn mini"><i class='bx bx-copy'></i>Duplicar</button>
+                  <button id="deleteVehicle" class="ghost-btn danger mini"><i class='bx bx-trash'></i>Eliminar</button>
+                </div>
+              </aside>
+              <div class="editor-form">
+                <div class="field">
+                  <label for="editorVehicleName">Nombre del modelo</label>
+                  <input id="editorVehicleName" placeholder="Ej: Tracker LT 1.2AT" />
+                </div>
+                <div class="form-grid two">
+                  <div class="field">
+                    <label for="editorBrand">Marca</label>
+                    <select id="editorBrand"></select>
+                  </div>
+                  <div class="field">
+                    <label for="editorAllocation">Modalidad de adjudicación</label>
+                    <select id="editorAllocation">
+                      <option value="pactada">Cuota Pactada (Llave x llave)</option>
+                      <option value="sorteo_licitacion">Solo Sorteo o Licitación</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-grid two">
+                  <div class="field">
+                    <label for="editorWithdrawalInstallments">Cuotas pactadas de retiro</label>
+                    <input id="editorWithdrawalInstallments" placeholder="Ej: 4,6,9,12" />
+                  </div>
+                  <div class="field">
+                    <label>Requisito de integración</label>
+                    <div class="inline-field requirement-inline">
+                      <select id="editorWithdrawalRequirementType">
+                        <option value="percent">%</option>
+                        <option value="amount">$</option>
+                      </select>
+                      <input id="editorWithdrawalRequirementPct" type="number" min="0" max="100" step="1" placeholder="Ej: 35" />
+                      <div class="money-field hidden" id="editorWithdrawalRequirementAmountField">
+                        <span class="prefix">$</span>
+                        <input id="editorWithdrawalRequirementAmount" class="money" type="text" inputmode="numeric" placeholder="Ej: 750000" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-grid three">
+                  <div class="field">
+                    <label for="editorBasePrice">Precio de lista</label>
+                    <div class="money-field">
+                      <span class="prefix">$</span>
+                      <input id="editorBasePrice" class="money" type="text" inputmode="numeric" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="editorIntegration">Integración</label>
+                    <div class="money-field">
+                      <span class="prefix">$</span>
+                      <input id="editorIntegration" class="money" type="text" inputmode="numeric" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="editorCuotaPura">Cuota pura</label>
+                    <div class="money-field">
+                      <span class="prefix">$</span>
+                      <input id="editorCuotaPura" class="money" type="text" inputmode="numeric" />
+                    </div>
+                  </div>
+                </div>
+                <div class="form-grid two">
+                  <div class="field">
+                    <label for="editorPlanLabel">Etiqueta del plan</label>
+                    <input id="editorPlanLabel" placeholder="Ej: 80/20 (120 cuotas)" />
+                  </div>
+                  <div class="field">
+                    <label for="editorPlanMaxInstallments">Máximo de cuotas</label>
+                    <input id="editorPlanMaxInstallments" type="number" min="1" step="1" placeholder="Ej: 84 o 120" />
+                  </div>
+                </div>
+                <div class="form-grid three">
+                  <div class="field">
+                    <label for="editorPlanFinanced">Financia empresa (%)</label>
+                    <input id="editorPlanFinanced" type="number" min="0" max="100" step="1" placeholder="Ej: 70" />
+                  </div>
+                  <div class="field">
+                    <label for="editorPlanIntegration">Paga cliente (%)</label>
+                    <input id="editorPlanIntegration" type="number" min="0" max="100" step="1" placeholder="Ej: 30" />
+                  </div>
+                  <div class="field readonly">
+                    <label>Etiqueta automática</label>
+                    <div class="plan-profile-cell readonly">
+                      <span class="chip muted" id="editorPlanAutoLabel">Sin esquema definido</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Planes disponibles</label>
+                  <p class="muted tiny">Se calculan automáticamente según las cuotas máximas definidas.</p>
+                  <div class="chip-group">
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="2a12">2 a 12</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="13a21">13 a 21</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="22a84">22 a 84</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="85a120">85 a 120</label>
+                    <label class="chip-select"><input type="checkbox" data-editor-available value="ctapura">Cuota pura</label>
+                  </div>
+                </div>
+                <div class="field-group compact">
+                  <div class="field-head">
+                    <div>
+                      <p class="eyebrow">Cuotas por plan</p>
+                      <p class="muted tiny">Importes de referencia por tramo.</p>
+                    </div>
+                  </div>
+                  <div class="form-grid two" id="editorPlanRanges"></div>
+                </div>
+                <div class="field-group compact">
+                  <div class="field-head">
+                    <div>
+                      <p class="eyebrow">Reservas</p>
+                      <p class="muted tiny">Importes de reserva por cuota.</p>
+                    </div>
+                  </div>
+                  <div class="form-grid three">
+                    <div class="field">
+                      <label>Reserva 1 cuota</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-reserva="1" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Reserva 3 cuotas</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-reserva="3" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>Reserva 6 cuotas</label>
+                      <div class="money-field">
+                        <span class="prefix">$</span>
+                        <input class="money" type="text" inputmode="numeric" data-editor-reserva="6" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="field-group compact">
+                  <div class="field-head">
+                    <div>
+                      <p class="eyebrow">Beneficios</p>
+                      <p class="muted tiny">Texto de pactadas y bonificaciones.</p>
+                    </div>
+                  </div>
+                  <div class="field textarea-field">
+                    <label for="editorBenefitPactada">Pactada</label>
+                    <textarea id="editorBenefitPactada" rows="2" placeholder="Ej: Chevroplan pactada cuota nº6"></textarea>
+                  </div>
+                  <div class="field textarea-field">
+                    <label for="editorBenefitBonificacion">Bonificación</label>
+                    <textarea id="editorBenefitBonificacion" rows="2" placeholder="Ej: 50% desc. en las primeras 3 cuotas del seguro"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="editor-tab-panel" data-editor-panel="brands">
+            <div class="brand-manager">
+              <div class="brand-manager-head">
+                <div>
+                  <p class="eyebrow">Gestión de Marcas</p>
+                  <p class="muted tiny">Define color, nombre y esquema de cuotas para cada marca disponible.</p>
+                </div>
+                <button id="addBrand" class="secondary-btn mini" type="button"><i class='bx bx-plus'></i>Agregar marca</button>
+              </div>
+              <div id="brandManagerList" class="brand-manager-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="modal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-head">
@@ -611,6 +2669,102 @@
       </div>
     </div>
   </div>
+  <div id="moduleImportModal" class="modal hidden">
+    <div class="modal-content wide module-import-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Gestión de módulos</p>
+          <h3>Estas por importar elementos</h3>
+          <p class="muted" id="moduleImportModalSubtitle">Revisa los módulos y confirma para continuar.</p>
+        </div>
+        <button id="moduleImportClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="module-import-modal-list" id="moduleImportModalList"></div>
+        <div class="module-import-warning">
+          <p><strong>Esto reemplazará la configuración actual.</strong></p>
+          <p class="muted tiny">Si no tienes copia hecha se reemplazarán y se perderán.</p>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="moduleImportAcknowledge">
+          <span>Entiendo lo que estoy haciendo.</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-btn" id="moduleImportCancel">Cancelar</button>
+        <button class="primary-btn" id="moduleImportConfirm" disabled>Continuar</button>
+      </div>
+    </div>
+  </div>
+  <div id="quoteRestoreModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Restaurar cotización</p>
+          <h3>Antes tenías una Cotización abierta.</h3>
+          <p class="muted">¿Quieres restaurarla y continuar editándola?</p>
+        </div>
+        <button id="quoteRestoreClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions stacked">
+        <button id="quoteRestoreContinue" class="primary-btn"><i class='bx bx-rotate-right'></i>Si, Continuar la edición</button>
+        <button id="quoteRestoreReload" class="secondary-btn"><i class='bx bx-user'></i>No, Volver a cargar los datos del cliente</button>
+        <button id="quoteRestoreReset" class="ghost-btn danger"><i class='bx bx-eraser'></i>No, Empezar desde 0 en blanco</button>
+      </div>
+    </div>
+  </div>
+  <div id="processingOverlay" class="processing-overlay hidden" aria-live="polite">
+    <div class="processing-card">
+      <span class="processing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Procesando cambios</p>
+        <h3>Procesando cambios... Aguarde un momento.</h3>
+        <p class="muted">Estamos ajustando productos, precios y planes.</p>
+      </div>
+    </div>
+  </div>
+  <div id="accountApplyOverlay" class="processing-overlay hidden" aria-live="polite">
+    <div class="processing-card">
+      <span class="processing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Asignación masiva</p>
+        <h3>Aplicando... Aguarda un momento.</h3>
+        <p class="muted">Estamos vinculando la cuenta a tus contactos.</p>
+      </div>
+    </div>
+  </div>
+  <div id="quoteExportOverlay" class="processing-overlay hidden" aria-live="polite">
+    <div class="processing-card export-card">
+      <span class="processing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="eyebrow">Exportación</p>
+        <h3>Generando la cotización... Espera un momento...</h3>
+        <div class="export-progress">
+          <span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="importOverlay" class="processing-overlay hidden import-overlay" aria-live="polite">
+    <div class="processing-card import-card">
+      <div class="import-card-head">
+        <span class="processing-spinner" aria-hidden="true"></span>
+        <div>
+          <p class="eyebrow" id="importOverlayEyebrow">Importación</p>
+          <h3 id="importOverlayTitle">Preparando importación...</h3>
+          <p class="muted" id="importOverlaySubtitle">Espera un momento...</p>
+          <p class="muted tiny" id="importOverlayHelper">Estamos leyendo los datos para la importación...</p>
+        </div>
+      </div>
+      <div class="import-progress">
+        <div class="import-progress-bar"><span id="importOverlayBar"></span></div>
+        <div class="import-progress-steps" id="importOverlaySteps"></div>
+      </div>
+    </div>
+  </div>
+  <button class="scroll-top-btn" id="scrollTopButton" aria-label="Volver arriba" aria-hidden="true">
+    <i class='bx bx-chevron-up'></i>
+  </button>
   <script type="module" src="app.js"></script>
 </body>
 </html>

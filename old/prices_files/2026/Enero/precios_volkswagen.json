@@ -1,0 +1,364 @@
+{
+  "month": "Enero",
+  "year": 2026,
+  "tabId": "2026-enero",
+  "updatedAt": "2026-01-13T19:24:01.775Z",
+  "vehicles": [
+    {
+      "name": "TERA TREND 1.6 MSI MT",
+      "brand": "Volkswagen",
+      "basePrice": 36391350,
+      "integration": 10917405,
+      "cuotaPura": 303261,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "13a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "13a84"
+      ],
+      "shareByPlan": {
+        "2a12": 390100,
+        "13a84": 435289,
+        "ctapura": 303261,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1190840,
+        "3": 1548092,
+        "6": 1786260
+      },
+      "withdrawal": {
+        "installments": [
+          8,
+          12,
+          24
+        ],
+        "requirementType": "amount",
+        "requirementValue": 10917405,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "NIVUS TRENDLINE 200 TSI AT",
+      "brand": "Volkswagen",
+      "basePrice": 45775000,
+      "integration": 13732500,
+      "cuotaPura": 381458,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "13a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "13a84"
+      ],
+      "shareByPlan": {
+        "2a12": 485000,
+        "13a84": 542440,
+        "ctapura": 381458,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1348226,
+        "3": 1752694,
+        "6": 2022339
+      },
+      "withdrawal": {
+        "installments": [
+          8,
+          12,
+          24
+        ],
+        "requirementType": "amount",
+        "requirementValue": 13732500,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "T-CROSS TRENDLINE 200 TSI AT",
+      "brand": "Volkswagen",
+      "basePrice": 52851350,
+      "integration": 15855405,
+      "cuotaPura": 440428,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "13a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "13a84"
+      ],
+      "shareByPlan": {
+        "2a12": 555527,
+        "13a84": 621155,
+        "ctapura": 440428,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1383110,
+        "3": 1798043,
+        "6": 2074665
+      },
+      "withdrawal": {
+        "installments": [
+          8,
+          12,
+          24
+        ],
+        "requirementType": "amount",
+        "requirementValue": 15855405,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "NUEVA AMAROK TREND 4X2 MT G2",
+      "brand": "Volkswagen",
+      "basePrice": 58255550,
+      "integration": 23302220,
+      "cuotaPura": 416111,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "13a84",
+        "financedPct": 0.6,
+        "integrationPct": 0.4,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "13a84"
+      ],
+      "shareByPlan": {
+        "2a12": 555252,
+        "13a84": 592382,
+        "ctapura": 416111,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1811306,
+        "3": 2354698,
+        "6": 2716959
+      },
+      "withdrawal": {
+        "installments": [
+          8,
+          12,
+          24
+        ],
+        "requirementType": "amount",
+        "requirementValue": 23302220,
+        "mode": "sorteo_licitacion"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "TAOS COMFORTLINE 250 TSI AT",
+      "brand": "Volkswagen",
+      "basePrice": 56942500,
+      "integration": 22777000,
+      "cuotaPura": 406732,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "13a84",
+        "financedPct": 0.6,
+        "integrationPct": 0.4,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "13a84"
+      ],
+      "shareByPlan": {
+        "2a12": 556700,
+        "13a84": 593274,
+        "ctapura": 406732,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 2125772,
+        "3": 2763504,
+        "6": 3188658
+      },
+      "withdrawal": {
+        "installments": [
+          8,
+          12,
+          24
+        ],
+        "requirementType": "amount",
+        "requirementValue": 22777000,
+        "mode": "sorteo_licitacion"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "VIRTUS MSI MT",
+      "brand": "Volkswagen",
+      "basePrice": 45193800,
+      "integration": 45193800,
+      "cuotaPura": 538021,
+      "planProfile": {
+        "label": "100% (84 cuotas)",
+        "planType": "13a84",
+        "financedPct": 1,
+        "integrationPct": 0,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "13a84"
+      ],
+      "shareByPlan": {
+        "2a12": 584500,
+        "13a84": 722558,
+        "ctapura": 538021,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1350674,
+        "3": 1755876,
+        "6": 2026011
+      },
+      "withdrawal": {
+        "installments": [],
+        "requirementType": "percent",
+        "requirementValue": 0,
+        "mode": "sorteo_licitacion"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    }
+  ],
+  "brandSettings": [
+    {
+      "name": "Chevrolet",
+      "color": "#ffcf24",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 21
+        },
+        {
+          "start": 22,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    },
+    {
+      "name": "Renault",
+      "color": "#3b82f6",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "FIAT",
+      "color": "#ff0a60",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Volkswagen",
+      "color": "#c7c7c7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Peugeot",
+      "color": "#a855f7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 25
+        },
+        {
+          "start": 26,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    }
+  ]
+}
