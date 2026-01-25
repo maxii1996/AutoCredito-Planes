@@ -165,6 +165,13 @@ const ROLE_SESSION_HOURS = {
   Usuario: 8
 };
 
+const OFFLINE_SESSION_MS = 10 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const REMOTE_SYNC_DEBOUNCE_MS = 5000;
+const REMOTE_SYNC_MIN_INTERVAL_MS = 30000;
+const PRESENCE_ACTIVITY_DEBOUNCE_MS = 30000;
+const SYNC_HASH_STORAGE_KEY = 'syncHashes';
+
 const BUENOS_AIRES_TIMEZONE = 'America/Argentina/Buenos_Aires';
 
 const REMOTE_DATA_KEYS = [
@@ -3498,10 +3505,26 @@ let presenceState = {
   sessionId: null,
   sessionStartedAt: null,
   heartbeatTimer: null,
+  activityTimer: null,
+  lastActivitySyncAt: 0,
   stream: null,
   adminStream: null,
   adminSnapshot: {},
   visibilityBound: false
+};
+const syncState = {
+  lastSyncAt: 0,
+  lastHashes: load(SYNC_HASH_STORAGE_KEY) || {}
+};
+const readOnlyState = {
+  active: false,
+  lastToastAt: 0
+};
+const idleState = {
+  timer: null,
+  lastActivityAt: Date.now(),
+  lastModificationAt: Date.now(),
+  bound: false
 };
 let appBooted = false;
 let relativeTimeTicker = null;
@@ -3991,6 +4014,8 @@ async function init() {
     hideAppLoader();
     updateLoaderHeader({ eyebrow: 'Conectando con la base de datos...', headline: 'Obteniendo información...' });
     bindAuthUI();
+    bindSyncStatusCard();
+    bindIdleActivity();
     startRelativeTimeTicker();
     setSyncStatus({ online: navigator.onLine, lastCheckAt: Date.now() });
     window.addEventListener('online', () => setSyncStatus({ online: true, lastCheckAt: Date.now() }));
@@ -13194,6 +13219,9 @@ function mapRow(row, headers, systemDate = '') {
 }
 
 async function handleClientImport(file, importDate = '') {
+  if (!ensureWriteAccess('La importación de clientes está deshabilitada en modo sin conexión.')) {
+    return;
+  }
   showImportOverlay({
     eyebrow: 'Importación de Excel',
     title: 'Preparando importación del Excel',
@@ -15589,6 +15617,10 @@ function bindProfileActions() {
   });
 
   document.getElementById('importProfile').addEventListener('change', async e => {
+    if (!ensureWriteAccess('La importación de perfiles está deshabilitada en modo sin conexión.')) {
+      e.target.value = '';
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     showImportOverlay({
@@ -16083,6 +16115,9 @@ function resetModuleImportState() {
 }
 
 async function applyModuleImport(state) {
+  if (!ensureWriteAccess('La importación de módulos está deshabilitada en modo sin conexión.')) {
+    return;
+  }
   if (!state?.modules?.length) return;
   showImportOverlay({
     eyebrow: 'Importación de módulos',
@@ -16107,6 +16142,9 @@ async function applyModuleImport(state) {
 }
 
 function openModuleImportModal() {
+  if (!ensureWriteAccess('La importación de módulos está deshabilitada en modo sin conexión.')) {
+    return;
+  }
   if (!moduleImportState) return;
   const modal = document.getElementById('moduleImportModal');
   const list = document.getElementById('moduleImportModalList');
@@ -16213,6 +16251,10 @@ function bindModuleManagement() {
   if (input && !input.dataset.bound) {
     input.dataset.bound = 'true';
     input.addEventListener('change', async (event) => {
+      if (!ensureWriteAccess('La importación de módulos está deshabilitada en modo sin conexión.')) {
+        event.target.value = '';
+        return;
+      }
       const file = event.target.files?.[0];
       if (!file) return;
       try {
@@ -16258,7 +16300,21 @@ function bindModuleManagement() {
   updateModuleImportSummary();
 }
 
+function ensureWriteAccess(message = 'El modo sin conexión es solo lectura.') {
+  if (!authState.offline) return true;
+  const now = Date.now();
+  if (now - readOnlyState.lastToastAt > 2500) {
+    showToast(message, 'warning');
+    readOnlyState.lastToastAt = now;
+  }
+  syncFromStorage();
+  return false;
+}
+
 function persist() {
+  if (!ensureWriteAccess('No puedes modificar datos en modo sin conexión.')) {
+    return;
+  }
   save('activePriceTabId', activePriceTabId);
   save('activePriceSource', activePriceSource);
   syncActiveVehiclesToDraft();
@@ -16603,14 +16659,27 @@ function queueRemoteSync(key, value) {
     return;
   }
   
-  remoteSyncQueue[key] = value;
+  const preparedValue = key === 'uiState'
+    ? sanitizeUiStateForSync(value)
+    : key === 'clientManagerState'
+      ? sanitizeClientManagerStateForSync(value)
+      : value;
+  const normalizedValue = normalizeSyncValue(preparedValue);
+  const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+  const nextHash = hashString(serialized);
+  if (syncState.lastHashes[key] && syncState.lastHashes[key] === nextHash) {
+    return;
+  }
+  remoteSyncQueue[key] = preparedValue;
   remoteSyncQueue.updatedAt = Date.now();
   if (remoteSyncTimer) {
     clearTimeout(remoteSyncTimer);
   }
+  const elapsed = Date.now() - syncState.lastSyncAt;
+  const waitMs = Math.max(REMOTE_SYNC_DEBOUNCE_MS, REMOTE_SYNC_MIN_INTERVAL_MS - elapsed);
   remoteSyncTimer = setTimeout(() => {
     flushRemoteSync().catch(err => console.warn('Error sincronizando datos remotos:', err));
-  }, 1500);
+  }, waitMs);
 }
 
 async function flushRemoteSync() {
@@ -16621,6 +16690,15 @@ async function flushRemoteSync() {
   
   try {
     await dbPatch(`data/${authState.user.uid}`, payload);
+    Object.keys(payload).forEach((key) => {
+      if (key === 'updatedAt') return;
+      const normalizedValue = normalizeSyncValue(payload[key]);
+      const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+      syncState.lastHashes[key] = hashString(serialized);
+    });
+    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    syncState.lastSyncAt = Date.now();
+    setSyncStatus({ online: true, lastSyncAt: syncState.lastSyncAt, lastCheckAt: Date.now() });
   } catch (error) {
     console.warn('Sincronización remota falló, datos se guardarán localmente:', error);
     // No re-lanzar el error, permitir que la aplicación continúe funcionando
@@ -16639,6 +16717,14 @@ function applyRemotePayload(payload = {}) {
     localStorage.setItem('localUpdatedAt', JSON.stringify(decodedPayload.updatedAt));
   }
   syncFromStorage();
+  const normalizedPayload = normalizeSyncPayload(decodedPayload);
+  Object.keys(normalizedPayload).forEach((key) => {
+    if (!FIREBASE_SYNCABLE_KEYS.has(key)) return;
+    const normalizedValue = normalizeSyncValue(normalizedPayload[key]);
+    const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+    syncState.lastHashes[key] = hashString(serialized);
+  });
+  localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
   isApplyingRemote = false;
   setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
 }
@@ -16653,6 +16739,16 @@ function applyRemotePathUpdate(path, value) {
   isApplyingRemote = true;
   const decodedValue = decodeFirebasePayload(value);
   localStorage.setItem(key, JSON.stringify(decodedValue));
+  if (FIREBASE_SYNCABLE_KEYS.has(key)) {
+    const normalizedValue = normalizeSyncValue(key === 'uiState'
+      ? sanitizeUiStateForSync(decodedValue)
+      : key === 'clientManagerState'
+        ? sanitizeClientManagerStateForSync(decodedValue)
+        : decodedValue);
+    const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+    syncState.lastHashes[key] = hashString(serialized);
+    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+  }
   syncFromStorage();
   isApplyingRemote = false;
 }
@@ -16664,8 +16760,8 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
     templates,
     clients,
     managerClients,
-    uiState,
-    clientManagerState,
+    uiState: sanitizeUiStateForSync(uiState),
+    clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
     snapshots,
     activePriceTabId,
     activePriceSource,
@@ -16676,7 +16772,15 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
   };
   try {
     await dbPatch(`data/${authState.user.uid}`, payload);
-    setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
+    Object.keys(payload).forEach((key) => {
+      if (key === 'updatedAt') return;
+      const normalizedValue = normalizeSyncValue(payload[key]);
+      const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+      syncState.lastHashes[key] = hashString(serialized);
+    });
+    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    syncState.lastSyncAt = Date.now();
+    setSyncStatus({ online: true, lastSyncAt: syncState.lastSyncAt, lastCheckAt: Date.now() });
   } catch (error) {
     console.warn(`Sincronización inmediata falló${reason ? ` (${reason})` : ''}:`, error);
     setSyncStatus({ online: false, lastCheckAt: Date.now() });
@@ -16684,6 +16788,9 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
 }
 
 function save(key, value) {
+  if (!ensureWriteAccess('El modo sin conexión es solo lectura.')) {
+    return;
+  }
   const serialized = JSON.stringify(value);
   const current = localStorage.getItem(key);
   if (current === serialized) {
@@ -16695,6 +16802,7 @@ function save(key, value) {
     localStorage.setItem(key, serialized);
   }
   queueRemoteSync(key, value);
+  recordModification();
 }
 
 function load(key) {
@@ -16707,6 +16815,9 @@ function load(key) {
 }
 
 function clearStorage() {
+  if (!ensureWriteAccess('No puedes limpiar datos en modo sin conexión.')) {
+    return;
+  }
   confirmAction({
     title: 'Limpiar datos locales',
     message: 'Esto eliminará los datos guardados, ten en cuenta que si no tienes una copia resguardada, la información se perderá.',
@@ -17021,6 +17132,7 @@ async function startPresenceTracking() {
   if (!presenceState.sessionStartedAt) {
     presenceState.sessionStartedAt = Date.now();
   }
+  presenceState.lastActivitySyncAt = Date.now();
   await updatePresenceStatus({ online: true, lastActiveAt: Date.now() }, { includeIdentity: true });
   startPresenceStream();
   bindPresenceVisibility();
@@ -17040,6 +17152,11 @@ async function stopPresenceTracking() {
   stopPresenceStream();
   if (authState.user && !authState.offline) {
     await updatePresenceStatus({ online: false, lastActiveAt: Date.now() });
+    try {
+      await dbDelete(`presence/${authState.user.uid}`);
+    } catch (error) {
+      console.warn('No se pudo limpiar la presencia del usuario:', error);
+    }
   }
   presenceState.sessionId = null;
   presenceState.sessionStartedAt = null;
@@ -17188,6 +17305,7 @@ async function attemptRestoreSession() {
       expiresAt: info.expiresAt
     };
     authState.offline = true;
+    setReadOnlyMode(true);
     return true;
   }
   const userRecord = await dbGet(`users/${info.uid}`);
@@ -17203,6 +17321,7 @@ async function attemptRestoreSession() {
     expiresAt: info.expiresAt
   };
   authState.offline = false;
+  setReadOnlyMode(false);
   const sessionId = info.sessionId || createSessionId();
   const sessionStartedAt = info.sessionStartedAt || Date.now();
   presenceState.sessionId = sessionId;
@@ -17306,8 +17425,8 @@ async function initializeUserData() {
   const initialData = {
     clients: clients && clients.length > 0 ? clients : [],
     managerClients: managerClients && managerClients.length > 0 ? managerClients : [],
-    uiState: uiState || {},
-    clientManagerState: clientManagerState || {},
+    uiState: sanitizeUiStateForSync(uiState),
+    clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
     snapshots: snapshots && snapshots.length > 0 ? snapshots : [],
     priceDrafts: priceDrafts || {},
     generatedQuotes: generatedQuotes && generatedQuotes.length > 0 ? generatedQuotes : [],
@@ -17332,6 +17451,94 @@ function updateAdminAccessVisibility() {
   } else {
     adminButton.classList.add('hidden');
   }
+}
+
+function setReadOnlyMode(active) {
+  readOnlyState.active = active;
+  document.body.classList.toggle('read-only', active);
+  const offlineLabel = document.getElementById('syncStatusDetail');
+  if (active && offlineLabel) {
+    offlineLabel.textContent = 'Sin conexión activa (solo lectura)';
+  }
+  const disableIds = ['clientExcel', 'moduleImportTrigger', 'moduleImportReview', 'moduleImportInput', 'importProfile', 'openPasswordModal'];
+  disableIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (active) {
+      el.setAttribute('disabled', 'true');
+      el.classList.add('disabled');
+    } else {
+      el.removeAttribute('disabled');
+      el.classList.remove('disabled');
+    }
+  });
+  updateSyncStatusUI();
+}
+
+function getIdleTimeoutMs() {
+  return authState.offline ? OFFLINE_SESSION_MS : IDLE_TIMEOUT_MS;
+}
+
+function startIdleTimer() {
+  if (!authState.session) return;
+  if (idleState.timer) clearTimeout(idleState.timer);
+  const timeoutMs = getIdleTimeoutMs();
+  const elapsed = Date.now() - idleState.lastModificationAt;
+  const remaining = Math.max(timeoutMs - elapsed, 0);
+  idleState.timer = setTimeout(() => {
+    if (!authState.session) return;
+    handleLogout(false, false, true);
+  }, remaining);
+}
+
+function recordModification() {
+  idleState.lastModificationAt = Date.now();
+  startIdleTimer();
+}
+
+function resetIdleTimer() {
+  idleState.lastActivityAt = Date.now();
+}
+
+function stopIdleTimer() {
+  if (idleState.timer) {
+    clearTimeout(idleState.timer);
+    idleState.timer = null;
+  }
+}
+
+function registerUserActivity() {
+  if (!authState.session) return;
+  resetIdleTimer();
+  if (!authState.offline) {
+    schedulePresenceActivity();
+  }
+}
+
+function bindIdleActivity() {
+  if (idleState.bound) return;
+  idleState.bound = true;
+  ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'].forEach((eventName) => {
+    document.addEventListener(eventName, () => registerUserActivity(), { passive: true });
+  });
+}
+
+function schedulePresenceActivity() {
+  if (!authState.user || authState.offline) return;
+  const now = Date.now();
+  const elapsed = now - presenceState.lastActivitySyncAt;
+  if (elapsed >= PRESENCE_ACTIVITY_DEBOUNCE_MS) {
+    presenceState.lastActivitySyncAt = now;
+    updatePresenceStatus({ lastActiveAt: now, online: true }).catch(() => {});
+    return;
+  }
+  if (presenceState.activityTimer) return;
+  const waitMs = PRESENCE_ACTIVITY_DEBOUNCE_MS - elapsed;
+  presenceState.activityTimer = setTimeout(() => {
+    presenceState.activityTimer = null;
+    presenceState.lastActivitySyncAt = Date.now();
+    updatePresenceStatus({ lastActiveAt: Date.now(), online: true }).catch(() => {});
+  }, waitMs);
 }
 
 async function handleLogin(username, password) {
@@ -17374,12 +17581,14 @@ async function handleLogin(username, password) {
   storeSessionInfo({ uid, expiresAt, sessionId, sessionStartedAt });
   updateSessionFooter();
   scheduleSessionTicker();
+  setReadOnlyMode(false);
   updateAdminAccessVisibility();
   showLoginTransition(authState.session.displayName);
   hideLoginOverlay();
   await loadRemoteState();
   startUserStream();
   await startPresenceTracking();
+  recordModification();
   setLoginTransitionStep('success', authState.session.displayName);
   await wait(700);
   await bootModules();
@@ -17396,7 +17605,7 @@ async function handleOfflineLogin() {
     showToast('No hay datos locales para usar sin conexión.', 'warning');
     return false;
   }
-  const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+  const expiresAt = Date.now() + OFFLINE_SESSION_MS;
   authState.user = {
     uid: 'offline',
     username: 'offline',
@@ -17414,6 +17623,7 @@ async function handleOfflineLogin() {
   storeSessionInfo({ uid: 'offline', expiresAt, offline: true, displayName: 'Modo sin conexión', role: 'Offline' });
   updateSessionFooter();
   scheduleSessionTicker();
+  setReadOnlyMode(true);
   updateAdminAccessVisibility();
   setSyncStatus({ online: false, lastCheckAt: Date.now() });
   showLoginTransition(authState.session.displayName);
@@ -17423,17 +17633,20 @@ async function handleOfflineLogin() {
   await bootModules();
   hideLoginTransition();
   setLoginStatus('ready');
+  recordModification();
   showToast('Acceso sin conexión activado.', 'success');
   return true;
 }
 
-async function handleLogout(expired = false, forced = false) {
+async function handleLogout(expired = false, forced = false, inactive = false) {
   stopUserStream();
   await stopPresenceTracking();
   authState.user = null;
   authState.session = null;
   authState.offline = false;
   clearSessionInfo();
+  setReadOnlyMode(false);
+  stopIdleTimer();
   updateSessionFooter();
   updateAdminAccessVisibility();
   showLoginOverlay();
@@ -17443,6 +17656,9 @@ async function handleLogout(expired = false, forced = false) {
   }
   if (forced) {
     showToast('Un administrador cerró tu sesión.', 'warning');
+  }
+  if (inactive) {
+    showToast('Sesión cerrada por inactividad.', 'warning');
   }
 }
 
@@ -17461,6 +17677,7 @@ async function initializeAuth() {
     if (restored) {
       hideLoginOverlay();
       scheduleSessionTicker();
+      recordModification();
       if (!authState.offline) {
         await loadRemoteState();
         startUserStream();
@@ -17542,6 +17759,88 @@ function setSyncStatus({ online, lastSyncAt, lastCheckAt } = {}) {
   updateSyncStatusUI();
 }
 
+function buildRemoteSyncPayload() {
+  return {
+    vehicles,
+    templates,
+    clients,
+    managerClients,
+    uiState: sanitizeUiStateForSync(uiState),
+    clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
+    snapshots,
+    activePriceTabId,
+    activePriceSource,
+    priceDrafts,
+    brandSettings,
+    generatedQuotes
+  };
+}
+
+function buildDeltaSyncPayload() {
+  const basePayload = buildRemoteSyncPayload();
+  const delta = {};
+  Object.entries(basePayload).forEach(([key, value]) => {
+    const normalizedValue = normalizeSyncValue(value);
+    const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+    const nextHash = hashString(serialized);
+    if (syncState.lastHashes[key] !== nextHash) {
+      delta[key] = value;
+    }
+  });
+  return delta;
+}
+
+async function runManualSync() {
+  if (!authState.user || authState.offline) {
+    showToast('No hay conexión activa para sincronizar.', 'warning');
+    return;
+  }
+  const delta = buildDeltaSyncPayload();
+  const deltaKeys = Object.keys(delta);
+  if (!deltaKeys.length) {
+    showToast('No hay cambios para sincronizar.', 'info');
+    return;
+  }
+  showImportOverlay({
+    eyebrow: 'Sincronización manual',
+    title: 'Sincronizando con el servidor',
+    subtitle: 'Espera un momento...',
+    helper: 'Subiendo únicamente los cambios detectados.',
+    steps: ['Preparando datos...', 'Enviando cambios...', 'Verificando respuesta...']
+  });
+  try {
+    const payload = { ...delta, updatedAt: Date.now() };
+    await dbPatch(`data/${authState.user.uid}`, payload);
+    deltaKeys.forEach((key) => {
+      const normalizedValue = normalizeSyncValue(payload[key]);
+      const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
+      syncState.lastHashes[key] = hashString(serialized);
+    });
+    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    syncState.lastSyncAt = Date.now();
+    setSyncStatus({ online: true, lastSyncAt: syncState.lastSyncAt, lastCheckAt: Date.now() });
+    showToast('Datos sincronizados correctamente.', 'success');
+  } catch (error) {
+    console.warn('No se pudo sincronizar manualmente:', error);
+    showToast('No se pudo completar la sincronización manual.', 'error');
+  } finally {
+    hideImportOverlay();
+  }
+}
+
+function bindSyncStatusCard() {
+  const card = document.getElementById('syncStatusCard');
+  if (!card || card.dataset.bound) return;
+  card.dataset.bound = 'true';
+  card.addEventListener('click', () => runManualSync());
+  card.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      runManualSync();
+    }
+  });
+}
+
 function updateSyncStatusUI() {
   const card = document.getElementById('syncStatusCard');
   const label = document.getElementById('syncStatusLabel');
@@ -17550,13 +17849,14 @@ function updateSyncStatusUI() {
   if (!card || !label || !detail || !icon) return;
   card.classList.toggle('online', syncStatus.online);
   card.classList.toggle('offline', !syncStatus.online);
+  card.classList.toggle('clickable', syncStatus.online && !!authState.session && !authState.offline);
   const statusText = syncStatus.online ? 'Estás Online' : 'Estás Offline';
   label.textContent = statusText;
   const lastSync = syncStatus.lastSyncAt ? formatRelativeTime(syncStatus.lastSyncAt) : '-';
   if (syncStatus.online) {
     detail.innerHTML = `Última sincronización: <span data-relative-time="${syncStatus.lastSyncAt || ''}">${lastSync}</span>`;
   } else {
-    detail.textContent = 'Sin conexión activa';
+    detail.textContent = authState.offline ? 'Sin conexión activa (solo lectura)' : 'Sin conexión activa';
   }
   const tooltip = syncStatus.online
     ? `Estás Online (Última sincronización: ${lastSync})`
@@ -17597,6 +17897,31 @@ function stableStringify(value) {
   return `{${keys.map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
 }
 
+const SYNC_METADATA_KEYS = new Set(['updatedAt', 'createdAt', 'lastUpdatedAt', 'lastSyncAt']);
+
+function normalizeSyncValue(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    const normalizedItems = value.map(item => normalizeSyncValue(item)).filter(item => item !== undefined);
+    return normalizedItems
+      .map(item => ({ item, hash: hashString(stableStringify(item)) }))
+      .sort((a, b) => a.hash.localeCompare(b.hash))
+      .map(({ item }) => item);
+  }
+  const normalized = {};
+  Object.keys(value)
+    .filter(key => !SYNC_METADATA_KEYS.has(key))
+    .sort()
+    .forEach((key) => {
+      const normalizedValue = normalizeSyncValue(value[key]);
+      if (normalizedValue !== undefined) {
+        normalized[key] = normalizedValue;
+      }
+    });
+  return normalized;
+}
+
 function hashString(input = '') {
   let hash = 0;
   for (let i = 0; i < input.length; i += 1) {
@@ -17606,25 +17931,61 @@ function hashString(input = '') {
   return hash.toString(16);
 }
 
+function sanitizeUiStateForSync(state = {}) {
+  return {
+    preferences: state.preferences || {},
+    globalSettings: state.globalSettings || {},
+    toggles: state.toggles || {},
+    vehicleFilters: state.vehicleFilters || {}
+  };
+}
+
+function sanitizeClientManagerStateForSync(state = {}) {
+  return {
+    statusFilter: state.statusFilter || 'all',
+    accountFilter: state.accountFilter || 'all',
+    groupByModel: !!state.groupByModel,
+    dateRange: state.dateRange || { from: '', to: '' },
+    columnVisibility: state.columnVisibility || {},
+    exportScope: state.exportScope || 'filtered',
+    exportOptions: state.exportOptions || {},
+    editingMode: !!state.editingMode,
+    actionVisibility: state.actionVisibility || {},
+    customActions: state.customActions || [],
+    contactAssistant: state.contactAssistant || {}
+  };
+}
+
+function normalizeSyncPayload(payload = {}) {
+  return {
+    ...payload,
+    uiState: sanitizeUiStateForSync(payload.uiState || {}),
+    clientManagerState: sanitizeClientManagerStateForSync(payload.clientManagerState || {})
+  };
+}
+
 function buildSyncItemValue(item, payload) {
   const raw = payload?.[item.key];
+  const normalized = normalizeSyncValue(raw);
+  const serialized = normalized === null || normalized === undefined ? '' : stableStringify(normalized);
+  const bytes = serialized ? new Blob([serialized]).size : 0;
   if (item.kind === 'array') {
     const count = Array.isArray(raw) ? raw.length : 0;
-    return { raw, display: number.format(count), count };
+    return { raw, normalized, display: number.format(count), count, bytes, hash: hashString(serialized) };
   }
   if (item.kind === 'object') {
     const count = raw && typeof raw === 'object' ? Object.keys(raw).length : 0;
-    return { raw, display: number.format(count), count };
+    return { raw, normalized, display: number.format(count), count, bytes, hash: hashString(serialized) };
   }
   if (item.kind === 'value') {
     const display = raw ? String(raw) : 'Sin definir';
-    return { raw, display, count: raw ? 1 : 0 };
+    return { raw, normalized, display, count: raw ? 1 : 0, bytes, hash: hashString(serialized) };
   }
-  return { raw, display: raw ? String(raw) : '0', count: raw ? 1 : 0 };
+  return { raw, normalized, display: raw ? String(raw) : '0', count: raw ? 1 : 0, bytes, hash: hashString(serialized) };
 }
 
 function buildSyncSummary(payload, sourceLabel) {
-  const safePayload = payload || {};
+  const safePayload = normalizeSyncPayload(payload || {});
   const items = SYNC_ITEM_DEFINITIONS.map((item) => {
     const value = buildSyncItemValue(item, safePayload);
     return {
@@ -17632,7 +17993,8 @@ function buildSyncSummary(payload, sourceLabel) {
       groupLabel: SYNC_GROUP_LABELS[item.group] || item.group,
       display: value.display,
       count: value.count,
-      hash: hashString(stableStringify(value.raw))
+      bytes: value.bytes,
+      hash: value.hash
     };
   });
   return {
@@ -17679,6 +18041,9 @@ function buildSyncComparison(localSummary, remoteSummary) {
     } else {
       entry.different = entry.local.hash !== entry.remote.hash;
     }
+    entry.localBytes = entry.local?.bytes || 0;
+    entry.remoteBytes = entry.remote?.bytes || 0;
+    entry.byteDiff = entry.localBytes - entry.remoteBytes;
   });
   return comparison;
 }
@@ -17699,14 +18064,20 @@ function buildSyncSummaryMarkup(summary, comparison = {}) {
     const diff = comparison[item.key]?.different;
     const diffLabel = diff ? 'Diferente' : 'Igual';
     const diffClass = diff ? 'diff' : 'same';
+    const localBytes = comparison[item.key]?.localBytes ?? item.bytes ?? 0;
+    const remoteBytes = comparison[item.key]?.remoteBytes ?? item.bytes ?? 0;
+    const byteDiff = comparison[item.key]?.byteDiff ?? 0;
+    const diffSign = byteDiff > 0 ? '+' : '';
+    const bytesLabel = `Local: ${formatBytes(localBytes)} · Remoto: ${formatBytes(remoteBytes)} · Δ ${diffSign}${formatBytes(Math.abs(byteDiff))}`;
     return `
-      <div class="sync-conflict-item ${diffClass}">
+      <div class="sync-conflict-item ${diffClass}" data-sync-key="${item.key}">
         <div class="sync-conflict-item-main">
           <span title="${item.description || ''}">${item.label}</span>
           <strong>${item.display}</strong>
         </div>
         <div class="sync-conflict-item-meta">
           <span class="sync-conflict-group">${item.groupLabel}</span>
+          <span class="sync-conflict-size">${bytesLabel}</span>
           <span class="sync-conflict-pill ${diffClass}">${diffLabel}</span>
         </div>
       </div>
@@ -17770,6 +18141,34 @@ function renderSyncSummary(container, summary, comparison = {}) {
   container.innerHTML = buildSyncSummaryMarkup(summary, comparison);
 }
 
+function showSyncDifferenceDetail(itemKey, comparison = {}) {
+  const entry = comparison[itemKey];
+  if (!entry) return;
+  const label = entry.local?.label || entry.remote?.label || itemKey;
+  const groupLabel = entry.local?.groupLabel || entry.remote?.groupLabel || '';
+  const localBytes = entry.localBytes || 0;
+  const remoteBytes = entry.remoteBytes || 0;
+  const diffBytes = entry.byteDiff || 0;
+  const diffSign = diffBytes > 0 ? '+' : '';
+  const localCount = entry.local?.count ?? 0;
+  const remoteCount = entry.remote?.count ?? 0;
+  confirmAction({
+    title: `Detalle de diferencia: ${label}`,
+    messageHtml: `
+      <div class="sync-detail">
+        <p><strong>Grupo:</strong> ${groupLabel || 'Sin grupo'}</p>
+        <p><strong>Registros locales:</strong> ${number.format(localCount)}</p>
+        <p><strong>Registros remotos:</strong> ${number.format(remoteCount)}</p>
+        <p><strong>Peso local:</strong> ${formatBytes(localBytes)}</p>
+        <p><strong>Peso remoto:</strong> ${formatBytes(remoteBytes)}</p>
+        <p><strong>Diferencia:</strong> ${diffSign}${formatBytes(Math.abs(diffBytes))}</p>
+      </div>
+    `,
+    confirmText: 'Cerrar',
+    cancelText: 'Cerrar'
+  });
+}
+
 function openSyncConflictModal({ localSummary, remoteSummary, comparison } = {}) {
   return new Promise(resolve => {
     const modal = document.getElementById('syncConflictModal');
@@ -17798,12 +18197,25 @@ function openSyncConflictModal({ localSummary, remoteSummary, comparison } = {})
         : 'Actualizado: -';
     }
 
+    const handleDetailClick = (event) => {
+      const item = event.target.closest('.sync-conflict-item');
+      if (!item) return;
+      const key = item.dataset.syncKey;
+      if (!key) return;
+      showSyncDifferenceDetail(key, comparison);
+    };
+
+    localList?.addEventListener('click', handleDetailClick);
+    remoteList?.addEventListener('click', handleDetailClick);
+
     const cleanup = (choice) => {
       toggleModal(modal, false);
       localBtn.onclick = null;
       remoteBtn.onclick = null;
       cancelBtn.onclick = null;
       closeBtn.onclick = null;
+      localList?.removeEventListener('click', handleDetailClick);
+      remoteList?.removeEventListener('click', handleDetailClick);
       resolve(choice);
     };
 
@@ -18062,6 +18474,36 @@ async function handleAdminConnectedAction(event) {
   });
 }
 
+async function handleAdminForceLogoutAll() {
+  if (!authState.user) return;
+  confirmAction({
+    title: 'Cerrar todas las sesiones',
+    message: 'Se cerrarán todas las conexiones activas (incluida la tuya).',
+    confirmText: 'Cerrar todo',
+    onConfirm: async () => {
+      try {
+        const presence = await dbGet('presence');
+        const now = Date.now();
+        const payload = {};
+        Object.keys(presence || {}).forEach((uid) => {
+          payload[uid] = {
+            forceLogoutAt: now,
+            forcedBy: authState.user?.uid || ''
+          };
+        });
+        if (Object.keys(payload).length) {
+          await dbPatch('presence', payload);
+        }
+        showToast('Se envió el cierre a todas las sesiones.', 'success');
+        await handleLogout(false, true);
+      } catch (error) {
+        console.warn('No se pudo cerrar todas las sesiones:', error);
+        showToast('No se pudo cerrar todas las sesiones.', 'error');
+      }
+    }
+  });
+}
+
 async function handleAdminEditSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -18182,6 +18624,10 @@ async function handlePasswordChangeSubmit(event) {
     showToast('Debes iniciar sesión para cambiar tu contraseña.', 'warning');
     return;
   }
+  if (authState.offline) {
+    showToast('No puedes cambiar la contraseña en modo sin conexión.', 'warning');
+    return;
+  }
   const current = document.getElementById('passwordCurrent').value;
   const next = document.getElementById('passwordNew').value;
   const confirm = document.getElementById('passwordConfirm').value;
@@ -18272,6 +18718,7 @@ function bindAuthUI() {
   document.getElementById('adminRefreshConnected')?.addEventListener('click', async () => {
     await refreshAdminConnectedUsers();
   });
+  document.getElementById('adminForceLogoutAll')?.addEventListener('click', handleAdminForceLogoutAll);
   document.getElementById('adminRefreshUserData')?.addEventListener('click', async () => {
     await renderAdminDetail(adminState.selectedUid, { forceData: true });
   });

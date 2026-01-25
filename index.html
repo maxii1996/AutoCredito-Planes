@@ -69,10 +69,6 @@
               <button class="primary-btn" type="submit" id="loginSubmit"><i class='bx bx-log-in'></i>Acceder</button>
             </div>
           </form>
-          <div class="auth-status" id="loginStatus">
-            <div class="auth-status-item" data-status-step="connect">Conectando con la base de datos...</div>
-            <div class="auth-status-item" data-status-step="fetch">Obteniendo información...</div>
-          </div>
         </div>
         <div class="auth-column auth-column-offline">
           <div class="auth-offline-card">
@@ -135,7 +131,7 @@
               <button id="exportClients" class="ghost-btn" title="Exportar clientes filtrados"><i class='bx bx-download'></i>Exportar</button>
             </div>
           </div>
-          <div class="sync-status-card" id="syncStatusCard" title="Sincronización sin datos">
+          <div class="sync-status-card" id="syncStatusCard" title="Sincronización sin datos" role="button" tabindex="0" aria-label="Sincronizar datos con el servidor">
             <div class="sync-status-head">
               <p class="eyebrow">Sincronización</p>
             </div>
@@ -2753,6 +2749,7 @@
           <p class="eyebrow">Sincronización</p>
           <h3>Se detectó información diferente</h3>
           <p class="muted">Elige qué versión quieres usar antes de continuar.</p>
+          <p class="muted tiny">Haz clic en cualquier elemento para ver su detalle y peso de diferencia.</p>
         </div>
         <button id="syncConflictClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
@@ -2974,6 +2971,7 @@
                 <div class="admin-toolbar">
                   <span class="pill" id="adminConnectedCount">0 conectados</span>
                   <button class="ghost-btn mini" id="adminRefreshConnected"><i class='bx bx-refresh'></i>Actualizar</button>
+                  <button class="ghost-btn mini danger" id="adminForceLogoutAll"><i class='bx bx-log-out-circle'></i>Cerrar todas</button>
                 </div>
               </header>
               <div class="admin-connected-list" id="adminConnectedList"></div>
