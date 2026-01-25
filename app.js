@@ -18140,9 +18140,9 @@ const SYNC_GROUP_LABELS = {
 };
 
 const SYNC_ITEM_DEFINITIONS = [
-  { key: 'clients', label: 'Clientes', group: 'data', kind: 'array', description: 'Clientes principales registrados.' },
+  { key: 'clients', label: 'Clientes (registro principal)', group: 'data', kind: 'array', description: 'Listado principal de clientes cargados para cotizaciones.' },
   { key: 'generatedQuotes', label: 'Cotizaciones', group: 'data', kind: 'array', description: 'Cotizaciones generadas y guardadas.' },
-  { key: 'managerClients', label: 'Gestor de clientes', group: 'modules', kind: 'array', description: 'Registros del módulo de gestión de clientes.' },
+  { key: 'managerClients', label: 'Gestor de clientes (seguimiento)', group: 'modules', kind: 'array', description: 'Historial y seguimiento de contactos del gestor de clientes.' },
   { key: 'templates', label: 'Plantillas', group: 'content', kind: 'array', description: 'Mensajes y textos guardados.' },
   { key: 'vehicles', label: 'Vehículos', group: 'content', kind: 'array', description: 'Listado de autos y valores.' },
   { key: 'uiState', label: 'Preferencias de cuenta', group: 'config', kind: 'object', description: 'Ajustes principales de cuenta y preferencias visuales.' },
@@ -18298,8 +18298,13 @@ function buildSyncComparison(localSummary, remoteSummary) {
       comparison[item.key].remote = item;
     }
   });
+  const isEffectivelyEmpty = (item) => !item || item.count === 0;
   Object.values(comparison).forEach((entry) => {
-    if (!entry.local || !entry.remote) {
+    const localEmpty = isEffectivelyEmpty(entry.local);
+    const remoteEmpty = isEffectivelyEmpty(entry.remote);
+    if (localEmpty && remoteEmpty) {
+      entry.different = false;
+    } else if (!entry.local || !entry.remote) {
       entry.different = true;
     } else {
       const localSignature = entry.local.signature ?? '';
