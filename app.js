@@ -186,16 +186,20 @@ const REMOTE_DATA_KEYS = [
   'managerClients',
   'uiState',
   'clientManagerState',
-  'snapshots',
-  'activePriceTabId',
-  'activePriceSource',
-  'priceDrafts',
   'brandSettings',
   'generatedQuotes'
 ];
 
+const LOCAL_ONLY_KEYS = [
+  'snapshots',
+  'priceDrafts',
+  'activePriceTabId',
+  'activePriceSource'
+];
+
 const STORAGE_SCOPED_KEYS = new Set([
   ...REMOTE_DATA_KEYS,
+  ...LOCAL_ONLY_KEYS,
   'localUpdatedAt',
   SYNC_HASH_STORAGE_KEY
 ]);
@@ -3504,7 +3508,7 @@ function copyText(text, label = 'Contenido copiado') {
 }
 
 let priceTabs = [];
-let activePriceTabId = load('activePriceTabId') || '';
+let activePriceTabId = '';
 let priceDrafts = load('priceDrafts') || {};
 let activePriceSource = 'local';
 let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
@@ -16478,19 +16482,19 @@ function persist() {
   if (!ensureWriteAccess('No puedes modificar datos en modo sin conexión.')) {
     return;
   }
-  save('activePriceTabId', activePriceTabId);
-  save('activePriceSource', activePriceSource);
   syncActiveVehiclesToDraft();
-  save('priceDrafts', priceDrafts);
   save('vehicles', vehicles);
   save('brandSettings', brandSettings);
   save('templates', templates);
   save('clients', clients);
   save('managerClients', managerClients);
-  save('uiState', uiState);
+  save('uiState', sanitizeUiStateForStorage(uiState));
   save('generatedQuotes', generatedQuotes);
-  save('clientManagerState', clientManagerState);
+  save('clientManagerState', sanitizeClientManagerStateForStorage(clientManagerState));
   save('snapshots', snapshots);
+  save('priceDrafts', priceDrafts);
+  removeStoredValue('activePriceTabId');
+  removeStoredValue('activePriceSource');
   save('localUpdatedAt', Date.now());
 }
 
@@ -16501,7 +16505,7 @@ function startRealtimePersistence() {
   window.addEventListener('storage', (e) => {
     const parsed = parseStorageKey(e.key || '');
     if (!parsed || parsed.scope !== 'user' || parsed.uid !== storageState.uid) return;
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(parsed.key)) {
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(parsed.key)) {
       syncFromStorage();
     }
   });
@@ -16511,19 +16515,20 @@ function syncFromStorage({ resetDefaults = false } = {}) {
   if (resetDefaults) {
     resetInMemoryState();
   }
-  activePriceTabId = load('activePriceTabId') || activePriceTabId;
-  activePriceSource = load('activePriceSource') || activePriceSource;
   priceDrafts = load('priceDrafts') || priceDrafts;
   vehicles = cloneVehicles(load('vehicles') || vehicles);
   brandSettings = normalizeBrandSettings(load('brandSettings') || brandSettings, vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
   clients = load('clients') || clients;
   managerClients = (load('managerClients') || managerClients).map(client => ensureJourneyStatusData(client));
-  uiState = { ...defaultUiState, ...(load('uiState') || uiState) };
+  const storedUiState = load('uiState') || {};
+  uiState = { ...defaultUiState, ...(sanitizeUiStateForStorage(storedUiState) || uiState) };
   generatedQuotes = load('generatedQuotes') || generatedQuotes;
   uiState.preferences = mergePreferences(uiState.preferences);
+  uiState.globalSettings = mergeGlobalSettings(uiState.globalSettings);
   uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicleFilters || {}) };
-  clientManagerState = { ...defaultClientManagerState, ...(load('clientManagerState') || clientManagerState) };
+  const storedClientManagerState = load('clientManagerState') || {};
+  clientManagerState = { ...defaultClientManagerState, ...(sanitizeClientManagerStateForStorage(storedClientManagerState) || clientManagerState) };
   clientManagerState.columnVisibility = { ...defaultClientManagerState.columnVisibility, ...(clientManagerState.columnVisibility || {}) };
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
@@ -16808,10 +16813,6 @@ const FIREBASE_SYNCABLE_KEYS = new Set([
   'managerClients',
   'uiState',
   'clientManagerState',
-  'snapshots',
-  'activePriceTabId',
-  'activePriceSource',
-  'priceDrafts',
   'brandSettings',
   'generatedQuotes'
 ]);
@@ -16879,6 +16880,19 @@ function applyRemotePayload(payload = {}) {
   isApplyingRemote = true;
   Object.entries(decodedPayload).forEach(([key, value]) => {
     if (!REMOTE_DATA_KEYS.includes(key)) return;
+    if (key === 'uiState') {
+      const currentUiState = getStoredValue('uiState') || {};
+      const mergedUiState = {
+        ...sanitizeUiStateForStorage(currentUiState),
+        ...sanitizeUiStateForSync(value)
+      };
+      setStoredValue('uiState', mergedUiState);
+      return;
+    }
+    if (key === 'clientManagerState') {
+      setStoredValue(key, sanitizeClientManagerStateForStorage(value));
+      return;
+    }
     setStoredValue(key, value);
   });
   if (decodedPayload.updatedAt) {
@@ -16906,7 +16920,18 @@ function applyRemotePathUpdate(path, value) {
   if (!REMOTE_DATA_KEYS.includes(key)) return;
   isApplyingRemote = true;
   const decodedValue = decodeFirebasePayload(value);
-  setStoredValue(key, decodedValue);
+  if (key === 'uiState') {
+    const currentUiState = getStoredValue('uiState') || {};
+    const mergedUiState = {
+      ...sanitizeUiStateForStorage(currentUiState),
+      ...sanitizeUiStateForSync(decodedValue)
+    };
+    setStoredValue('uiState', mergedUiState);
+  } else if (key === 'clientManagerState') {
+    setStoredValue(key, sanitizeClientManagerStateForStorage(decodedValue));
+  } else {
+    setStoredValue(key, decodedValue);
+  }
   if (FIREBASE_SYNCABLE_KEYS.has(key)) {
     const normalizedValue = normalizeSyncValue(key === 'uiState'
       ? sanitizeUiStateForSync(decodedValue)
@@ -16930,10 +16955,6 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
     managerClients,
     uiState: sanitizeUiStateForSync(uiState),
     clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
-    snapshots,
-    activePriceTabId,
-    activePriceSource,
-    priceDrafts,
     brandSettings,
     generatedQuotes,
     updatedAt: Date.now()
@@ -17019,12 +17040,8 @@ function clearStorage() {
             templates,
             clients,
             managerClients,
-            uiState,
-            clientManagerState,
-            snapshots,
-            activePriceTabId,
-            activePriceSource,
-            priceDrafts,
+            uiState: sanitizeUiStateForSync(uiState),
+            clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
             brandSettings,
             generatedQuotes
           }).catch(err => console.error('Error limpiando datos remotos:', err));
@@ -17671,8 +17688,6 @@ async function initializeUserData() {
     managerClients: managerClients && managerClients.length > 0 ? managerClients : [],
     uiState: sanitizeUiStateForSync(uiState),
     clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
-    snapshots: snapshots && snapshots.length > 0 ? snapshots : [],
-    priceDrafts: priceDrafts || {},
     generatedQuotes: generatedQuotes && generatedQuotes.length > 0 ? generatedQuotes : [],
     createdAt: Date.now(),
     updatedAt: Date.now()
@@ -18020,10 +18035,6 @@ function buildRemoteSyncPayload() {
     managerClients,
     uiState: sanitizeUiStateForSync(uiState),
     clientManagerState: sanitizeClientManagerStateForSync(clientManagerState),
-    snapshots,
-    activePriceTabId,
-    activePriceSource,
-    priceDrafts,
     brandSettings,
     generatedQuotes
   };
@@ -18134,13 +18145,9 @@ const SYNC_ITEM_DEFINITIONS = [
   { key: 'managerClients', label: 'Gestor de clientes', group: 'modules', kind: 'array', description: 'Registros del módulo de gestión de clientes.' },
   { key: 'templates', label: 'Plantillas', group: 'content', kind: 'array', description: 'Mensajes y textos guardados.' },
   { key: 'vehicles', label: 'Vehículos', group: 'content', kind: 'array', description: 'Listado de autos y valores.' },
-  { key: 'uiState', label: 'Preferencias de interfaz', group: 'config', kind: 'object', description: 'Preferencias, filtros y ajustes visuales.' },
-  { key: 'clientManagerState', label: 'Configuración del gestor', group: 'config', kind: 'object', description: 'Columnas, filtros y estado del gestor de clientes.' },
-  { key: 'brandSettings', label: 'Configuración de marcas', group: 'config', kind: 'array', description: 'Esquemas y colores por marca.' },
-  { key: 'priceDrafts', label: 'Borradores de precios', group: 'config', kind: 'object', description: 'Borradores y fuentes de precios.' },
-  { key: 'activePriceTabId', label: 'Pestaña de precios activa', group: 'info', kind: 'value', description: 'Identificador de la pestaña activa.' },
-  { key: 'activePriceSource', label: 'Fuente de precios activa', group: 'info', kind: 'value', description: 'Origen de los precios activos.' },
-  { key: 'snapshots', label: 'Snapshots (copias rápidas)', group: 'backup', kind: 'array', description: 'Copias rápidas del perfil guardadas manualmente.' }
+  { key: 'uiState', label: 'Preferencias de cuenta', group: 'config', kind: 'object', description: 'Ajustes principales de cuenta y preferencias visuales.' },
+  { key: 'clientManagerState', label: 'Configuración del gestor', group: 'config', kind: 'object', description: 'Columnas y acciones personalizadas del gestor de clientes.' },
+  { key: 'brandSettings', label: 'Configuración de marcas', group: 'config', kind: 'array', description: 'Esquemas y colores por marca.' }
 ];
 
 function stableStringify(value) {
@@ -18184,29 +18191,35 @@ function hashString(input = '') {
   return hash.toString(16);
 }
 
-function sanitizeUiStateForSync(state = {}) {
+function sanitizeUiStateForStorage(state = {}) {
   return {
     preferences: state.preferences || {},
     globalSettings: state.globalSettings || {},
-    toggles: state.toggles || {},
-    vehicleFilters: state.vehicleFilters || {}
+    advisorNote: state.advisorNote || ''
+  };
+}
+
+function sanitizeUiStateForSync(state = {}) {
+  return {
+    preferences: state.preferences || {},
+    globalSettings: state.globalSettings || {}
+  };
+}
+
+function sanitizeClientManagerStateForStorage(state = {}) {
+  return {
+    columnVisibility: state.columnVisibility || {},
+    exportOptions: state.exportOptions || {},
+    actionVisibility: state.actionVisibility || {},
+    customActions: state.customActions || [],
+    contactAssistant: {
+      interval: Number(state.contactAssistant?.interval) || defaultClientManagerState.contactAssistant.interval
+    }
   };
 }
 
 function sanitizeClientManagerStateForSync(state = {}) {
-  return {
-    statusFilter: state.statusFilter || 'all',
-    accountFilter: state.accountFilter || 'all',
-    groupByModel: !!state.groupByModel,
-    dateRange: state.dateRange || { from: '', to: '' },
-    columnVisibility: state.columnVisibility || {},
-    exportScope: state.exportScope || 'filtered',
-    exportOptions: state.exportOptions || {},
-    editingMode: !!state.editingMode,
-    actionVisibility: state.actionVisibility || {},
-    customActions: state.customActions || [],
-    contactAssistant: state.contactAssistant || {}
-  };
+  return sanitizeClientManagerStateForStorage(state);
 }
 
 function normalizeSyncPayload(payload = {}) {
@@ -18265,13 +18278,9 @@ function buildLocalSyncSummary() {
     templates,
     vehicles,
     generatedQuotes,
-    snapshots,
     uiState,
     clientManagerState,
     brandSettings,
-    priceDrafts,
-    activePriceTabId,
-    activePriceSource,
     updatedAt: load('localUpdatedAt')
   }, 'local');
   return summary;
@@ -18514,9 +18523,7 @@ function computeUserMetrics(payload) {
     managerClients: Array.isArray(safePayload.managerClients) ? safePayload.managerClients.length : 0,
     templates: Array.isArray(safePayload.templates) ? safePayload.templates.length : 0,
     vehicles: Array.isArray(safePayload.vehicles) ? safePayload.vehicles.length : 0,
-    snapshots: Array.isArray(safePayload.snapshots) ? safePayload.snapshots.length : 0,
     generatedQuotes: Array.isArray(safePayload.generatedQuotes) ? safePayload.generatedQuotes.length : 0,
-    priceDrafts: safePayload.priceDrafts ? Object.keys(safePayload.priceDrafts).length : 0,
     brandSettings: Array.isArray(safePayload.brandSettings) ? safePayload.brandSettings.length : 0
   };
   return {
@@ -18623,16 +18630,6 @@ function renderAdminMetrics(metrics) {
       <span class="metric-label">Cotizaciones</span>
       <span class="metric-value">${metrics.counts.generatedQuotes}</span>
       <span class="muted tiny">Generadas</span>
-    </div>
-    <div class="admin-metric-card">
-      <span class="metric-label">Snapshots</span>
-      <span class="metric-value">${metrics.counts.snapshots}</span>
-      <span class="muted tiny">Respaldos locales</span>
-    </div>
-    <div class="admin-metric-card">
-      <span class="metric-label">Borradores de precio</span>
-      <span class="metric-value">${metrics.counts.priceDrafts}</span>
-      <span class="muted tiny">Fuentes activas</span>
     </div>
   `;
 }
