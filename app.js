@@ -171,6 +171,11 @@ const REMOTE_SYNC_DEBOUNCE_MS = 5000;
 const REMOTE_SYNC_MIN_INTERVAL_MS = 30000;
 const PRESENCE_ACTIVITY_DEBOUNCE_MS = 30000;
 const SYNC_HASH_STORAGE_KEY = 'syncHashes';
+const STORAGE_PREFIX = 'acp';
+const STORAGE_GLOBAL_PREFIX = `${STORAGE_PREFIX}:global:`;
+const STORAGE_USER_PREFIX = `${STORAGE_PREFIX}:user:`;
+const STORAGE_LAST_USER_KEY = 'lastUserId';
+const STORAGE_GUEST_ID = 'guest';
 
 const BUENOS_AIRES_TIMEZONE = 'America/Argentina/Buenos_Aires';
 
@@ -188,6 +193,12 @@ const REMOTE_DATA_KEYS = [
   'brandSettings',
   'generatedQuotes'
 ];
+
+const STORAGE_SCOPED_KEYS = new Set([
+  ...REMOTE_DATA_KEYS,
+  'localUpdatedAt',
+  SYNC_HASH_STORAGE_KEY
+]);
 
 const MODULE_GROUPS = [
   { id: 'general', title: 'Módulos Generales' },
@@ -3535,6 +3546,7 @@ let journeyReportState = { from: '', to: '' };
 let authState = { user: null, session: null, stream: null, isReady: false, loading: false, offline: false };
 const PRESENCE_HEARTBEAT_MS = 60000;
 const PRESENCE_ACTIVE_GRACE_MS = 150000;
+const FORCE_LOGOUT_CHECK_MS = 30000;
 let presenceState = {
   sessionId: null,
   sessionStartedAt: null,
@@ -3546,9 +3558,18 @@ let presenceState = {
   adminSnapshot: {},
   visibilityBound: false
 };
+const storageState = {
+  uid: STORAGE_GUEST_ID
+};
+const forceLogoutState = {
+  timer: null,
+  lastGlobalAt: 0,
+  lastUserAt: 0,
+  checking: false
+};
 const syncState = {
   lastSyncAt: 0,
-  lastHashes: load(SYNC_HASH_STORAGE_KEY) || {}
+  lastHashes: getStoredValue(SYNC_HASH_STORAGE_KEY) || {}
 };
 const readOnlyState = {
   active: false,
@@ -16335,6 +16356,124 @@ function ensureWriteAccess(message = 'El modo sin conexión es solo lectura.') {
   return false;
 }
 
+function getStorageKey(key) {
+  if (STORAGE_SCOPED_KEYS.has(key)) {
+    const uid = storageState.uid || STORAGE_GUEST_ID;
+    return `${STORAGE_USER_PREFIX}${uid}:${key}`;
+  }
+  return `${STORAGE_GLOBAL_PREFIX}${key}`;
+}
+
+function parseStorageKey(storageKey = '') {
+  if (!storageKey) return null;
+  if (storageKey.startsWith(STORAGE_USER_PREFIX)) {
+    const remainder = storageKey.slice(STORAGE_USER_PREFIX.length);
+    const [uid, ...rest] = remainder.split(':');
+    return { scope: 'user', uid, key: rest.join(':') };
+  }
+  if (storageKey.startsWith(STORAGE_GLOBAL_PREFIX)) {
+    return { scope: 'global', key: storageKey.slice(STORAGE_GLOBAL_PREFIX.length) };
+  }
+  return { scope: 'legacy', key: storageKey };
+}
+
+function getStoredValue(key) {
+  try {
+    const raw = localStorage.getItem(getStorageKey(key));
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function setStoredValue(key, value) {
+  const storageKey = getStorageKey(key);
+  if (value === undefined) {
+    localStorage.removeItem(storageKey);
+    return;
+  }
+  localStorage.setItem(storageKey, JSON.stringify(value));
+}
+
+function removeStoredValue(key) {
+  localStorage.removeItem(getStorageKey(key));
+}
+
+function getLastUserId() {
+  const stored = localStorage.getItem(`${STORAGE_GLOBAL_PREFIX}${STORAGE_LAST_USER_KEY}`);
+  if (stored) return stored;
+  const legacy = localStorage.getItem(STORAGE_LAST_USER_KEY);
+  if (legacy) {
+    localStorage.setItem(`${STORAGE_GLOBAL_PREFIX}${STORAGE_LAST_USER_KEY}`, legacy);
+    localStorage.removeItem(STORAGE_LAST_USER_KEY);
+  }
+  return legacy || null;
+}
+
+function setLastUserId(uid) {
+  if (!uid) return;
+  localStorage.setItem(`${STORAGE_GLOBAL_PREFIX}${STORAGE_LAST_USER_KEY}`, uid);
+}
+
+function migrateLegacyStorageToUser(uid) {
+  if (!uid) return;
+  STORAGE_SCOPED_KEYS.forEach((key) => {
+    const scopedKey = `${STORAGE_USER_PREFIX}${uid}:${key}`;
+    if (localStorage.getItem(scopedKey) !== null) return;
+    const legacyValue = localStorage.getItem(key);
+    if (legacyValue !== null) {
+      localStorage.setItem(scopedKey, legacyValue);
+    }
+  });
+  STORAGE_SCOPED_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+  });
+}
+
+function setStorageScope(uid, { migrateLegacy = true } = {}) {
+  const nextUid = uid || STORAGE_GUEST_ID;
+  storageState.uid = nextUid;
+  if (migrateLegacy && uid && uid !== STORAGE_GUEST_ID) {
+    migrateLegacyStorageToUser(nextUid);
+  }
+  syncState.lastHashes = getStoredValue(SYNC_HASH_STORAGE_KEY) || {};
+}
+
+function buildDefaultUiState() {
+  return {
+    ...defaultUiState,
+    templateSearch: '',
+    clientSearch: '',
+    profileSearch: '',
+    globalSettings: mergeGlobalSettings(defaultUiState.globalSettings),
+    preferences: mergePreferences(defaultUiState.preferences)
+  };
+}
+
+function resetInMemoryState() {
+  priceDrafts = {};
+  activePriceTabId = '';
+  activePriceSource = 'local';
+  vehicles = cloneVehicles(defaultVehicles);
+  templates = ensureTemplateIds([...defaultTemplates]);
+  clients = [];
+  managerClients = [];
+  generatedQuotes = [];
+  snapshots = [];
+  uiState = buildDefaultUiState();
+  clientManagerState = { ...defaultClientManagerState };
+  selectedTemplateIndex = 0;
+  selectedTemplateId = templates[0]?.id || '';
+  planDraftApplied = false;
+  brandSettings = normalizeBrandSettings(defaultBrandSettings, vehicles);
+}
+
+function switchUserContext(uid, { migrateLegacy = true } = {}) {
+  setStorageScope(uid, { migrateLegacy });
+  resetInMemoryState();
+  syncFromStorage({ resetDefaults: true });
+}
+
 function persist() {
   if (!ensureWriteAccess('No puedes modificar datos en modo sin conexión.')) {
     return;
@@ -16360,13 +16499,18 @@ function startRealtimePersistence() {
   ['visibilitychange', 'beforeunload'].forEach(evt => window.addEventListener(evt, persistNow));
   setInterval(persistNow, 15000);
   window.addEventListener('storage', (e) => {
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(e.key)) {
+    const parsed = parseStorageKey(e.key || '');
+    if (!parsed || parsed.scope !== 'user' || parsed.uid !== storageState.uid) return;
+    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'activePriceTabId', 'activePriceSource', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(parsed.key)) {
       syncFromStorage();
     }
   });
 }
 
-function syncFromStorage() {
+function syncFromStorage({ resetDefaults = false } = {}) {
+  if (resetDefaults) {
+    resetInMemoryState();
+  }
   activePriceTabId = load('activePriceTabId') || activePriceTabId;
   activePriceSource = load('activePriceSource') || activePriceSource;
   priceDrafts = load('priceDrafts') || priceDrafts;
@@ -16720,7 +16864,7 @@ async function flushRemoteSync() {
       const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
       syncState.lastHashes[key] = hashString(serialized);
     });
-    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
     syncState.lastSyncAt = Date.now();
     setSyncStatus({ online: true, lastSyncAt: syncState.lastSyncAt, lastCheckAt: Date.now() });
   } catch (error) {
@@ -16735,10 +16879,10 @@ function applyRemotePayload(payload = {}) {
   isApplyingRemote = true;
   Object.entries(decodedPayload).forEach(([key, value]) => {
     if (!REMOTE_DATA_KEYS.includes(key)) return;
-    localStorage.setItem(key, JSON.stringify(value));
+    setStoredValue(key, value);
   });
   if (decodedPayload.updatedAt) {
-    localStorage.setItem('localUpdatedAt', JSON.stringify(decodedPayload.updatedAt));
+    setStoredValue('localUpdatedAt', decodedPayload.updatedAt);
   }
   syncFromStorage();
   const normalizedPayload = normalizeSyncPayload(decodedPayload);
@@ -16748,7 +16892,7 @@ function applyRemotePayload(payload = {}) {
     const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
     syncState.lastHashes[key] = hashString(serialized);
   });
-  localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+  setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
   isApplyingRemote = false;
   setSyncStatus({ online: true, lastSyncAt: Date.now(), lastCheckAt: Date.now() });
 }
@@ -16762,7 +16906,7 @@ function applyRemotePathUpdate(path, value) {
   if (!REMOTE_DATA_KEYS.includes(key)) return;
   isApplyingRemote = true;
   const decodedValue = decodeFirebasePayload(value);
-  localStorage.setItem(key, JSON.stringify(decodedValue));
+  setStoredValue(key, decodedValue);
   if (FIREBASE_SYNCABLE_KEYS.has(key)) {
     const normalizedValue = normalizeSyncValue(key === 'uiState'
       ? sanitizeUiStateForSync(decodedValue)
@@ -16771,7 +16915,7 @@ function applyRemotePathUpdate(path, value) {
         : decodedValue);
     const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
     syncState.lastHashes[key] = hashString(serialized);
-    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
   }
   syncFromStorage();
   isApplyingRemote = false;
@@ -16802,7 +16946,7 @@ async function syncRemoteSnapshot({ reason = '' } = {}) {
       const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
       syncState.lastHashes[key] = hashString(serialized);
     });
-    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
     syncState.lastSyncAt = Date.now();
     setSyncStatus({ online: true, lastSyncAt: syncState.lastSyncAt, lastCheckAt: Date.now() });
   } catch (error) {
@@ -16816,26 +16960,22 @@ function save(key, value) {
     return;
   }
   const serialized = JSON.stringify(value);
-  const current = localStorage.getItem(key);
+  const storageKey = getStorageKey(key);
+  const current = localStorage.getItem(storageKey);
   if (current === serialized) {
     return;
   }
   if (serialized === undefined) {
-    localStorage.removeItem(key);
+    localStorage.removeItem(storageKey);
   } else {
-    localStorage.setItem(key, serialized);
+    localStorage.setItem(storageKey, serialized);
   }
   queueRemoteSync(key, value);
   recordModification();
 }
 
 function load(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
+  return getStoredValue(key);
 }
 
 function clearStorage() {
@@ -16847,28 +16987,16 @@ function clearStorage() {
     message: 'Esto eliminará los datos guardados, ten en cuenta que si no tienes una copia resguardada, la información se perderá.',
     confirmText: 'Limpiar',
       onConfirm: () => {
-      localStorage.clear();
-      priceDrafts = {};
-      activePriceTabId = '';
-      activePriceSource = 'local';
-      vehicles = cloneVehicles(defaultVehicles);
-      templates = ensureTemplateIds([...defaultTemplates]);
-      clients = [];
-      managerClients = [];
-      generatedQuotes = [];
-      snapshots = [];
-      uiState = {
-        ...defaultUiState,
-        templateSearch: '',
-        clientSearch: '',
-        profileSearch: '',
-        globalSettings: mergeGlobalSettings(defaultUiState.globalSettings),
-        preferences: mergePreferences(defaultUiState.preferences)
-      };
-      clientManagerState = { ...defaultClientManagerState };
-      selectedTemplateIndex = 0;
-      selectedTemplateId = templates[0].id;
-      planDraftApplied = false;
+      const scopedPrefix = `${STORAGE_USER_PREFIX}${storageState.uid || STORAGE_GUEST_ID}:`;
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith(scopedPrefix)) {
+          localStorage.removeItem(key);
+        }
+      });
+      STORAGE_SCOPED_KEYS.forEach((key) => localStorage.removeItem(key));
+      resetInMemoryState();
+      syncState.lastHashes = {};
+      setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
       initializePriceTabs().then(() => {
         applyToggleState();
         applyPreferences();
@@ -16931,21 +17059,33 @@ async function hashPassword(value = '') {
 }
 
 function sessionInfo() {
-  const raw = localStorage.getItem('sessionInfo');
-  if (!raw) return null;
+  const scopedKey = `${STORAGE_GLOBAL_PREFIX}sessionInfo`;
+  const raw = localStorage.getItem(scopedKey);
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      return null;
+    }
+  }
+  const legacy = localStorage.getItem('sessionInfo');
+  if (!legacy) return null;
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(legacy);
+    localStorage.setItem(scopedKey, legacy);
+    localStorage.removeItem('sessionInfo');
+    return parsed;
   } catch (err) {
     return null;
   }
 }
 
 function storeSessionInfo(info) {
-  localStorage.setItem('sessionInfo', JSON.stringify(info));
+  localStorage.setItem(`${STORAGE_GLOBAL_PREFIX}sessionInfo`, JSON.stringify(info));
 }
 
 function clearSessionInfo() {
-  localStorage.removeItem('sessionInfo');
+  localStorage.removeItem(`${STORAGE_GLOBAL_PREFIX}sessionInfo`);
 }
 
 function createSessionId() {
@@ -16967,6 +17107,54 @@ async function updatePresenceStatus(overrides = {}, { includeIdentity = false } 
   if (!authState.user || authState.offline) return;
   const payload = includeIdentity ? { ...presenceIdentityPayload(), ...overrides } : { ...overrides };
   await dbPatch(`presence/${authState.user.uid}`, payload);
+}
+
+function resetForceLogoutState() {
+  forceLogoutState.lastGlobalAt = 0;
+  forceLogoutState.lastUserAt = 0;
+  forceLogoutState.checking = false;
+}
+
+async function checkForcedLogoutSignals() {
+  if (!authState.user || authState.offline || forceLogoutState.checking) return;
+  forceLogoutState.checking = true;
+  try {
+    const control = await dbGet('control');
+    const globalAt = Number(control?.forceLogoutAllAt || 0);
+    const userAt = Number(control?.forceLogoutUsers?.[authState.user.uid] || 0);
+    if (globalAt && globalAt > (presenceState.sessionStartedAt || 0) && globalAt > forceLogoutState.lastGlobalAt) {
+      forceLogoutState.lastGlobalAt = globalAt;
+      handleLogout(false, true);
+      return;
+    }
+    if (userAt && userAt > (presenceState.sessionStartedAt || 0) && userAt > forceLogoutState.lastUserAt) {
+      forceLogoutState.lastUserAt = userAt;
+      handleLogout(false, true);
+    }
+  } catch (error) {
+    console.warn('No se pudo validar cierre forzado:', error);
+  } finally {
+    forceLogoutState.checking = false;
+  }
+}
+
+function startForcedLogoutMonitor() {
+  if (forceLogoutState.timer) {
+    clearInterval(forceLogoutState.timer);
+  }
+  resetForceLogoutState();
+  forceLogoutState.timer = setInterval(() => {
+    checkForcedLogoutSignals().catch(() => {});
+  }, FORCE_LOGOUT_CHECK_MS);
+  checkForcedLogoutSignals().catch(() => {});
+}
+
+function stopForcedLogoutMonitor() {
+  if (forceLogoutState.timer) {
+    clearInterval(forceLogoutState.timer);
+    forceLogoutState.timer = null;
+  }
+  resetForceLogoutState();
 }
 
 function applyPresenceUpdate(snapshot, path, data) {
@@ -17111,6 +17299,18 @@ function startPresenceStream() {
       const payload = JSON.parse(event.data);
       const path = payload.path || '/';
       const data = payload.data;
+      const incomingSessionId = path === '/sessionId'
+        ? data
+        : data?.sessionId;
+      const incomingSessionStartedAt = path === '/sessionStartedAt'
+        ? data
+        : data?.sessionStartedAt;
+      if (incomingSessionId && presenceState.sessionId && incomingSessionId !== presenceState.sessionId) {
+        if (!incomingSessionStartedAt || incomingSessionStartedAt > (presenceState.sessionStartedAt || 0)) {
+          handleLogout(false, true);
+          return;
+        }
+      }
       const forceLogoutAt = path === '/forceLogoutAt'
         ? data
         : data?.forceLogoutAt;
@@ -17139,6 +17339,20 @@ function stopPresenceStream() {
   }
 }
 
+async function enforceSingleSession(uid, sessionStartedAt, sessionId) {
+  if (!uid || authState.offline) return;
+  try {
+    const presence = await dbGet(`presence/${uid}`);
+    if (presence?.sessionId && presence.sessionId !== sessionId) {
+      await dbPatch('control/forceLogoutUsers', {
+        [uid]: sessionStartedAt
+      });
+    }
+  } catch (error) {
+    console.warn('No se pudo validar sesiones activas:', error);
+  }
+}
+
 function bindPresenceVisibility() {
   if (presenceState.visibilityBound) return;
   presenceState.visibilityBound = true;
@@ -17159,6 +17373,7 @@ async function startPresenceTracking() {
   presenceState.lastActivitySyncAt = Date.now();
   await updatePresenceStatus({ online: true, lastActiveAt: Date.now() }, { includeIdentity: true });
   startPresenceStream();
+  startForcedLogoutMonitor();
   bindPresenceVisibility();
   if (presenceState.heartbeatTimer) {
     clearInterval(presenceState.heartbeatTimer);
@@ -17173,6 +17388,7 @@ async function stopPresenceTracking() {
     clearInterval(presenceState.heartbeatTimer);
     presenceState.heartbeatTimer = null;
   }
+  stopForcedLogoutMonitor();
   stopPresenceStream();
   if (authState.user && !authState.offline) {
     await updatePresenceStatus({ online: false, lastActiveAt: Date.now() });
@@ -17315,6 +17531,8 @@ async function attemptRestoreSession() {
     return false;
   }
   if (info.offline) {
+    const storageUid = info.uid || getLastUserId() || STORAGE_GUEST_ID;
+    switchUserContext(storageUid, { migrateLegacy: false });
     authState.user = {
       uid: info.uid || 'offline',
       username: 'offline',
@@ -17337,6 +17555,7 @@ async function attemptRestoreSession() {
     clearSessionInfo();
     return false;
   }
+  switchUserContext(info.uid, { migrateLegacy: true });
   authState.user = { uid: info.uid, ...userRecord };
   authState.session = {
     uid: info.uid,
@@ -17353,6 +17572,7 @@ async function attemptRestoreSession() {
   if (!info.sessionId || !info.sessionStartedAt) {
     storeSessionInfo({ ...info, sessionId, sessionStartedAt });
   }
+  setLastUserId(info.uid);
   return true;
 }
 
@@ -17598,17 +17818,20 @@ async function handleLogin(username, password) {
     expiresAt
   };
   authState.offline = false;
+  switchUserContext(uid, { migrateLegacy: true });
   const sessionId = createSessionId();
   const sessionStartedAt = Date.now();
   presenceState.sessionId = sessionId;
   presenceState.sessionStartedAt = sessionStartedAt;
   storeSessionInfo({ uid, expiresAt, sessionId, sessionStartedAt });
+  setLastUserId(uid);
   updateSessionFooter();
   scheduleSessionTicker();
   setReadOnlyMode(false);
   updateAdminAccessVisibility();
   showLoginTransition(authState.session.displayName);
   hideLoginOverlay();
+  await enforceSingleSession(uid, sessionStartedAt, sessionId);
   await loadRemoteState();
   startUserStream();
   await startPresenceTracking();
@@ -17623,6 +17846,8 @@ async function handleLogin(username, password) {
 }
 
 async function handleOfflineLogin() {
+  const fallbackUid = getLastUserId() || STORAGE_GUEST_ID;
+  switchUserContext(fallbackUid, { migrateLegacy: false });
   const localSummary = buildLocalSyncSummary();
   const total = localSummary.items.reduce((acc, item) => acc + (item.count || 0), 0);
   if (!total) {
@@ -17631,20 +17856,20 @@ async function handleOfflineLogin() {
   }
   const expiresAt = Date.now() + OFFLINE_SESSION_MS;
   authState.user = {
-    uid: 'offline',
+    uid: fallbackUid,
     username: 'offline',
     displayName: 'Modo sin conexión',
     role: 'Offline',
     status: 'active'
   };
   authState.session = {
-    uid: 'offline',
+    uid: fallbackUid,
     displayName: 'Modo sin conexión',
     role: 'Offline',
     expiresAt
   };
   authState.offline = true;
-  storeSessionInfo({ uid: 'offline', expiresAt, offline: true, displayName: 'Modo sin conexión', role: 'Offline' });
+  storeSessionInfo({ uid: fallbackUid, expiresAt, offline: true, displayName: 'Modo sin conexión', role: 'Offline' });
   updateSessionFooter();
   scheduleSessionTicker();
   setReadOnlyMode(true);
@@ -17669,6 +17894,10 @@ async function handleLogout(expired = false, forced = false, inactive = false) {
   authState.session = null;
   authState.offline = false;
   clearSessionInfo();
+  setStorageScope(STORAGE_GUEST_ID, { migrateLegacy: false });
+  resetInMemoryState();
+  syncState.lastHashes = {};
+  remoteSyncQueue = {};
   setReadOnlyMode(false);
   stopIdleTimer();
   updateSessionFooter();
@@ -17840,7 +18069,7 @@ async function runManualSync() {
       const serialized = normalizedValue === null || normalizedValue === undefined ? '' : stableStringify(normalizedValue);
       syncState.lastHashes[key] = hashString(serialized);
     });
-    localStorage.setItem(SYNC_HASH_STORAGE_KEY, JSON.stringify(syncState.lastHashes));
+    setStoredValue(SYNC_HASH_STORAGE_KEY, syncState.lastHashes);
     syncState.lastSyncAt = Date.now();
     setSyncStatus({ online: true, lastSyncAt: syncState.lastSyncAt, lastCheckAt: Date.now() });
     showToast('Datos sincronizados correctamente.', 'success');
@@ -18496,6 +18725,9 @@ async function handleAdminConnectedAction(event) {
         forceLogoutAt: Date.now(),
         forcedBy: authState.user?.uid || ''
       });
+      await dbPatch('control/forceLogoutUsers', {
+        [uid]: Date.now()
+      });
       showToast('Se envió la orden de cierre.', 'success');
     }
   });
@@ -18521,6 +18753,7 @@ async function handleAdminForceLogoutAll() {
         if (Object.keys(payload).length) {
           await dbPatch('presence', payload);
         }
+        await dbPatch('control', { forceLogoutAllAt: now });
         showToast('Se envió el cierre a todas las sesiones.', 'success');
         await handleLogout(false, true);
       } catch (error) {
