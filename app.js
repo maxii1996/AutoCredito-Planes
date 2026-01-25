@@ -1418,8 +1418,7 @@ function showToast(message, type = 'info') {
 function confirmAction({ title = 'Confirmar', message = '', messageHtml = '', confirmText = 'Aceptar', cancelText = 'Cancelar', onConfirm, onCancel } = {}) {
   const modal = document.getElementById('modal');
   if (!modal) return;
-  modal.classList.add('show');
-  modal.classList.remove('hidden');
+  showModal(modal);
   document.getElementById('modalTitle').textContent = title;
   const messageEl = document.getElementById('modalMessage');
   if (messageHtml) {
@@ -1434,8 +1433,7 @@ function confirmAction({ title = 'Confirmar', message = '', messageHtml = '', co
   cancelBtn.textContent = cancelText;
 
   const cleanup = () => {
-    modal.classList.remove('show');
-    setTimeout(() => modal.classList.add('hidden'), 200);
+    hideModal(modal);
     confirmBtn.onclick = null;
     cancelBtn.onclick = null;
     closeBtn.onclick = null;
@@ -1482,14 +1480,49 @@ function showQuoteRestoreModal({ onContinue, onReload, onReset } = {}) {
   toggleModal(modal, true);
 }
 
+const OVERLAY_BASE_Z = 1000;
+
+function getNextOverlayZIndex() {
+  const active = document.querySelectorAll('.modal.show, .popover-overlay.show');
+  let maxZ = OVERLAY_BASE_Z;
+  active.forEach((element) => {
+    const styleZ = Number.parseInt(element.style.zIndex, 10);
+    if (Number.isFinite(styleZ)) {
+      maxZ = Math.max(maxZ, styleZ);
+      return;
+    }
+    const computed = Number.parseInt(window.getComputedStyle(element).zIndex, 10);
+    if (Number.isFinite(computed)) {
+      maxZ = Math.max(maxZ, computed);
+    }
+  });
+  return maxZ + 1;
+}
+
+function bringOverlayToFront(element) {
+  if (!element) return;
+  element.style.zIndex = String(getNextOverlayZIndex());
+}
+
+function showModal(modal) {
+  if (!modal) return;
+  bringOverlayToFront(modal);
+  modal.classList.add('show');
+  modal.classList.remove('hidden');
+}
+
+function hideModal(modal) {
+  if (!modal) return;
+  modal.classList.remove('show');
+  setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
 function toggleModal(modal, show) {
   if (!modal) return;
   if (show) {
-    modal.classList.add('show');
-    modal.classList.remove('hidden');
+    showModal(modal);
   } else {
-    modal.classList.remove('show');
-    setTimeout(() => modal.classList.add('hidden'), 200);
+    hideModal(modal);
   }
 }
 
@@ -3103,6 +3136,7 @@ function toggleFadeOverlay(overlay, show) {
   if (!overlay) return;
   overlay.classList.remove('closing');
   if (show) {
+    bringOverlayToFront(overlay);
     overlay.classList.add('show');
   } else {
     overlay.classList.add('closing');
@@ -7492,15 +7526,13 @@ function openClientPicker() {
   if (!modal) return;
   initializeClientWizardState();
   updateClientWizardUI();
-  modal.classList.add('show');
-  modal.classList.remove('hidden');
+  showModal(modal);
 }
 
 function closeClientPicker() {
   const modal = document.getElementById('clientPickerModal');
   if (!modal) return;
-  modal.classList.remove('show');
-  setTimeout(() => modal.classList.add('hidden'), 180);
+  hideModal(modal);
 }
 
 function initializeClientWizardState() {
@@ -8005,15 +8037,13 @@ function openQuoteModal() {
   const modal = document.getElementById('quoteModal');
   if (!modal) return;
   renderClients();
-  modal.classList.add('show');
-  modal.classList.remove('hidden');
+  showModal(modal);
 }
 
 function closeQuoteModal() {
   const modal = document.getElementById('quoteModal');
   if (!modal) return;
-  modal.classList.remove('show');
-  setTimeout(() => modal.classList.add('hidden'), 180);
+  hideModal(modal);
 }
 
 function bindResourceButtons() {
@@ -8051,8 +8081,7 @@ function openResource(path, name = '', download = false) {
 function closeClientVehicleModal() {
   const modal = document.getElementById('clientVehicleModal');
   if (!modal) return;
-  modal.classList.remove('show');
-  setTimeout(() => modal.classList.add('hidden'), 180);
+  hideModal(modal);
 }
 
 function applyClientVehicleSelection() {
@@ -9558,15 +9587,13 @@ function renderInstallmentBreakdown() {
     </div>
   `;
   list.innerHTML = cards.join('');
-  modal.classList.remove('hidden');
-  requestAnimationFrame(() => modal.classList.add('show'));
+  showModal(modal);
 }
 
 function closeInstallmentModal() {
   const modal = document.getElementById('installmentModal');
   if (!modal) return;
-  modal.classList.remove('show');
-  setTimeout(() => modal.classList.add('hidden'), 180);
+  hideModal(modal);
 }
 
 function buildQuoteFromForm() {
@@ -12844,16 +12871,14 @@ function openClientNotes(id) {
   if (title) title.textContent = client.name || 'Cliente';
   if (subtitle) subtitle.textContent = client.model ? `Modelo: ${client.model}` : '';
   textarea.value = hasNotes(client) ? client.type : '';
-  modal.classList.add('show');
-  modal.classList.remove('hidden');
+  showModal(modal);
   textarea.focus();
 }
 
 function closeClientNotes() {
   const modal = document.getElementById('clientNoteModal');
   if (!modal) return;
-  modal.classList.remove('show');
-  setTimeout(() => modal.classList.add('hidden'), 200);
+  hideModal(modal);
   activeNoteClientId = null;
 }
 
@@ -14873,6 +14898,7 @@ function openClientActionMenu(id) {
   });
   if (overlay._closeTimer) clearTimeout(overlay._closeTimer);
   overlay.classList.remove('closing');
+  bringOverlayToFront(overlay);
   overlay.classList.add('show');
 }
 
@@ -14921,8 +14947,7 @@ function openClientEditModal(config, clientId = activeActionClientId) {
   fieldContainer.innerHTML = control;
   if (uppercaseToggle) uppercaseToggle.style.display = config.uppercase ? 'flex' : 'none';
   if (uppercaseInput) uppercaseInput.checked = !!config.uppercase;
-  modal.classList.remove('hidden');
-  requestAnimationFrame(() => modal.classList.add('show'));
+  showModal(modal);
   closeClientActionMenu();
 }
 
@@ -14930,8 +14955,7 @@ function closeClientEditModal(returnToMenu = false) {
   const modal = document.getElementById('clientEditModal');
   const reopenId = returnToMenu ? (activeEditAction?.clientId || activeActionClientId) : null;
   if (!modal) return;
-  modal.classList.remove('show');
-  setTimeout(() => modal.classList.add('hidden'), 200);
+  hideModal(modal);
   activeEditAction = null;
   if (returnToMenu && reopenId) {
     setTimeout(() => openClientActionMenu(reopenId), 220);
@@ -17905,8 +17929,8 @@ function normalizeSyncValue(value) {
   if (Array.isArray(value)) {
     const normalizedItems = value.map(item => normalizeSyncValue(item)).filter(item => item !== undefined);
     return normalizedItems
-      .map(item => ({ item, hash: hashString(stableStringify(item)) }))
-      .sort((a, b) => a.hash.localeCompare(b.hash))
+      .map(item => ({ item, key: stableStringify(item) }))
+      .sort((a, b) => a.key.localeCompare(b.key))
       .map(({ item }) => item);
   }
   const normalized = {};
@@ -17971,17 +17995,17 @@ function buildSyncItemValue(item, payload) {
   const bytes = serialized ? new Blob([serialized]).size : 0;
   if (item.kind === 'array') {
     const count = Array.isArray(raw) ? raw.length : 0;
-    return { raw, normalized, display: number.format(count), count, bytes, hash: hashString(serialized) };
+    return { raw, normalized, display: number.format(count), count, bytes, hash: hashString(serialized), signature: serialized };
   }
   if (item.kind === 'object') {
     const count = raw && typeof raw === 'object' ? Object.keys(raw).length : 0;
-    return { raw, normalized, display: number.format(count), count, bytes, hash: hashString(serialized) };
+    return { raw, normalized, display: number.format(count), count, bytes, hash: hashString(serialized), signature: serialized };
   }
   if (item.kind === 'value') {
     const display = raw ? String(raw) : 'Sin definir';
-    return { raw, normalized, display, count: raw ? 1 : 0, bytes, hash: hashString(serialized) };
+    return { raw, normalized, display, count: raw ? 1 : 0, bytes, hash: hashString(serialized), signature: serialized };
   }
-  return { raw, normalized, display: raw ? String(raw) : '0', count: raw ? 1 : 0, bytes, hash: hashString(serialized) };
+  return { raw, normalized, display: raw ? String(raw) : '0', count: raw ? 1 : 0, bytes, hash: hashString(serialized), signature: serialized };
 }
 
 function buildSyncSummary(payload, sourceLabel) {
@@ -17994,7 +18018,8 @@ function buildSyncSummary(payload, sourceLabel) {
       display: value.display,
       count: value.count,
       bytes: value.bytes,
-      hash: value.hash
+      hash: value.hash,
+      signature: value.signature
     };
   });
   return {
@@ -18039,7 +18064,9 @@ function buildSyncComparison(localSummary, remoteSummary) {
     if (!entry.local || !entry.remote) {
       entry.different = true;
     } else {
-      entry.different = entry.local.hash !== entry.remote.hash;
+      const localSignature = entry.local.signature ?? '';
+      const remoteSignature = entry.remote.signature ?? '';
+      entry.different = localSignature !== remoteSignature;
     }
     entry.localBytes = entry.local?.bytes || 0;
     entry.remoteBytes = entry.remote?.bytes || 0;
