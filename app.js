@@ -4079,6 +4079,7 @@ async function bootModules() {
   if (appBooted) return;
   appBooted = true;
   try {
+    unlockAppShell();
     document.body.classList.add('modules-loading');
     updateLoaderHeader({ eyebrow: 'Inicializando módulos...', headline: 'Preparando el panel principal' });
     const initialSteps = getModuleLoadingSteps();
@@ -4161,6 +4162,7 @@ async function bootModules() {
 
 async function init() {
   try {
+    lockAppShell();
     hideAppLoader();
     updateLoaderHeader({ eyebrow: 'Conectando con la base de datos...', headline: 'Obteniendo información...' });
     bindAuthUI();
@@ -4889,6 +4891,7 @@ function renderPreferencesPanel() {
   if (bulkThresholdRow) {
     bulkThresholdRow.classList.toggle('hidden', !(prefs.bulkMessageWarning?.enabled));
   }
+  renderBulkMessageAccountSummary();
 }
 
 function bindPreferencesPanel() {
@@ -13945,22 +13948,85 @@ function renderAssistantQuickAdjust() {
     actions.innerHTML = '';
     return;
   }
+  const quickActions = [
+    {
+      key: 'mark_contacted',
+      icon: 'bx-check-circle',
+      tone: 'success',
+      label: 'Marcar como Contactado',
+      description: 'Confirma que ya se realizó el contacto.',
+      handler: () => updateClientFlag(selected.id, 'contacted', true)
+    },
+    {
+      key: 'mark_no_number',
+      icon: 'bx-block',
+      tone: 'warning',
+      label: 'Número no disponible',
+      description: 'Marca el contacto como número inválido.',
+      handler: () => updateClientFlag(selected.id, 'noNumber', true)
+    },
+    {
+      key: 'mark_favorite',
+      icon: 'bx-star',
+      tone: 'info',
+      label: 'Favorito',
+      description: 'Destaca este cliente como prioridad.',
+      handler: () => updateClientFlag(selected.id, 'favorite', true)
+    }
+  ];
+
   const options = clientActionOptions(selected, { returnToMenu: false }).filter(option => option.key !== 'done');
-  actions.innerHTML = options.map(opt => `
-    <div class="action-card" data-key="${opt.key}">
-      <div class="action-card-head">
-        <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''}><i class='bx ${opt.icon || 'bx-dots-vertical-rounded'}'></i></span>
-        <div>
-          <span class="label">${opt.label}</span>
-          <p class="muted tiny">${opt.description}</p>
-          ${opt.currentValue ? `<p class="muted tiny current-value">[${opt.currentValue(selected)}]</p>` : ''}
-        </div>
+  actions.innerHTML = `
+    <div class="assistant-quick-section">
+      <p class="eyebrow">Acciones rápidas</p>
+      <div class="assistant-quick-actions-grid">
+        ${quickActions.map(opt => `
+          <div class="action-card" data-quick-key="${opt.key}">
+            <div class="action-card-head">
+              <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''}><i class='bx ${opt.icon}'></i></span>
+              <div>
+                <span class="label">${opt.label}</span>
+                <p class="muted tiny">${opt.description}</p>
+              </div>
+            </div>
+            <button class="secondary-btn action-btn" data-quick-action="${opt.key}">
+              <span>Aplicar</span><i class='bx bx-chevron-right'></i>
+            </button>
+          </div>
+        `).join('')}
       </div>
-      <button class="${opt.danger ? 'ghost-btn action-btn danger' : opt.primary ? 'primary-btn action-btn' : opt.highlight ? 'success-btn action-btn' : 'secondary-btn action-btn'}" data-action="${opt.key}">
-        <span>${opt.danger ? 'Borrar' : (opt.buttonText || 'Seleccionar')}</span><i class='bx bx-chevron-right'></i>
-      </button>
     </div>
-  `).join('');
+    <div class="assistant-quick-section">
+      <p class="eyebrow">Otras acciones...</p>
+      <div class="assistant-quick-actions-list">
+        ${options.map(opt => `
+          <div class="action-card" data-key="${opt.key}">
+            <div class="action-card-head">
+              <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''}><i class='bx ${opt.icon || 'bx-dots-vertical-rounded'}'></i></span>
+              <div>
+                <span class="label">${opt.label}</span>
+                <p class="muted tiny">${opt.description}</p>
+                ${opt.currentValue ? `<p class="muted tiny current-value">[${opt.currentValue(selected)}]</p>` : ''}
+              </div>
+            </div>
+            <button class="${opt.danger ? 'ghost-btn action-btn danger' : opt.primary ? 'primary-btn action-btn' : opt.highlight ? 'success-btn action-btn' : 'secondary-btn action-btn'}" data-action="${opt.key}">
+              <span>${opt.danger ? 'Borrar' : (opt.buttonText || 'Seleccionar')}</span><i class='bx bx-chevron-right'></i>
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  actions.querySelectorAll('[data-quick-action]').forEach(btn => {
+    const key = btn.dataset.quickAction;
+    const opt = quickActions.find(option => option.key === key);
+    btn.onclick = () => {
+      if (!opt?.handler) return;
+      opt.handler();
+      setTimeout(() => renderAssistantQuickAdjust(), 120);
+    };
+  });
 
   actions.querySelectorAll('[data-action]').forEach(btn => {
     const key = btn.dataset.action;
@@ -15881,13 +15947,21 @@ function buildStatusMetaHtml(client, status) {
 }
 
 const BULK_MESSAGE_SNOOZE_MS = 60 * 60 * 1000;
+const BULK_MESSAGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 let bulkWarningContext = null;
+
+function pruneBulkMessageHistory(history = [], now = Date.now()) {
+  return history
+    .map(entry => Number(entry))
+    .filter(entry => Number.isFinite(entry) && now - entry <= BULK_MESSAGE_WINDOW_MS);
+}
 
 function normalizeBulkMessageAccountState(state = {}, threshold = 30) {
   const count = Number(state.count) || 0;
   const nextReminderAt = Math.max(threshold, Number(state.nextReminderAt) || threshold);
   const snoozeUntil = Number(state.snoozeUntil) || 0;
-  return { count, nextReminderAt, snoozeUntil };
+  const history = pruneBulkMessageHistory(Array.isArray(state.history) ? state.history : []);
+  return { count, nextReminderAt, snoozeUntil, history };
 }
 
 function updateBulkMessageAccountState(accountId, nextState, shouldPersist = true) {
@@ -15945,20 +16019,41 @@ function applyBulkMessageSnooze() {
   closeBulkMessageWarningModal();
 }
 
+function renderBulkMessageAccountSummary() {
+  const container = document.getElementById('bulkMessageAccountSummary');
+  if (!container) return;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const accounts = settings.accounts || [];
+  const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
+  if (!accounts.length) {
+    container.innerHTML = '<div class="summary-empty">No hay cuentas activas para monitorear.</div>';
+    return;
+  }
+  const now = Date.now();
+  container.innerHTML = accounts.map(account => {
+    const state = normalizeBulkMessageAccountState(prefs.accounts?.[account.id], prefs.threshold);
+    const history = pruneBulkMessageHistory(state.history, now);
+    if (history.length !== state.history.length) {
+      updateBulkMessageAccountState(account.id, { ...state, history }, false);
+    }
+    return `
+      <div class="summary-row">
+        <strong>${account.name || 'Sin cuenta'}</strong>
+        <span>${history.length} mensajes · últimas 24 horas</span>
+      </div>
+    `;
+  }).join('');
+}
+
 function bindBulkMessageWarningModal() {
   const modal = document.getElementById('bulkMessageWarningModal');
-  const closeBtn = document.getElementById('bulkWarningClose');
   const remind5 = document.getElementById('bulkWarningRemind5');
   const remind20 = document.getElementById('bulkWarningRemind20');
   const snooze = document.getElementById('bulkWarningSnooze');
   if (!modal || modal.dataset.bound) return;
-  if (closeBtn) closeBtn.addEventListener('click', () => applyBulkMessageReminder(5));
   if (remind5) remind5.addEventListener('click', () => applyBulkMessageReminder(5));
   if (remind20) remind20.addEventListener('click', () => applyBulkMessageReminder(20));
   if (snooze) snooze.addEventListener('click', applyBulkMessageSnooze);
-  modal.addEventListener('click', (event) => {
-    if (event.target === modal) applyBulkMessageReminder(5);
-  });
   modal.dataset.bound = 'true';
 }
 
@@ -15994,8 +16089,11 @@ function updateClientFlag(id, flag, forceValue = null) {
           prefs.threshold
         );
         accountState.count += 1;
+        const now = Date.now();
+        accountState.history = pruneBulkMessageHistory(accountState.history, now);
+        accountState.history.push(now);
         const shouldNotify = accountState.count >= accountState.nextReminderAt
-          && Date.now() >= accountState.snoozeUntil;
+          && now >= accountState.snoozeUntil;
         updateBulkMessageAccountState(accountId, accountState, false);
         if (shouldNotify) {
           openBulkMessageWarningModal({
@@ -16166,9 +16264,6 @@ function bindProfileActions() {
         exportProfileData();
       }
     });
-  });
-  document.getElementById('downloadProfile')?.addEventListener('click', () => {
-    exportProfileData();
   });
 
   document.getElementById('importProfile').addEventListener('change', async e => {
@@ -17953,7 +18048,21 @@ async function stopPresenceTracking() {
   presenceState.sessionStartedAt = null;
 }
 
+function lockAppShell() {
+  document.body.classList.add('auth-locked');
+  document.body.classList.remove('modules-loaded', 'modules-loading');
+  hideAppLoader();
+}
+
+function unlockAppShell() {
+  document.body.classList.remove('auth-locked');
+  if (appBooted) {
+    document.body.classList.add('modules-loaded');
+  }
+}
+
 function showLoginOverlay() {
+  lockAppShell();
   document.getElementById('loginOverlay')?.classList.remove('hidden');
 }
 
@@ -18377,6 +18486,7 @@ async function handleLogin(username, password) {
   recordModification();
   setLoginTransitionStep('success', authState.session.displayName);
   await wait(700);
+  unlockAppShell();
   await bootModules();
   hideLoginTransition();
   setLoginStatus('ready');

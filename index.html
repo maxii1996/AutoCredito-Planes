@@ -15,7 +15,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 </head>
-<body>
+<body class="auth-locked">
   <div class="app-loader" id="appLoader" aria-live="polite">
     <div class="loader-card">
       <div class="loader-header">
@@ -169,7 +169,6 @@
                 </div>
                 <label class="menu-item upload-btn"><i class='bx bx-upload'></i> Importar perfil<input type="file" id="importProfile" accept="application/json"></label>
                 <button id="exportProfile" class="menu-item"><i class='bx bx-download'></i> Exportar perfil</button>
-                <button id="downloadProfile" class="menu-item"><i class='bx bx-download'></i> Descargar mi perfil</button>
                 <button class="menu-item" id="openModuleManagement"><i class='bx bx-grid-alt'></i>Gestión de módulos</button>
               </div>
             </div>
@@ -1371,7 +1370,7 @@
     </main>
     <footer class="app-footer">
       <div>
-        <p>Creado por Maximiliano Martinez | version v1.4.0 (beta) | Solo uso interno autorizado</p>
+        <p>Creado por Maximiliano Martinez | version v1.4.1 (beta) | Solo uso interno autorizado</p>
       </div>
       <div class="session-footer" id="sessionFooter">
         <span class="muted tiny" id="sessionStatus">Sesión no iniciada.</span>
@@ -1723,6 +1722,13 @@
                 <input type="number" min="5" max="300" step="1" id="bulkMessageWarningThreshold">
                 <span class="muted tiny">mensajes</span>
               </div>
+            </div>
+            <div class="preference-row">
+              <div class="preference-label">
+                <strong>Mensajes enviados por cuenta (últimas 24 horas)</strong>
+                <span class="muted tiny">Se actualiza al marcar contactos como contactados.</span>
+              </div>
+              <div class="bulk-warning-summary" id="bulkMessageAccountSummary"></div>
             </div>
           </section>
           <section class="preferences-section pref-panel" data-pref-panel="site">
@@ -2283,7 +2289,6 @@
           <h3>Mensajes masivos detectados</h3>
           <p class="muted" id="bulkWarningMessage">-</p>
         </div>
-        <button class="ghost-btn icon-only" id="bulkWarningClose"><i class='bx bx-x'></i></button>
       </div>
       <div class="modal-actions stacked">
         <button class="secondary-btn" id="bulkWarningRemind5"><i class='bx bx-bell'></i>Recordarme dentro de 5 mensajes más</button>
