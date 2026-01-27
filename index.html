@@ -583,6 +583,7 @@
           </div>
           <div class="actions">
             <button id="quoteGeneratorDeleteActive" class="ghost-btn danger" type="button"><i class='bx bx-trash'></i>Eliminar esta cotización</button>
+            <button id="quoteGeneratorReassign" class="ghost-btn" type="button"><i class='bx bx-transfer-alt'></i>Reasignar cliente</button>
             <div class="quote-export-actions">
               <span class="export-label">Exportar</span>
               <button id="quoteGeneratorExportPdf" class="secondary-btn" type="button"><i class='bx bxs-file-pdf'></i>PDF</button>
@@ -602,6 +603,17 @@
                   <button id="quoteGeneratorCreate" class="primary-btn" type="button"><i class='bx bx-plus'></i>Nueva cotización</button>
                 </div>
               </div>
+              <div class="quote-hub-toolbar">
+                <div class="search-field">
+                  <i class='bx bx-search'></i>
+                  <input id="quoteGeneratorSearchInput" placeholder="Buscar por nombre de cliente" />
+                </div>
+                <div class="quote-hub-toolbar-actions">
+                  <button id="quoteGeneratorSearchBtn" class="secondary-btn mini" type="button"><i class='bx bx-search'></i>Buscar</button>
+                  <button id="quoteGeneratorSearchClear" class="ghost-btn mini" type="button"><i class='bx bx-x'></i>Limpiar</button>
+                </div>
+              </div>
+              <div class="quote-hub-filter hidden" id="quoteGeneratorClientFilter"></div>
               <div class="quote-hub-empty" id="quoteGeneratorEmpty">
                 <i class='bx bx-folder-open'></i>
                 <div>
@@ -1840,6 +1852,28 @@
       </div>
     </div>
   </div>
+  <div class="modal hidden" id="quoteClientModal">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Mis Cotizaciones</p>
+          <h3 id="quoteClientModalTitle">Reasignar cotización</h3>
+          <p class="muted subtle" id="quoteClientModalSubtitle">Selecciona el cliente al que deseas vincular la cotización.</p>
+        </div>
+        <button id="quoteClientClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="quoteClientSelect">Reasignar esta cotización a:</label>
+          <select id="quoteClientSelect"></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="quoteClientCancel" class="ghost-btn">Cancelar</button>
+        <button id="quoteClientSave" class="primary-btn"><i class='bx bx-refresh'></i>Reasignar</button>
+      </div>
+    </div>
+  </div>
   <div class="popover-overlay" id="contactLogOverlay">
     <div class="popover wide" id="contactLogPanel">
       <div class="popover-head">
@@ -1849,6 +1883,20 @@
           <p class="muted subtle">Últimas acciones marcadas: contactado, número no disponible o favoritos.</p>
         </div>
         <button class="ghost-btn icon-only" id="contactLogClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="contact-log-tabs" id="contactLogRangeTabs">
+        <button class="tab-pill" type="button" data-contact-range="24h">
+          Últimas 24hs
+          <span class="tab-count" data-range-count>0</span>
+        </button>
+        <button class="tab-pill" type="button" data-contact-range="7d">
+          Última Semana
+          <span class="tab-count" data-range-count>0</span>
+        </button>
+        <button class="tab-pill" type="button" data-contact-range="30d">
+          Último Mes
+          <span class="tab-count" data-range-count>0</span>
+        </button>
       </div>
       <div class="contact-log-filters">
         <div class="search-field">

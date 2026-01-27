@@ -145,7 +145,10 @@ const defaultUiState = {
     draft: null,
     selectedId: null,
     hasSession: false,
-    view: 'hub'
+    view: 'hub',
+    hubSearch: '',
+    hubSearchInput: '',
+    clientFilterId: null
   },
   globalSettings: {
     advisorName: 'Planes de Ahorro Argentina',
@@ -582,6 +585,7 @@ const defaultActionCatalog = [
   { id: 'update_status', label: 'Modificación de estado', icon: 'bx-tag', color: '#60a5fa' },
   { id: 'reassign_account', label: 'Reasignación de cuenta', icon: 'bx-transfer-alt', color: '#a78bfa' },
   { id: 'open_notes', label: 'Notas', icon: 'bx-note', color: '#94a3b8' },
+  { id: 'client_quotes', label: 'Cotizaciones del cliente', icon: 'bx-folder-open', color: '#38bdf8' },
   { id: 'copy_message', label: 'Copiar mensaje', icon: 'bx-message-square-dots', color: '#38bdf8' },
   { id: 'copy_template', label: 'Copiar plantilla', icon: 'bx-copy-alt', color: '#f59e0b' },
   { id: 'copy_phone', label: 'Copiar número', icon: 'bx-phone', color: '#a855f7' },
@@ -697,6 +701,7 @@ const defaultClientManagerState = {
   },
   contactLogSearch: '',
   contactLogStatusFilter: 'all',
+  contactLogRange: '24h',
   editingMode: false,
   actionVisibility: { ...defaultActionVisibility },
   customActions: [],
@@ -2053,6 +2058,8 @@ async function applyProfileData(parsed) {
     ...(clientManagerState.contactAssistantQuickAdjust || {})
   };
   clientManagerState.contactLogStatusFilter = clientManagerState.contactLogStatusFilter || defaultClientManagerState.contactLogStatusFilter;
+  clientManagerState.contactLogRange = clientManagerState.contactLogRange || defaultClientManagerState.contactLogRange;
+  clientManagerState.contactLogRange = clientManagerState.contactLogRange || defaultClientManagerState.contactLogRange;
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
@@ -2321,6 +2328,15 @@ function ensureQuoteGeneratorState() {
   if (!uiState.quoteGenerator.view) {
     uiState.quoteGenerator.view = 'hub';
   }
+  if (typeof uiState.quoteGenerator.hubSearch !== 'string') {
+    uiState.quoteGenerator.hubSearch = '';
+  }
+  if (typeof uiState.quoteGenerator.hubSearchInput !== 'string') {
+    uiState.quoteGenerator.hubSearchInput = '';
+  }
+  if (!('clientFilterId' in uiState.quoteGenerator)) {
+    uiState.quoteGenerator.clientFilterId = null;
+  }
   uiState.quoteGenerator.draft = normalizeQuoteGeneratorDraft(uiState.quoteGenerator.draft);
 }
 
@@ -2346,14 +2362,161 @@ function resolveQuoteGeneratorDisplayName(entry = {}) {
   return fallbackNumber ? `Cotización #${fallbackNumber}` : 'Cotización sin título';
 }
 
-function upsertGeneratedQuote(draft, id) {
+function buildQuoteClientSnapshotFromClient(client) {
+  if (!client) return null;
+  return {
+    id: client.id || '',
+    name: client.name || 'Sin nombre',
+    phone: client.phone || '',
+    document: client.document || client.cuit || '',
+    model: client.model || '',
+    brand: client.brand || '',
+    city: client.city || '',
+    province: client.province || ''
+  };
+}
+
+function buildQuoteClientSnapshotFromDraft(draft = {}) {
+  const client = draft.client || {};
+  return {
+    id: '',
+    name: (client.name || '').trim() || 'Sin nombre',
+    phone: (client.cel || '').trim(),
+    document: (client.dni || client.cuil || '').trim(),
+    model: (draft.newVehicle?.model || draft.vehicle?.model || '').trim(),
+    brand: (draft.newVehicle?.brand || draft.vehicle?.brand || '').trim(),
+    city: (client.city || '').trim(),
+    province: (client.province || '').trim()
+  };
+}
+
+function resolveQuoteClientInfo(entry = {}) {
+  if (entry.clientId) {
+    const client = managerClients.find(item => item.id === entry.clientId);
+    if (client) return { ...buildQuoteClientSnapshotFromClient(client), source: 'manager' };
+  }
+  if (entry.clientSnapshot) return { ...entry.clientSnapshot, source: 'snapshot' };
+  if (entry.draft) return { ...buildQuoteClientSnapshotFromDraft(entry.draft), source: 'draft' };
+  return { id: '', name: 'Sin nombre', phone: '', document: '', model: '', brand: '', city: '', province: '', source: 'empty' };
+}
+
+function resolvePlanQuoteClientLink() {
+  const selectedId = selectedPlanClientId || uiState?.planDraft?.selectedClientId || null;
+  if (selectedId) {
+    const snapshot = buildQuoteClientSnapshotFromClient(managerClients.find(item => item.id === selectedId));
+    return { clientId: selectedId, clientSnapshot: snapshot };
+  }
+  const name = (uiState?.planDraft?.clientName || uiState?.planDraft?.externalName || '').trim();
+  if (name) {
+    return {
+      clientId: null,
+      clientSnapshot: {
+        id: '',
+        name,
+        phone: '',
+        document: '',
+        model: '',
+        brand: '',
+        city: '',
+        province: ''
+      }
+    };
+  }
+  return { clientId: null, clientSnapshot: null };
+}
+
+function resolveQuoteExpiryStatus(entry = {}) {
+  const expiryRaw = entry.draft?.meta?.quoteExpiry || '';
+  const expiryIso = formatDateISO(expiryRaw);
+  if (!expiryIso) {
+    return { label: 'Activa', tone: 'success', detail: 'Sin vencimiento' };
+  }
+  const todayIso = formatLocalISO();
+  const expiryDate = new Date(`${expiryIso}T00:00:00`);
+  const todayDate = new Date(`${todayIso}T00:00:00`);
+  const isExpired = expiryDate.getTime() < todayDate.getTime();
+  const expiryLabel = formatDateForDisplay(expiryIso);
+  return {
+    label: isExpired ? 'Vencida' : 'Activa',
+    tone: isExpired ? 'danger' : 'success',
+    detail: `${isExpired ? 'Venció' : 'Vence'} ${expiryLabel}`
+  };
+}
+
+function updateQuoteClientAssignment(entryId, clientId) {
+  const entry = generatedQuotes.find(item => item.id === entryId);
+  if (!entry) return;
+  const normalizedClientId = clientId || null;
+  entry.clientId = normalizedClientId;
+  const assignedClient = normalizedClientId
+    ? buildQuoteClientSnapshotFromClient(managerClients.find(item => item.id === normalizedClientId))
+    : null;
+  entry.clientSnapshot = assignedClient || buildQuoteClientSnapshotFromDraft(entry.draft || {});
+  entry.updatedAt = new Date().toISOString();
+  persist();
+  renderQuoteGeneratorHub();
+  renderQuoteNavigation();
+  renderQuoteGeneratorSavedList();
+}
+
+function openQuoteClientModal(entryId = uiState.quoteGenerator?.selectedId || null) {
+  const modal = document.getElementById('quoteClientModal');
+  const title = document.getElementById('quoteClientModalTitle');
+  const subtitle = document.getElementById('quoteClientModalSubtitle');
+  const select = document.getElementById('quoteClientSelect');
+  if (!modal || !select) return;
+  const entry = generatedQuotes.find(item => item.id === entryId);
+  if (!entry) {
+    showToast('No se encontró la cotización seleccionada.', 'error');
+    return;
+  }
+  activeQuoteReassignId = entryId;
+  const info = resolveQuoteClientInfo(entry);
+  if (title) title.textContent = info.name || 'Cotización sin cliente';
+  if (subtitle) subtitle.textContent = 'Reasigna esta cotización a otro cliente o déjala sin clasificar.';
+  const options = managerClients
+    .map(client => ({ id: client.id, name: client.name || 'Sin nombre' }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  select.innerHTML = [
+    `<option value="">Sin clasificar</option>`,
+    ...options.map(client => `<option value="${client.id}">${client.name}</option>`)
+  ].join('');
+  select.value = entry.clientId || '';
+  toggleModal(modal, true);
+}
+
+function closeQuoteClientModal() {
+  const modal = document.getElementById('quoteClientModal');
+  if (!modal) return;
+  toggleModal(modal, false);
+  activeQuoteReassignId = null;
+}
+
+function applyQuoteClientModal() {
+  const select = document.getElementById('quoteClientSelect');
+  if (!select || !activeQuoteReassignId) {
+    closeQuoteClientModal();
+    return;
+  }
+  updateQuoteClientAssignment(activeQuoteReassignId, select.value || null);
+  closeQuoteClientModal();
+  showToast('Cotización reasignada correctamente.', 'success');
+}
+
+function upsertGeneratedQuote(draft, id, { clientId = null, clientSnapshot = null } = {}) {
   const existingEntry = generatedQuotes.find(item => item.id === id);
+  const existingClientId = clientId !== null ? clientId : (existingEntry?.clientId || null);
+  const resolvedSnapshot = existingClientId
+    ? (buildQuoteClientSnapshotFromClient(managerClients.find(item => item.id === existingClientId)) || existingEntry?.clientSnapshot || null)
+    : (clientSnapshot || existingEntry?.clientSnapshot || buildQuoteClientSnapshotFromDraft(draft));
   const payload = {
     id,
     name: resolveQuoteGeneratorName(draft),
     alias: existingEntry?.alias || '',
     updatedAt: new Date().toISOString(),
-    draft: normalizeQuoteGeneratorDraft(draft)
+    draft: normalizeQuoteGeneratorDraft(draft),
+    clientId: existingClientId,
+    clientSnapshot: resolvedSnapshot || buildQuoteClientSnapshotFromDraft(draft)
   };
   const existingIndex = generatedQuotes.findIndex(item => item.id === id);
   if (existingIndex !== -1) {
@@ -2382,8 +2545,8 @@ function loadQuoteGeneratorEntry(id) {
   renderQuoteNavigation();
 }
 
-function createQuoteGeneratorEntry(draft = buildQuoteGeneratorDraft({ blank: true })) {
-  const payload = upsertGeneratedQuote(draft, `qg-${Date.now()}`);
+function createQuoteGeneratorEntry(draft = buildQuoteGeneratorDraft({ blank: true }), { clientId = null, clientSnapshot = null } = {}) {
+  const payload = upsertGeneratedQuote(draft, `qg-${Date.now()}`, { clientId, clientSnapshot });
   uiState.quoteGenerator.selectedId = payload.id;
   uiState.quoteGenerator.draft = payload.draft;
   uiState.quoteGenerator.hasSession = quoteDraftHasContent(payload.draft);
@@ -3622,6 +3785,7 @@ let activeStatusClientId = null;
 let activeStatusReturnToMenu = false;
 let activeReassignClientId = null;
 let activeReassignReturnToMenu = false;
+let activeQuoteReassignId = null;
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
@@ -4057,6 +4221,7 @@ clientManagerState.contactAssistantQuickAdjust = {
   ...(clientManagerState.contactAssistantQuickAdjust || {})
 };
 clientManagerState.contactLogStatusFilter = clientManagerState.contactLogStatusFilter || defaultClientManagerState.contactLogStatusFilter;
+clientManagerState.contactLogRange = clientManagerState.contactLogRange || defaultClientManagerState.contactLogRange;
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
@@ -4122,6 +4287,7 @@ async function bootModules() {
     bindResourceButtons();
     attachPlanListeners();
     bindQuoteGenerator();
+    bindQuoteClientModal();
     attachTemplateActions();
     bindPriceTabControls();
     bindPriceImportActions();
@@ -4252,7 +4418,8 @@ function bindQuoteCreation() {
   addBtn.addEventListener('click', () => {
     ensureQuoteGeneratorState();
     const draft = buildQuoteGeneratorDraft({ blank: true });
-    createQuoteGeneratorEntry(draft);
+    const link = resolvePlanQuoteClientLink();
+    createQuoteGeneratorEntry(draft, link);
     applyQuoteGeneratorAutoFill({ scope: 'all' });
     activatePanel('quoteGenerator');
     showToast('Cotización agregada a "Mis Cotizaciones".', 'success');
@@ -4281,6 +4448,7 @@ function bindQuoteGenerator() {
   const panel = document.getElementById('quoteGenerator');
   if (!panel || panel.dataset.bound) return;
   panel.dataset.bound = 'true';
+  ensureQuoteGeneratorState();
 
   panel.addEventListener('input', (event) => {
     const target = event.target;
@@ -4432,6 +4600,51 @@ function bindQuoteGenerator() {
     });
   }
 
+  const searchInput = document.getElementById('quoteGeneratorSearchInput');
+  const searchBtn = document.getElementById('quoteGeneratorSearchBtn');
+  const searchClear = document.getElementById('quoteGeneratorSearchClear');
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.addEventListener('input', () => {
+      uiState.quoteGenerator.hubSearchInput = searchInput.value;
+    });
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        searchBtn?.click();
+      }
+    });
+    searchInput.dataset.bound = 'true';
+  }
+  if (searchBtn && !searchBtn.dataset.bound) {
+    searchBtn.addEventListener('click', () => {
+      uiState.quoteGenerator.hubSearch = uiState.quoteGenerator.hubSearchInput || '';
+      persist();
+      renderQuoteGeneratorHub();
+    });
+    searchBtn.dataset.bound = 'true';
+  }
+  if (searchClear && !searchClear.dataset.bound) {
+    searchClear.addEventListener('click', () => {
+      uiState.quoteGenerator.hubSearchInput = '';
+      uiState.quoteGenerator.hubSearch = '';
+      persist();
+      renderQuoteGeneratorHub();
+    });
+    searchClear.dataset.bound = 'true';
+  }
+
+  const clientFilter = document.getElementById('quoteGeneratorClientFilter');
+  if (clientFilter && !clientFilter.dataset.bound) {
+    clientFilter.addEventListener('click', (event) => {
+      const clearBtn = event.target.closest('[data-clear-client-filter]');
+      if (!clearBtn) return;
+      uiState.quoteGenerator.clientFilterId = null;
+      persist();
+      renderQuoteGeneratorHub();
+    });
+    clientFilter.dataset.bound = 'true';
+  }
+
   const hubList = document.getElementById('quoteGeneratorList');
   if (hubList && !hubList.dataset.bound) {
     hubList.dataset.bound = 'true';
@@ -4439,7 +4652,7 @@ function bindQuoteGenerator() {
       const openBtn = event.target.closest('[data-quote-open]');
       const deleteBtn = event.target.closest('[data-quote-delete]');
       const duplicateBtn = event.target.closest('[data-quote-duplicate]');
-      const item = event.target.closest('.quote-hub-item');
+      const reassignBtn = event.target.closest('[data-quote-reassign]');
       if (deleteBtn) {
         const id = deleteBtn.dataset.quoteDelete;
         confirmAction({
@@ -4455,6 +4668,10 @@ function bindQuoteGenerator() {
       }
       if (duplicateBtn) {
         duplicateQuoteGeneratorEntry(duplicateBtn.dataset.quoteDuplicate);
+        return;
+      }
+      if (reassignBtn) {
+        openQuoteClientModal(reassignBtn.dataset.quoteReassign);
         return;
       }
       if (openBtn) {
@@ -4561,6 +4778,17 @@ function bindQuoteGenerator() {
       });
     });
   }
+  const reassignBtn = document.getElementById('quoteGeneratorReassign');
+  if (reassignBtn) {
+    reassignBtn.addEventListener('click', () => {
+      const selectedId = uiState.quoteGenerator?.selectedId;
+      if (!selectedId) {
+        showToast('No hay una cotización activa para reasignar.', 'error');
+        return;
+      }
+      openQuoteClientModal(selectedId);
+    });
+  }
 
   const resetBtn = document.getElementById('quoteGeneratorReset');
   if (resetBtn) {
@@ -4589,6 +4817,21 @@ function bindQuoteGenerator() {
   renderQuoteGeneratorForm();
   renderQuoteGeneratorHub();
   updateQuoteGeneratorView();
+}
+
+function bindQuoteClientModal() {
+  const modal = document.getElementById('quoteClientModal');
+  const closeBtn = document.getElementById('quoteClientClose');
+  const cancelBtn = document.getElementById('quoteClientCancel');
+  const saveBtn = document.getElementById('quoteClientSave');
+  if (!modal || modal.dataset.bound) return;
+  if (closeBtn) closeBtn.addEventListener('click', closeQuoteClientModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeQuoteClientModal);
+  if (saveBtn) saveBtn.addEventListener('click', applyQuoteClientModal);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeQuoteClientModal();
+  });
+  modal.dataset.bound = 'true';
 }
 
 function bindSidebarToggle() {
@@ -8540,39 +8783,127 @@ function updateQuoteGeneratorView() {
 function renderQuoteGeneratorHub() {
   const list = document.getElementById('quoteGeneratorList');
   const emptyState = document.getElementById('quoteGeneratorEmpty');
+  const searchInput = document.getElementById('quoteGeneratorSearchInput');
+  const filterChip = document.getElementById('quoteGeneratorClientFilter');
   if (!list || !emptyState) return;
-  if (!generatedQuotes.length) {
+  ensureQuoteGeneratorState();
+  if (searchInput && searchInput.value !== uiState.quoteGenerator.hubSearchInput) {
+    searchInput.value = uiState.quoteGenerator.hubSearchInput;
+  }
+
+  const searchTerm = normalizeSearchTerm(uiState.quoteGenerator.hubSearch || '');
+  const filterClientId = uiState.quoteGenerator.clientFilterId || null;
+  const filtered = generatedQuotes.filter(item => {
+    if (filterClientId && item.clientId !== filterClientId) return false;
+    if (!searchTerm) return true;
+    const info = resolveQuoteClientInfo(item);
+    const clientName = normalizeSearchTerm(info.name || '');
+    return clientName.includes(searchTerm);
+  });
+
+  if (filterChip) {
+    const client = filterClientId ? managerClients.find(item => item.id === filterClientId) : null;
+    const fallbackEntry = filterClientId ? generatedQuotes.find(item => item.clientId === filterClientId) : null;
+    const fallbackInfo = fallbackEntry ? resolveQuoteClientInfo(fallbackEntry) : null;
+    const label = client?.name || fallbackInfo?.name || '';
+    if (filterClientId && label) {
+      filterChip.classList.remove('hidden');
+      filterChip.innerHTML = `
+        <span><i class='bx bx-user'></i>Mostrando cotizaciones de: <strong>${label}</strong></span>
+        <button class="ghost-btn mini" type="button" data-clear-client-filter><i class='bx bx-x'></i>Quitar filtro</button>
+      `;
+    } else {
+      filterChip.classList.add('hidden');
+      filterChip.innerHTML = '';
+    }
+  }
+
+  if (!filtered.length) {
     list.innerHTML = '';
     emptyState.classList.remove('is-hidden');
     return;
   }
   emptyState.classList.add('is-hidden');
-  list.innerHTML = generatedQuotes.map(item => {
-    const alias = (item.alias || '').trim();
-    const displayName = resolveQuoteGeneratorDisplayName(item);
-    const updatedAt = item.updatedAt
-      ? new Date(item.updatedAt).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
-      : '';
-    const quoteNumber = item.draft?.meta?.quoteNumber ? `#${item.draft.meta.quoteNumber}` : '';
-    const isActive = item.id === uiState.quoteGenerator?.selectedId;
-    const metaBits = [
-      quoteNumber ? `Cotización ${quoteNumber}` : '',
-      updatedAt ? `Actualizado ${updatedAt}` : ''
-    ].filter(Boolean);
+  const grouped = filtered.reduce((acc, item) => {
+    const key = item.clientId || 'unassigned';
+    if (!acc[key]) {
+      acc[key] = { key, info: resolveQuoteClientInfo(item), items: [] };
+    }
+    acc[key].items.push(item);
+    return acc;
+  }, {});
+
+  const groups = Object.values(grouped).sort((a, b) => {
+    if (a.key === 'unassigned') return 1;
+    if (b.key === 'unassigned') return -1;
+    return (a.info.name || '').localeCompare(b.info.name || '', 'es', { sensitivity: 'base' });
+  });
+
+  list.innerHTML = groups.map(group => {
+    const info = group.info || {};
+    const groupName = group.key === 'unassigned' ? 'Sin clasificar' : (info.name || 'Cliente');
+    const location = [info.city, info.province].filter(Boolean).join(' · ');
+    const docLabel = info.document ? `Doc: ${info.document}` : 'Sin documento';
+    const phoneLabel = formatPhoneDisplay(info.phone || '') || info.phone || 'Sin teléfono';
+    const modelLabel = info.model ? `${info.brand || ''} ${info.model}`.trim() : 'Sin modelo';
+    const clientMeta = [
+      `<span><i class='bx bx-phone'></i>${phoneLabel}</span>`,
+      `<span><i class='bx bx-id-card'></i>${docLabel}</span>`,
+      `<span><i class='bx bx-car'></i>${modelLabel}</span>`,
+      location ? `<span><i class='bx bx-map'></i>${location}</span>` : ''
+    ].filter(Boolean).join('');
+    const items = group.items.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
     return `
-      <div class="quote-hub-item${isActive ? ' active' : ''}" data-quote-id="${item.id}">
-        <div class="quote-hub-main">
-          <div class="quote-hub-title">
-            <input class="quote-hub-alias" data-quote-alias="${item.id}" value="${alias}" placeholder="${displayName}" />
-            <div class="quote-hub-meta">
-              ${metaBits.map(text => `<span>${text}</span>`).join('')}
-            </div>
+      <div class="quote-hub-group" data-client-group="${group.key}">
+        <div class="quote-hub-group-head">
+          <div>
+            <p class="eyebrow">${group.key === 'unassigned' ? 'Sin cliente asignado' : 'Cliente'}</p>
+            <h4>${groupName}</h4>
+            <div class="quote-hub-client-meta">${clientMeta}</div>
+          </div>
+          <div class="quote-hub-group-count">
+            <span>${items.length} cotizaciones</span>
           </div>
         </div>
-        <div class="quote-hub-actions">
-          <button class="secondary-btn mini" type="button" data-quote-open="${item.id}"><i class='bx bx-folder-open'></i>Abrir esta cotización</button>
-          <button class="ghost-btn mini" type="button" data-quote-duplicate="${item.id}"><i class='bx bx-copy'></i>Duplicar esta Cotización</button>
-          <button class="ghost-btn mini danger" type="button" data-quote-delete="${item.id}"><i class='bx bx-trash'></i>Eliminar</button>
+        <div class="quote-hub-group-list">
+          ${items.map(item => {
+            const alias = (item.alias || '').trim();
+            const displayName = resolveQuoteGeneratorDisplayName(item);
+            const updatedAt = item.updatedAt
+              ? new Date(item.updatedAt).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
+              : '';
+            const quoteNumber = item.draft?.meta?.quoteNumber ? `#${item.draft.meta.quoteNumber}` : '';
+            const quoteDate = item.draft?.meta?.quoteDate ? `Emitida ${item.draft.meta.quoteDate}` : '';
+            const status = resolveQuoteExpiryStatus(item);
+            const isActive = item.id === uiState.quoteGenerator?.selectedId;
+            const metaBits = [
+              quoteNumber ? `Cotización ${quoteNumber}` : '',
+              quoteDate,
+              updatedAt ? `Actualizado ${updatedAt}` : ''
+            ].filter(Boolean);
+            return `
+              <div class="quote-hub-item${isActive ? ' active' : ''}" data-quote-id="${item.id}">
+                <div class="quote-hub-main">
+                  <div class="quote-hub-title">
+                    <input class="quote-hub-alias" data-quote-alias="${item.id}" value="${alias}" placeholder="${displayName}" />
+                    <div class="quote-hub-meta">
+                      ${metaBits.map(text => `<span>${text}</span>`).join('')}
+                    </div>
+                    <div class="quote-hub-status" data-tone="${status.tone}">
+                      <span class="quote-status-pill">${status.label}</span>
+                      <span class="quote-status-detail">${status.detail}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="quote-hub-actions">
+                  <button class="secondary-btn mini" type="button" data-quote-open="${item.id}"><i class='bx bx-folder-open'></i>Abrir esta cotización</button>
+                  <button class="ghost-btn mini" type="button" data-quote-reassign="${item.id}"><i class='bx bx-transfer-alt'></i>Reasignar cliente</button>
+                  <button class="ghost-btn mini" type="button" data-quote-duplicate="${item.id}"><i class='bx bx-copy'></i>Duplicar esta Cotización</button>
+                  <button class="ghost-btn mini danger" type="button" data-quote-delete="${item.id}"><i class='bx bx-trash'></i>Eliminar</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -10368,6 +10699,17 @@ function bindClientManager() {
       renderContactLog();
       persist();
     });
+  }
+  const contactLogTabs = document.getElementById('contactLogRangeTabs');
+  if (contactLogTabs && !contactLogTabs.dataset.bound) {
+    contactLogTabs.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-contact-range]');
+      if (!target) return;
+      clientManagerState.contactLogRange = target.dataset.contactRange;
+      renderContactLog();
+      persist();
+    });
+    contactLogTabs.dataset.bound = 'true';
   }
   const contactLogStatusFilter = document.getElementById('contactLogStatusFilter');
   if (contactLogStatusFilter) {
@@ -13974,16 +14316,29 @@ function renderAssistantQuickAdjust() {
       handler: () => updateClientFlag(selected.id, 'favorite', true)
     }
   ];
+  const customQuickActions = (clientManagerState.customActions || [])
+    .filter(action => action.visible !== false)
+    .map(action => ({
+      key: `custom:${action.id}`,
+      icon: action.icon || 'bx-star',
+      label: action.label || 'Acción personalizada',
+      description: 'Acción personalizada del gestor.',
+      color: action.color || '#a855f7',
+      handler: () => handleCustomAction(action.id, selected.id)
+    }));
+  const mergedQuickActions = [...quickActions, ...customQuickActions];
 
   const options = clientActionOptions(selected, { returnToMenu: false }).filter(option => option.key !== 'done');
   actions.innerHTML = `
     <div class="assistant-quick-section">
       <p class="eyebrow">Acciones rápidas</p>
       <div class="assistant-quick-actions-grid">
-        ${quickActions.map(opt => `
+        ${mergedQuickActions.map(opt => {
+          const iconStyle = opt.color ? `style="color:${opt.color}; background:${hexToRgba(opt.color, 0.16)}"` : '';
+          return `
           <div class="action-card" data-quick-key="${opt.key}">
             <div class="action-card-head">
-              <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''}><i class='bx ${opt.icon}'></i></span>
+              <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''} ${opt.color ? iconStyle : ''}><i class='bx ${opt.icon}'></i></span>
               <div>
                 <span class="label">${opt.label}</span>
                 <p class="muted tiny">${opt.description}</p>
@@ -13993,7 +14348,8 @@ function renderAssistantQuickAdjust() {
               <span>Aplicar</span><i class='bx bx-chevron-right'></i>
             </button>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
     <div class="assistant-quick-section">
@@ -14020,7 +14376,7 @@ function renderAssistantQuickAdjust() {
 
   actions.querySelectorAll('[data-quick-action]').forEach(btn => {
     const key = btn.dataset.quickAction;
-    const opt = quickActions.find(option => option.key === key);
+    const opt = mergedQuickActions.find(option => option.key === key);
     btn.onclick = () => {
       if (!opt?.handler) return;
       opt.handler();
@@ -14119,11 +14475,28 @@ function updateEditModeButton(button) {
   button.innerHTML = `${active ? "<i class='bx bx-lock-open'></i>Desactivar Modo Edición" : "<i class='bx bx-edit-alt'></i>Activar Modo Edición"}`;
 }
 
-function contactLogEntries({ search = null, statusFilter = null } = {}) {
+const CONTACT_LOG_RANGES = [
+  { key: '24h', label: 'Últimas 24hs', hours: 24 },
+  { key: '7d', label: 'Última Semana', hours: 24 * 7 },
+  { key: '30d', label: 'Último Mes', hours: 24 * 30 }
+];
+
+function resolveContactLogCutoff(rangeKey, now = Date.now()) {
+  if (rangeKey === 'all') return null;
+  const option = CONTACT_LOG_RANGES.find(item => item.key === rangeKey);
+  if (!option) return null;
+  return now - (option.hours * 60 * 60 * 1000);
+}
+
+function contactLogEntries({ search = null, statusFilter = null, range = null } = {}) {
   const searchTerm = (typeof search === 'string' ? search : (clientManagerState.contactLogSearch || '')).toLowerCase();
   const statusValue = typeof statusFilter === 'string'
     ? statusFilter
     : (clientManagerState.contactLogStatusFilter || 'all');
+  const rangeValue = typeof range === 'string'
+    ? range
+    : (clientManagerState.contactLogRange || '24h');
+  const cutoff = resolveContactLogCutoff(rangeValue);
   return managerClients
     .map(c => {
       const status = clientStatus(c);
@@ -14132,6 +14505,7 @@ function contactLogEntries({ search = null, statusFilter = null } = {}) {
         name: c.name || 'Sin nombre',
         phone: normalizePhone(c.phone || ''),
         status,
+        accountName: c.contactMeta?.accountName || '',
         contactDate: c.contactDate || '',
         fallbackDate: c.systemDate || ''
       };
@@ -14139,9 +14513,14 @@ function contactLogEntries({ search = null, statusFilter = null } = {}) {
     .filter(item => item.status.className !== 'status-pending')
     .map(item => ({ ...item, effectiveDate: item.contactDate || normalizeDateTime(item.fallbackDate) }))
     .filter(item => !!item.effectiveDate)
+    .filter(item => {
+      if (!cutoff) return true;
+      const time = new Date(item.effectiveDate).getTime();
+      return Number.isFinite(time) && time >= cutoff;
+    })
     .filter(item => (statusValue === 'all' ? true : item.status.className === statusValue))
     .filter(item => [item.name, item.phone, item.status.label].some(val => val.toLowerCase().includes(searchTerm)))
-    .sort((a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime());
+    .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
 }
 
 function renderContactLogStatusFilter(entries = []) {
@@ -14166,6 +14545,29 @@ function renderContactLogStatusFilter(entries = []) {
     clientManagerState.contactLogStatusFilter = 'all';
   }
   select.value = clientManagerState.contactLogStatusFilter;
+}
+
+function renderContactLogRangeTabs(entries = []) {
+  const tabContainer = document.getElementById('contactLogRangeTabs');
+  if (!tabContainer) return;
+  const currentRange = clientManagerState.contactLogRange || '24h';
+  tabContainer.querySelectorAll('[data-contact-range]').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.contactRange === currentRange);
+  });
+  const counts = CONTACT_LOG_RANGES.reduce((acc, range) => {
+    const cutoff = resolveContactLogCutoff(range.key);
+    acc[range.key] = entries.filter(entry => {
+      if (!cutoff) return true;
+      const time = new Date(entry.effectiveDate).getTime();
+      return Number.isFinite(time) && time >= cutoff;
+    }).length;
+    return acc;
+  }, {});
+  tabContainer.querySelectorAll('[data-contact-range]').forEach(tab => {
+    const key = tab.dataset.contactRange;
+    const countEl = tab.querySelector('[data-range-count]');
+    if (countEl) countEl.textContent = counts[key] ?? 0;
+  });
 }
 
 const clientGridCompactWidths = {
@@ -14565,8 +14967,9 @@ function renderContactLog() {
     search.value = clientManagerState.contactLogSearch || '';
   }
 
-  const baseEntries = contactLogEntries({ search: clientManagerState.contactLogSearch || '', statusFilter: 'all' });
+  const baseEntries = contactLogEntries({ search: clientManagerState.contactLogSearch || '', statusFilter: 'all', range: 'all' });
   renderContactLogStatusFilter(baseEntries);
+  renderContactLogRangeTabs(baseEntries);
   const entries = contactLogEntries();
   if (!entries.length) {
     list.innerHTML = '';
@@ -14582,7 +14985,7 @@ function renderContactLog() {
           <p class="contact-log-name">${entry.name}</p>
           <p class="contact-log-phone">${entry.phone}</p>
           <div class="contact-log-tags">
-            <span class="status-pill ${entry.status.className}">${entry.status.label}</span>
+            <span class="status-pill ${entry.status.className}">${entry.status.label}${entry.accountName ? ` · ${entry.accountName}` : ''}</span>
             <span class="time-pill">${timeAgo(entry.effectiveDate)}</span>
             <span class="time-stamp">${formatDateTimeForDisplay(entry.effectiveDate)}</span>
           </div>
@@ -14590,7 +14993,6 @@ function renderContactLog() {
       </div>
       <div class="contact-log-actions">
         <button class="secondary-btn mini" data-action="goto">Ir al contacto</button>
-        <button class="ghost-btn mini" data-action="copy">Copiar número</button>
       </div>
     </div>
   `).join('');
@@ -14600,13 +15002,6 @@ function renderContactLog() {
     if (!id) return;
     focusClientRow(id);
     toggleContactLog(false);
-  }));
-
-  list.querySelectorAll('[data-action="copy"]').forEach(btn => btn.addEventListener('click', () => {
-    const id = btn.closest('.contact-log-item')?.dataset.id;
-    const client = managerClients.find(c => c.id === id);
-    if (!client) return;
-    copyText(normalizePhone(client.phone || ''), 'Número copiado');
   }));
 }
 
@@ -15086,6 +15481,15 @@ function clientActionOptions(client, { returnToMenu = true } = {}) {
       description: 'Actualiza la cuenta responsable del cliente.',
       currentValue: (c) => c.contactMeta?.accountName || 'Sin cuenta asignada',
       handler: () => openClientReassignModal(client.id, { returnToMenu })
+    },
+    {
+      key: 'client_quotes',
+      icon: 'bx-folder-open',
+      tone: 'info',
+      label: 'Cotizaciones del cliente',
+      description: 'Revisa las cotizaciones vinculadas a este cliente.',
+      currentValue: () => 'Abrir Mis Cotizaciones',
+      handler: () => openClientQuotes(client.id)
     },
     {
       key: 'rename',
@@ -15620,6 +16024,19 @@ function focusClientRow(id) {
   highlightRow();
 }
 
+function openClientQuotes(clientId) {
+  const client = managerClients.find(item => item.id === clientId);
+  if (!client) return;
+  ensureQuoteGeneratorState();
+  uiState.quoteGenerator.clientFilterId = clientId;
+  uiState.quoteGenerator.hubSearchInput = client.name || '';
+  uiState.quoteGenerator.hubSearch = '';
+  setQuoteGeneratorView('hub');
+  activatePanel('quoteGenerator');
+  renderQuoteGeneratorHub();
+  closeClientActionMenu();
+}
+
 function renderGlobalSettings() {
   const settings = mergeGlobalSettings(uiState.globalSettings);
   uiState.globalSettings = settings;
@@ -15737,6 +16154,7 @@ function triggerClientAction(actionKey, clientId) {
   if (actionKey === 'update_status') openClientStatusModal(clientId, { returnToMenu: false });
   if (actionKey === 'reassign_account') openClientReassignModal(clientId, { returnToMenu: false });
   if (actionKey === 'open_notes') openClientNotes(clientId);
+  if (actionKey === 'client_quotes') openClientQuotes(clientId);
   if (actionKey === 'copy_message') copyText(buildMessageForClient(client, { advance: true }), 'Mensaje copiado');
   if (actionKey === 'copy_template') openTemplatePickerForClient(clientId);
   if (actionKey === 'copy_phone') copyText(normalizePhone(client?.phone || ''), 'Número copiado');
