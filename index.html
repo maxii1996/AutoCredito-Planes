@@ -1554,7 +1554,10 @@
         </div>
         <div class="assistant-header">
           <div class="assistant-client-block">
-            <p class="muted tiny">Cliente</p>
+            <div class="assistant-client-header">
+              <p class="muted tiny">Cliente</p>
+              <span class="assistant-pending-pill" id="assistantPendingCount">-</span>
+            </div>
             <h3 id="assistantClientName">-</h3>
             <p class="muted tiny" id="assistantHelper"></p>
           </div>
@@ -1609,6 +1612,10 @@
             <i class='bx bx-search'></i>
             <input id="assistantQuickSearch" placeholder="Buscar por nombre, teléfono, documento o modelo" />
           </div>
+          <div class="assistant-quick-controls">
+            <button class="primary-btn mini" id="assistantQuickSearchBtn" type="button"><i class='bx bx-search-alt'></i>Buscar</button>
+            <button class="ghost-btn mini" id="assistantQuickResetBtn" type="button"><i class='bx bx-refresh'></i>Restablecer</button>
+          </div>
           <div class="assistant-quick-results" id="assistantQuickResults"></div>
         </div>
         <div class="assistant-quick-detail">
@@ -1633,6 +1640,7 @@
           <button class="preferences-tab active" data-pref-tab="fonts"><i class='bx bx-font'></i> Tipografía</button>
           <button class="preferences-tab" data-pref-tab="context"><i class='bx bx-layout'></i> Menú contextual</button>
           <button class="preferences-tab" data-pref-tab="display"><i class='bx bx-low-vision'></i> Visualización</button>
+          <button class="preferences-tab" data-pref-tab="extras"><i class='bx bx-bell'></i> Funciones adicionales</button>
           <button class="preferences-tab" data-pref-tab="site"><i class='bx bx-cog'></i> Ajustes del sitio</button>
         </aside>
         <div class="preferences-panels">
@@ -1686,6 +1694,35 @@
                 <span>Mostrar botón flotante para volver arriba</span>
               </label>
               <p class="muted tiny">Aparece cuando te desplazas en la lista y permite regresar al inicio rápidamente.</p>
+            </div>
+          </section>
+          <section class="preferences-section pref-panel" data-pref-panel="extras">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Funciones adicionales</p>
+                <h4>Sistema de advertencia de mensajes masivos</h4>
+                <p class="muted tiny">Supervisa el volumen de mensajes enviados por cuenta y recibe alertas personalizadas.</p>
+              </div>
+            </div>
+            <div class="preference-row">
+              <div class="preference-label">
+                <strong>Activar advertencias por mensajes masivos</strong>
+                <span class="muted tiny">Se controla por cuenta y solo suma al pasar de pendiente a contactado.</span>
+              </div>
+              <label class="toggle inline" for="bulkMessageWarningToggle">
+                <input type="checkbox" id="bulkMessageWarningToggle">
+                <span>Activado</span>
+              </label>
+            </div>
+            <div class="preference-row hidden" id="bulkMessageWarningThresholdRow">
+              <div class="preference-label">
+                <strong>Umbral de advertencia</strong>
+                <span class="muted tiny">Cantidad de mensajes antes de mostrar la alerta.</span>
+              </div>
+              <div class="preference-controls">
+                <input type="number" min="5" max="300" step="1" id="bulkMessageWarningThreshold">
+                <span class="muted tiny">mensajes</span>
+              </div>
             </div>
           </section>
           <section class="preferences-section pref-panel" data-pref-panel="site">
@@ -2235,6 +2272,23 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+  <div id="bulkMessageWarningModal" class="modal hidden">
+    <div class="modal-content bulk-warning-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Advertencia</p>
+          <h3>Mensajes masivos detectados</h3>
+          <p class="muted" id="bulkWarningMessage">-</p>
+        </div>
+        <button class="ghost-btn icon-only" id="bulkWarningClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions stacked">
+        <button class="secondary-btn" id="bulkWarningRemind5"><i class='bx bx-bell'></i>Recordarme dentro de 5 mensajes más</button>
+        <button class="secondary-btn" id="bulkWarningRemind20"><i class='bx bx-bell'></i>Recordarme dentro de 20 mensajes más</button>
+        <button class="ghost-btn" id="bulkWarningSnooze"><i class='bx bx-time-five'></i>No recordarme más hasta dentro de 1 hora</button>
       </div>
     </div>
   </div>

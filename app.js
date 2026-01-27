@@ -134,7 +134,12 @@ const defaultUiState = {
     fontSizes: { ...defaultPreferenceFontSizes },
     phoneDisplay: 'plain',
     contextMenuVisibility: { data: {}, actions: {} },
-    scrollTopEnabled: true
+    scrollTopEnabled: true,
+    bulkMessageWarning: {
+      enabled: false,
+      threshold: 30,
+      accounts: {}
+    }
   },
   quoteGenerator: {
     draft: null,
@@ -164,7 +169,7 @@ const SESSION_IDLE_TIMEOUT_MS = SESSION_IDLE_HOURS * 60 * 60 * 1000;
 const OFFLINE_SESSION_MS = SESSION_IDLE_TIMEOUT_MS;
 const IDLE_TIMEOUT_MS = SESSION_IDLE_TIMEOUT_MS;
 const REMOTE_SYNC_DEBOUNCE_MS = 5000;
-const REMOTE_SYNC_MIN_INTERVAL_MS = 30000;
+const REMOTE_SYNC_MIN_INTERVAL_MS = 45000;
 const PRESENCE_ACTIVITY_DEBOUNCE_MS = 30000;
 const SYNC_HASH_STORAGE_KEY = 'syncHashes';
 const STORAGE_PREFIX = 'acp';
@@ -3011,11 +3016,19 @@ function mergePreferences(current = {}) {
   const defaultVisibility = buildDefaultContextMenuVisibility();
   const dataVisibility = { ...defaultVisibility.data, ...(current.contextMenuVisibility?.data || {}) };
   const actionVisibility = { ...defaultVisibility.actions, ...(current.contextMenuVisibility?.actions || {}) };
+  const bulkBase = base.bulkMessageWarning || { enabled: false, threshold: 30, accounts: {} };
+  const bulkCurrent = current.bulkMessageWarning || {};
+  const bulkThreshold = Math.max(5, Number(bulkCurrent.threshold ?? bulkBase.threshold) || bulkBase.threshold);
   return {
     fontSizes,
     phoneDisplay: current.phoneDisplay ?? base.phoneDisplay,
     contextMenuVisibility: { data: dataVisibility, actions: actionVisibility },
-    scrollTopEnabled: current.scrollTopEnabled ?? base.scrollTopEnabled
+    scrollTopEnabled: current.scrollTopEnabled ?? base.scrollTopEnabled,
+    bulkMessageWarning: {
+      enabled: bulkCurrent.enabled ?? bulkBase.enabled,
+      threshold: bulkThreshold,
+      accounts: { ...(bulkCurrent.accounts || {}) }
+    }
   };
 }
 
@@ -4120,6 +4133,7 @@ async function bootModules() {
     bindAccountInfoModal();
     bindTemplatePicker();
     bindContactAssistant();
+    bindBulkMessageWarningModal();
     bindScheduleModal();
     bindActionCustomizer();
     bindCustomContextMenu();
@@ -4862,6 +4876,19 @@ function renderPreferencesPanel() {
   if (scrollToggle) {
     scrollToggle.checked = prefs.scrollTopEnabled !== false;
   }
+
+  const bulkToggle = document.getElementById('bulkMessageWarningToggle');
+  const bulkThreshold = document.getElementById('bulkMessageWarningThreshold');
+  const bulkThresholdRow = document.getElementById('bulkMessageWarningThresholdRow');
+  if (bulkToggle) {
+    bulkToggle.checked = prefs.bulkMessageWarning?.enabled === true;
+  }
+  if (bulkThreshold) {
+    bulkThreshold.value = Number(prefs.bulkMessageWarning?.threshold || 30);
+  }
+  if (bulkThresholdRow) {
+    bulkThresholdRow.classList.toggle('hidden', !(prefs.bulkMessageWarning?.enabled));
+  }
 }
 
 function bindPreferencesPanel() {
@@ -4870,6 +4897,9 @@ function bindPreferencesPanel() {
   const closeBtn = document.getElementById('closePreferences');
   const phoneSelect = document.getElementById('phoneDisplaySelect');
   const scrollToggle = document.getElementById('scrollTopToggle');
+  const bulkToggle = document.getElementById('bulkMessageWarningToggle');
+  const bulkThreshold = document.getElementById('bulkMessageWarningThreshold');
+  const bulkThresholdRow = document.getElementById('bulkMessageWarningThresholdRow');
   const tabs = document.querySelectorAll('.preferences-tab');
   const panels = document.querySelectorAll('.pref-panel');
   const panelsContainer = document.querySelector('#preferencesPanel .preferences-panels');
@@ -4941,6 +4971,28 @@ function bindPreferencesPanel() {
       updateScrollTopButton();
     });
     scrollToggle.dataset.bound = 'true';
+  }
+
+  if (bulkToggle && !bulkToggle.dataset.bound) {
+    bulkToggle.addEventListener('change', () => {
+      uiState.preferences = mergePreferences(uiState.preferences);
+      uiState.preferences.bulkMessageWarning.enabled = bulkToggle.checked;
+      if (bulkThresholdRow) {
+        bulkThresholdRow.classList.toggle('hidden', !bulkToggle.checked);
+      }
+      persist();
+    });
+    bulkToggle.dataset.bound = 'true';
+  }
+
+  if (bulkThreshold && !bulkThreshold.dataset.bound) {
+    bulkThreshold.addEventListener('input', () => {
+      const value = Math.max(5, Number(bulkThreshold.value) || 30);
+      uiState.preferences = mergePreferences(uiState.preferences);
+      uiState.preferences.bulkMessageWarning.threshold = value;
+      persist();
+    });
+    bulkThreshold.dataset.bound = 'true';
   }
 }
 
@@ -10835,6 +10887,8 @@ function bindContactAssistant() {
   const quickAdjustBtn = document.getElementById('assistantQuickAdjustBtn');
   const quickAdjustClose = document.getElementById('assistantQuickAdjustClose');
   const quickAdjustSearch = document.getElementById('assistantQuickSearch');
+  const quickAdjustSearchBtn = document.getElementById('assistantQuickSearchBtn');
+  const quickAdjustResetBtn = document.getElementById('assistantQuickResetBtn');
   const assistantAccountSelect = document.getElementById('assistantAccountSelect');
   const markContactedBtn = document.getElementById('assistantMarkContacted');
   const markNoNumberBtn = document.getElementById('assistantMarkNoNumber');
@@ -10854,13 +10908,33 @@ function bindContactAssistant() {
   if (closeBtn) closeBtn.addEventListener('click', closeAssistant);
   if (quickAdjustBtn) quickAdjustBtn.addEventListener('click', openAssistantQuickAdjust);
   if (quickAdjustClose) quickAdjustClose.addEventListener('click', closeAssistantQuickAdjust);
+  const applyQuickAdjustSearch = () => {
+    if (!quickAdjustSearch) return;
+    const term = quickAdjustSearch.value.trim();
+    clientManagerState.contactAssistantQuickAdjust.search = term;
+    clientManagerState.contactAssistantQuickAdjust.selectedId = null;
+    renderAssistantQuickAdjust();
+    persist();
+  };
+  const resetQuickAdjustSearch = () => {
+    if (!quickAdjustSearch) return;
+    quickAdjustSearch.value = '';
+    clientManagerState.contactAssistantQuickAdjust.search = '';
+    clientManagerState.contactAssistantQuickAdjust.selectedId = null;
+    renderAssistantQuickAdjust();
+    persist();
+    quickAdjustSearch.focus();
+  };
   if (quickAdjustSearch) {
-    quickAdjustSearch.addEventListener('input', () => {
-      clientManagerState.contactAssistantQuickAdjust.search = quickAdjustSearch.value;
-      renderAssistantQuickAdjust();
-      persist();
+    quickAdjustSearch.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applyQuickAdjustSearch();
+      }
     });
   }
+  if (quickAdjustSearchBtn) quickAdjustSearchBtn.addEventListener('click', applyQuickAdjustSearch);
+  if (quickAdjustResetBtn) quickAdjustResetBtn.addEventListener('click', resetQuickAdjustSearch);
   if (assistantAccountSelect && !assistantAccountSelect.dataset.bound) {
     assistantAccountSelect.addEventListener('change', () => {
       requestAccountSwitch(assistantAccountSelect.value);
@@ -13687,14 +13761,17 @@ function assistantContext() {
 
 function updateAssistantHelper(pending = []) {
   const helper = document.getElementById('assistantHelper');
+  const pendingCount = document.getElementById('assistantPendingCount');
   if (!helper) return;
   if (!pending.length) {
     helper.textContent = 'No hay clientes pendientes para contactar.';
+    if (pendingCount) pendingCount.textContent = '0 pendientes';
     return;
   }
   const state = normalizeContactAssistantState();
   const index = Math.min(state.currentIndex, pending.length - 1);
-  helper.textContent = `${index + 1} de ${pending.length} pendientes.`;
+  helper.textContent = 'Contacto listo para gestionar.';
+  if (pendingCount) pendingCount.textContent = `Pendientes: ${index + 1}/${pending.length}`;
 }
 
 function updateAssistantUndo() {
@@ -15803,9 +15880,92 @@ function buildStatusMetaHtml(client, status) {
   `;
 }
 
+const BULK_MESSAGE_SNOOZE_MS = 60 * 60 * 1000;
+let bulkWarningContext = null;
+
+function normalizeBulkMessageAccountState(state = {}, threshold = 30) {
+  const count = Number(state.count) || 0;
+  const nextReminderAt = Math.max(threshold, Number(state.nextReminderAt) || threshold);
+  const snoozeUntil = Number(state.snoozeUntil) || 0;
+  return { count, nextReminderAt, snoozeUntil };
+}
+
+function updateBulkMessageAccountState(accountId, nextState, shouldPersist = true) {
+  if (!accountId) return null;
+  uiState.preferences = mergePreferences(uiState.preferences);
+  uiState.preferences.bulkMessageWarning.accounts = {
+    ...(uiState.preferences.bulkMessageWarning.accounts || {}),
+    [accountId]: { ...nextState }
+  };
+  if (shouldPersist) persist();
+  return uiState.preferences.bulkMessageWarning.accounts[accountId];
+}
+
+function openBulkMessageWarningModal({ accountId, accountName, accountPhone, count, threshold }) {
+  const modal = document.getElementById('bulkMessageWarningModal');
+  const message = document.getElementById('bulkWarningMessage');
+  if (!modal || !message) return;
+  bulkWarningContext = { accountId, count, threshold };
+  const phoneLabel = accountPhone || 'Sin teléfono';
+  message.textContent = `La cuenta: ${accountName} (Teléfono: ${phoneLabel}) lleva enviados: ${count} / ${threshold} mensajes. Ten cuidado.`;
+  toggleModal(modal, true);
+}
+
+function closeBulkMessageWarningModal() {
+  const modal = document.getElementById('bulkMessageWarningModal');
+  if (!modal) return;
+  toggleModal(modal, false);
+  bulkWarningContext = null;
+}
+
+function applyBulkMessageReminder(offset = 5) {
+  if (!bulkWarningContext?.accountId) return;
+  const accountId = bulkWarningContext.accountId;
+  const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
+  const nextState = normalizeBulkMessageAccountState(
+    prefs.accounts?.[accountId],
+    prefs.threshold
+  );
+  nextState.nextReminderAt = (bulkWarningContext.count || nextState.count) + offset;
+  nextState.snoozeUntil = 0;
+  updateBulkMessageAccountState(accountId, nextState);
+  closeBulkMessageWarningModal();
+}
+
+function applyBulkMessageSnooze() {
+  if (!bulkWarningContext?.accountId) return;
+  const accountId = bulkWarningContext.accountId;
+  const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
+  const nextState = normalizeBulkMessageAccountState(
+    prefs.accounts?.[accountId],
+    prefs.threshold
+  );
+  nextState.snoozeUntil = Date.now() + BULK_MESSAGE_SNOOZE_MS;
+  updateBulkMessageAccountState(accountId, nextState);
+  closeBulkMessageWarningModal();
+}
+
+function bindBulkMessageWarningModal() {
+  const modal = document.getElementById('bulkMessageWarningModal');
+  const closeBtn = document.getElementById('bulkWarningClose');
+  const remind5 = document.getElementById('bulkWarningRemind5');
+  const remind20 = document.getElementById('bulkWarningRemind20');
+  const snooze = document.getElementById('bulkWarningSnooze');
+  if (!modal || modal.dataset.bound) return;
+  if (closeBtn) closeBtn.addEventListener('click', () => applyBulkMessageReminder(5));
+  if (remind5) remind5.addEventListener('click', () => applyBulkMessageReminder(5));
+  if (remind20) remind20.addEventListener('click', () => applyBulkMessageReminder(20));
+  if (snooze) snooze.addEventListener('click', applyBulkMessageSnooze);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) applyBulkMessageReminder(5);
+  });
+  modal.dataset.bound = 'true';
+}
+
 function updateClientFlag(id, flag, forceValue = null) {
   const client = managerClients.find(c => c.id === id);
   if (!client) return;
+  const previousStatus = clientStatus(client);
   client.flags = client.flags || {};
   client.flags.customStatus = null;
   if (flag === 'favorite') {
@@ -15823,6 +15983,32 @@ function updateClientFlag(id, flag, forceValue = null) {
     if (client.flags.contacted) updateClientJourneyStatus(client, DEFAULT_JOURNEY_STATUS_KEY);
   }
   updateContactMeta(client);
+  if (flag === 'contacted' && client.flags.contacted && previousStatus.className === 'status-pending') {
+    const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
+    if (prefs.enabled) {
+      const activeAccount = getActiveAccount();
+      const accountId = activeAccount?.id || '';
+      if (accountId) {
+        const accountState = normalizeBulkMessageAccountState(
+          prefs.accounts?.[accountId],
+          prefs.threshold
+        );
+        accountState.count += 1;
+        const shouldNotify = accountState.count >= accountState.nextReminderAt
+          && Date.now() >= accountState.snoozeUntil;
+        updateBulkMessageAccountState(accountId, accountState, false);
+        if (shouldNotify) {
+          openBulkMessageWarningModal({
+            accountId,
+            accountName: activeAccount?.name || 'Sin cuenta',
+            accountPhone: activeAccount?.phone || '',
+            count: accountState.count,
+            threshold: prefs.threshold
+          });
+        }
+      }
+    }
+  }
   persist();
   renderClientManager();
 }
