@@ -14375,14 +14375,10 @@ function renderAssistantQuickAdjust() {
       : '<p class="muted">Escribe un nombre o documento para comenzar la búsqueda.</p>';
   } else {
     results.innerHTML = trimmed.map(client => {
-      const phoneLabel = formatPhoneDisplay(client.phone || '') || 'Sin teléfono';
-      const status = clientStatus(client).label;
       const active = client.id === state.selectedId ? ' active' : '';
       return `
         <div class="assistant-quick-card${active}" data-quick-client="${client.id}">
-          <strong>${client.name || 'Sin nombre'}</strong>
-          <span class="muted tiny">${client.model || 'Sin modelo'} · ${phoneLabel}</span>
-          <span class="muted tiny">${status}</span>
+          <span class="assistant-quick-name" title="${client.name || 'Sin nombre'}">${client.name || 'Sin nombre'}</span>
         </div>
       `;
     }).join('');
