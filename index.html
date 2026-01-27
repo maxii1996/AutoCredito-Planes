@@ -1540,8 +1540,7 @@
     <div class="popover assistant" id="contactAssistantPopover">
       <div class="popover-head">
         <div>
-          <p class="eyebrow">Ronda de pendientes</p>
-          <h3>Asistente de Contactos</h3>
+          <h3 class="assistant-title">Contacto Express</h3>
         </div>
         <button class="ghost-btn icon-only" id="closeContactAssistant"><i class='bx bx-x'></i></button>
       </div>
@@ -1554,9 +1553,19 @@
           <button class="secondary-btn" id="assistantUndoBtn"><i class='bx bx-undo'></i>Deshacer esta acción</button>
         </div>
         <div class="assistant-header">
-          <p class="muted tiny">Cliente actual</p>
-          <h3 id="assistantClientName">-</h3>
-          <p class="muted tiny" id="assistantHelper"></p>
+          <div class="assistant-client-block">
+            <p class="muted tiny">Cliente</p>
+            <h3 id="assistantClientName">-</h3>
+            <p class="muted tiny" id="assistantHelper"></p>
+          </div>
+          <div class="assistant-tools">
+            <div class="assistant-account">
+              <label class="muted tiny" for="assistantAccountSelect">Cuenta activa</label>
+              <select id="assistantAccountSelect"></select>
+              <p class="muted tiny" id="assistantAccountStatus"></p>
+            </div>
+            <button class="secondary-btn" id="assistantQuickAdjustBtn" type="button"><i class='bx bx-tachometer'></i>Ajuste rápido</button>
+          </div>
         </div>
         <div class="assistant-layout" id="contactAssistantCard">
           <div class="assistant-card clickable" data-tone="cyan" data-assistant-action="copy_phone" role="button" tabindex="0" aria-label="Copiar teléfono">
@@ -1580,6 +1589,31 @@
               <button class="glow-btn" id="assistantMarkNoNumber" data-tone="red"><i class='bx bx-block'></i> Número no disponible</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="popover-overlay fade" id="assistantQuickAdjustOverlay">
+    <div class="popover wide" id="assistantQuickAdjustPopover">
+      <div class="popover-head">
+        <div>
+          <p class="eyebrow">Ajuste rápido</p>
+          <h3>Buscar y ajustar contactos sin salir del asistente</h3>
+          <p class="muted subtle">Selecciona un cliente para ver su ficha completa y ejecutar acciones al instante.</p>
+        </div>
+        <button class="ghost-btn icon-only" id="assistantQuickAdjustClose"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="assistant-quick-layout">
+        <div class="assistant-quick-search">
+          <div class="search-field">
+            <i class='bx bx-search'></i>
+            <input id="assistantQuickSearch" placeholder="Buscar por nombre, teléfono, documento o modelo" />
+          </div>
+          <div class="assistant-quick-results" id="assistantQuickResults"></div>
+        </div>
+        <div class="assistant-quick-detail">
+          <div class="assistant-quick-detail-card" id="assistantQuickDetail"></div>
+          <div class="assistant-quick-actions" id="assistantQuickActions"></div>
         </div>
       </div>
     </div>
@@ -1773,9 +1807,15 @@
         </div>
         <button class="ghost-btn icon-only" id="contactLogClose"><i class='bx bx-x'></i></button>
       </div>
-      <div class="search-field">
-        <i class='bx bx-search'></i>
-        <input id="contactLogSearch" placeholder="Buscar por nombre, estado o teléfono" />
+      <div class="contact-log-filters">
+        <div class="search-field">
+          <i class='bx bx-search'></i>
+          <input id="contactLogSearch" placeholder="Buscar por nombre, estado o teléfono" />
+        </div>
+        <div class="field compact-field inline">
+          <label for="contactLogStatusFilter">Por estado</label>
+          <select id="contactLogStatusFilter"></select>
+        </div>
       </div>
       <div class="contact-log-body" id="contactLogList"></div>
       <div id="contactLogEmpty" class="empty-state hidden">

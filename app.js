@@ -691,6 +691,7 @@ const defaultClientManagerState = {
     selectedColumns: Object.keys(exportableColumns)
   },
   contactLogSearch: '',
+  contactLogStatusFilter: 'all',
   editingMode: false,
   actionVisibility: { ...defaultActionVisibility },
   customActions: [],
@@ -699,6 +700,10 @@ const defaultClientManagerState = {
     interval: 15,
     currentIndex: 0,
     lastAction: null
+  },
+  contactAssistantQuickAdjust: {
+    search: '',
+    selectedId: null
   }
 };
 
@@ -2038,6 +2043,11 @@ async function applyProfileData(parsed) {
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
   clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
+  clientManagerState.contactAssistantQuickAdjust = {
+    ...defaultClientManagerState.contactAssistantQuickAdjust,
+    ...(clientManagerState.contactAssistantQuickAdjust || {})
+  };
+  clientManagerState.contactLogStatusFilter = clientManagerState.contactLogStatusFilter || defaultClientManagerState.contactLogStatusFilter;
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
@@ -2936,15 +2946,14 @@ function requestAccountSwitch(accountId) {
   if (settings.activeAccountId === accountId) return;
   const account = settings.accounts.find(acc => acc.id === accountId) || settings.accounts[0];
   if (!account) return;
-  showProfileSwitchOverlay(account.name || 'Sin cuenta');
   if (profileSwitchTimer) {
     clearTimeout(profileSwitchTimer);
   }
-  profileSwitchTimer = setTimeout(() => {
-    setActiveAccount(accountId);
-    hideProfileSwitchOverlay();
-    profileSwitchTimer = null;
-  }, 1000);
+  setActiveAccount(accountId);
+  const message = `${account.name || 'Sin cuenta'} es ahora la cuenta activa.`;
+  showToast(message, 'success');
+  updateAssistantAccountStatus(message);
+  profileSwitchTimer = null;
 }
 
 function setActiveAccount(accountId) {
@@ -2957,11 +2966,36 @@ function setActiveAccount(accountId) {
   renderWelcomeHero();
   renderClientManager();
   renderContactLog();
+  renderAssistantAccountSelector();
   refreshAutoVariableInputs();
   const modal = document.getElementById('accountManagerModal');
   if (modal?.classList.contains('show')) {
     renderAccountManager();
   }
+}
+
+function renderAssistantAccountSelector() {
+  const select = document.getElementById('assistantAccountSelect');
+  const status = document.getElementById('assistantAccountStatus');
+  if (!select) return;
+  const settings = mergeGlobalSettings(uiState.globalSettings);
+  const accounts = settings.accounts || [];
+  select.innerHTML = accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
+  select.value = settings.activeAccountId || accounts[0]?.id || '';
+  select.disabled = accounts.length === 0;
+  if (status && !status.dataset.pinned) status.textContent = '';
+}
+
+function updateAssistantAccountStatus(message) {
+  const status = document.getElementById('assistantAccountStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.pinned = 'true';
+  setTimeout(() => {
+    if (!status) return;
+    status.textContent = '';
+    status.dataset.pinned = '';
+  }, 2400);
 }
 
 function buildDefaultContextMenuVisibility() {
@@ -3645,7 +3679,7 @@ function loaderMetricForModule(moduleId) {
     case 'quickActions':
       return { label: 'acciones cargadas', total: (clientManagerState.customActions || []).length };
     case 'contactLog':
-      return { label: 'contactos cargados', total: contactLogEntries().length };
+      return { label: 'contactos cargados', total: contactLogEntries({ search: '', statusFilter: 'all' }).length };
     case 'journeyReport':
       return { label: 'registros cargados', total: managerClients.length };
     case 'scheduledClients':
@@ -4005,6 +4039,11 @@ clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientMa
 clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
 clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
 clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
+clientManagerState.contactAssistantQuickAdjust = {
+  ...defaultClientManagerState.contactAssistantQuickAdjust,
+  ...(clientManagerState.contactAssistantQuickAdjust || {})
+};
+clientManagerState.contactLogStatusFilter = clientManagerState.contactLogStatusFilter || defaultClientManagerState.contactLogStatusFilter;
 
 uiState.templateSearch = uiState.templateSearch || '';
 uiState.clientSearch = uiState.clientSearch || '';
@@ -10275,6 +10314,15 @@ function bindClientManager() {
       persist();
     });
   }
+  const contactLogStatusFilter = document.getElementById('contactLogStatusFilter');
+  if (contactLogStatusFilter) {
+    contactLogStatusFilter.value = clientManagerState.contactLogStatusFilter || 'all';
+    contactLogStatusFilter.addEventListener('change', () => {
+      clientManagerState.contactLogStatusFilter = contactLogStatusFilter.value;
+      renderContactLog();
+      persist();
+    });
+  }
 
   const editModeToggle = document.getElementById('toggleEditMode');
   if (editModeToggle) {
@@ -10784,6 +10832,10 @@ function bindContactAssistant() {
   const openBtn = document.getElementById('openContactAssistant');
   const overlay = document.getElementById('contactAssistantOverlay');
   const closeBtn = document.getElementById('closeContactAssistant');
+  const quickAdjustBtn = document.getElementById('assistantQuickAdjustBtn');
+  const quickAdjustClose = document.getElementById('assistantQuickAdjustClose');
+  const quickAdjustSearch = document.getElementById('assistantQuickSearch');
+  const assistantAccountSelect = document.getElementById('assistantAccountSelect');
   const markContactedBtn = document.getElementById('assistantMarkContacted');
   const markNoNumberBtn = document.getElementById('assistantMarkNoNumber');
   const undoBtn = document.getElementById('assistantUndoBtn');
@@ -10800,6 +10852,21 @@ function bindContactAssistant() {
 
   if (openBtn) openBtn.addEventListener('click', openAssistant);
   if (closeBtn) closeBtn.addEventListener('click', closeAssistant);
+  if (quickAdjustBtn) quickAdjustBtn.addEventListener('click', openAssistantQuickAdjust);
+  if (quickAdjustClose) quickAdjustClose.addEventListener('click', closeAssistantQuickAdjust);
+  if (quickAdjustSearch) {
+    quickAdjustSearch.addEventListener('input', () => {
+      clientManagerState.contactAssistantQuickAdjust.search = quickAdjustSearch.value;
+      renderAssistantQuickAdjust();
+      persist();
+    });
+  }
+  if (assistantAccountSelect && !assistantAccountSelect.dataset.bound) {
+    assistantAccountSelect.addEventListener('change', () => {
+      requestAccountSwitch(assistantAccountSelect.value);
+    });
+    assistantAccountSelect.dataset.bound = 'true';
+  }
 
   const handleAssistantAction = (action) => {
     const { current } = assistantContext();
@@ -13559,13 +13626,12 @@ function clientSearchHaystack(client) {
 
 function filteredManagerClients() {
   const search = (clientManagerState.search || '').toLowerCase();
-  const searchActive = !!search;
   const accountFilter = clientManagerState.accountFilter || 'all';
   return managerClients.filter(c => {
     const status = clientStatus(c).label;
     const matchesSearch = !search || clientSearchHaystack(c).includes(search);
-    const matchesDate = searchActive ? true : isWithinDateRange(c.systemDate, clientManagerState.dateRange);
-    const matchesStatus = searchActive ? true : (
+    const matchesDate = isWithinDateRange(c.systemDate, clientManagerState.dateRange);
+    const matchesStatus = (
       clientManagerState.statusFilter === 'all'
         ? true
         : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
@@ -13574,7 +13640,7 @@ function filteredManagerClients() {
         : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
         : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
     );
-    const matchesAccount = searchActive ? true : (
+    const matchesAccount = (
       accountFilter === 'all'
         ? true
         : c.contactMeta?.accountId === accountFilter
@@ -13692,6 +13758,166 @@ function renderContactAssistant(direction = '') {
   messagePreview.textContent = preview;
 
   updateAssistantHelper(pending);
+  renderAssistantAccountSelector();
+  const quickOverlay = document.getElementById('assistantQuickAdjustOverlay');
+  if (quickOverlay?.classList.contains('show')) {
+    renderAssistantQuickAdjust();
+  }
+}
+
+function normalizeAssistantQuickAdjustState() {
+  const current = clientManagerState.contactAssistantQuickAdjust || {};
+  const search = (current.search || '').toString();
+  const selectedId = current.selectedId || null;
+  clientManagerState.contactAssistantQuickAdjust = { search, selectedId };
+  return clientManagerState.contactAssistantQuickAdjust;
+}
+
+function assistantQuickAdjustMatches(client, term) {
+  const normalized = normalizeSearchTerm(term);
+  if (!normalized) return false;
+  const haystack = [
+    client.name,
+    client.document,
+    client.cuit,
+    client.phone,
+    client.model,
+    client.city,
+    client.province
+  ].map(value => normalizeSearchTerm(value)).join(' ');
+  return haystack.includes(normalized);
+}
+
+function buildAssistantQuickDetail(client) {
+  if (!client) {
+    return '<p class="muted">Busca un cliente para ver su ficha completa.</p>';
+  }
+  const status = clientStatus(client);
+  const accountName = client.contactMeta?.accountName || 'Sin cuenta';
+  const phoneLabel = formatPhoneDisplay(client.phone || '') || 'Sin teléfono';
+  const location = [client.city, client.province].filter(Boolean).join(' - ') || 'Sin ubicación';
+  const detailRows = [
+    ['Nombre', client.name || 'Sin nombre'],
+    ['Teléfono', phoneLabel],
+    ['Modelo', client.model || 'Sin modelo'],
+    ['Marca', client.brand || 'Sin marca'],
+    ['Documento', client.document || 'Sin datos'],
+    ['CUIT', client.cuit || 'Sin datos'],
+    ['Ubicación', location],
+    ['Fecha de carga', formatDateForDisplay(client.systemDate) || 'Sin fecha'],
+    ['Último contacto', formatDateTimeForDisplay(client.contactDate) || 'Sin fecha'],
+    ['Estado', status.label],
+    ['Cuenta', accountName]
+  ];
+  return `
+    <div class="assistant-quick-detail-grid">
+      ${detailRows.map(([label, value]) => `
+        <div>
+          <strong>${label}</strong>
+          <span>${value}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderAssistantQuickAdjust() {
+  const overlay = document.getElementById('assistantQuickAdjustOverlay');
+  const searchInput = document.getElementById('assistantQuickSearch');
+  const results = document.getElementById('assistantQuickResults');
+  const detail = document.getElementById('assistantQuickDetail');
+  const actions = document.getElementById('assistantQuickActions');
+  if (!overlay || !results || !detail || !actions) return;
+
+  const state = normalizeAssistantQuickAdjustState();
+  if (searchInput && searchInput.value !== state.search) {
+    searchInput.value = state.search;
+  }
+  const term = normalizeSearchTerm(state.search);
+  const matches = term
+    ? managerClients.filter(client => assistantQuickAdjustMatches(client, term))
+    : [];
+  const trimmed = matches.slice(0, 60);
+
+  if (!trimmed.length) {
+    results.innerHTML = term
+      ? '<p class="muted">No se encontraron resultados con ese criterio.</p>'
+      : '<p class="muted">Escribe un nombre o documento para comenzar la búsqueda.</p>';
+  } else {
+    results.innerHTML = trimmed.map(client => {
+      const phoneLabel = formatPhoneDisplay(client.phone || '') || 'Sin teléfono';
+      const status = clientStatus(client).label;
+      const active = client.id === state.selectedId ? ' active' : '';
+      return `
+        <div class="assistant-quick-card${active}" data-quick-client="${client.id}">
+          <strong>${client.name || 'Sin nombre'}</strong>
+          <span class="muted tiny">${client.model || 'Sin modelo'} · ${phoneLabel}</span>
+          <span class="muted tiny">${status}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const selected = managerClients.find(client => client.id === state.selectedId) || trimmed[0] || null;
+  if (selected && selected.id !== state.selectedId) {
+    clientManagerState.contactAssistantQuickAdjust.selectedId = selected.id;
+  }
+  detail.innerHTML = buildAssistantQuickDetail(selected);
+
+  if (!selected) {
+    actions.innerHTML = '';
+    return;
+  }
+  const options = clientActionOptions(selected, { returnToMenu: false }).filter(option => option.key !== 'done');
+  actions.innerHTML = options.map(opt => `
+    <div class="action-card" data-key="${opt.key}">
+      <div class="action-card-head">
+        <span class="action-icon" ${opt.tone ? `data-tone="${opt.tone}"` : ''}><i class='bx ${opt.icon || 'bx-dots-vertical-rounded'}'></i></span>
+        <div>
+          <span class="label">${opt.label}</span>
+          <p class="muted tiny">${opt.description}</p>
+          ${opt.currentValue ? `<p class="muted tiny current-value">[${opt.currentValue(selected)}]</p>` : ''}
+        </div>
+      </div>
+      <button class="${opt.danger ? 'ghost-btn action-btn danger' : opt.primary ? 'primary-btn action-btn' : opt.highlight ? 'success-btn action-btn' : 'secondary-btn action-btn'}" data-action="${opt.key}">
+        <span>${opt.danger ? 'Borrar' : (opt.buttonText || 'Seleccionar')}</span><i class='bx bx-chevron-right'></i>
+      </button>
+    </div>
+  `).join('');
+
+  actions.querySelectorAll('[data-action]').forEach(btn => {
+    const key = btn.dataset.action;
+    const opt = options.find(option => option.key === key);
+    btn.onclick = () => {
+      if (!opt?.handler) return;
+      opt.handler();
+      setTimeout(() => renderAssistantQuickAdjust(), 120);
+    };
+  });
+
+  results.querySelectorAll('[data-quick-client]').forEach(card => {
+    if (card.dataset.bound) return;
+    card.addEventListener('click', () => {
+      clientManagerState.contactAssistantQuickAdjust.selectedId = card.dataset.quickClient;
+      renderAssistantQuickAdjust();
+    });
+    card.dataset.bound = 'true';
+  });
+}
+
+function openAssistantQuickAdjust() {
+  const overlay = document.getElementById('assistantQuickAdjustOverlay');
+  if (!overlay) return;
+  renderAssistantQuickAdjust();
+  toggleFadeOverlay(overlay, true);
+  const searchInput = document.getElementById('assistantQuickSearch');
+  setTimeout(() => searchInput?.focus(), 120);
+}
+
+function closeAssistantQuickAdjust() {
+  const overlay = document.getElementById('assistantQuickAdjustOverlay');
+  if (!overlay) return;
+  toggleFadeOverlay(overlay, false);
 }
 
 function paginateClients(rows = []) {
@@ -13750,8 +13976,11 @@ function updateEditModeButton(button) {
   button.innerHTML = `${active ? "<i class='bx bx-lock-open'></i>Desactivar Modo Edición" : "<i class='bx bx-edit-alt'></i>Activar Modo Edición"}`;
 }
 
-function contactLogEntries() {
-  const search = (clientManagerState.contactLogSearch || '').toLowerCase();
+function contactLogEntries({ search = null, statusFilter = null } = {}) {
+  const searchTerm = (typeof search === 'string' ? search : (clientManagerState.contactLogSearch || '')).toLowerCase();
+  const statusValue = typeof statusFilter === 'string'
+    ? statusFilter
+    : (clientManagerState.contactLogStatusFilter || 'all');
   return managerClients
     .map(c => {
       const status = clientStatus(c);
@@ -13767,8 +13996,33 @@ function contactLogEntries() {
     .filter(item => item.status.className !== 'status-pending')
     .map(item => ({ ...item, effectiveDate: item.contactDate || normalizeDateTime(item.fallbackDate) }))
     .filter(item => !!item.effectiveDate)
-    .filter(item => [item.name, item.phone, item.status.label].some(val => val.toLowerCase().includes(search)))
+    .filter(item => (statusValue === 'all' ? true : item.status.className === statusValue))
+    .filter(item => [item.name, item.phone, item.status.label].some(val => val.toLowerCase().includes(searchTerm)))
     .sort((a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime());
+}
+
+function renderContactLogStatusFilter(entries = []) {
+  const select = document.getElementById('contactLogStatusFilter');
+  if (!select) return;
+  const counts = entries.reduce((acc, entry) => {
+    const key = entry.status.className;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const options = [
+    { value: 'all', label: 'Todos', count: entries.length },
+    { value: 'status-contacted', label: 'Contactados', count: counts['status-contacted'] || 0 },
+    { value: 'status-no-number', label: 'Número no disponible', count: counts['status-no-number'] || 0 },
+    { value: 'status-favorite', label: 'Favoritos', count: counts['status-favorite'] || 0 }
+  ];
+  if (counts['status-custom']) {
+    options.push({ value: 'status-custom', label: 'Acciones personalizadas', count: counts['status-custom'] || 0 });
+  }
+  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
+  if (!options.some(opt => opt.value === clientManagerState.contactLogStatusFilter)) {
+    clientManagerState.contactLogStatusFilter = 'all';
+  }
+  select.value = clientManagerState.contactLogStatusFilter;
 }
 
 const clientGridCompactWidths = {
@@ -14168,6 +14422,8 @@ function renderContactLog() {
     search.value = clientManagerState.contactLogSearch || '';
   }
 
+  const baseEntries = contactLogEntries({ search: clientManagerState.contactLogSearch || '', statusFilter: 'all' });
+  renderContactLogStatusFilter(baseEntries);
   const entries = contactLogEntries();
   if (!entries.length) {
     list.innerHTML = '';
@@ -14666,7 +14922,7 @@ function bindClientEditHandlers() {
   }
 }
 
-function clientActionOptions(client) {
+function clientActionOptions(client, { returnToMenu = true } = {}) {
   const vehicleOptions = [...new Set([...(vehicles || []).map(v => v.name), client.model].filter(Boolean))];
   const formatDateValue = (value) => formatDateForDisplay(value) || 'Sin datos';
   return [
@@ -14677,7 +14933,7 @@ function clientActionOptions(client) {
       label: 'Actualizar estado',
       description: 'Selecciona el estado actual del cliente.',
       currentValue: () => journeyStatusLabel(client),
-      handler: () => openClientStatusModal(client.id, { returnToMenu: true })
+      handler: () => openClientStatusModal(client.id, { returnToMenu })
     },
     {
       key: 'reassign_account',
@@ -14686,7 +14942,7 @@ function clientActionOptions(client) {
       label: 'Reasignación de cuenta',
       description: 'Actualiza la cuenta responsable del cliente.',
       currentValue: (c) => c.contactMeta?.accountName || 'Sin cuenta asignada',
-      handler: () => openClientReassignModal(client.id, { returnToMenu: true })
+      handler: () => openClientReassignModal(client.id, { returnToMenu })
     },
     {
       key: 'rename',
@@ -15193,12 +15449,32 @@ function toggleContactLog(show) {
 
 function focusClientRow(id) {
   activatePanel('clientManager');
-  const row = document.querySelector(`#clientManagerTable .client-row[data-id="${id}"]`);
-  if (row) {
-    row.classList.add('jump-highlight');
-    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => row.classList.remove('jump-highlight'), 2000);
+  const filtered = filteredManagerClients();
+  const pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
+  const index = filtered.findIndex(client => client.id === id);
+  if (pagination.size && index >= 0) {
+    const targetPage = Math.floor(index / pagination.size) + 1;
+    if (targetPage !== pagination.page) {
+      clientManagerState.pagination.page = targetPage;
+      persist();
+      renderClientManager();
+    }
   }
+  let attempts = 0;
+  const highlightRow = () => {
+    const row = document.querySelector(`#clientManagerTable .client-row[data-id="${id}"]`);
+    if (row) {
+      row.classList.add('jump-highlight');
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => row.classList.remove('jump-highlight'), 2000);
+      return;
+    }
+    if (attempts < 5) {
+      attempts += 1;
+      setTimeout(highlightRow, 120);
+    }
+  };
+  highlightRow();
 }
 
 function renderGlobalSettings() {
@@ -16575,6 +16851,11 @@ function syncFromStorage({ resetDefaults = false } = {}) {
   clientManagerState.dateRange = { ...defaultClientManagerState.dateRange, ...(clientManagerState.dateRange || {}) };
   clientManagerState.actionVisibility = { ...defaultActionVisibility, ...(clientManagerState.actionVisibility || {}) };
   clientManagerState.contactAssistant = { ...defaultClientManagerState.contactAssistant, ...(clientManagerState.contactAssistant || {}) };
+  clientManagerState.contactAssistantQuickAdjust = {
+    ...defaultClientManagerState.contactAssistantQuickAdjust,
+    ...(clientManagerState.contactAssistantQuickAdjust || {})
+  };
+  clientManagerState.contactLogStatusFilter = clientManagerState.contactLogStatusFilter || defaultClientManagerState.contactLogStatusFilter;
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
