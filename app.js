@@ -14325,27 +14325,28 @@ function buildAssistantQuickDetail(client) {
   const accountName = client.contactMeta?.accountName || 'Sin cuenta';
   const phoneLabel = formatPhoneDisplay(client.phone || '') || 'Sin teléfono';
   const location = [client.city, client.province].filter(Boolean).join(' - ') || 'Sin ubicación';
-  const detailRows = [
-    ['Nombre', client.name || 'Sin nombre'],
+  const detailTags = [
     ['Teléfono', phoneLabel],
     ['Modelo', client.model || 'Sin modelo'],
     ['Marca', client.brand || 'Sin marca'],
     ['Documento', client.document || 'Sin datos'],
     ['CUIT', client.cuit || 'Sin datos'],
     ['Ubicación', location],
-    ['Fecha de carga', formatDateForDisplay(client.systemDate) || 'Sin fecha'],
-    ['Último contacto', formatDateTimeForDisplay(client.contactDate) || 'Sin fecha'],
     ['Estado', status.label],
-    ['Cuenta', accountName]
   ];
   return `
-    <div class="assistant-quick-detail-grid">
-      ${detailRows.map(([label, value]) => `
-        <div>
-          <strong>${label}</strong>
-          <span>${value}</span>
-        </div>
-      `).join('')}
+    <div class="assistant-quick-detail-tags">
+      <div class="client-detail-head">
+        <strong>${client.name || 'Sin nombre'}</strong>
+      </div>
+      <div class="assistant-quick-tags">
+        ${detailTags.map(([label, value]) => `
+          <span class="detail-tag" title="${label}: ${value}">
+            <span class="detail-tag-label">${label}</span>
+            <span class="detail-tag-value">${value}</span>
+          </span>
+        `).join('')}
+      </div>
     </div>
   `;
 }
