@@ -2459,29 +2459,108 @@ function updateQuoteClientAssignment(entryId, clientId) {
   renderQuoteGeneratorSavedList();
 }
 
+function formatQuoteClientMeta(client = {}) {
+  const meta = [client.document || client.cuit || '', client.phone || client.cel || ''].filter(Boolean);
+  const location = [client.city, client.province].filter(Boolean).join(', ');
+  if (location) meta.push(location);
+  return meta.join(' • ');
+}
+
+function renderQuoteClientSelection() {
+  const nameEl = document.getElementById('quoteClientSelectedName');
+  const metaEl = document.getElementById('quoteClientSelectedMeta');
+  if (!nameEl || !metaEl) return;
+  if (activeQuoteReassignSelectionId) {
+    const client = managerClients.find(item => item.id === activeQuoteReassignSelectionId);
+    const snapshot = buildQuoteClientSnapshotFromClient(client) || { name: 'Sin nombre' };
+    const meta = formatQuoteClientMeta(snapshot);
+    nameEl.textContent = snapshot.name || 'Sin nombre';
+    metaEl.textContent = meta || 'Cliente seleccionado.';
+    return;
+  }
+  nameEl.textContent = 'Sin clasificar';
+  metaEl.textContent = 'La cotización quedará sin cliente asociado.';
+}
+
+function renderQuoteClientResults(results = [], { emptyMessage = 'No se encontraron clientes con ese nombre.' } = {}) {
+  const container = document.getElementById('quoteClientResults');
+  if (!container) return;
+  if (!results.length) {
+    container.innerHTML = `<div class="quote-client-empty">${escapeHtml(emptyMessage)}</div>`;
+    return;
+  }
+  const rows = [
+    { id: '', name: 'Sin clasificar', meta: 'La cotización quedará sin cliente asociado.' },
+    ...results
+  ];
+  container.innerHTML = rows.map((item) => {
+    const isActive = (item.id || '') === (activeQuoteReassignSelectionId || '');
+    const safeName = escapeHtml(item.name || 'Sin nombre');
+    const safeMeta = escapeHtml(item.meta || '');
+    return `
+      <button class="quote-client-result${isActive ? ' active' : ''}" type="button" data-client-id="${item.id}">
+        <span>
+          <span class="result-name">${safeName}</span>
+          <span class="muted subtle result-meta">${safeMeta}</span>
+        </span>
+        <span class="result-action">${isActive ? 'Seleccionado' : 'Elegir'}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function setQuoteClientSelection(clientId) {
+  activeQuoteReassignSelectionId = clientId || null;
+  renderQuoteClientSelection();
+  if (activeQuoteReassignResults.length) {
+    renderQuoteClientResults(activeQuoteReassignResults);
+  }
+}
+
+function performQuoteClientSearch({ silentIfEmpty = false } = {}) {
+  const input = document.getElementById('quoteClientSearchInput');
+  if (!input) return;
+  const term = normalizeSearchTerm(input.value || '');
+  if (!term) {
+    const emptyMessage = silentIfEmpty
+      ? 'Escribe un nombre y pulsa Buscar para encontrar clientes.'
+      : 'Ingresa un nombre para buscar clientes.';
+    activeQuoteReassignResults = [];
+    renderQuoteClientResults([], { emptyMessage });
+    return;
+  }
+  const results = managerClients
+    .filter(client => normalizeSearchTerm(client.name || '').includes(term))
+    .map(client => ({
+      id: client.id,
+      name: client.name || 'Sin nombre',
+      meta: formatQuoteClientMeta(client)
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+  activeQuoteReassignResults = results;
+  renderQuoteClientResults(results);
+}
+
 function openQuoteClientModal(entryId = uiState.quoteGenerator?.selectedId || null) {
   const modal = document.getElementById('quoteClientModal');
   const title = document.getElementById('quoteClientModalTitle');
   const subtitle = document.getElementById('quoteClientModalSubtitle');
-  const select = document.getElementById('quoteClientSelect');
-  if (!modal || !select) return;
+  const searchInput = document.getElementById('quoteClientSearchInput');
+  if (!modal || !searchInput) return;
   const entry = generatedQuotes.find(item => item.id === entryId);
   if (!entry) {
     showToast('No se encontró la cotización seleccionada.', 'error');
     return;
   }
   activeQuoteReassignId = entryId;
+  activeQuoteReassignSelectionId = entry.clientId || null;
   const info = resolveQuoteClientInfo(entry);
   if (title) title.textContent = info.name || 'Cotización sin cliente';
   if (subtitle) subtitle.textContent = 'Reasigna esta cotización a otro cliente o déjala sin clasificar.';
-  const options = managerClients
-    .map(client => ({ id: client.id, name: client.name || 'Sin nombre' }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
-  select.innerHTML = [
-    `<option value="">Sin clasificar</option>`,
-    ...options.map(client => `<option value="${client.id}">${client.name}</option>`)
-  ].join('');
-  select.value = entry.clientId || '';
+  const defaultName = info.name && info.name !== 'Sin nombre' ? info.name : '';
+  searchInput.value = defaultName;
+  performQuoteClientSearch({ silentIfEmpty: true });
+  renderQuoteClientSelection();
   toggleModal(modal, true);
 }
 
@@ -2490,15 +2569,16 @@ function closeQuoteClientModal() {
   if (!modal) return;
   toggleModal(modal, false);
   activeQuoteReassignId = null;
+  activeQuoteReassignSelectionId = null;
+  activeQuoteReassignResults = [];
 }
 
 function applyQuoteClientModal() {
-  const select = document.getElementById('quoteClientSelect');
-  if (!select || !activeQuoteReassignId) {
+  if (!activeQuoteReassignId) {
     closeQuoteClientModal();
     return;
   }
-  updateQuoteClientAssignment(activeQuoteReassignId, select.value || null);
+  updateQuoteClientAssignment(activeQuoteReassignId, activeQuoteReassignSelectionId || null);
   closeQuoteClientModal();
   showToast('Cotización reasignada correctamente.', 'success');
 }
@@ -3786,6 +3866,8 @@ let activeStatusReturnToMenu = false;
 let activeReassignClientId = null;
 let activeReassignReturnToMenu = false;
 let activeQuoteReassignId = null;
+let activeQuoteReassignSelectionId = null;
+let activeQuoteReassignResults = [];
 let contactLogInterval = null;
 let editingCustomActionId = null;
 let selectedCustomIcon = 'bx-check-circle';
@@ -4824,10 +4906,35 @@ function bindQuoteClientModal() {
   const closeBtn = document.getElementById('quoteClientClose');
   const cancelBtn = document.getElementById('quoteClientCancel');
   const saveBtn = document.getElementById('quoteClientSave');
+  const searchBtn = document.getElementById('quoteClientSearchBtn');
+  const searchInput = document.getElementById('quoteClientSearchInput');
+  const results = document.getElementById('quoteClientResults');
+  const clearBtn = document.getElementById('quoteClientClearSelection');
   if (!modal || modal.dataset.bound) return;
   if (closeBtn) closeBtn.addEventListener('click', closeQuoteClientModal);
   if (cancelBtn) cancelBtn.addEventListener('click', closeQuoteClientModal);
   if (saveBtn) saveBtn.addEventListener('click', applyQuoteClientModal);
+  if (searchBtn) {
+    searchBtn.addEventListener('click', () => performQuoteClientSearch());
+  }
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        performQuoteClientSearch();
+      }
+    });
+  }
+  if (results) {
+    results.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-client-id]');
+      if (!button) return;
+      setQuoteClientSelection(button.dataset.clientId || null);
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => setQuoteClientSelection(null));
+  }
   modal.addEventListener('click', (event) => {
     if (event.target === modal) closeQuoteClientModal();
   });

@@ -1863,9 +1863,25 @@
         <button id="quoteClientClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
       <div class="modal-body">
-        <div class="field">
-          <label for="quoteClientSelect">Reasignar esta cotización a:</label>
-          <select id="quoteClientSelect"></select>
+        <div class="quote-client-search">
+          <label for="quoteClientSearchInput">Buscar cliente por nombre</label>
+          <div class="search-field search-field-inline">
+            <i class='bx bx-search'></i>
+            <input id="quoteClientSearchInput" placeholder="Escribe el nombre del cliente" />
+            <button class="primary-btn mini" id="quoteClientSearchBtn" type="button">Buscar...</button>
+          </div>
+          <p class="muted subtle helper-text">Usa el botón para filtrar y elegir un cliente específico.</p>
+        </div>
+        <div class="quote-client-results" id="quoteClientResults"></div>
+        <div class="quote-client-selection" id="quoteClientSelection">
+          <p class="muted subtle">Cliente seleccionado</p>
+          <div class="selection-card">
+            <div>
+              <p class="selection-title" id="quoteClientSelectedName">Sin clasificar</p>
+              <p class="muted subtle" id="quoteClientSelectedMeta">Sin selección activa.</p>
+            </div>
+            <button class="ghost-btn mini" id="quoteClientClearSelection" type="button">Quitar selección</button>
+          </div>
         </div>
       </div>
       <div class="modal-actions">
