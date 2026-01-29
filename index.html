@@ -1352,6 +1352,17 @@
                     <input type="checkbox" id="smsExcludeWrongNumber">
                     <span>Excluir contactos con estado "Número equivocado"</span>
                   </label>
+                  <div class="sms-filter-group">
+                    <p class="eyebrow">Filtros avanzados</p>
+                    <h4>Excluir por estado</h4>
+                    <div class="sms-filter-grid" id="smsStatusFilters"></div>
+                  </div>
+                  <div class="sms-filter-group">
+                    <p class="eyebrow">Acciones personalizadas</p>
+                    <h4>Excluir acciones personalizadas</h4>
+                    <p class="muted tiny">Selecciona las acciones que no quieras incluir en la audiencia.</p>
+                    <div class="sms-filter-grid" id="smsCustomActionFilters"></div>
+                  </div>
                 </div>
                 <div class="sms-audience-meta">
                   <span class="pill subtle">Total: <strong id="smsAudienceCount">0</strong></span>
@@ -2491,6 +2502,7 @@
           <p class="eyebrow">Advertencia</p>
           <h3>Mensajes masivos detectados</h3>
           <p class="muted" id="bulkWarningMessage">-</p>
+          <p class="muted tiny">Si quieres apagar esta funcionalidad, puedes hacerlo desde el menú de Mis Preferencias.</p>
         </div>
       </div>
       <div class="modal-actions stacked">
