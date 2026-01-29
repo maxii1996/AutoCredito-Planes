@@ -87,12 +87,14 @@ const panelTitles = {
   quoteGenerator: 'Mis Cotizaciones',
   clientManager: 'Gestor de Clientes',
   scheduledClients: 'Clientes Programados',
+  smsDesigner: 'Diseñador de SMS',
   importedDataManager: 'Administrar Datos Importados',
   moduleManagement: 'Gestión de Módulos'
 };
 
 const NAV_PARENT_MAP = {
-  importedDataManager: 'clientManager'
+  importedDataManager: 'clientManager',
+  smsDesigner: 'clientManager'
 };
 
 const defaultPreferenceFontSizes = {
@@ -186,6 +188,9 @@ const BUENOS_AIRES_TIMEZONE = 'America/Argentina/Buenos_Aires';
 const REMOTE_DATA_KEYS = [
   'vehicles',
   'templates',
+  'smsTemplates',
+  'smsLists',
+  'smsDesignerState',
   'clients',
   'managerClients',
   'uiState',
@@ -219,6 +224,7 @@ const MODULE_CATALOG = [
   { id: 'quickActions', label: 'Sub Módulo: Acciones Rápidas', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'contactLog', label: 'Sub Módulo: Registro de Contactados', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'journeyReport', label: 'Sub Módulo: Registro de Jornada', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
+  { id: 'smsDesigner', label: 'Sub Módulo: Diseñador de SMS', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'scheduledClients', label: 'Clientes Programados', type: 'module', exportable: true, group: 'general' },
   { id: 'templates', label: 'Plantillas', type: 'module', exportable: true, group: 'general' },
   { id: 'plans', label: 'Cotizaciones', type: 'module', exportable: true, group: 'general' },
@@ -770,6 +776,23 @@ const DEFAULT_ADDITIONAL_TEMPLATES = [
 ];
 
 const defaultTemplates = [DEFAULT_INITIAL_TEMPLATE, ...DEFAULT_ADDITIONAL_TEMPLATES];
+
+const DEFAULT_SMS_TEMPLATES = [
+  {
+    title: 'SMS de bienvenida',
+    body: 'Hola {{cliente}}, soy {{asesor}}. ¿Seguís con tu {{modelo_actual}}? Estoy para ayudarte.'
+  }
+];
+
+const defaultSmsDesignerState = {
+  selectedTemplateId: '',
+  templateSearch: '',
+  audienceSearch: '',
+  excludeWrongNumber: false,
+  selection: {},
+  listName: '',
+  previewClientId: ''
+};
 
 function normalizeBrand(brand = '') {
   const cleaned = String(brand || '').trim();
@@ -1324,6 +1347,19 @@ function ensureTemplateIds(list) {
     normalized.unshift(initialTemplate);
   }
   return normalized;
+}
+
+function normalizeSmsTemplate(template = {}, index = 0) {
+  return {
+    id: template.id || createTemplateId(`sms-${index}`),
+    title: (template.title || '').trim() || `SMS ${index + 1}`,
+    body: template.body || ''
+  };
+}
+
+function ensureSmsTemplateIds(list = []) {
+  const normalized = (list || []).map((tpl, idx) => normalizeSmsTemplate(tpl, idx));
+  return normalized.length ? normalized : DEFAULT_SMS_TEMPLATES.map((tpl, idx) => normalizeSmsTemplate(tpl, idx));
 }
 
 function formatMoney(value) {
@@ -2043,6 +2079,9 @@ async function applyProfileData(parsed) {
   }
   await initializePriceTabs();
   templates = ensureTemplateIds(parsed.templates || defaultTemplates);
+  smsTemplates = ensureSmsTemplateIds(parsed.smsTemplates || DEFAULT_SMS_TEMPLATES);
+  smsLists = parsed.smsLists || [];
+  smsDesignerState = { ...defaultSmsDesignerState, ...(parsed.smsDesignerState || {}) };
   clients = parsed.clients || [];
   managerClients = (parsed.managerClients || []).map(client => ensureJourneyStatusData(client));
   generatedQuotes = parsed.generatedQuotes || [];
@@ -2079,6 +2118,7 @@ async function applyProfileData(parsed) {
   renderPriceTabs();
   renderVehicleTable();
   renderTemplates();
+  renderSmsDesigner();
   renderPlanForm();
   renderQuoteGeneratorForm();
   renderQuoteNavigation();
@@ -2099,6 +2139,9 @@ function saveSnapshot() {
     activePriceTabId,
     priceDrafts: JSON.parse(JSON.stringify(priceDrafts || {})),
     templates: ensureTemplateIds(JSON.parse(JSON.stringify(templates))),
+    smsTemplates: JSON.parse(JSON.stringify(smsTemplates)),
+    smsLists: JSON.parse(JSON.stringify(smsLists)),
+    smsDesignerState: { ...smsDesignerState },
     clients: JSON.parse(JSON.stringify(clients)),
     managerClients: JSON.parse(JSON.stringify(managerClients)),
     uiState: { ...uiState },
@@ -3096,6 +3139,11 @@ function extractVariables(body = '') {
   return Array.from(new Set(vars));
 }
 
+const GSM_BASIC_CHARACTERS = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\u001BÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+const GSM_EXTENDED_CHARACTERS = "^{}\\[~]|€";
+const GSM_BASIC_SET = new Set(GSM_BASIC_CHARACTERS.split(''));
+const GSM_EXTENDED_SET = new Set(GSM_EXTENDED_CHARACTERS.split(''));
+
 function createAccountId() {
   return `acct-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -3841,6 +3889,9 @@ let activePriceSource = 'local';
 let vehicles = cloneVehicles(load('vehicles') || defaultVehicles);
 let brandSettings = normalizeBrandSettings(load('brandSettings') || defaultBrandSettings, vehicles);
 let templates = ensureTemplateIds(load('templates') || defaultTemplates);
+let smsTemplates = ensureSmsTemplateIds(load('smsTemplates') || DEFAULT_SMS_TEMPLATES);
+let smsLists = load('smsLists') || [];
+let smsDesignerState = { ...defaultSmsDesignerState, ...(load('smsDesignerState') || {}) };
 let clients = load('clients') || [];
 let managerClients = (load('managerClients') || []).map(client => ensureJourneyStatusData(client));
 let accountManagerState = { selectedId: null, drafts: {} };
@@ -4314,6 +4365,8 @@ uiState.preferences = mergePreferences(uiState.preferences);
 uiState.vehicleFilters = { ...defaultUiState.vehicleFilters, ...(uiState.vehicleFilters || {}) };
 let selectedTemplateId = templates[selectedTemplateIndex]?.id;
 
+smsDesignerState = { ...defaultSmsDesignerState, ...(smsDesignerState || {}) };
+
 uiState.variableValues = uiState.variableValues || {};
 uiState.templatePreview = { ...defaultUiState.templatePreview, ...(uiState.templatePreview || {}) };
 uiState.toggles = { ...defaultUiState.toggles, ...(uiState.toggles || {}) };
@@ -4354,6 +4407,7 @@ async function bootModules() {
     renderQuickOverview();
     renderHomeShortcuts();
     renderTemplates();
+    renderSmsDesigner();
     await nextFrame();
     renderPlanForm();
     renderClients();
@@ -4386,6 +4440,7 @@ async function bootModules() {
     bindScheduleModal();
     bindActionCustomizer();
     bindCustomContextMenu();
+    bindSmsDesigner();
     bindQuoteCreation();
     startContactLogTicker();
     startScheduleClock();
@@ -4478,6 +4533,9 @@ function activatePanel(targetId) {
   }
   if (targetId === 'importedDataManager') {
     renderImportedDataManager({ showLoader: true });
+  }
+  if (targetId === 'smsDesigner') {
+    renderSmsDesigner();
   }
   updateScrollTopButton();
   updateUtilitiesVisibility(navTarget);
@@ -5055,7 +5113,7 @@ function updateScrollTopButton() {
 function updateUtilitiesVisibility(targetId) {
   const utilities = document.getElementById('utilitiesContainer');
   if (!utilities) return;
-  utilities.classList.toggle('is-visible', targetId === 'clientManager');
+  utilities.classList.toggle('is-visible', targetId === 'clientManager' || targetId === 'smsDesigner');
 }
 
 function bindScrollTopButton() {
@@ -6018,6 +6076,698 @@ function insertVariable(variable) {
   }
   rememberTemplateSelection();
   updatePreview();
+}
+
+function ensureSmsDesignerStateDefaults() {
+  smsDesignerState = { ...defaultSmsDesignerState, ...(smsDesignerState || {}) };
+  smsDesignerState.selection = smsDesignerState.selection || {};
+  smsDesignerState.templateSearch = smsDesignerState.templateSearch || '';
+  smsDesignerState.audienceSearch = smsDesignerState.audienceSearch || '';
+  smsDesignerState.listName = smsDesignerState.listName || '';
+  smsDesignerState.previewClientId = smsDesignerState.previewClientId || '';
+  smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
+}
+
+function getSelectedSmsTemplate() {
+  ensureSmsDesignerStateDefaults();
+  let template = smsTemplates.find(item => item.id === smsDesignerState.selectedTemplateId) || smsTemplates[0];
+  if (!template) {
+    smsTemplates = ensureSmsTemplateIds(DEFAULT_SMS_TEMPLATES);
+    template = smsTemplates[0];
+  }
+  if (template && template.id !== smsDesignerState.selectedTemplateId) {
+    smsDesignerState.selectedTemplateId = template.id;
+    persist();
+  }
+  return template;
+}
+
+function getSmsBodyValue() {
+  const editor = document.getElementById('smsTemplateBody');
+  if (!editor) return '';
+  return editor.innerText.replace(/\r\n/g, '\n');
+}
+
+let isSmsBodyHighlighting = false;
+let smsBodySelection = null;
+
+function rememberSmsSelection() {
+  const editor = document.getElementById('smsTemplateBody');
+  if (!editor) return;
+  const selection = captureSelection(editor);
+  if (selection) smsBodySelection = selection;
+}
+
+function updateSmsBodyHighlight({ preserveSelection = false } = {}) {
+  const editor = document.getElementById('smsTemplateBody');
+  if (!editor || isSmsBodyHighlighting) return;
+  const selection = preserveSelection ? captureSelection(editor) : null;
+  const text = getSmsBodyValue();
+  isSmsBodyHighlighting = true;
+  editor.innerHTML = highlightTemplateVariables(text);
+  if (!editor.innerHTML) editor.innerHTML = '';
+  if (preserveSelection) restoreSelection(editor, selection);
+  if (preserveSelection) smsBodySelection = selection;
+  isSmsBodyHighlighting = false;
+}
+
+function insertSmsVariable(variable) {
+  const editor = document.getElementById('smsTemplateBody');
+  if (!editor) return;
+  const insertion = `{{${variable}}}`;
+  editor.focus();
+  const updated = `${getSmsBodyValue()}${insertion}`;
+  editor.textContent = updated;
+  const currentTemplate = getSelectedSmsTemplate();
+  if (currentTemplate) {
+    currentTemplate.body = updated;
+    persist();
+  }
+  renderSmsVariableChips(extractVariables(updated));
+  updateSmsBodyHighlight();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  const selection = window.getSelection();
+  if (selection) {
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  rememberSmsSelection();
+  updateSmsPreview();
+}
+
+function analyzeSmsContent(text = '') {
+  let length = 0;
+  const incompatible = new Set();
+  for (const ch of text) {
+    if (GSM_BASIC_SET.has(ch)) {
+      length += 1;
+      continue;
+    }
+    if (GSM_EXTENDED_SET.has(ch)) {
+      length += 2;
+      continue;
+    }
+    incompatible.add(ch);
+  }
+  if (incompatible.size) {
+    const total = [...text].length;
+    return { encoding: 'UCS-2', length: total, limit: 70, remaining: 70 - total, incompatible: Array.from(incompatible) };
+  }
+  return { encoding: 'GSM-7', length, limit: 160, remaining: 160 - length, incompatible: [] };
+}
+
+function buildSmsMessage(template, client) {
+  if (!template) return '';
+  const replacements = buildDynamicVariableMap(client);
+  let content = template.body || '';
+  extractVariables(content).forEach(key => {
+    const value = replacements[key] ?? '';
+    const regex = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'gi');
+    content = content.replace(regex, value);
+  });
+  return content;
+}
+
+function formatSmsPhone(value) {
+  const digits = normalizePhone(value);
+  if (!digits) return '';
+  if (digits.startsWith('549')) return `+${digits}`;
+  if (digits.startsWith('54')) return `+549${digits.slice(2)}`;
+  if (digits.startsWith('9')) return `+54${digits}`;
+  const trimmed = digits.replace(/^0+/, '');
+  return `+549${trimmed}`;
+}
+
+function isWrongNumberClient(client = {}) {
+  return client.journeyStatus?.key === 'con_respuesta_numero_equivocado';
+}
+
+function getSmsAudiencePool() {
+  return managerClients.length ? managerClients : clients;
+}
+
+function filterSmsAudience(pool = []) {
+  const term = (smsDesignerState.audienceSearch || '').trim().toLowerCase();
+  return pool.filter(client => {
+    if (smsDesignerState.excludeWrongNumber && isWrongNumberClient(client)) return false;
+    if (!term) return true;
+    const name = (client.name || '').toLowerCase();
+    const phone = (client.phone || '').toLowerCase();
+    const model = (client.model || client.brand || '').toLowerCase();
+    return name.includes(term) || phone.includes(term) || model.includes(term);
+  });
+}
+
+function getSmsPreviewCandidates(pool = []) {
+  const selectedIds = smsDesignerState.selection || {};
+  const selected = pool.filter(client => selectedIds[client.id]);
+  if (selected.length) return selected;
+  return pool;
+}
+
+function renderSmsVariableChips(vars = []) {
+  const container = document.getElementById('smsVariableChips');
+  if (!container) return;
+  if (!vars.length) {
+    container.innerHTML = '<span class="muted tiny">Sin variables detectadas.</span>';
+    return;
+  }
+  container.innerHTML = vars.map(key => `
+    <span class="chip compact" title="${resolveDynamicVariableLabel(key)}">{{${key}}}</span>
+  `).join('');
+}
+
+function renderSmsDynamicDataMenu(search = '') {
+  const list = document.getElementById('smsDynamicDataList');
+  if (!list) return;
+  const groups = filterDynamicVariableCatalog(search);
+  if (!groups.length) {
+    list.innerHTML = '<p class="muted tiny">No se encontraron variables con ese criterio.</p>';
+    return;
+  }
+  list.innerHTML = groups.map(group => `
+    <div class="dynamic-data-group">
+      <div class="dynamic-data-group-title">${group.group}</div>
+      <div class="dynamic-data-items">
+        ${group.items.map(item => `
+          <button class="dynamic-data-item" type="button" data-sms-var="${item.key}">
+            <span>${item.label}</span>
+            <span class="pill">{{${item.key}}}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleSmsDynamicDataMenu(show) {
+  const panel = document.getElementById('smsDynamicDataPanel');
+  if (!panel) return;
+  panel.classList.toggle('hidden', !show);
+}
+
+function updateSmsPreviewClientOptions(pool = []) {
+  const select = document.getElementById('smsPreviewClient');
+  if (!select) return;
+  const candidates = getSmsPreviewCandidates(pool);
+  if (!candidates.length) {
+    select.innerHTML = '<option value="">Sin clientes</option>';
+    smsDesignerState.previewClientId = '';
+    return;
+  }
+  select.innerHTML = candidates.map(client => {
+    const label = client.name || 'Sin nombre';
+    const phone = formatPhoneDisplay(client.phone || '') || client.phone || 'Sin teléfono';
+    return `<option value="${client.id}">${label} · ${phone}</option>`;
+  }).join('');
+  const availableIds = new Set(candidates.map(client => client.id));
+  if (!availableIds.has(smsDesignerState.previewClientId)) {
+    smsDesignerState.previewClientId = candidates[0]?.id || '';
+  }
+  select.value = smsDesignerState.previewClientId;
+}
+
+function updateSmsPreview() {
+  const template = getSelectedSmsTemplate();
+  const preview = document.getElementById('smsTemplatePreview');
+  const pool = getSmsAudiencePool();
+  const candidates = getSmsPreviewCandidates(filterSmsAudience(pool));
+  const client = candidates.find(item => item.id === smsDesignerState.previewClientId) || candidates[0];
+  const text = client ? buildSmsMessage(template, client) : (template?.body || '');
+  if (preview) {
+    preview.innerHTML = highlightTemplateVariables(text);
+  }
+  const analysis = analyzeSmsContent(text);
+  const countEl = document.getElementById('smsCharCount');
+  const encodingEl = document.getElementById('smsCharEncoding');
+  const hintEl = document.getElementById('smsCharHint');
+  const meter = document.getElementById('smsMeter');
+  if (countEl) {
+    countEl.textContent = `${analysis.length}/${analysis.limit}`;
+  }
+  if (encodingEl) {
+    encodingEl.textContent = analysis.encoding;
+  }
+  if (hintEl) {
+    const remaining = analysis.remaining;
+    const remainingLabel = remaining >= 0 ? `${remaining} caracteres disponibles` : `${Math.abs(remaining)} caracteres por encima`;
+    const warning = analysis.incompatible.length
+      ? `Caracteres incompatibles detectados: ${analysis.incompatible.join(' ')}.`
+      : '';
+    hintEl.textContent = `${remainingLabel}. ${warning}`.trim();
+  }
+  if (meter) {
+    meter.classList.toggle('warning', analysis.remaining < 0 || analysis.incompatible.length > 0);
+  }
+}
+
+function renderSmsTemplates() {
+  const list = document.getElementById('smsTemplateList');
+  if (!list) return;
+  const term = (smsDesignerState.templateSearch || '').trim().toLowerCase();
+  const selected = getSelectedSmsTemplate();
+  const filtered = smsTemplates.filter(template => {
+    if (!term) return true;
+    return (template.title || '').toLowerCase().includes(term) || (template.body || '').toLowerCase().includes(term);
+  });
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted tiny">No hay plantillas SMS con ese criterio.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map(template => `
+    <div class="sms-template-item ${template.id === selected?.id ? 'active' : ''}" data-sms-template="${template.id}">
+      <h4>${template.title || 'Sin título'}</h4>
+      <p>${(template.body || '').slice(0, 90) || 'Sin contenido'}</p>
+    </div>
+  `).join('');
+}
+
+function renderSmsEditor() {
+  const template = getSelectedSmsTemplate();
+  const titleInput = document.getElementById('smsTemplateTitle');
+  const bodyEditor = document.getElementById('smsTemplateBody');
+  if (!template) {
+    if (titleInput) titleInput.value = '';
+    if (bodyEditor) bodyEditor.textContent = '';
+    renderSmsVariableChips([]);
+    updateSmsPreview();
+    return;
+  }
+  if (titleInput) titleInput.value = template.title || '';
+  if (bodyEditor) {
+    bodyEditor.textContent = template.body || '';
+    updateSmsBodyHighlight();
+    renderSmsVariableChips(extractVariables(template.body || ''));
+  }
+  updateSmsPreview();
+}
+
+function renderSmsAudience() {
+  const list = document.getElementById('smsAudienceList');
+  if (!list) return;
+  const pool = getSmsAudiencePool();
+  const filtered = filterSmsAudience(pool);
+  const selection = smsDesignerState.selection || {};
+  let selectedCount = 0;
+  let missingCount = 0;
+  list.innerHTML = filtered.map(client => {
+    const isSelected = !!selection[client.id];
+    const phoneLabel = formatPhoneDisplay(client.phone || '') || client.phone || 'Sin teléfono';
+    const statusLabel = journeyStatusShortLabel(client);
+    const hasPhone = Boolean(normalizePhone(client.phone || ''));
+    if (isSelected) selectedCount += 1;
+    if (!hasPhone) missingCount += 1;
+    return `
+      <div class="sms-audience-item">
+        <label>
+          <input type="checkbox" data-sms-client="${client.id}" ${isSelected ? 'checked' : ''}>
+          <div class="sms-audience-info">
+            <strong>${client.name || 'Sin nombre'}</strong>
+            <span class="muted tiny">${client.model || client.brand || 'Sin modelo'} · ${phoneLabel}</span>
+          </div>
+        </label>
+        <span class="pill subtle">${statusLabel || 'Sin estado'}</span>
+      </div>
+    `;
+  }).join('');
+  const summary = document.getElementById('smsAudienceSummary');
+  if (summary) {
+    summary.textContent = filtered.length
+      ? `Mostrando ${filtered.length} clientes filtrados.`
+      : 'No hay clientes disponibles con el filtro actual.';
+  }
+  const totalEl = document.getElementById('smsAudienceCount');
+  if (totalEl) totalEl.textContent = String(filtered.length);
+  const selectedEl = document.getElementById('smsSelectedCount');
+  if (selectedEl) selectedEl.textContent = String(selectedCount);
+  const missingEl = document.getElementById('smsMissingCount');
+  if (missingEl) missingEl.textContent = String(missingCount);
+  updateSmsPreviewClientOptions(filtered);
+  updateSmsPreview();
+}
+
+function renderSmsSavedLists() {
+  const container = document.getElementById('smsSavedLists');
+  if (!container) return;
+  if (!smsLists.length) {
+    container.innerHTML = '<p class="muted tiny">Aún no hay listas guardadas.</p>';
+    return;
+  }
+  container.innerHTML = smsLists.map(list => {
+    const template = smsTemplates.find(item => item.id === list.templateId);
+    const templateLabel = template?.title || 'Plantilla eliminada';
+    const created = list.createdAt ? formatAdminDate(list.createdAt) : '-';
+    const count = list.clientIds?.length || 0;
+    return `
+      <div class="sms-list-item" data-sms-list="${list.id}">
+        <div>
+          <h4>${list.name || 'Lista sin nombre'}</h4>
+          <p>${count} clientes · ${templateLabel} · ${created}</p>
+        </div>
+        <div class="sms-list-actions">
+          <button class="ghost-btn mini" data-sms-list-action="download" data-sms-list-id="${list.id}"><i class='bx bx-download'></i>Descargar</button>
+          <button class="ghost-btn mini" data-sms-list-action="delete" data-sms-list-id="${list.id}"><i class='bx bx-trash'></i>Eliminar</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSmsDesigner() {
+  ensureSmsDesignerStateDefaults();
+  const templateSearch = document.getElementById('smsTemplateSearch');
+  if (templateSearch && templateSearch.value !== (smsDesignerState.templateSearch || '')) {
+    templateSearch.value = smsDesignerState.templateSearch || '';
+  }
+  const audienceSearch = document.getElementById('smsAudienceSearch');
+  if (audienceSearch && audienceSearch.value !== (smsDesignerState.audienceSearch || '')) {
+    audienceSearch.value = smsDesignerState.audienceSearch || '';
+  }
+  const listNameInput = document.getElementById('smsListName');
+  if (listNameInput && listNameInput.value !== (smsDesignerState.listName || '')) {
+    listNameInput.value = smsDesignerState.listName || '';
+  }
+  const excludeToggle = document.getElementById('smsExcludeWrongNumber');
+  if (excludeToggle) {
+    excludeToggle.checked = !!smsDesignerState.excludeWrongNumber;
+  }
+  renderSmsTemplates();
+  renderSmsEditor();
+  renderSmsAudience();
+  renderSmsSavedLists();
+}
+
+function downloadSmsWorkbook(rows, fileName) {
+  if (!rows.length) {
+    showToast('No hay datos para exportar.', 'error');
+    return;
+  }
+  const data = [['Numero', 'Mensaje'], ...rows.map(row => [row.number, row.message])];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let row = 1; row <= range.e.r; row += 1) {
+    const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 });
+    if (ws[cellAddress]) {
+      ws[cellAddress].t = 's';
+      ws[cellAddress].z = '@';
+    }
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'SMS');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportSmsTemplateFile() {
+  const ws = XLSX.utils.aoa_to_sheet([['Numero', 'Mensaje']]);
+  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'SMS');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `plantilla-sms-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  showToast('Plantilla descargada', 'success');
+}
+
+function exportSmsSelection() {
+  const template = getSelectedSmsTemplate();
+  const pool = getSmsAudiencePool();
+  const byId = new Map(pool.map(client => [client.id, client]));
+  const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]);
+  const rows = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => {
+    if (!smsDesignerState.excludeWrongNumber) return true;
+    return !isWrongNumberClient(client);
+  }).map(client => ({
+    number: formatSmsPhone(client.phone || ''),
+    message: buildSmsMessage(template, client)
+  })).filter(row => row.number);
+  if (!rows.length) {
+    showToast('No hay clientes seleccionados con teléfono válido.', 'error');
+    return;
+  }
+  const name = (smsDesignerState.listName || 'sms').trim().replace(/\s+/g, '-').toLowerCase();
+  downloadSmsWorkbook(rows, `sms-${name || 'lista'}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  showToast('Exportación lista', 'success');
+}
+
+function saveSmsList() {
+  const pool = getSmsAudiencePool();
+  const byId = new Map(pool.map(client => [client.id, client]));
+  const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]).filter(id => {
+    if (!smsDesignerState.excludeWrongNumber) return true;
+    const client = byId.get(id);
+    return client ? !isWrongNumberClient(client) : false;
+  });
+  if (!selectedIds.length) {
+    showToast('Selecciona clientes para guardar una lista.', 'error');
+    return;
+  }
+  const name = (smsDesignerState.listName || '').trim() || `Lista SMS ${smsLists.length + 1}`;
+  const template = getSelectedSmsTemplate();
+  smsLists.unshift({
+    id: createTemplateId('sms-list'),
+    name,
+    templateId: template?.id || '',
+    clientIds: selectedIds,
+    createdAt: new Date().toISOString(),
+    excludeWrongNumber: !!smsDesignerState.excludeWrongNumber
+  });
+  smsDesignerState.listName = name;
+  persist();
+  renderSmsSavedLists();
+  showToast('Lista guardada', 'success');
+}
+
+function downloadSmsListById(listId) {
+  const list = smsLists.find(item => item.id === listId);
+  if (!list) return;
+  const template = smsTemplates.find(item => item.id === list.templateId) || getSelectedSmsTemplate();
+  const pool = getSmsAudiencePool();
+  const byId = new Map(pool.map(client => [client.id, client]));
+  const rows = (list.clientIds || []).map(id => byId.get(id)).filter(Boolean).map(client => ({
+    number: formatSmsPhone(client.phone || ''),
+    message: buildSmsMessage(template, client)
+  })).filter(row => row.number);
+  if (!rows.length) {
+    showToast('La lista no tiene teléfonos válidos para exportar.', 'error');
+    return;
+  }
+  downloadSmsWorkbook(rows, `sms-${(list.name || 'lista').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  showToast('Lista exportada', 'success');
+}
+
+function deleteSmsListById(listId) {
+  smsLists = smsLists.filter(item => item.id !== listId);
+  persist();
+  renderSmsSavedLists();
+  showToast('Lista eliminada', 'success');
+}
+
+function bindSmsDesigner() {
+  const templateSearch = document.getElementById('smsTemplateSearch');
+  if (templateSearch) {
+    templateSearch.value = smsDesignerState.templateSearch || '';
+    templateSearch.addEventListener('input', () => {
+      smsDesignerState.templateSearch = templateSearch.value;
+      persist();
+      renderSmsTemplates();
+    });
+  }
+  const titleInput = document.getElementById('smsTemplateTitle');
+  if (titleInput) {
+    titleInput.addEventListener('input', () => {
+      const template = getSelectedSmsTemplate();
+      if (!template) return;
+      template.title = titleInput.value;
+      persist();
+      renderSmsTemplates();
+    });
+  }
+  const bodyEditor = document.getElementById('smsTemplateBody');
+  if (bodyEditor) {
+    bodyEditor.addEventListener('input', () => {
+      if (isSmsBodyHighlighting) return;
+      rememberSmsSelection();
+      const value = getSmsBodyValue();
+      const template = getSelectedSmsTemplate();
+      if (template) {
+        template.body = value;
+        persist();
+      }
+      renderSmsVariableChips(extractVariables(value));
+      updateSmsBodyHighlight({ preserveSelection: true });
+      updateSmsPreview();
+    });
+    bodyEditor.addEventListener('keyup', rememberSmsSelection);
+    bodyEditor.addEventListener('mouseup', rememberSmsSelection);
+    bodyEditor.addEventListener('focus', rememberSmsSelection);
+    bodyEditor.addEventListener('blur', rememberSmsSelection);
+  }
+  const openDynamic = document.getElementById('openSmsDynamicData');
+  const closeDynamic = document.getElementById('closeSmsDynamicData');
+  const dynamicSearch = document.getElementById('smsDynamicDataSearch');
+  const dynamicList = document.getElementById('smsDynamicDataList');
+  if (dynamicSearch) {
+    dynamicSearch.addEventListener('input', () => renderSmsDynamicDataMenu(dynamicSearch.value));
+  }
+  if (openDynamic) {
+    openDynamic.addEventListener('click', (event) => {
+      event.stopPropagation();
+      rememberSmsSelection();
+      renderSmsDynamicDataMenu(dynamicSearch?.value || '');
+      toggleSmsDynamicDataMenu(true);
+      dynamicSearch?.focus();
+    });
+  }
+  if (closeDynamic) {
+    closeDynamic.addEventListener('click', () => toggleSmsDynamicDataMenu(false));
+  }
+  if (dynamicList) {
+    dynamicList.addEventListener('click', (event) => {
+      const item = event.target.closest('[data-sms-var]');
+      if (!item) return;
+      insertSmsVariable(item.dataset.smsVar);
+      toggleSmsDynamicDataMenu(false);
+    });
+  }
+  document.addEventListener('click', (event) => {
+    const panel = document.getElementById('smsDynamicDataPanel');
+    if (!panel || panel.classList.contains('hidden')) return;
+    if (panel.contains(event.target) || openDynamic?.contains(event.target)) return;
+    toggleSmsDynamicDataMenu(false);
+  });
+  const addTemplateBtn = document.getElementById('smsAddTemplate');
+  if (addTemplateBtn && !addTemplateBtn.dataset.bound) {
+    addTemplateBtn.addEventListener('click', () => {
+      const id = createTemplateId('sms');
+      smsTemplates.push({ id, title: 'Nuevo SMS', body: 'Hola {{cliente}}' });
+      smsDesignerState.selectedTemplateId = id;
+      persist();
+      renderSmsDesigner();
+    });
+    addTemplateBtn.dataset.bound = 'true';
+  }
+  const templateList = document.getElementById('smsTemplateList');
+  if (templateList && !templateList.dataset.bound) {
+    templateList.addEventListener('click', (event) => {
+      const item = event.target.closest('[data-sms-template]');
+      if (!item) return;
+      smsDesignerState.selectedTemplateId = item.dataset.smsTemplate;
+      persist();
+      renderSmsDesigner();
+    });
+    templateList.dataset.bound = 'true';
+  }
+  const previewSelect = document.getElementById('smsPreviewClient');
+  if (previewSelect) {
+    previewSelect.addEventListener('change', () => {
+      smsDesignerState.previewClientId = previewSelect.value;
+      persist();
+      updateSmsPreview();
+    });
+  }
+  const audienceSearch = document.getElementById('smsAudienceSearch');
+  if (audienceSearch) {
+    audienceSearch.value = smsDesignerState.audienceSearch || '';
+    audienceSearch.addEventListener('input', () => {
+      smsDesignerState.audienceSearch = audienceSearch.value;
+      persist();
+      renderSmsAudience();
+    });
+  }
+  const excludeToggle = document.getElementById('smsExcludeWrongNumber');
+  if (excludeToggle) {
+    excludeToggle.checked = !!smsDesignerState.excludeWrongNumber;
+    excludeToggle.addEventListener('change', () => {
+      smsDesignerState.excludeWrongNumber = excludeToggle.checked;
+      persist();
+      renderSmsAudience();
+    });
+  }
+  const audienceList = document.getElementById('smsAudienceList');
+  if (audienceList && !audienceList.dataset.bound) {
+    audienceList.addEventListener('change', (event) => {
+      const target = event.target.closest('[data-sms-client]');
+      if (!target) return;
+      smsDesignerState.selection[target.dataset.smsClient] = target.checked;
+      persist();
+      renderSmsAudience();
+    });
+    audienceList.dataset.bound = 'true';
+  }
+  const selectAllBtn = document.getElementById('smsSelectAll');
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      const pool = filterSmsAudience(getSmsAudiencePool());
+      pool.forEach(client => {
+        smsDesignerState.selection[client.id] = true;
+      });
+      persist();
+      renderSmsAudience();
+    });
+  }
+  const clearBtn = document.getElementById('smsClearSelection');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      smsDesignerState.selection = {};
+      persist();
+      renderSmsAudience();
+    });
+  }
+  const listNameInput = document.getElementById('smsListName');
+  if (listNameInput) {
+    listNameInput.value = smsDesignerState.listName || '';
+    listNameInput.addEventListener('input', () => {
+      smsDesignerState.listName = listNameInput.value;
+      persist();
+    });
+  }
+  const saveListBtn = document.getElementById('smsSaveList');
+  if (saveListBtn) {
+    saveListBtn.addEventListener('click', saveSmsList);
+  }
+  const exportListBtn = document.getElementById('smsExportList');
+  if (exportListBtn) {
+    exportListBtn.addEventListener('click', exportSmsSelection);
+  }
+  const exportTemplateBtn = document.getElementById('smsExportTemplate');
+  if (exportTemplateBtn) {
+    exportTemplateBtn.addEventListener('click', exportSmsTemplateFile);
+  }
+  const savedLists = document.getElementById('smsSavedLists');
+  if (savedLists && !savedLists.dataset.bound) {
+    savedLists.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-sms-list-action]');
+      if (!action) return;
+      const listId = action.dataset.smsListId;
+      if (action.dataset.smsListAction === 'download') {
+        downloadSmsListById(listId);
+      }
+      if (action.dataset.smsListAction === 'delete') {
+        confirmAction({
+          title: 'Eliminar lista',
+          message: 'Esta acción eliminará la lista guardada. ¿Deseas continuar?',
+          confirmText: 'Eliminar',
+          onConfirm: () => deleteSmsListById(listId)
+        });
+      }
+    });
+    savedLists.dataset.bound = 'true';
+  }
 }
 
 function nextVariationTitle(variations = []) {
@@ -10793,6 +11543,14 @@ function bindClientManager() {
       activatePanel('importedDataManager');
     });
     openImportedManager.dataset.bound = 'true';
+  }
+
+  const openSmsDesigner = document.getElementById('openSmsDesigner');
+  if (openSmsDesigner && !openSmsDesigner.dataset.bound) {
+    openSmsDesigner.addEventListener('click', () => {
+      activatePanel('smsDesigner');
+    });
+    openSmsDesigner.dataset.bound = 'true';
   }
 
   const contactLogClose = document.getElementById('contactLogClose');
@@ -16765,7 +17523,24 @@ function exportManagerClients({ scope = 'filtered' } = {}) {
 }
 
 function exportProfileData() {
-  const payload = { version: 7, vehicles, brandSettings: ensureBrandSettings(), priceDrafts, activePriceTabId, activePriceSource, templates, clients, managerClients, uiState, clientManagerState, snapshots, generatedQuotes };
+  const payload = {
+    version: 7,
+    vehicles,
+    brandSettings: ensureBrandSettings(),
+    priceDrafts,
+    activePriceTabId,
+    activePriceSource,
+    templates,
+    smsTemplates,
+    smsLists,
+    smsDesignerState,
+    clients,
+    managerClients,
+    uiState,
+    clientManagerState,
+    snapshots,
+    generatedQuotes
+  };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -16890,6 +17665,9 @@ function bindProfileActions() {
           activePriceSource = 'local';
           vehicles = cloneVehicles(defaultVehicles);
           templates = ensureTemplateIds([...defaultTemplates]);
+          smsTemplates = ensureSmsTemplateIds([...DEFAULT_SMS_TEMPLATES]);
+          smsLists = [];
+          smsDesignerState = { ...defaultSmsDesignerState };
           selectedTemplateIndex = 0;
           selectedTemplateId = templates[0].id;
           uiState = {
@@ -17581,6 +18359,9 @@ function resetInMemoryState() {
   activePriceSource = 'local';
   vehicles = cloneVehicles(defaultVehicles);
   templates = ensureTemplateIds([...defaultTemplates]);
+  smsTemplates = ensureSmsTemplateIds([...DEFAULT_SMS_TEMPLATES]);
+  smsLists = [];
+  smsDesignerState = { ...defaultSmsDesignerState };
   clients = [];
   managerClients = [];
   generatedQuotes = [];
@@ -17607,6 +18388,9 @@ function persist() {
   save('vehicles', vehicles);
   save('brandSettings', brandSettings);
   save('templates', templates);
+  save('smsTemplates', smsTemplates);
+  save('smsLists', smsLists);
+  save('smsDesignerState', sanitizeSmsDesignerStateForStorage(smsDesignerState));
   save('clients', clients);
   save('managerClients', managerClients);
   save('uiState', sanitizeUiStateForStorage(uiState));
@@ -17626,7 +18410,7 @@ function startRealtimePersistence() {
   window.addEventListener('storage', (e) => {
     const parsed = parseStorageKey(e.key || '');
     if (!parsed || parsed.scope !== 'user' || parsed.uid !== storageState.uid) return;
-    if (['vehicles', 'templates', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(parsed.key)) {
+    if (['vehicles', 'templates', 'smsTemplates', 'smsLists', 'smsDesignerState', 'clients', 'managerClients', 'uiState', 'clientManagerState', 'snapshots', 'priceDrafts', 'brandSettings', 'generatedQuotes'].includes(parsed.key)) {
       syncFromStorage();
     }
   });
@@ -17640,6 +18424,9 @@ function syncFromStorage({ resetDefaults = false } = {}) {
   vehicles = cloneVehicles(load('vehicles') || vehicles);
   brandSettings = normalizeBrandSettings(load('brandSettings') || brandSettings, vehicles);
   templates = ensureTemplateIds(load('templates') || templates);
+  smsTemplates = ensureSmsTemplateIds(load('smsTemplates') || smsTemplates);
+  smsLists = load('smsLists') || smsLists;
+  smsDesignerState = { ...defaultSmsDesignerState, ...(load('smsDesignerState') || smsDesignerState) };
   clients = load('clients') || clients;
   managerClients = (load('managerClients') || managerClients).map(client => ensureJourneyStatusData(client));
   const storedUiState = load('uiState') || {};
@@ -19297,9 +20084,12 @@ const SYNC_ITEM_DEFINITIONS = [
   { key: 'generatedQuotes', label: 'Cotizaciones', group: 'data', kind: 'array', description: 'Cotizaciones generadas y guardadas.' },
   { key: 'managerClients', label: 'Gestor de clientes (seguimiento)', group: 'modules', kind: 'array', description: 'Historial y seguimiento de contactos del gestor de clientes.' },
   { key: 'templates', label: 'Plantillas', group: 'content', kind: 'array', description: 'Mensajes y textos guardados.' },
+  { key: 'smsTemplates', label: 'Plantillas SMS', group: 'content', kind: 'array', description: 'Plantillas dedicadas para envíos por SMS.' },
+  { key: 'smsLists', label: 'Listas SMS', group: 'modules', kind: 'array', description: 'Listas guardadas para exportación de SMS.' },
   { key: 'vehicles', label: 'Vehículos', group: 'content', kind: 'array', description: 'Listado de autos y valores.' },
   { key: 'uiState', label: 'Preferencias de cuenta', group: 'config', kind: 'object', description: 'Ajustes principales de cuenta y preferencias visuales.' },
   { key: 'clientManagerState', label: 'Configuración del gestor', group: 'config', kind: 'object', description: 'Columnas y acciones personalizadas del gestor de clientes.' },
+  { key: 'smsDesignerState', label: 'Configuración de SMS', group: 'config', kind: 'object', description: 'Preferencias y filtros del diseñador de SMS.' },
   { key: 'brandSettings', label: 'Configuración de marcas', group: 'config', kind: 'array', description: 'Esquemas y colores por marca.' }
 ];
 
@@ -19398,11 +20188,28 @@ function sanitizeClientManagerStateForSync(state = {}) {
   return sanitizeClientManagerStateForStorage(state);
 }
 
+function sanitizeSmsDesignerStateForStorage(state = {}) {
+  return {
+    selectedTemplateId: state.selectedTemplateId || '',
+    templateSearch: state.templateSearch || '',
+    audienceSearch: state.audienceSearch || '',
+    excludeWrongNumber: !!state.excludeWrongNumber,
+    selection: state.selection || {},
+    listName: state.listName || '',
+    previewClientId: state.previewClientId || ''
+  };
+}
+
+function sanitizeSmsDesignerStateForSync(state = {}) {
+  return sanitizeSmsDesignerStateForStorage(state);
+}
+
 function normalizeSyncPayload(payload = {}) {
   return {
     ...payload,
     uiState: sanitizeUiStateForSync(payload.uiState || {}),
-    clientManagerState: sanitizeClientManagerStateForSync(payload.clientManagerState || {})
+    clientManagerState: sanitizeClientManagerStateForSync(payload.clientManagerState || {}),
+    smsDesignerState: sanitizeSmsDesignerStateForSync(payload.smsDesignerState || {})
   };
 }
 
@@ -19452,6 +20259,9 @@ function buildLocalSyncSummary() {
     clients,
     managerClients,
     templates,
+    smsTemplates,
+    smsLists,
+    smsDesignerState,
     vehicles,
     generatedQuotes,
     uiState,
@@ -19536,6 +20346,9 @@ function normalizeProfilePayload(parsed = {}) {
     clients: parsed.clients || [],
     managerClients: parsed.managerClients || [],
     templates: parsed.templates || [],
+    smsTemplates: parsed.smsTemplates || [],
+    smsLists: parsed.smsLists || [],
+    smsDesignerState: parsed.smsDesignerState || {},
     vehicles: parsed.vehicles || [],
     generatedQuotes: parsed.generatedQuotes || [],
     snapshots: parsed.snapshots || [],
