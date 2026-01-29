@@ -138,7 +138,7 @@ const defaultUiState = {
     contextMenuVisibility: { data: {}, actions: {} },
     scrollTopEnabled: true,
     bulkMessageWarning: {
-      enabled: true,
+      enabled: false,
       threshold: 30,
       accounts: {}
     }
@@ -566,7 +566,7 @@ const clientColumns = {
   name: { label: 'Nombre', default: true },
   model: { label: 'Modelo', default: true },
   phone: { label: 'Celular', default: true },
-  contactDate: { label: 'Fecha/Hora de Contacto', default: false },
+  contactDate: { label: 'Fecha/Hora de Contacto', default: true },
   brand: { label: 'Marca', default: false },
   city: { label: 'Localidad', default: false },
   province: { label: 'Provincia', default: false },
@@ -576,7 +576,7 @@ const clientColumns = {
   purchaseDate: { label: 'Fecha compra', default: false },
   systemDate: { label: 'Fecha de carga', default: false },
   postalCode: { label: 'CP', default: false },
-  type: { label: 'Notas', default: false }
+  type: { label: 'Notas', default: true }
 };
 
 const exportableColumns = {
@@ -695,7 +695,7 @@ const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
   accountFilter: 'all',
-  groupByModel: false,
+  groupByModel: true,
   dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
   selection: {},
@@ -711,7 +711,7 @@ const defaultClientManagerState = {
   editingMode: false,
   actionVisibility: { ...defaultActionVisibility },
   customActions: [],
-  pagination: { size: 20, page: 1 },
+  pagination: { size: 0, page: 1 },
   contactAssistant: {
     interval: 15,
     currentIndex: 0,
@@ -789,8 +789,6 @@ const defaultSmsDesignerState = {
   templateSearch: '',
   audienceSearch: '',
   excludeWrongNumber: false,
-  excludeStatuses: {},
-  excludeCustomActions: {},
   selection: {},
   listName: '',
   previewClientId: ''
@@ -5292,7 +5290,6 @@ function renderPreferencesPanel() {
   const bulkToggle = document.getElementById('bulkMessageWarningToggle');
   const bulkThreshold = document.getElementById('bulkMessageWarningThreshold');
   const bulkThresholdRow = document.getElementById('bulkMessageWarningThresholdRow');
-  const bulkSummary = document.getElementById('bulkMessageAccountSummary');
   if (bulkToggle) {
     bulkToggle.checked = prefs.bulkMessageWarning?.enabled === true;
   }
@@ -5407,14 +5404,6 @@ function bindPreferencesPanel() {
       persist();
     });
     bulkThreshold.dataset.bound = 'true';
-  }
-  if (bulkSummary && !bulkSummary.dataset.bound) {
-    bulkSummary.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-bulk-reset]');
-      if (!button) return;
-      requestBulkMessageCountReset(button.dataset.bulkReset);
-    });
-    bulkSummary.dataset.bound = 'true';
   }
 }
 
@@ -6094,8 +6083,6 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.selection = smsDesignerState.selection || {};
   smsDesignerState.templateSearch = smsDesignerState.templateSearch || '';
   smsDesignerState.audienceSearch = smsDesignerState.audienceSearch || '';
-  smsDesignerState.excludeStatuses = smsDesignerState.excludeStatuses || {};
-  smsDesignerState.excludeCustomActions = smsDesignerState.excludeCustomActions || {};
   smsDesignerState.listName = smsDesignerState.listName || '';
   smsDesignerState.previewClientId = smsDesignerState.previewClientId || '';
   smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
@@ -6217,26 +6204,6 @@ function isWrongNumberClient(client = {}) {
   return client.journeyStatus?.key === 'con_respuesta_numero_equivocado';
 }
 
-function isSmsStatusExcluded(client = {}) {
-  const status = clientStatus(client);
-  const excluded = smsDesignerState.excludeStatuses || {};
-  if (status.className === 'status-contacted' && excluded.contacted) return true;
-  if (status.className === 'status-no-number' && excluded.no_number) return true;
-  if (status.className === 'status-favorite' && excluded.favorite) return true;
-  if (status.className === 'status-pending' && excluded.pending) return true;
-  if (status.className === 'status-custom') {
-    if (excluded.custom) return true;
-    const customId = client.flags?.customStatus?.id;
-    if (customId && smsDesignerState.excludeCustomActions?.[customId]) return true;
-  }
-  return false;
-}
-
-function shouldExcludeSmsAudience(client = {}) {
-  if (smsDesignerState.excludeWrongNumber && isWrongNumberClient(client)) return true;
-  return isSmsStatusExcluded(client);
-}
-
 function getSmsAudiencePool() {
   return managerClients.length ? managerClients : clients;
 }
@@ -6244,7 +6211,7 @@ function getSmsAudiencePool() {
 function filterSmsAudience(pool = []) {
   const term = (smsDesignerState.audienceSearch || '').trim().toLowerCase();
   return pool.filter(client => {
-    if (shouldExcludeSmsAudience(client)) return false;
+    if (smsDesignerState.excludeWrongNumber && isWrongNumberClient(client)) return false;
     if (!term) return true;
     const name = (client.name || '').toLowerCase();
     const phone = (client.phone || '').toLowerCase();
@@ -6397,71 +6364,6 @@ function renderSmsEditor() {
   updateSmsPreview();
 }
 
-function buildSmsStatusCounts(pool = []) {
-  const counts = {
-    contacted: 0,
-    no_number: 0,
-    favorite: 0,
-    pending: 0,
-    custom: 0,
-    customActions: {}
-  };
-  pool.forEach(client => {
-    const status = clientStatus(client);
-    if (status.className === 'status-contacted') counts.contacted += 1;
-    else if (status.className === 'status-no-number') counts.no_number += 1;
-    else if (status.className === 'status-favorite') counts.favorite += 1;
-    else if (status.className === 'status-custom') {
-      counts.custom += 1;
-      const customId = client.flags?.customStatus?.id;
-      if (customId) counts.customActions[customId] = (counts.customActions[customId] || 0) + 1;
-    } else {
-      counts.pending += 1;
-    }
-  });
-  return counts;
-}
-
-function renderSmsExclusionFilters(pool = []) {
-  const statusContainer = document.getElementById('smsStatusFilters');
-  const customContainer = document.getElementById('smsCustomActionFilters');
-  if (!statusContainer && !customContainer) return;
-  const counts = buildSmsStatusCounts(pool);
-  const statusOptions = [
-    { key: 'contacted', label: 'Contactados', count: counts.contacted },
-    { key: 'no_number', label: 'Número no disponible', count: counts.no_number },
-    { key: 'favorite', label: 'Favoritos', count: counts.favorite },
-    { key: 'pending', label: 'Pendientes', count: counts.pending }
-  ];
-  if (statusContainer) {
-    statusContainer.innerHTML = statusOptions.map(option => `
-      <label class="checkbox-field sms-filter-option">
-        <input type="checkbox" data-sms-status-filter="${option.key}" ${smsDesignerState.excludeStatuses?.[option.key] ? 'checked' : ''}>
-        <span>${option.label}</span>
-        <span class="pill subtle">${option.count}</span>
-      </label>
-    `).join('');
-  }
-  if (customContainer) {
-    const customActions = (clientManagerState.customActions || []).filter(Boolean);
-    const customRows = customActions.map(action => `
-      <label class="checkbox-field sms-filter-option">
-        <input type="checkbox" data-sms-custom-filter="${action.id}" ${smsDesignerState.excludeCustomActions?.[action.id] ? 'checked' : ''}>
-        <span>${action.label || 'Acción personalizada'}</span>
-        <span class="pill subtle">${counts.customActions[action.id] || 0}</span>
-      </label>
-    `).join('');
-    customContainer.innerHTML = `
-      <label class="checkbox-field sms-filter-option">
-        <input type="checkbox" data-sms-status-filter="custom" ${smsDesignerState.excludeStatuses?.custom ? 'checked' : ''}>
-        <span>Excluir todas las acciones personalizadas</span>
-        <span class="pill subtle">${counts.custom}</span>
-      </label>
-      ${customRows || '<span class="muted tiny">No hay acciones personalizadas configuradas.</span>'}
-    `;
-  }
-}
-
 function renderSmsAudience() {
   const list = document.getElementById('smsAudienceList');
   if (!list) return;
@@ -6502,7 +6404,6 @@ function renderSmsAudience() {
   if (selectedEl) selectedEl.textContent = String(selectedCount);
   const missingEl = document.getElementById('smsMissingCount');
   if (missingEl) missingEl.textContent = String(missingCount);
-  renderSmsExclusionFilters(pool);
   updateSmsPreviewClientOptions(filtered);
   updateSmsPreview();
 }
@@ -6607,14 +6508,13 @@ function exportSmsSelection() {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
   const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]);
-  const rows = selectedIds
-    .map(id => byId.get(id))
-    .filter(Boolean)
-    .filter(client => !shouldExcludeSmsAudience(client))
-    .map(client => ({
-      number: formatSmsPhone(client.phone || ''),
-      message: buildSmsMessage(template, client)
-    })).filter(row => row.number);
+  const rows = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => {
+    if (!smsDesignerState.excludeWrongNumber) return true;
+    return !isWrongNumberClient(client);
+  }).map(client => ({
+    number: formatSmsPhone(client.phone || ''),
+    message: buildSmsMessage(template, client)
+  })).filter(row => row.number);
   if (!rows.length) {
     showToast('No hay clientes seleccionados con teléfono válido.', 'error');
     return;
@@ -6627,12 +6527,11 @@ function exportSmsSelection() {
 function saveSmsList() {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
-  const selectedIds = Object.keys(smsDesignerState.selection || {})
-    .filter(id => smsDesignerState.selection[id])
-    .filter(id => {
-      const client = byId.get(id);
-      return client ? !shouldExcludeSmsAudience(client) : false;
-    });
+  const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]).filter(id => {
+    if (!smsDesignerState.excludeWrongNumber) return true;
+    const client = byId.get(id);
+    return client ? !isWrongNumberClient(client) : false;
+  });
   if (!selectedIds.length) {
     showToast('Selecciona clientes para guardar una lista.', 'error');
     return;
@@ -6798,44 +6697,6 @@ function bindSmsDesigner() {
       persist();
       renderSmsAudience();
     });
-  }
-  const statusFilters = document.getElementById('smsStatusFilters');
-  if (statusFilters && !statusFilters.dataset.bound) {
-    statusFilters.addEventListener('change', (event) => {
-      const input = event.target.closest('[data-sms-status-filter]');
-      if (!input) return;
-      const key = input.dataset.smsStatusFilter;
-      if (!key) return;
-      smsDesignerState.excludeStatuses = smsDesignerState.excludeStatuses || {};
-      smsDesignerState.excludeStatuses[key] = input.checked;
-      persist();
-      renderSmsAudience();
-    });
-    statusFilters.dataset.bound = 'true';
-  }
-  const customFilters = document.getElementById('smsCustomActionFilters');
-  if (customFilters && !customFilters.dataset.bound) {
-    customFilters.addEventListener('change', (event) => {
-      const statusToggle = event.target.closest('[data-sms-status-filter]');
-      if (statusToggle) {
-        const key = statusToggle.dataset.smsStatusFilter;
-        if (!key) return;
-        smsDesignerState.excludeStatuses = smsDesignerState.excludeStatuses || {};
-        smsDesignerState.excludeStatuses[key] = statusToggle.checked;
-        persist();
-        renderSmsAudience();
-        return;
-      }
-      const input = event.target.closest('[data-sms-custom-filter]');
-      if (!input) return;
-      const key = input.dataset.smsCustomFilter;
-      if (!key) return;
-      smsDesignerState.excludeCustomActions = smsDesignerState.excludeCustomActions || {};
-      smsDesignerState.excludeCustomActions[key] = input.checked;
-      persist();
-      renderSmsAudience();
-    });
-    customFilters.dataset.bound = 'true';
   }
   const audienceList = document.getElementById('smsAudienceList');
   if (audienceList && !audienceList.dataset.bound) {
@@ -15489,22 +15350,6 @@ function resolveContactLogCutoff(rangeKey, now = Date.now()) {
   return now - (option.hours * 60 * 60 * 1000);
 }
 
-function formatBuenosAiresDateKey(value) {
-  const date = value ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-CA', { timeZone: BUENOS_AIRES_TIMEZONE });
-}
-
-function formatContactLogGroupLabel(dateKey) {
-  const todayKey = formatBuenosAiresDateKey(new Date());
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = formatBuenosAiresDateKey(yesterday);
-  if (dateKey === todayKey) return 'Hoy';
-  if (dateKey === yesterdayKey) return 'Ayer';
-  return formatDateLabel(dateKey);
-}
-
 function contactLogEntries({ search = null, statusFilter = null, range = null } = {}) {
   const searchTerm = (typeof search === 'string' ? search : (clientManagerState.contactLogSearch || '')).toLowerCase();
   const statusValue = typeof statusFilter === 'string'
@@ -15994,36 +15839,23 @@ function renderContactLog() {
     return;
   }
   empty.classList.add('hidden');
-  const groups = entries.reduce((acc, entry) => {
-    const key = formatBuenosAiresDateKey(entry.effectiveDate);
-    if (!key) return acc;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(entry);
-    return acc;
-  }, {});
-  const orderedKeys = Object.keys(groups).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  list.innerHTML = orderedKeys.map(key => `
-    <div class="contact-log-group">
-      <div class="contact-log-group-title">${formatContactLogGroupLabel(key)}</div>
-      ${groups[key].map(entry => `
-        <div class="contact-log-item" data-id="${entry.id}" data-status="${entry.status.className}">
-          <div class="contact-log-main">
-            <div class="contact-log-icon"><i class='bx bx-time-five'></i></div>
-            <div>
-              <p class="contact-log-name">${entry.name}</p>
-              <p class="contact-log-phone">${entry.phone}</p>
-              <div class="contact-log-tags">
-                <span class="status-pill ${entry.status.className}">${entry.status.label}${entry.accountName ? ` · ${entry.accountName}` : ''}</span>
-                <span class="time-pill">${timeAgo(entry.effectiveDate)}</span>
-                <span class="time-stamp">${formatDateTimeForDisplay(entry.effectiveDate)}</span>
-              </div>
-            </div>
-          </div>
-          <div class="contact-log-actions">
-            <button class="secondary-btn mini" data-action="goto">Ir al contacto</button>
+  list.innerHTML = entries.map(entry => `
+    <div class="contact-log-item" data-id="${entry.id}" data-status="${entry.status.className}">
+      <div class="contact-log-main">
+        <div class="contact-log-icon"><i class='bx bx-time-five'></i></div>
+        <div>
+          <p class="contact-log-name">${entry.name}</p>
+          <p class="contact-log-phone">${entry.phone}</p>
+          <div class="contact-log-tags">
+            <span class="status-pill ${entry.status.className}">${entry.status.label}${entry.accountName ? ` · ${entry.accountName}` : ''}</span>
+            <span class="time-pill">${timeAgo(entry.effectiveDate)}</span>
+            <span class="time-stamp">${formatDateTimeForDisplay(entry.effectiveDate)}</span>
           </div>
         </div>
-      `).join('')}
+      </div>
+      <div class="contact-log-actions">
+        <button class="secondary-btn mini" data-action="goto">Ir al contacto</button>
+      </div>
     </div>
   `).join('');
 
@@ -17043,7 +16875,7 @@ function focusClientRow(id) {
     if (row) {
       row.classList.add('jump-highlight');
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => row.classList.remove('jump-highlight'), 4000);
+      setTimeout(() => row.classList.remove('jump-highlight'), 2000);
       return;
     }
     if (attempts < 5) {
@@ -17467,33 +17299,6 @@ function applyBulkMessageSnooze() {
   closeBulkMessageWarningModal();
 }
 
-function requestBulkMessageCountReset(accountId) {
-  if (!accountId) return;
-  const settings = mergeGlobalSettings(uiState.globalSettings);
-  const account = (settings.accounts || []).find(item => item.id === accountId);
-  const accountName = account?.name || 'Sin cuenta';
-  confirmAction({
-    title: 'Restablecer conteo de mensajes',
-    message: `¿Deseas restablecer el conteo de mensajes de "${accountName}"? Esta acción reinicia el historial de las últimas 24 horas.`,
-    confirmText: 'Restablecer',
-    cancelText: 'Cancelar',
-    onConfirm: () => {
-      const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
-      const nextState = normalizeBulkMessageAccountState(
-        prefs.accounts?.[accountId],
-        prefs.threshold
-      );
-      nextState.count = 0;
-      nextState.history = [];
-      nextState.nextReminderAt = prefs.threshold;
-      nextState.snoozeUntil = 0;
-      updateBulkMessageAccountState(accountId, nextState);
-      renderBulkMessageAccountSummary();
-      showToast('Conteo restablecido.', 'success');
-    }
-  });
-}
-
 function renderBulkMessageAccountSummary() {
   const container = document.getElementById('bulkMessageAccountSummary');
   if (!container) return;
@@ -17513,13 +17318,8 @@ function renderBulkMessageAccountSummary() {
     }
     return `
       <div class="summary-row">
-        <div class="bulk-summary-details">
-          <strong>${account.name || 'Sin cuenta'}</strong>
-          <span>${history.length} mensajes · últimas 24 horas</span>
-        </div>
-        <button class="ghost-btn mini" type="button" data-bulk-reset="${account.id}" title="Restablecer conteo">
-          <i class='bx bx-refresh'></i>
-        </button>
+        <strong>${account.name || 'Sin cuenta'}</strong>
+        <span>${history.length} mensajes · últimas 24 horas</span>
       </div>
     `;
   }).join('');
@@ -20394,8 +20194,6 @@ function sanitizeSmsDesignerStateForStorage(state = {}) {
     templateSearch: state.templateSearch || '',
     audienceSearch: state.audienceSearch || '',
     excludeWrongNumber: !!state.excludeWrongNumber,
-    excludeStatuses: state.excludeStatuses || {},
-    excludeCustomActions: state.excludeCustomActions || {},
     selection: state.selection || {},
     listName: state.listName || '',
     previewClientId: state.previewClientId || ''
