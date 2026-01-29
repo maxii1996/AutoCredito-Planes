@@ -138,7 +138,7 @@ const defaultUiState = {
     contextMenuVisibility: { data: {}, actions: {} },
     scrollTopEnabled: true,
     bulkMessageWarning: {
-      enabled: false,
+      enabled: true,
       threshold: 30,
       accounts: {}
     }
@@ -566,7 +566,7 @@ const clientColumns = {
   name: { label: 'Nombre', default: true },
   model: { label: 'Modelo', default: true },
   phone: { label: 'Celular', default: true },
-  contactDate: { label: 'Fecha/Hora de Contacto', default: true },
+  contactDate: { label: 'Fecha/Hora de Contacto', default: false },
   brand: { label: 'Marca', default: false },
   city: { label: 'Localidad', default: false },
   province: { label: 'Provincia', default: false },
@@ -576,7 +576,7 @@ const clientColumns = {
   purchaseDate: { label: 'Fecha compra', default: false },
   systemDate: { label: 'Fecha de carga', default: false },
   postalCode: { label: 'CP', default: false },
-  type: { label: 'Notas', default: true }
+  type: { label: 'Notas', default: false }
 };
 
 const exportableColumns = {
@@ -695,7 +695,7 @@ const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
   accountFilter: 'all',
-  groupByModel: true,
+  groupByModel: false,
   dateRange: { from: '', to: '' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
   selection: {},
@@ -711,7 +711,7 @@ const defaultClientManagerState = {
   editingMode: false,
   actionVisibility: { ...defaultActionVisibility },
   customActions: [],
-  pagination: { size: 0, page: 1 },
+  pagination: { size: 20, page: 1 },
   contactAssistant: {
     interval: 15,
     currentIndex: 0,
@@ -789,6 +789,14 @@ const defaultSmsDesignerState = {
   templateSearch: '',
   audienceSearch: '',
   excludeWrongNumber: false,
+  excludeStatuses: {
+    pending: false,
+    contacted: false,
+    no_number: false,
+    favorite: false,
+    custom: false
+  },
+  excludeCustomActions: {},
   selection: {},
   listName: '',
   previewClientId: ''
@@ -5311,6 +5319,7 @@ function bindPreferencesPanel() {
   const bulkToggle = document.getElementById('bulkMessageWarningToggle');
   const bulkThreshold = document.getElementById('bulkMessageWarningThreshold');
   const bulkThresholdRow = document.getElementById('bulkMessageWarningThresholdRow');
+  const bulkSummary = document.getElementById('bulkMessageAccountSummary');
   const tabs = document.querySelectorAll('.preferences-tab');
   const panels = document.querySelectorAll('.pref-panel');
   const panelsContainer = document.querySelector('#preferencesPanel .preferences-panels');
@@ -5404,6 +5413,36 @@ function bindPreferencesPanel() {
       persist();
     });
     bulkThreshold.dataset.bound = 'true';
+  }
+  if (bulkSummary && !bulkSummary.dataset.bound) {
+    bulkSummary.addEventListener('click', (event) => {
+      const target = event.target.closest('[data-bulk-reset]');
+      if (!target) return;
+      openBulkMessageResetModal(target.dataset.bulkReset, target.dataset.bulkName);
+    });
+    bulkSummary.dataset.bound = 'true';
+  }
+  const bulkResetModal = document.getElementById('bulkMessageResetModal');
+  const bulkResetConfirm = document.getElementById('bulkResetConfirm');
+  const bulkResetCancel = document.getElementById('bulkResetCancel');
+  const bulkResetClose = document.getElementById('bulkResetClose');
+  if (bulkResetConfirm && !bulkResetConfirm.dataset.bound) {
+    bulkResetConfirm.addEventListener('click', confirmBulkMessageReset);
+    bulkResetConfirm.dataset.bound = 'true';
+  }
+  if (bulkResetCancel && !bulkResetCancel.dataset.bound) {
+    bulkResetCancel.addEventListener('click', closeBulkMessageResetModal);
+    bulkResetCancel.dataset.bound = 'true';
+  }
+  if (bulkResetClose && !bulkResetClose.dataset.bound) {
+    bulkResetClose.addEventListener('click', closeBulkMessageResetModal);
+    bulkResetClose.dataset.bound = 'true';
+  }
+  if (bulkResetModal && !bulkResetModal.dataset.bound) {
+    bulkResetModal.addEventListener('click', (event) => {
+      if (event.target === bulkResetModal) closeBulkMessageResetModal();
+    });
+    bulkResetModal.dataset.bound = 'true';
   }
 }
 
@@ -6086,6 +6125,11 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.listName = smsDesignerState.listName || '';
   smsDesignerState.previewClientId = smsDesignerState.previewClientId || '';
   smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
+  smsDesignerState.excludeStatuses = {
+    ...defaultSmsDesignerState.excludeStatuses,
+    ...(smsDesignerState.excludeStatuses || {})
+  };
+  smsDesignerState.excludeCustomActions = smsDesignerState.excludeCustomActions || {};
 }
 
 function getSelectedSmsTemplate() {
@@ -6204,6 +6248,51 @@ function isWrongNumberClient(client = {}) {
   return client.journeyStatus?.key === 'con_respuesta_numero_equivocado';
 }
 
+const SMS_STATUS_FILTERS = [
+  { key: 'pending', label: 'Pendientes', className: 'status-pending' },
+  { key: 'contacted', label: 'Contactados', className: 'status-contacted' },
+  { key: 'no_number', label: 'Número no disponible', className: 'status-no-number' },
+  { key: 'favorite', label: 'Favoritos', className: 'status-favorite' },
+  { key: 'custom', label: 'Acciones personalizadas', className: 'status-custom' }
+];
+
+function resolveSmsStatusKey(className = '') {
+  if (className === 'status-contacted') return 'contacted';
+  if (className === 'status-no-number') return 'no_number';
+  if (className === 'status-favorite') return 'favorite';
+  if (className === 'status-custom') return 'custom';
+  return 'pending';
+}
+
+function countSmsStatusPool(pool = []) {
+  const counts = Object.fromEntries(SMS_STATUS_FILTERS.map(item => [item.key, 0]));
+  const customCounts = {};
+  pool.forEach(client => {
+    const status = clientStatus(client);
+    const key = resolveSmsStatusKey(status.className);
+    counts[key] = (counts[key] || 0) + 1;
+    if (status.className === 'status-custom') {
+      const customId = client.flags?.customStatus?.id;
+      if (customId) {
+        customCounts[customId] = (customCounts[customId] || 0) + 1;
+      }
+    }
+  });
+  return { counts, customCounts };
+}
+
+function shouldExcludeSmsClient(client) {
+  if (smsDesignerState.excludeWrongNumber && isWrongNumberClient(client)) return true;
+  const status = clientStatus(client);
+  const statusKey = resolveSmsStatusKey(status.className);
+  if (smsDesignerState.excludeStatuses?.[statusKey]) return true;
+  if (status.className === 'status-custom') {
+    const customId = client.flags?.customStatus?.id;
+    if (customId && smsDesignerState.excludeCustomActions?.[customId]) return true;
+  }
+  return false;
+}
+
 function getSmsAudiencePool() {
   return managerClients.length ? managerClients : clients;
 }
@@ -6211,7 +6300,7 @@ function getSmsAudiencePool() {
 function filterSmsAudience(pool = []) {
   const term = (smsDesignerState.audienceSearch || '').trim().toLowerCase();
   return pool.filter(client => {
-    if (smsDesignerState.excludeWrongNumber && isWrongNumberClient(client)) return false;
+    if (shouldExcludeSmsClient(client)) return false;
     if (!term) return true;
     const name = (client.name || '').toLowerCase();
     const phone = (client.phone || '').toLowerCase();
@@ -6408,6 +6497,36 @@ function renderSmsAudience() {
   updateSmsPreview();
 }
 
+function renderSmsExclusionFilters() {
+  const statusList = document.getElementById('smsExcludeStatusList');
+  const customList = document.getElementById('smsExcludeCustomList');
+  const panel = document.getElementById('smsExclusionPanel');
+  if (!statusList || !customList || !panel) return;
+  const pool = getSmsAudiencePool();
+  const { counts, customCounts } = countSmsStatusPool(pool);
+  statusList.innerHTML = SMS_STATUS_FILTERS.map(item => `
+    <label class="checkbox-field">
+      <input type="checkbox" data-sms-exclude-status="${item.key}" ${smsDesignerState.excludeStatuses?.[item.key] ? 'checked' : ''} />
+      <span>${item.label} <em class="muted tiny">(${counts[item.key] || 0})</em></span>
+    </label>
+  `).join('');
+  const customActions = clientManagerState.customActions || [];
+  if (!customActions.length) {
+    customList.innerHTML = '<p class="muted tiny">No hay acciones personalizadas creadas.</p>';
+    return;
+  }
+  customList.innerHTML = customActions.map(action => {
+    const count = customCounts[action.id] || 0;
+    const style = action.color ? ` style="--status-color:${action.color};"` : '';
+    return `
+      <label class="checkbox-field custom-exclude"${style}>
+        <input type="checkbox" data-sms-exclude-custom="${action.id}" ${smsDesignerState.excludeCustomActions?.[action.id] ? 'checked' : ''} />
+        <span>${action.label} <em class="muted tiny">(${count})</em></span>
+      </label>
+    `;
+  }).join('');
+}
+
 function renderSmsSavedLists() {
   const container = document.getElementById('smsSavedLists');
   if (!container) return;
@@ -6453,6 +6572,7 @@ function renderSmsDesigner() {
   if (excludeToggle) {
     excludeToggle.checked = !!smsDesignerState.excludeWrongNumber;
   }
+  renderSmsExclusionFilters();
   renderSmsTemplates();
   renderSmsEditor();
   renderSmsAudience();
@@ -6508,10 +6628,7 @@ function exportSmsSelection() {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
   const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]);
-  const rows = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => {
-    if (!smsDesignerState.excludeWrongNumber) return true;
-    return !isWrongNumberClient(client);
-  }).map(client => ({
+  const rows = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => !shouldExcludeSmsClient(client)).map(client => ({
     number: formatSmsPhone(client.phone || ''),
     message: buildSmsMessage(template, client)
   })).filter(row => row.number);
@@ -6528,9 +6645,8 @@ function saveSmsList() {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
   const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]).filter(id => {
-    if (!smsDesignerState.excludeWrongNumber) return true;
     const client = byId.get(id);
-    return client ? !isWrongNumberClient(client) : false;
+    return client ? !shouldExcludeSmsClient(client) : false;
   });
   if (!selectedIds.length) {
     showToast('Selecciona clientes para guardar una lista.', 'error');
@@ -6695,8 +6811,41 @@ function bindSmsDesigner() {
     excludeToggle.addEventListener('change', () => {
       smsDesignerState.excludeWrongNumber = excludeToggle.checked;
       persist();
+      renderSmsExclusionFilters();
       renderSmsAudience();
     });
+  }
+  const exclusionPanel = document.getElementById('smsExclusionPanel');
+  if (exclusionPanel && !exclusionPanel.dataset.bound) {
+    exclusionPanel.addEventListener('change', (event) => {
+      const statusInput = event.target.closest('[data-sms-exclude-status]');
+      if (statusInput) {
+        const key = statusInput.dataset.smsExcludeStatus;
+        smsDesignerState.excludeStatuses[key] = statusInput.checked;
+        persist();
+        renderSmsAudience();
+        return;
+      }
+      const customInput = event.target.closest('[data-sms-exclude-custom]');
+      if (customInput) {
+        const key = customInput.dataset.smsExcludeCustom;
+        smsDesignerState.excludeCustomActions[key] = customInput.checked;
+        persist();
+        renderSmsAudience();
+      }
+    });
+    exclusionPanel.dataset.bound = 'true';
+  }
+  const clearExclusions = document.getElementById('smsClearExclusions');
+  if (clearExclusions && !clearExclusions.dataset.bound) {
+    clearExclusions.addEventListener('click', () => {
+      smsDesignerState.excludeStatuses = { ...defaultSmsDesignerState.excludeStatuses };
+      smsDesignerState.excludeCustomActions = {};
+      persist();
+      renderSmsExclusionFilters();
+      renderSmsAudience();
+    });
+    clearExclusions.dataset.bound = 'true';
   }
   const audienceList = document.getElementById('smsAudienceList');
   if (audienceList && !audienceList.dataset.bound) {
@@ -15839,25 +15988,40 @@ function renderContactLog() {
     return;
   }
   empty.classList.add('hidden');
-  list.innerHTML = entries.map(entry => `
-    <div class="contact-log-item" data-id="${entry.id}" data-status="${entry.status.className}">
-      <div class="contact-log-main">
-        <div class="contact-log-icon"><i class='bx bx-time-five'></i></div>
-        <div>
-          <p class="contact-log-name">${entry.name}</p>
-          <p class="contact-log-phone">${entry.phone}</p>
-          <div class="contact-log-tags">
-            <span class="status-pill ${entry.status.className}">${entry.status.label}${entry.accountName ? ` · ${entry.accountName}` : ''}</span>
-            <span class="time-pill">${timeAgo(entry.effectiveDate)}</span>
-            <span class="time-stamp">${formatDateTimeForDisplay(entry.effectiveDate)}</span>
+  const groups = new Map();
+  entries.forEach(entry => {
+    const key = resolveContactLogDayKey(entry.effectiveDate) || 'sin_fecha';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(entry);
+  });
+  list.innerHTML = Array.from(groups.entries()).map(([key, items]) => {
+    const label = resolveContactLogDayLabel(key);
+    const rows = items.map(entry => `
+      <div class="contact-log-item" data-id="${entry.id}" data-status="${entry.status.className}">
+        <div class="contact-log-main">
+          <div class="contact-log-icon"><i class='bx bx-time-five'></i></div>
+          <div>
+            <p class="contact-log-name">${entry.name}</p>
+            <p class="contact-log-phone">${entry.phone}</p>
+            <div class="contact-log-tags">
+              <span class="status-pill ${entry.status.className}">${entry.status.label}${entry.accountName ? ` · ${entry.accountName}` : ''}</span>
+              <span class="time-pill">${timeAgo(entry.effectiveDate)}</span>
+              <span class="time-stamp">${formatDateTimeForDisplay(entry.effectiveDate)}</span>
+            </div>
           </div>
         </div>
+        <div class="contact-log-actions">
+          <button class="secondary-btn mini" data-action="goto">Ir al contacto</button>
+        </div>
       </div>
-      <div class="contact-log-actions">
-        <button class="secondary-btn mini" data-action="goto">Ir al contacto</button>
+    `).join('');
+    return `
+      <div class="contact-log-day-group">
+        <div class="contact-log-day-title">${label}</div>
+        ${rows}
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   list.querySelectorAll('[data-action="goto"]').forEach(btn => btn.addEventListener('click', () => {
     const id = btn.closest('.contact-log-item')?.dataset.id;
@@ -15865,6 +16029,25 @@ function renderContactLog() {
     focusClientRow(id);
     toggleContactLog(false);
   }));
+}
+
+function resolveContactLogDayKey(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-CA', { timeZone: BUENOS_AIRES_TIMEZONE });
+}
+
+function resolveContactLogDayLabel(dayKey = '') {
+  if (!dayKey || dayKey === 'sin_fecha') return 'Sin fecha';
+  const today = new Date();
+  const todayKey = today.toLocaleDateString('en-CA', { timeZone: BUENOS_AIRES_TIMEZONE });
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayKey = yesterday.toLocaleDateString('en-CA', { timeZone: BUENOS_AIRES_TIMEZONE });
+  if (dayKey === todayKey) return 'Hoy';
+  if (dayKey === yesterdayKey) return 'Ayer';
+  return formatDateLabel(dayKey);
 }
 
 function resolveJourneyReportRange() {
@@ -16875,7 +17058,7 @@ function focusClientRow(id) {
     if (row) {
       row.classList.add('jump-highlight');
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => row.classList.remove('jump-highlight'), 2000);
+      setTimeout(() => row.classList.remove('jump-highlight'), 4000);
       return;
     }
     if (attempts < 5) {
@@ -17318,8 +17501,13 @@ function renderBulkMessageAccountSummary() {
     }
     return `
       <div class="summary-row">
-        <strong>${account.name || 'Sin cuenta'}</strong>
-        <span>${history.length} mensajes · últimas 24 horas</span>
+        <div class="summary-main">
+          <strong>${account.name || 'Sin cuenta'}</strong>
+          <span>Total: ${state.count} · ${history.length} en últimas 24 horas</span>
+        </div>
+        <div class="summary-actions">
+          <button class="ghost-btn mini danger" type="button" data-bulk-reset="${account.id}" data-bulk-name="${account.name || 'Sin cuenta'}">Restablecer</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -17335,6 +17523,38 @@ function bindBulkMessageWarningModal() {
   if (remind20) remind20.addEventListener('click', () => applyBulkMessageReminder(20));
   if (snooze) snooze.addEventListener('click', applyBulkMessageSnooze);
   modal.dataset.bound = 'true';
+}
+
+let bulkResetContext = null;
+
+function openBulkMessageResetModal(accountId, accountName) {
+  const modal = document.getElementById('bulkMessageResetModal');
+  const label = document.getElementById('bulkResetAccountLabel');
+  if (!modal || !label) return;
+  bulkResetContext = { accountId, accountName };
+  label.textContent = accountName || 'Sin cuenta';
+  toggleModal(modal, true);
+}
+
+function closeBulkMessageResetModal() {
+  const modal = document.getElementById('bulkMessageResetModal');
+  if (!modal) return;
+  toggleModal(modal, false);
+  bulkResetContext = null;
+}
+
+function confirmBulkMessageReset() {
+  if (!bulkResetContext?.accountId) return;
+  const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
+  const nextState = normalizeBulkMessageAccountState({}, prefs.threshold);
+  nextState.count = 0;
+  nextState.history = [];
+  nextState.nextReminderAt = prefs.threshold;
+  nextState.snoozeUntil = 0;
+  updateBulkMessageAccountState(bulkResetContext.accountId, nextState);
+  renderBulkMessageAccountSummary();
+  closeBulkMessageResetModal();
+  showToast(`Conteo restablecido para ${bulkResetContext.accountName}.`, 'success');
 }
 
 function updateClientFlag(id, flag, forceValue = null) {
@@ -20194,6 +20414,8 @@ function sanitizeSmsDesignerStateForStorage(state = {}) {
     templateSearch: state.templateSearch || '',
     audienceSearch: state.audienceSearch || '',
     excludeWrongNumber: !!state.excludeWrongNumber,
+    excludeStatuses: state.excludeStatuses || {},
+    excludeCustomActions: state.excludeCustomActions || {},
     selection: state.selection || {},
     listName: state.listName || '',
     previewClientId: state.previewClientId || ''

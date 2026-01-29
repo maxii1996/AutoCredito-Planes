@@ -1352,6 +1352,20 @@
                     <input type="checkbox" id="smsExcludeWrongNumber">
                     <span>Excluir contactos con estado "Número equivocado"</span>
                   </label>
+                  <div class="sms-exclusion-panel" id="smsExclusionPanel">
+                    <div class="sms-exclusion-head">
+                      <strong>Exclusiones por estado y acciones</strong>
+                      <button class="ghost-btn mini" type="button" id="smsClearExclusions"><i class='bx bx-eraser'></i>Limpiar exclusiones</button>
+                    </div>
+                    <div class="sms-exclusion-group">
+                      <p class="muted tiny">Estados de contacto</p>
+                      <div class="sms-exclusion-list" id="smsExcludeStatusList"></div>
+                    </div>
+                    <div class="sms-exclusion-group">
+                      <p class="muted tiny">Acciones personalizadas</p>
+                      <div class="sms-exclusion-list" id="smsExcludeCustomList"></div>
+                    </div>
+                  </div>
                 </div>
                 <div class="sms-audience-meta">
                   <span class="pill subtle">Total: <strong id="smsAudienceCount">0</strong></span>
@@ -1876,8 +1890,8 @@
             </div>
             <div class="preference-row">
               <div class="preference-label">
-                <strong>Mensajes enviados por cuenta (últimas 24 horas)</strong>
-                <span class="muted tiny">Se actualiza al marcar contactos como contactados.</span>
+                <strong>Mensajes enviados por cuenta (total y últimas 24 horas)</strong>
+                <span class="muted tiny">Se actualiza al marcar contactos como contactados. Puedes restablecer cada cuenta cuando quieras.</span>
               </div>
               <div class="bulk-warning-summary" id="bulkMessageAccountSummary"></div>
             </div>
@@ -2491,12 +2505,30 @@
           <p class="eyebrow">Advertencia</p>
           <h3>Mensajes masivos detectados</h3>
           <p class="muted" id="bulkWarningMessage">-</p>
+          <p class="muted tiny">Si quieres apagar esta funcionalidad, puedes hacerlo desde el menú de Mis Preferencias.</p>
         </div>
       </div>
       <div class="modal-actions stacked">
         <button class="secondary-btn" id="bulkWarningRemind5"><i class='bx bx-bell'></i>Recordarme dentro de 5 mensajes más</button>
         <button class="secondary-btn" id="bulkWarningRemind20"><i class='bx bx-bell'></i>Recordarme dentro de 20 mensajes más</button>
         <button class="ghost-btn" id="bulkWarningSnooze"><i class='bx bx-time-five'></i>No recordarme más hasta dentro de 1 hora</button>
+      </div>
+    </div>
+  </div>
+  <div id="bulkMessageResetModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Restablecer conteo</p>
+          <h3>Confirmar reinicio de mensajes</h3>
+          <p class="muted">Vas a reiniciar el conteo de mensajes para la cuenta <strong id="bulkResetAccountLabel">-</strong>.</p>
+          <p class="muted tiny">Esta acción no se puede deshacer.</p>
+        </div>
+        <button id="bulkResetClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-actions">
+        <button id="bulkResetCancel" class="ghost-btn">Cancelar</button>
+        <button id="bulkResetConfirm" class="primary-btn danger"><i class='bx bx-refresh'></i>Restablecer</button>
       </div>
     </div>
   </div>
