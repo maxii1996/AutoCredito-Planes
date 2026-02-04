@@ -1520,6 +1520,36 @@ function confirmAction({ title = 'Confirmar', message = '', messageHtml = '', co
   closeBtn.onclick = cleanup;
 }
 
+function openQuoteAliasModal({ defaultValue = '', onConfirm } = {}) {
+  const modal = document.getElementById('quoteAliasModal');
+  const input = document.getElementById('quoteAliasInputModal');
+  const saveBtn = document.getElementById('quoteAliasSave');
+  const cancelBtn = document.getElementById('quoteAliasCancel');
+  const closeBtn = document.getElementById('quoteAliasClose');
+  if (!modal || !input || !saveBtn || !cancelBtn || !closeBtn) return;
+  input.value = defaultValue || '';
+  showModal(modal);
+  const cleanup = () => {
+    hideModal(modal);
+    saveBtn.onclick = null;
+    cancelBtn.onclick = null;
+    closeBtn.onclick = null;
+    modal.onclick = null;
+  };
+  const confirm = () => {
+    const alias = input.value.trim();
+    cleanup();
+    if (typeof onConfirm === 'function') onConfirm(alias);
+  };
+  saveBtn.onclick = confirm;
+  cancelBtn.onclick = cleanup;
+  closeBtn.onclick = cleanup;
+  modal.onclick = (event) => {
+    if (event.target === modal) cleanup();
+  };
+  setTimeout(() => input.focus(), 0);
+}
+
 function openDataResetWarning({ title = 'Advertencia', onConfirm } = {}) {
   const modal = document.getElementById('dataResetModal');
   if (!modal) return;
@@ -2405,6 +2435,16 @@ function resolveQuoteGeneratorName(draft = {}) {
   return 'Cotización sin título';
 }
 
+function buildQuoteAliasDefaultFromPlan() {
+  const quote = buildQuoteFromForm();
+  const clientName = (quote?.name || '').trim() || 'Cliente sin nombre';
+  const brand = (quote?.brand || '').trim();
+  const model = (quote?.model || '').trim();
+  const vehicleLabel = [brand, model].filter(Boolean).join(' ').trim() || 'Vehículo sin definir';
+  const dateLabel = new Date().toLocaleDateString('es-AR');
+  return `${clientName} - ${vehicleLabel} - ${dateLabel}`.toUpperCase();
+}
+
 function resolveQuoteGeneratorDisplayName(entry = {}) {
   const alias = (entry.alias || '').trim();
   if (alias) return alias;
@@ -2676,8 +2716,19 @@ function loadQuoteGeneratorEntry(id) {
   renderQuoteNavigation();
 }
 
-function createQuoteGeneratorEntry(draft = buildQuoteGeneratorDraft({ blank: true }), { clientId = null, clientSnapshot = null } = {}) {
+function createQuoteGeneratorEntry(
+  draft = buildQuoteGeneratorDraft({ blank: true }),
+  { clientId = null, clientSnapshot = null } = {},
+  { alias = '' } = {}
+) {
   const payload = upsertGeneratedQuote(draft, `qg-${Date.now()}`, { clientId, clientSnapshot });
+  if (alias) {
+    payload.alias = alias.trim();
+    const index = generatedQuotes.findIndex(item => item.id === payload.id);
+    if (index !== -1) {
+      generatedQuotes[index] = payload;
+    }
+  }
   uiState.quoteGenerator.selectedId = payload.id;
   uiState.quoteGenerator.draft = payload.draft;
   uiState.quoteGenerator.hasSession = quoteDraftHasContent(payload.draft);
@@ -2733,6 +2784,7 @@ function updateQuoteGeneratorAlias(id, alias) {
   entry.updatedAt = new Date().toISOString();
   persist();
   renderQuoteGeneratorSavedList();
+  renderQuoteNavigation();
   renderQuoteGeneratorHub();
 }
 
@@ -4565,12 +4617,18 @@ function bindQuoteCreation() {
   addBtn.dataset.bound = 'true';
   addBtn.addEventListener('click', () => {
     ensureQuoteGeneratorState();
-    const draft = buildQuoteGeneratorDraft({ blank: true });
-    const link = resolvePlanQuoteClientLink();
-    createQuoteGeneratorEntry(draft, link);
-    applyQuoteGeneratorAutoFill({ scope: 'all' });
-    activatePanel('quoteGenerator');
-    showToast('Cotización agregada a "Mis Cotizaciones".', 'success');
+    const defaultAlias = buildQuoteAliasDefaultFromPlan();
+    openQuoteAliasModal({
+      defaultValue: defaultAlias,
+      onConfirm: (alias) => {
+        const draft = buildQuoteGeneratorDraft({ blank: true });
+        const link = resolvePlanQuoteClientLink();
+        createQuoteGeneratorEntry(draft, link, { alias });
+        applyQuoteGeneratorAutoFill({ scope: 'all' });
+        activatePanel('quoteGenerator');
+        showToast('Cotización agregada a "Mis Cotizaciones".', 'success');
+      }
+    });
   });
 }
 
@@ -4606,6 +4664,10 @@ function bindQuoteGenerator() {
         target.value = normalizedValue;
       }
       updateQuoteGeneratorField(target.dataset.quoteField, normalizedValue);
+    }
+    if (target?.id === 'quoteGeneratorAliasInput') {
+      const selectedId = uiState.quoteGenerator?.selectedId;
+      if (selectedId) updateQuoteGeneratorAlias(selectedId, target.value || '');
     }
     if (target.matches('[data-payment-field][data-payment-index]') && !target.classList.contains('money')) {
       updateQuoteGeneratorPayment(Number(target.dataset.paymentIndex), target.dataset.paymentField, target.value);
@@ -9881,7 +9943,7 @@ function renderQuoteGeneratorHub() {
             const quoteNumber = item.draft?.meta?.quoteNumber ? `#${item.draft.meta.quoteNumber}` : '';
             const quoteDate = item.draft?.meta?.quoteDate ? `Emitida ${item.draft.meta.quoteDate}` : '';
             const status = resolveQuoteExpiryStatus(item);
-            const isActive = item.id === uiState.quoteGenerator?.selectedId;
+            const isActive = uiState.quoteGenerator?.view === 'workspace' && item.id === uiState.quoteGenerator?.selectedId;
             const metaBits = [
               quoteNumber ? `Cotización ${quoteNumber}` : '',
               quoteDate,
@@ -9943,9 +10005,10 @@ function renderQuoteNavigation() {
   list.innerHTML = generatedQuotes.map(item => {
     const isActive = item.id === uiState.quoteGenerator?.selectedId;
     const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('es-AR') : '';
+    const displayName = resolveQuoteGeneratorDisplayName(item);
     return `
       <button class="nav-sublink${isActive ? ' active' : ''}" type="button" data-quote-id="${item.id}">
-        <span class="nav-sublink-title">${item.name || 'Cotización'}</span>
+        <span class="nav-sublink-title">${displayName}</span>
         <span class="nav-sublink-meta">${updatedAt}</span>
       </button>
     `;
@@ -9955,6 +10018,15 @@ function renderQuoteNavigation() {
 function renderQuoteGeneratorForm() {
   ensureQuoteGeneratorState();
   let draft = getQuoteGeneratorDraft();
+  const aliasInput = document.getElementById('quoteGeneratorAliasInput');
+  if (aliasInput) {
+    const selectedId = uiState.quoteGenerator?.selectedId;
+    const entry = selectedId ? generatedQuotes.find(item => item.id === selectedId) : null;
+    const fallbackName = resolveQuoteGeneratorName(draft);
+    aliasInput.value = entry?.alias || '';
+    aliasInput.placeholder = fallbackName;
+    aliasInput.disabled = !entry;
+  }
   const bonifiedSnapshot = JSON.stringify(draft.bonifiedPayments || {});
   const nextDraft = JSON.parse(JSON.stringify(draft));
   applyQuoteGeneratorBonifiedDefaults(nextDraft);

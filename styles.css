@@ -253,6 +253,11 @@ body.menu-overlay-active .nav-row { visibility: hidden; opacity: 0; pointer-even
   gap: 4px;
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
+.nav-sublink:focus,
+.nav-sublink:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 .nav-sublink:hover, .nav-sublink.active { background: #192132; border-color: #2f394d; transform: translateX(2px); }
 .nav-sublink-title { font-weight: 600; font-size: 13px; }
 .nav-sublink-meta { color: var(--muted); font-size: 11px; }
@@ -1249,9 +1254,12 @@ button, .icon-btn { cursor: pointer; }
 
 .quote-generator-layout { display: grid; grid-template-columns: minmax(320px, 380px) 1fr; gap: 18px; align-items: start; }
 .quote-generator-shell { display: grid; gap: 18px; }
+.quote-generator-workspace { display: grid; gap: 18px; }
 .quote-generator-hub { display: grid; gap: 18px; }
 .quote-generator-workspace.is-hidden { display: none; }
 .quote-generator-hub.is-hidden { display: none; }
+.quote-alias-editor { display: grid; gap: 12px; }
+.quote-alias-editor .field { margin: 0; }
 .quote-hub-card { display: grid; gap: 18px; }
 .quote-hub-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 .quote-hub-toolbar .search-field { flex: 1; min-width: 220px; }
@@ -1265,16 +1273,34 @@ button, .icon-btn { cursor: pointer; }
 .quote-export-actions .export-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; }
 .quote-preview [data-focus-target] { cursor: pointer; border-radius: 10px; padding: 6px 8px; transition: background 0.2s ease, color 0.2s ease; }
 .quote-preview [data-focus-target]:hover { background: #fde68a; color: #0f172a; }
-.quote-hub-list { display: grid; gap: 18px; }
-.quote-hub-group { display: grid; gap: 12px; padding: 14px; border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(15, 23, 42, 0.45); }
+.quote-hub-list { display: grid; gap: 24px; }
+.quote-hub-group {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.75), rgba(10, 16, 30, 0.9));
+  box-shadow: 0 16px 30px rgba(2, 6, 23, 0.35);
+}
 .quote-hub-group-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 .quote-hub-group-head h4 { margin: 4px 0 0; }
 .quote-hub-client-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 12px; }
 .quote-hub-client-meta span { display: inline-flex; align-items: center; gap: 6px; }
 .quote-hub-group-count { font-size: 12px; color: var(--muted); }
-.quote-hub-group-list { display: grid; gap: 12px; }
-.quote-hub-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 16px; border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(15, 23, 42, 0.6); box-shadow: 0 12px 22px rgba(15, 23, 42, 0.35); }
-.quote-hub-item.active { border-color: rgba(129, 140, 248, 0.6); box-shadow: 0 16px 28px rgba(37, 99, 235, 0.25); }
+.quote-hub-group-list { display: grid; gap: 14px; }
+.quote-hub-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-left: 4px solid rgba(59, 130, 246, 0.4);
+  background: rgba(15, 23, 42, 0.7);
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.35);
+}
+.quote-hub-item.active { border-color: rgba(129, 140, 248, 0.6); border-left-color: rgba(129, 140, 248, 0.8); box-shadow: 0 16px 30px rgba(37, 99, 235, 0.3); }
 .quote-hub-main { display: grid; gap: 8px; }
 .quote-hub-title { display: flex; flex-direction: column; gap: 6px; }
 .quote-hub-alias { width: 100%; border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(15, 23, 42, 0.7); color: #e2e8f0; padding: 8px 10px; font-weight: 600; }

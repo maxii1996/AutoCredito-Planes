@@ -626,6 +626,17 @@
             </div>
           </section>
           <section class="quote-generator-workspace is-hidden" id="quoteGeneratorWorkspace">
+            <div class="card quote-alias-editor">
+              <div class="card-head compact">
+                <p class="eyebrow">Nombre visible</p>
+                <h3>Nombre de la cotización</h3>
+                <p class="muted tiny">Modifica el nombre con el que aparecerá esta cotización en “Mis Cotizaciones”.</p>
+              </div>
+              <div class="field">
+                <label for="quoteGeneratorAliasInput">Nombre para guardar esta cotización</label>
+                <input id="quoteGeneratorAliasInput" placeholder="Nombre de la cotización" />
+              </div>
+            </div>
             <div class="quote-generator-layout">
               <aside class="card quote-generator-form" id="quoteGeneratorForm">
             <div class="card-head compact">
@@ -3068,6 +3079,28 @@
       <div class="modal-actions">
         <button id="modalCancel" class="ghost-btn">Cancelar</button>
         <button id="modalConfirm" class="primary-btn">Aceptar</button>
+      </div>
+    </div>
+  </div>
+  <div id="quoteAliasModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Mis Cotizaciones</p>
+          <h3>Ingresa el nombre para guardar esta cotización</h3>
+          <p class="muted">Puedes editarlo luego desde el editor.</p>
+        </div>
+        <button id="quoteAliasClose" class="ghost-btn icon-only" aria-label="Cerrar"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="quoteAliasInputModal">Nombre de la cotización</label>
+          <input id="quoteAliasInputModal" placeholder="Ej: MARTINEZ MAXIMILIANO - PEUGEOT 2008 - 02/01/2026" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="quoteAliasCancel" class="ghost-btn">Cancelar</button>
+        <button id="quoteAliasSave" class="primary-btn"><i class='bx bx-save'></i>Guardar</button>
       </div>
     </div>
   </div>
