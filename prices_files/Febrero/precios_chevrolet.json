@@ -1,0 +1,405 @@
+{
+  "month": "Febrero",
+  "year": 2026,
+  "tabId": "2026-febrero",
+  "updatedAt": "2026-02-04T22:00:00.000Z",
+  "vehicles": [
+    {
+      "name": "NUEVO ONIX 1.0 TURBO LT MT",
+      "brand": "Chevrolet",
+      "basePrice": 31505900,
+      "integration": 9451770,
+      "planProfile": {
+        "label": "80/20 (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 120
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 331357,
+        "13a21": 324774,
+        "22a84": 323966,
+        "85a120": 323158,
+        "ctapura": 210039
+      },
+      "cuotaPura": 210039,
+      "reservations": {
+        "1": 1220500,
+        "3": 1586650,
+        "6": 1830750
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6, llave x llave",
+        "bonificacion": "Promo 12 cuotas fijas + 50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "withdrawal": {
+        "installments": [
+          6
+        ],
+        "requirementType": "amount",
+        "requirementValue": 9451770,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "NUEVO PLAN ONIX PLUS SEDAN 1.0 TURBO LT MT",
+      "brand": "Chevrolet",
+      "basePrice": 31505900,
+      "integration": 9451770,
+      "planProfile": {
+        "label": "100% (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 1,
+        "integrationPct": 0,
+        "maxInstallments": 120
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 338301,
+        "13a21": 384025,
+        "22a84": 383015,
+        "85a120": 382006,
+        "ctapura": 262549
+      },
+      "cuotaPura": 262549,
+      "reservations": {
+        "1": 1220500,
+        "3": 1586650,
+        "6": 1830750
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6, llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "withdrawal": {
+        "installments": [
+          6
+        ],
+        "requirementType": "amount",
+        "requirementValue": 9451770,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "LA NUEVA MONTANA LT 1.2 AT",
+      "brand": "Chevrolet",
+      "basePrice": 39452900,
+      "integration": 11835870,
+      "planProfile": {
+        "label": "80/20 (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 120
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 414939,
+        "13a21": 406694,
+        "22a84": 405480,
+        "85a120": 0,
+        "ctapura": 263019
+      },
+      "cuotaPura": 263019,
+      "reservations": {
+        "1": 1300200,
+        "3": 1690260,
+        "6": 1950300
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6, llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "withdrawal": {
+        "installments": [
+          6
+        ],
+        "requirementType": "amount",
+        "requirementValue": 11835870,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "LA NUEVA S10 CD 2.8 TD 4x2 WT",
+      "brand": "Chevrolet",
+      "basePrice": 48596900,
+      "integration": 19438760,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.6,
+        "integrationPct": 0.4,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 537310,
+        "13a21": 527066,
+        "22a84": 525464,
+        "85a120": 0,
+        "ctapura": 347121
+      },
+      "cuotaPura": 347121,
+      "reservations": {
+        "1": 2050000,
+        "3": 2665000,
+        "6": 3075000
+      },
+      "benefits": {
+        "pactada": "NO Acepta llave x llave",
+        "bonificacion": "SIN ADJUDICACION. SOLO SORTEO O LICITACION"
+      },
+      "withdrawal": {
+        "installments": [],
+        "requirementType": "amount",
+        "requirementValue": 19438760,
+        "mode": "sorteo_licitacion"
+      }
+    },
+    {
+      "name": "NUEVA TRACKER LT 1.2AT",
+      "brand": "Chevrolet",
+      "basePrice": 39159900,
+      "integration": 11747970,
+      "planProfile": {
+        "label": "80/20 (120 cuotas)",
+        "planType": "85a120",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 120
+      },
+      "availablePlans": [
+        "2a12",
+        "13a21",
+        "22a84",
+        "85a120",
+        "ctapura"
+      ],
+      "shareByPlan": {
+        "2a12": 411857,
+        "13a21": 403674,
+        "22a84": 402469,
+        "85a120": 401469,
+        "ctapura": 261066
+      },
+      "cuotaPura": 261066,
+      "reservations": {
+        "1": 1336450,
+        "3": 1737385,
+        "6": 2004675
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "withdrawal": {
+        "installments": [
+          6
+        ],
+        "requirementType": "amount",
+        "requirementValue": 11747970,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "NUEVA SPIN 1.8 LT 5AA MT",
+      "brand": "Chevrolet",
+      "basePrice": 35116900,
+      "integration": 10535070,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 435603,
+        "13a21": 428039,
+        "22a84": 426914,
+        "85a120": 0,
+        "ctapura": 292641
+      },
+      "cuotaPura": 292641,
+      "reservations": {
+        "1": 1250700,
+        "3": 1625910,
+        "6": 1876050
+      },
+      "benefits": {
+        "pactada": "Chevroplan pactada cuota nº6 , llave x llave",
+        "bonificacion": "50% desc. en las primeras 3 cuotas del seguro"
+      },
+      "withdrawal": {
+        "installments": [
+          6
+        ],
+        "requirementType": "amount",
+        "requirementValue": 10535070,
+        "mode": "pactada"
+      }
+    },
+    {
+      "name": "NUEVA CAPTIVA PHEV (Hibrida) AT",
+      "brand": "Chevrolet",
+      "basePrice": 52740900,
+      "integration": 15822270,
+      "cuotaPura": 439508,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 654218,
+        "13a21": 642858,
+        "22a84": 641168,
+        "85a120": 0,
+        "ctapura": 439508
+      },
+      "reservations": {
+        "1": 2150000,
+        "3": 2795000,
+        "6": 3225000
+      },
+      "benefits": {
+        "pactada": "CHEVROPLAN PACTADA CUOTA N°6 , LLAVE X LLAVE",
+        "bonificacion": "50% DESC. EN LAS PRIMERAS 3 CUOTAS DEL SEGURO"
+      },
+      "withdrawal": {
+        "installments": [
+          6
+        ],
+        "requirementType": "amount",
+        "requirementValue": 15822270,
+        "mode": "pactada"
+      }
+    }
+  ],
+  "brandSettings": [
+    {
+      "name": "Chevrolet",
+      "color": "#ffcf24",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 21
+        },
+        {
+          "start": 22,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    },
+    {
+      "name": "Renault",
+      "color": "#3b82f6",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "FIAT",
+      "color": "#ff0a60",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Volkswagen",
+      "color": "#c7c7c7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Peugeot",
+      "color": "#a855f7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 25
+        },
+        {
+          "start": 26,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    }
+  ]
+}

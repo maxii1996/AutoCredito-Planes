@@ -1,0 +1,602 @@
+{
+  "month": "Enero",
+  "year": 2026,
+  "tabId": "2026-enero",
+  "updatedAt": "2026-02-04T17:29:58.850Z",
+  "vehicles": [
+    {
+      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 70/30)",
+      "brand": "FIAT",
+      "basePrice": 37020000,
+      "integration": 0,
+      "cuotaPura": 308500,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 482258,
+        "13a24": 509653,
+        "25a84": 516841,
+        "ctapura": 308500,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1208690,
+        "3": 1571297,
+        "6": 1813035
+      },
+      "withdrawal": {
+        "installments": [
+          2,
+          4,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 90/10)",
+      "brand": "FIAT",
+      "basePrice": 37020000,
+      "integration": 0,
+      "cuotaPura": 396643,
+      "planProfile": {
+        "label": "90/10 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.9,
+        "integrationPct": 0.1,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 615649,
+        "13a24": 615649,
+        "25a84": 643043,
+        "ctapura": 396643,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1219400,
+        "3": 1585220,
+        "6": 1829100
+      },
+      "withdrawal": {
+        "installments": [
+          10,
+          24,
+          36
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.2,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "ARGO DRIVE 1.3 MT",
+      "brand": "FIAT",
+      "basePrice": 29780000,
+      "integration": 11912000,
+      "cuotaPura": 248167,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 415761,
+        "13a24": 437799,
+        "25a84": 300232,
+        "ctapura": 248167,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1123418,
+        "3": 1460443,
+        "6": 1685127
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "FIAT MOBI TREKKING 1.0 MT",
+      "brand": "FIAT",
+      "basePrice": 27070000,
+      "integration": 8121000,
+      "cuotaPura": 257810,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 321246,
+        "13a24": 321246,
+        "25a84": 341278,
+        "ctapura": 257810,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1093940,
+        "3": 1422122,
+        "6": 1640910
+      },
+      "withdrawal": {
+        "installments": [
+          6,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.3,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "FIORINO ENDURANCE 1.3 MT",
+      "brand": "FIAT",
+      "basePrice": 29310000,
+      "integration": 11724000,
+      "cuotaPura": 244250,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 409200,
+        "13a24": 430890,
+        "25a84": 295494,
+        "ctapura": 244250,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1128518,
+        "3": 1467073,
+        "6": 1692777
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "STRADA FREEDOM 1.3 MT",
+      "brand": "FIAT",
+      "basePrice": 37520000,
+      "integration": 15008000,
+      "cuotaPura": 312667,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 523821,
+        "13a24": 551586,
+        "25a84": 378264,
+        "ctapura": 312667,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1233272,
+        "3": 1603254,
+        "6": 1849908
+      },
+      "withdrawal": {
+        "installments": [
+          6,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "PULSE DRIVE 1.3 MT",
+      "brand": "FIAT",
+      "basePrice": 36670000,
+      "integration": 14668000,
+      "cuotaPura": 305583,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 511954,
+        "13a24": 539089,
+        "25a84": 369695,
+        "ctapura": 305583,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1186760,
+        "3": 1542788,
+        "6": 1780140
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "NUEVA TORO FREEDOM 1.3T 4X2 AT",
+      "brand": "FIAT",
+      "basePrice": 47250000,
+      "integration": 18900000,
+      "cuotaPura": 393750,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 615523,
+        "13a24": 650488,
+        "25a84": 659662,
+        "ctapura": 393750,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1414118,
+        "3": 1838353,
+        "6": 2121177
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "FASTBACK TURBO 270 1.3 AT6",
+      "brand": "FIAT",
+      "basePrice": 45310000,
+      "integration": 18124000,
+      "cuotaPura": 323643,
+      "planProfile": {
+        "label": "60/40 (84 cuotas)",
+        "planType": "25a84",
+        "financedPct": 0.6,
+        "integrationPct": 0.4,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "25a84"
+      ],
+      "shareByPlan": {
+        "2a12": 572111,
+        "13a24": 605640,
+        "25a84": 572111,
+        "ctapura": 323643,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1301612,
+        "3": 1692096,
+        "6": 1952418
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          9,
+          12,
+          24,
+          36
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "NUEVA TITANO ENDURANCE 4X4 MANUAL",
+      "brand": "FIAT",
+      "basePrice": 52890000,
+      "integration": 21156000,
+      "cuotaPura": 440750,
+      "planProfile": {
+        "label": "70/30 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.7,
+        "integrationPct": 0.3,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 688995,
+        "13a24": 728134,
+        "25a84": 533219,
+        "ctapura": 440750,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1561712,
+        "3": 2030226,
+        "6": 2342568
+      },
+      "withdrawal": {
+        "installments": [
+          4,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.4,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    },
+    {
+      "name": "CRONOS DRIVE PACK PLUS 1.3 MT5 (Plan 80/20)",
+      "brand": "FIAT",
+      "basePrice": 37020000,
+      "integration": 0,
+      "cuotaPura": 352571,
+      "planProfile": {
+        "label": "80/20 (84 cuotas)",
+        "planType": "22a84",
+        "financedPct": 0.8,
+        "integrationPct": 0.2,
+        "maxInstallments": 84
+      },
+      "availablePlans": [
+        "22a84"
+      ],
+      "shareByPlan": {
+        "2a12": 515948,
+        "13a24": 545343,
+        "25a84": 422627,
+        "ctapura": 352571,
+        "13a21": 0,
+        "22a84": 0,
+        "85a120": 0
+      },
+      "reservations": {
+        "1": 1208690,
+        "3": 1571297,
+        "6": 1813035
+      },
+      "withdrawal": {
+        "installments": [
+          6,
+          9,
+          12
+        ],
+        "requirementType": "percent",
+        "requirementValue": 0.2,
+        "mode": "pactada"
+      },
+      "benefits": {
+        "pactada": "",
+        "bonificacion": ""
+      }
+    }
+  ],
+  "brandSettings": [
+    {
+      "name": "Chevrolet",
+      "color": "#ffcf24",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 21
+        },
+        {
+          "start": 22,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    },
+    {
+      "name": "Renault",
+      "color": "#3b82f6",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "FIAT",
+      "color": "#ff0a60",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 24
+        },
+        {
+          "start": 25,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Volkswagen",
+      "color": "#c7c7c7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "name": "Peugeot",
+      "color": "#a855f7",
+      "planScheme": [
+        {
+          "start": 2,
+          "end": 12
+        },
+        {
+          "start": 13,
+          "end": 25
+        },
+        {
+          "start": 26,
+          "end": 84
+        },
+        {
+          "start": 85,
+          "end": 120
+        }
+      ]
+    }
+  ]
+}
