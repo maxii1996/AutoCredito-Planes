@@ -2122,6 +2122,23 @@
               <button class="ghost-btn mini" data-range="15">Últimos 15 días</button>
               <button class="ghost-btn mini" data-range="30">Últimos 30 días</button>
             </div>
+            <div class="journey-report-options">
+              <label class="pill pill-toggle" title="Incluye el registro completo de acciones realizadas en la jornada">
+                <input type="checkbox" id="journeyReportDetailedMode" />
+                <span>Modo Informe detallado</span>
+              </label>
+              <div class="journey-report-notes">
+                <label for="journeyReportNotes">Notas adicionales</label>
+                <textarea id="journeyReportNotes" rows="3" placeholder="Agrega observaciones, pendientes o información clave para el informe."></textarea>
+              </div>
+              <div class="journey-report-fields">
+                <div class="journey-report-fields-head">
+                  <h5>Campos personalizados</h5>
+                  <button class="ghost-btn mini" type="button" id="journeyReportAddField"><i class='bx bx-plus'></i>Agregar campo</button>
+                </div>
+                <div id="journeyReportFields"></div>
+              </div>
+            </div>
             <div class="journey-report-actions">
               <button id="journeyReportDownload" class="primary-btn"><i class='bx bx-download'></i>Descargar PDF</button>
             </div>
@@ -2136,9 +2153,19 @@
                 <strong id="journeyReportTotal">0</strong>
               </div>
             </div>
+            <div class="journey-report-metrics" id="journeyReportMetrics"></div>
+            <div class="journey-report-custom" id="journeyReportCustom"></div>
             <div class="journey-report-detail">
               <h4>Detalle del informe</h4>
               <div class="journey-report-list" id="journeyReportList"></div>
+            </div>
+            <div class="journey-report-activity hidden" id="journeyReportActivitySection">
+              <h4>Registro detallado de acciones</h4>
+              <div class="journey-report-activity-list" id="journeyReportActivityList"></div>
+              <div id="journeyReportActivityEmpty" class="empty-state hidden">
+                <i class='bx bx-spreadsheet'></i>
+                <p class="muted">No hay acciones registradas para el periodo seleccionado.</p>
+              </div>
             </div>
           </div>
         </div>

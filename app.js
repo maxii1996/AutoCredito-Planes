@@ -691,6 +691,13 @@ const presetExportHeaders = [
   { key: 'status', label: 'ESTADO' }
 ];
 
+const defaultJourneyReportSettings = {
+  detailedMode: false,
+  customNotes: '',
+  customFields: [],
+  activityLog: {}
+};
+
 const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
@@ -720,7 +727,8 @@ const defaultClientManagerState = {
   contactAssistantQuickAdjust: {
     search: '',
     selectedId: null
-  }
+  },
+  journeyReport: { ...defaultJourneyReportSettings }
 };
 
 const clientColumnWidths = {
@@ -2140,6 +2148,10 @@ async function applyProfileData(parsed) {
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
+  clientManagerState.journeyReport = normalizeJourneyReportSettings({
+    ...defaultJourneyReportSettings,
+    ...(clientManagerState.journeyReport || {})
+  });
   uiState.templateSearch = uiState.templateSearch || '';
   uiState.clientSearch = uiState.clientSearch || '';
   uiState.profileSearch = uiState.profileSearch || '';
@@ -3639,6 +3651,99 @@ function normalizeJourneyHistory(history = []) {
   })) : [];
 }
 
+function normalizeJourneyActivityEntry(entry = {}) {
+  if (!entry || typeof entry !== 'object') return null;
+  const timestamp = entry.t || entry.timestamp || '';
+  if (!timestamp) return null;
+  return {
+    t: timestamp,
+    c: entry.c || entry.clientId || '',
+    n: entry.n || entry.clientName || '',
+    p: entry.p || entry.clientPhone || '',
+    m: entry.m || entry.clientModel || '',
+    a: entry.a || entry.action || '',
+    f: entry.f || entry.field || '',
+    o: entry.o ?? entry.previous ?? '',
+    v: entry.v ?? entry.next ?? '',
+    d: entry.d || entry.detail || '',
+    acc: entry.acc || entry.accountId || '',
+    an: entry.an || entry.accountName || ''
+  };
+}
+
+function normalizeJourneyReportSettings(state = {}) {
+  const fields = Array.isArray(state.customFields) ? state.customFields : [];
+  const normalizedFields = fields.map(field => ({
+    id: field.id || `jr-field-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    label: (field.label || '').toString(),
+    value: (field.value || '').toString()
+  }));
+  const activityLog = state.activityLog && typeof state.activityLog === 'object' ? state.activityLog : {};
+  const normalizedLog = {};
+  Object.entries(activityLog).forEach(([day, entries]) => {
+    if (!Array.isArray(entries)) return;
+    const normalizedEntries = entries
+      .map(item => normalizeJourneyActivityEntry(item))
+      .filter(Boolean);
+    if (normalizedEntries.length) normalizedLog[day] = normalizedEntries;
+  });
+  return {
+    detailedMode: !!state.detailedMode,
+    customNotes: (state.customNotes || '').toString(),
+    customFields: normalizedFields,
+    activityLog: normalizedLog
+  };
+}
+
+function ensureJourneyReportSettings() {
+  clientManagerState.journeyReport = normalizeJourneyReportSettings({
+    ...defaultJourneyReportSettings,
+    ...(clientManagerState.journeyReport || {})
+  });
+  return clientManagerState.journeyReport;
+}
+
+function formatJourneyValue(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  return JSON.stringify(value);
+}
+
+function appendJourneyActivityEntry({ client, action, field, previous, next, detail, account, timestamp } = {}) {
+  const settings = ensureJourneyReportSettings();
+  const resolvedAccount = account || getActiveAccount() || {};
+  const entry = {
+    t: timestamp || new Date().toISOString(),
+    c: client?.id || '',
+    n: client?.name || '',
+    p: normalizePhone(client?.phone) || '',
+    m: client?.model || '',
+    a: action || '',
+    f: field || '',
+    o: formatJourneyValue(previous),
+    v: formatJourneyValue(next),
+    d: detail || '',
+    acc: resolvedAccount.id || '',
+    an: resolvedAccount.name || 'Sin cuenta'
+  };
+  const dayKey = entry.t.slice(0, 10);
+  if (!settings.activityLog[dayKey]) settings.activityLog[dayKey] = [];
+  const dayEntries = settings.activityLog[dayKey];
+  const last = dayEntries[dayEntries.length - 1];
+  const isDuplicate = last
+    && last.c === entry.c
+    && last.a === entry.a
+    && last.f === entry.f
+    && last.o === entry.o
+    && last.v === entry.v
+    && Math.abs(new Date(entry.t).getTime() - new Date(last.t).getTime()) < 30000;
+  if (!isDuplicate) {
+    dayEntries.push(entry);
+  }
+}
+
 function ensureJourneyStatusData(client = {}) {
   return {
     ...client,
@@ -3647,10 +3752,11 @@ function ensureJourneyStatusData(client = {}) {
   };
 }
 
-function updateClientJourneyStatus(client, statusKey) {
+function updateClientJourneyStatus(client, statusKey, { source = 'manual' } = {}) {
   if (!client) return;
   const option = getJourneyStatusOption(statusKey) || getJourneyStatusOption(DEFAULT_JOURNEY_STATUS_KEY);
   if (!option) return;
+  const previousStatus = normalizeJourneyStatus(client);
   const activeAccount = getActiveAccount();
   const timestamp = new Date().toISOString();
   client.journeyStatus = {
@@ -3668,6 +3774,18 @@ function updateClientJourneyStatus(client, statusKey) {
     accountId: activeAccount?.id || '',
     accountName: activeAccount?.name || 'Sin cuenta'
   });
+  if (previousStatus.key !== option.key) {
+    appendJourneyActivityEntry({
+      client,
+      action: 'status',
+      field: source,
+      previous: previousStatus.label || '',
+      next: option.label || '',
+      detail: `Estado de jornada actualizado (${source})`,
+      account: activeAccount,
+      timestamp
+    });
+  }
 }
 
 function journeyStatusLabel(client = {}) {
@@ -11417,6 +11535,18 @@ function attachPlanListeners() {
       onConfirm: () => {
         clients = clients.filter(c => c.id !== quote.id);
         clients.unshift(quote);
+        const relatedClient = managerClients.find(c => c.id === quote.selectedClientId)
+          || { id: quote.selectedClientId || '', name: quote.name || 'Cliente', phone: '', model: quote.model || '' };
+        appendJourneyActivityEntry({
+          client: relatedClient,
+          action: 'quote',
+          field: quote.id,
+          previous: '',
+          next: quote.model || '',
+          detail: `Cotización creada (${quote.meta?.quoteNumber || quote.id || 'sin número'})`,
+          account: getActiveAccount(),
+          timestamp: quote.timestamp
+        });
         persist();
         renderClients();
         renderStats();
@@ -11835,6 +11965,9 @@ function bindJourneyReport() {
   const downloadBtn = document.getElementById('journeyReportDownload');
   const fromInput = document.getElementById('journeyReportFrom');
   const toInput = document.getElementById('journeyReportTo');
+  const detailedToggle = document.getElementById('journeyReportDetailedMode');
+  const notesInput = document.getElementById('journeyReportNotes');
+  const addFieldBtn = document.getElementById('journeyReportAddField');
   const quickButtons = document.querySelectorAll('.journey-quick-buttons [data-range]');
 
   if (closeBtn && !closeBtn.dataset.bound) {
@@ -11862,6 +11995,39 @@ function bindJourneyReport() {
       renderJourneyReport();
     });
     toInput.dataset.bound = 'true';
+  }
+  if (detailedToggle && !detailedToggle.dataset.bound) {
+    detailedToggle.addEventListener('change', () => {
+      const settings = ensureJourneyReportSettings();
+      settings.detailedMode = detailedToggle.checked;
+      persist();
+      renderJourneyReport();
+    });
+    detailedToggle.dataset.bound = 'true';
+  }
+  if (notesInput && !notesInput.dataset.bound) {
+    notesInput.addEventListener('input', () => {
+      const settings = ensureJourneyReportSettings();
+      settings.customNotes = notesInput.value;
+      persist();
+      renderJourneyReport();
+    });
+    notesInput.dataset.bound = 'true';
+  }
+  if (addFieldBtn && !addFieldBtn.dataset.bound) {
+    addFieldBtn.addEventListener('click', () => {
+      const settings = ensureJourneyReportSettings();
+      settings.customFields = settings.customFields || [];
+      settings.customFields.push({
+        id: `jr-field-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        label: '',
+        value: ''
+      });
+      persist();
+      renderJourneyReportFields();
+      renderJourneyReport();
+    });
+    addFieldBtn.dataset.bound = 'true';
   }
   quickButtons.forEach(btn => {
     if (btn.dataset.bound) return;
@@ -14528,7 +14694,20 @@ function saveClientNotes() {
     closeClientNotes();
     return;
   }
-  client.type = normalizeNotesValue(textarea.value);
+  const previousNotes = normalizeNotesValue(client.type);
+  const nextNotes = normalizeNotesValue(textarea.value);
+  client.type = nextNotes;
+  if (previousNotes !== nextNotes) {
+    appendJourneyActivityEntry({
+      client,
+      action: 'notes',
+      field: 'notes',
+      previous: previousNotes,
+      next: nextNotes,
+      detail: 'Notas del cliente actualizadas',
+      account: getActiveAccount()
+    });
+  }
   persist();
   renderClientManager();
   showToast('Notas actualizadas', 'success');
@@ -16147,6 +16326,167 @@ function collectJourneyHistoryEntries(from, to) {
   return entries;
 }
 
+function collectJourneyActivityEntries(from, to) {
+  const settings = ensureJourneyReportSettings();
+  const fromDate = from ? new Date(`${from}T00:00:00`) : null;
+  const toDate = to ? new Date(`${to}T23:59:59.999`) : null;
+  const activityEntries = [];
+  Object.entries(settings.activityLog || {}).forEach(([day, entries]) => {
+    if (!Array.isArray(entries) || !entries.length) return;
+    if (from && day < from) return;
+    if (to && day > to) return;
+    entries.forEach(entry => {
+      if (!entry?.t) return;
+      const entryDate = new Date(entry.t);
+      if (Number.isNaN(entryDate.getTime())) return;
+      if (fromDate && entryDate < fromDate) return;
+      if (toDate && entryDate > toDate) return;
+      activityEntries.push(entry);
+    });
+  });
+  const historyEntries = collectJourneyHistoryEntries(from, to).map(entry => {
+    const client = managerClients.find(c => c.id === entry.clientId) || {};
+    return normalizeJourneyActivityEntry({
+      t: entry.timestamp,
+      c: entry.clientId,
+      n: client.name || '',
+      p: normalizePhone(client.phone) || '',
+      m: client.model || '',
+      a: 'status',
+      f: 'history',
+      o: '',
+      v: entry.label || '',
+      d: 'Registro de estado en historial',
+      acc: entry.accountId || '',
+      an: entry.accountName || ''
+    });
+  }).filter(Boolean);
+  const dedupe = new Set(activityEntries.map(entry => `${entry.c}|${entry.a}|${entry.t}`));
+  historyEntries.forEach(entry => {
+    const key = `${entry.c}|${entry.a}|${entry.t}`;
+    if (!dedupe.has(key)) {
+      activityEntries.push(entry);
+      dedupe.add(key);
+    }
+  });
+  return activityEntries.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
+}
+
+function buildJourneyActivitySummary(entries = []) {
+  const summary = {
+    totalActions: entries.length,
+    uniqueClients: new Set(entries.map(entry => entry.c).filter(Boolean)).size,
+    statusChanges: 0,
+    quickActions: 0,
+    notesUpdates: 0,
+    edits: 0,
+    customActions: 0,
+    quotes: 0,
+    reassigns: 0
+  };
+  entries.forEach(entry => {
+    switch (entry.a) {
+      case 'status':
+        summary.statusChanges += 1;
+        break;
+      case 'flag':
+        summary.quickActions += 1;
+        break;
+      case 'notes':
+        summary.notesUpdates += 1;
+        break;
+      case 'edit':
+        summary.edits += 1;
+        break;
+      case 'custom_action':
+        summary.customActions += 1;
+        break;
+      case 'quote':
+        summary.quotes += 1;
+        break;
+      case 'reassign':
+        summary.reassigns += 1;
+        break;
+      default:
+        break;
+    }
+  });
+  return summary;
+}
+
+function formatJourneyActionLabel(entry = {}) {
+  const actionLabels = {
+    status: 'Cambio de estado',
+    flag: 'Acción rápida',
+    notes: 'Notas',
+    edit: 'Edición',
+    custom_action: 'Acción personalizada',
+    quote: 'Cotización',
+    reassign: 'Reasignación'
+  };
+  return actionLabels[entry.a] || 'Gestión';
+}
+
+function formatJourneyEntryDiff(entry = {}) {
+  const previous = (entry.o || '').toString().trim();
+  const next = (entry.v || '').toString().trim();
+  if (previous && next && previous !== next) {
+    return `Antes: ${previous} → Ahora: ${next}`;
+  }
+  if (next && !previous) return `Actualizado a: ${next}`;
+  if (previous && !next) return `Valor anterior: ${previous}`;
+  return entry.d || '';
+}
+
+function renderJourneyReportFields() {
+  const container = document.getElementById('journeyReportFields');
+  if (!container) return;
+  const settings = ensureJourneyReportSettings();
+  const fields = settings.customFields || [];
+  if (!fields.length) {
+    container.innerHTML = '<p class="muted tiny">No hay campos personalizados aún. Agrega alguno para enriquecer tu informe.</p>';
+    return;
+  }
+  container.innerHTML = fields.map(field => `
+    <div class="journey-report-field" data-field-id="${field.id}">
+      <input type="text" class="journey-field-label" placeholder="Nombre del campo" value="${field.label || ''}" data-field-label />
+      <input type="text" class="journey-field-value" placeholder="Valor" value="${field.value || ''}" data-field-value />
+      <button class="ghost-btn icon-only" type="button" data-field-remove title="Eliminar campo"><i class='bx bx-trash'></i></button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('[data-field-label]').forEach(input => {
+    input.addEventListener('input', () => {
+      const row = input.closest('[data-field-id]');
+      const id = row?.dataset.fieldId;
+      const target = settings.customFields.find(field => field.id === id);
+      if (target) target.label = input.value;
+      persist();
+      renderJourneyReport();
+    });
+  });
+  container.querySelectorAll('[data-field-value]').forEach(input => {
+    input.addEventListener('input', () => {
+      const row = input.closest('[data-field-id]');
+      const id = row?.dataset.fieldId;
+      const target = settings.customFields.find(field => field.id === id);
+      if (target) target.value = input.value;
+      persist();
+      renderJourneyReport();
+    });
+  });
+  container.querySelectorAll('[data-field-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('[data-field-id]');
+      const id = row?.dataset.fieldId;
+      settings.customFields = settings.customFields.filter(field => field.id !== id);
+      persist();
+      renderJourneyReport();
+      renderJourneyReportFields();
+    });
+  });
+}
+
 function renderJourneyReport() {
   const fromInput = document.getElementById('journeyReportFrom');
   const toInput = document.getElementById('journeyReportTo');
@@ -16154,6 +16494,13 @@ function renderJourneyReport() {
   const period = document.getElementById('journeyReportPeriod');
   const total = document.getElementById('journeyReportTotal');
   const list = document.getElementById('journeyReportList');
+  const metrics = document.getElementById('journeyReportMetrics');
+  const customSummary = document.getElementById('journeyReportCustom');
+  const activityList = document.getElementById('journeyReportActivityList');
+  const activityEmpty = document.getElementById('journeyReportActivityEmpty');
+  const detailedSection = document.getElementById('journeyReportActivitySection');
+  const detailedToggle = document.getElementById('journeyReportDetailedMode');
+  const notesInput = document.getElementById('journeyReportNotes');
   if (!fromInput || !toInput || !advisor || !period || !total || !list) return;
 
   const { from, to } = resolveJourneyReportRange();
@@ -16179,6 +16526,107 @@ function renderJourneyReport() {
       <strong>${counts[option.key] || 0}</strong>
     </div>
   `).join('');
+
+  const settings = ensureJourneyReportSettings();
+  if (detailedToggle) detailedToggle.checked = settings.detailedMode;
+  if (notesInput && notesInput.value !== settings.customNotes) notesInput.value = settings.customNotes;
+
+  const activityEntries = collectJourneyActivityEntries(from, to);
+  const summary = buildJourneyActivitySummary(activityEntries);
+  if (metrics) {
+    metrics.innerHTML = `
+      <div class="journey-metric">
+        <span>Acciones registradas</span>
+        <strong>${summary.totalActions}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Clientes gestionados</span>
+        <strong>${summary.uniqueClients}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Cambios de estado</span>
+        <strong>${summary.statusChanges}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Acciones rápidas</span>
+        <strong>${summary.quickActions}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Notas actualizadas</span>
+        <strong>${summary.notesUpdates}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Ediciones realizadas</span>
+        <strong>${summary.edits}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Acciones personalizadas</span>
+        <strong>${summary.customActions}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Cotizaciones creadas</span>
+        <strong>${summary.quotes}</strong>
+      </div>
+      <div class="journey-metric">
+        <span>Reasignaciones</span>
+        <strong>${summary.reassigns}</strong>
+      </div>
+    `;
+  }
+
+  if (customSummary) {
+    const fields = (settings.customFields || []).filter(field => field.label || field.value);
+    const fieldsHtml = fields.length
+      ? fields.map(field => `
+          <div class="journey-custom-row">
+            <span>${field.label || 'Campo personalizado'}</span>
+            <strong>${field.value || '-'}</strong>
+          </div>
+        `).join('')
+      : '<p class="muted tiny">No hay campos personalizados cargados para este informe.</p>';
+    const notesHtml = settings.customNotes
+      ? `<div class="journey-custom-notes">${settings.customNotes}</div>`
+      : '<p class="muted tiny">Sin notas adicionales.</p>';
+    customSummary.innerHTML = `
+      <h4>Campos personalizados</h4>
+      <div class="journey-custom-list">${fieldsHtml}</div>
+      <h4>Notas del informe</h4>
+      ${notesHtml}
+    `;
+  }
+
+  if (detailedSection) {
+    detailedSection.classList.toggle('hidden', !settings.detailedMode);
+  }
+  if (activityList && activityEmpty) {
+    if (!activityEntries.length) {
+      activityList.innerHTML = '';
+      activityEmpty.classList.remove('hidden');
+    } else {
+      activityEmpty.classList.add('hidden');
+      activityList.innerHTML = `
+        <div class="journey-report-activity-row header">
+          <span>Hora</span>
+          <span>Cliente</span>
+          <span>Teléfono</span>
+          <span>Acción</span>
+          <span>Detalle</span>
+          <span>Cuenta</span>
+        </div>
+        ${activityEntries.map(entry => `
+          <div class="journey-report-activity-row">
+            <span>${formatDateTimeForDisplay(entry.t)}</span>
+            <span>${entry.n || 'Sin nombre'}</span>
+            <span>${formatPhoneDisplay(entry.p) || 'Sin número'}</span>
+            <span>${formatJourneyActionLabel(entry)}</span>
+            <span class="journey-report-diff">${formatJourneyEntryDiff(entry)}</span>
+            <span>${entry.an || 'Sin cuenta'}</span>
+          </div>
+        `).join('')}
+      `;
+    }
+  }
+  renderJourneyReportFields();
 }
 
 function openJourneyReportModal() {
@@ -16203,6 +16651,9 @@ function downloadJourneyReportPdf() {
   }
   const { from, to } = resolveJourneyReportRange();
   const entries = collectJourneyHistoryEntries(from, to);
+  const activityEntries = collectJourneyActivityEntries(from, to);
+  const settings = ensureJourneyReportSettings();
+  const activitySummary = buildJourneyActivitySummary(activityEntries);
   const counts = Object.fromEntries(JOURNEY_STATUS_OPTIONS.map(option => [option.key, 0]));
   entries.forEach(entry => {
     if (counts[entry.key] !== undefined) counts[entry.key] += 1;
@@ -16211,25 +16662,96 @@ function downloadJourneyReportPdf() {
   const activeAccount = getActiveAccount();
   const advisorName = resolveAccountAdvisorName(activeAccount) || uiState.globalSettings?.advisorName || 'Sin cuenta';
   const detailRows = JOURNEY_STATUS_OPTIONS.map(option => ([option.label, counts[option.key] || 0]));
+  const customFields = (settings.customFields || []).filter(field => field.label || field.value);
+  const summaryRows = [
+    ['Acciones registradas', String(activitySummary.totalActions)],
+    ['Clientes gestionados', String(activitySummary.uniqueClients)],
+    ['Cambios de estado', String(activitySummary.statusChanges)],
+    ['Acciones rápidas', String(activitySummary.quickActions)],
+    ['Notas actualizadas', String(activitySummary.notesUpdates)],
+    ['Ediciones realizadas', String(activitySummary.edits)],
+    ['Acciones personalizadas', String(activitySummary.customActions)],
+    ['Cotizaciones creadas', String(activitySummary.quotes)],
+    ['Reasignaciones', String(activitySummary.reassigns)]
+  ];
+  const content = [
+    { text: 'Informe de Jornada', style: 'title' },
+    { text: `Informe del asesor: ${advisorName}`, style: 'subtitle' },
+    { text: `Periodo del informe: ${formatDateLabel(from)} al ${formatDateLabel(to)}`, style: 'subtitle' },
+    { text: `Cantidad de teléfonos contactados en el periodo: ${uniqueClients}`, margin: [0, 12, 0, 12] },
+    { text: 'Resumen de actividad', style: 'section' },
+    {
+      table: {
+        headerRows: 1,
+        widths: ['*', 80],
+        body: [
+          [{ text: 'Indicador', style: 'tableHeader' }, { text: 'Cantidad', style: 'tableHeader' }],
+          ...summaryRows.map(row => ([row[0], row[1]]))
+        ]
+      },
+      layout: 'lightHorizontalLines'
+    },
+    { text: 'Detalle del informe', style: 'section' },
+    {
+      table: {
+        headerRows: 1,
+        widths: ['*', 80],
+        body: [
+          [{ text: 'Estado', style: 'tableHeader' }, { text: 'Cantidad', style: 'tableHeader' }],
+          ...detailRows.map(row => ([row[0], String(row[1])]))
+        ]
+      },
+      layout: 'lightHorizontalLines'
+    }
+  ];
+  if (customFields.length) {
+    content.push({ text: 'Campos personalizados', style: 'section' });
+    content.push({
+      table: {
+        headerRows: 1,
+        widths: ['*', '*'],
+        body: [
+          [{ text: 'Campo', style: 'tableHeader' }, { text: 'Valor', style: 'tableHeader' }],
+          ...customFields.map(field => ([field.label || 'Campo personalizado', field.value || '-']))
+        ]
+      },
+      layout: 'lightHorizontalLines'
+    });
+  }
+  if (settings.customNotes) {
+    content.push({ text: 'Notas del informe', style: 'section' });
+    content.push({ text: settings.customNotes, margin: [0, 0, 0, 6] });
+  }
+  if (settings.detailedMode && activityEntries.length) {
+    content.push({ text: 'Registro detallado de acciones', style: 'section' });
+    content.push({
+      table: {
+        headerRows: 1,
+        widths: [70, '*', 90, 90, '*', 80],
+        body: [
+          [
+            { text: 'Hora', style: 'tableHeader' },
+            { text: 'Cliente', style: 'tableHeader' },
+            { text: 'Teléfono', style: 'tableHeader' },
+            { text: 'Acción', style: 'tableHeader' },
+            { text: 'Detalle', style: 'tableHeader' },
+            { text: 'Cuenta', style: 'tableHeader' }
+          ],
+          ...activityEntries.map(entry => ([
+            formatDateTimeForDisplay(entry.t),
+            entry.n || 'Sin nombre',
+            formatPhoneDisplay(entry.p) || 'Sin número',
+            formatJourneyActionLabel(entry),
+            formatJourneyEntryDiff(entry),
+            entry.an || 'Sin cuenta'
+          ]))
+        ]
+      },
+      layout: 'lightHorizontalLines'
+    });
+  }
   const docDefinition = {
-    content: [
-      { text: 'Informe de Jornada', style: 'title' },
-      { text: `Informe del asesor: ${advisorName}`, style: 'subtitle' },
-      { text: `Periodo del informe: ${formatDateLabel(from)} al ${formatDateLabel(to)}`, style: 'subtitle' },
-      { text: `Cantidad de teléfonos contactados en el periodo: ${uniqueClients}`, margin: [0, 12, 0, 12] },
-      { text: 'Detalle del informe', style: 'section' },
-      {
-        table: {
-          headerRows: 1,
-          widths: ['*', 80],
-          body: [
-            [{ text: 'Estado', style: 'tableHeader' }, { text: 'Cantidad', style: 'tableHeader' }],
-            ...detailRows.map(row => ([row[0], String(row[1])]))
-          ]
-        },
-        layout: 'lightHorizontalLines'
-      }
-    ],
+    content,
     styles: {
       title: { fontSize: 18, bold: true, margin: [0, 0, 0, 6] },
       subtitle: { fontSize: 11, color: '#334155', margin: [0, 2, 0, 2] },
@@ -16988,7 +17510,7 @@ function applyClientStatusUpdate() {
     closeClientStatusModal();
     return;
   }
-  updateClientJourneyStatus(client, select.value);
+  updateClientJourneyStatus(client, select.value, { source: 'manual' });
   persist();
   renderClientManager();
   showToast('Estado actualizado correctamente', 'success');
@@ -17047,6 +17569,7 @@ function applyClientReassignUpdate() {
     return;
   }
   const meta = client.contactMeta || {};
+  const previousAccount = meta.accountName || 'Sin cuenta';
   const timestamp = meta.timestamp || client.contactDate || new Date().toISOString();
   client.contactMeta = {
     ...meta,
@@ -17054,6 +17577,17 @@ function applyClientReassignUpdate() {
     accountName: account.name,
     timestamp
   };
+  if (previousAccount !== account.name) {
+    appendJourneyActivityEntry({
+      client,
+      action: 'reassign',
+      field: 'account',
+      previous: previousAccount,
+      next: account.name,
+      detail: 'Cuenta reasignada para el cliente',
+      account
+    });
+  }
   persist();
   renderClientManager();
   renderContactLog();
@@ -17082,7 +17616,19 @@ function applyClientEdit() {
   if (activeEditAction.type === 'date') newValue = formatDateISO(newValue);
   if (activeEditAction.normalizePhone) newValue = normalizePhone(newValue);
   if (activeEditAction.uppercase && uppercaseInput?.checked) newValue = (newValue || '').toUpperCase();
+  const previousValue = client[activeEditAction.field] || '';
   client[activeEditAction.field] = newValue || '';
+  if ((previousValue || '') !== (newValue || '')) {
+    appendJourneyActivityEntry({
+      client,
+      action: 'edit',
+      field: activeEditAction.field,
+      previous: previousValue,
+      next: newValue || '',
+      detail: `Edición de campo: ${activeEditAction.label || activeEditAction.field}`,
+      account: getActiveAccount()
+    });
+  }
   persist();
   renderClientManager();
   renderContactLog();
@@ -17633,6 +18179,7 @@ function updateClientFlag(id, flag, forceValue = null) {
   const client = managerClients.find(c => c.id === id);
   if (!client) return;
   const previousStatus = clientStatus(client);
+  const previousFlags = { ...(client.flags || {}) };
   client.flags = client.flags || {};
   client.flags.customStatus = null;
   if (flag === 'favorite') {
@@ -17642,14 +18189,32 @@ function updateClientFlag(id, flag, forceValue = null) {
     const nextValue = forceValue !== null ? !!forceValue : !client.flags.noNumber;
     client.flags.noNumber = nextValue;
     if (client.flags.noNumber) client.flags.contacted = false;
-    if (client.flags.noNumber) updateClientJourneyStatus(client, 'sin_respuesta_no_disponible');
+    if (client.flags.noNumber) updateClientJourneyStatus(client, 'sin_respuesta_no_disponible', { source: 'quick_action' });
   } else if (flag === 'contacted') {
     const nextValue = forceValue !== null ? !!forceValue : !client.flags.contacted;
     client.flags.contacted = nextValue;
     if (client.flags.contacted) client.flags.noNumber = false;
-    if (client.flags.contacted) updateClientJourneyStatus(client, DEFAULT_JOURNEY_STATUS_KEY);
+    if (client.flags.contacted) updateClientJourneyStatus(client, DEFAULT_JOURNEY_STATUS_KEY, { source: 'quick_action' });
   }
   updateContactMeta(client);
+  const nextStatus = clientStatus(client);
+  const flagLabels = {
+    favorite: 'Favorito',
+    noNumber: 'Número no disponible',
+    contacted: 'Contactado'
+  };
+  const flagLabel = flagLabels[flag] || 'Acción rápida';
+  if (previousStatus.label !== nextStatus.label || previousFlags[flag] !== client.flags[flag]) {
+    appendJourneyActivityEntry({
+      client,
+      action: 'flag',
+      field: flag,
+      previous: previousStatus.label || '',
+      next: nextStatus.label || '',
+      detail: `${flagLabel} ${client.flags[flag] ? 'activado' : 'desactivado'}`,
+      account: getActiveAccount()
+    });
+  }
   if (flag === 'contacted' && client.flags.contacted && previousStatus.className === 'status-pending') {
     const prefs = mergePreferences(uiState.preferences).bulkMessageWarning;
     if (prefs.enabled) {
@@ -17688,15 +18253,26 @@ function handleCustomAction(actionId, clientId) {
   const client = managerClients.find(c => c.id === clientId);
   const action = getCustomActionById(actionId);
   if (!client || !action) return;
+  const previousStatus = clientStatus(client);
   client.flags = client.flags || {};
   const isSame = client.flags.customStatus?.id === actionId;
   client.flags.customStatus = isSame ? null : { id: action.id, label: action.label, color: action.color, icon: action.icon };
   client.flags.contacted = !isSame;
   client.flags.noNumber = false;
   if (!isSame && action.statusKey && action.statusKey !== 'none') {
-    updateClientJourneyStatus(client, action.statusKey);
+    updateClientJourneyStatus(client, action.statusKey, { source: 'custom_action' });
   }
   updateContactMeta(client);
+  const nextStatus = clientStatus(client);
+  appendJourneyActivityEntry({
+    client,
+    action: 'custom_action',
+    field: action.id,
+    previous: previousStatus.label || '',
+    next: nextStatus.label || '',
+    detail: isSame ? `Acción personalizada removida: ${action.label}` : `Acción personalizada aplicada: ${action.label}`,
+    account: getActiveAccount()
+  });
   persist();
   renderClientManager();
 }
@@ -18741,6 +19317,10 @@ function syncFromStorage({ resetDefaults = false } = {}) {
   clientManagerState.customActions = (clientManagerState.customActions || []).map(action => ({ ...action, visible: true, statusKey: action.statusKey || 'none' }));
   clientManagerState.exportOptions = normalizeExportOptions(clientManagerState.exportOptions || defaultClientManagerState.exportOptions);
   clientManagerState.pagination = normalizePaginationState(clientManagerState.pagination || defaultClientManagerState.pagination);
+  clientManagerState.journeyReport = normalizeJourneyReportSettings({
+    ...defaultJourneyReportSettings,
+    ...(clientManagerState.journeyReport || {})
+  });
   snapshots = load('snapshots') || snapshots;
   applyPreferences();
   applyStatusPalette();
@@ -20465,6 +21045,10 @@ function sanitizeUiStateForSync(state = {}) {
 }
 
 function sanitizeClientManagerStateForStorage(state = {}) {
+  const journeyReport = normalizeJourneyReportSettings({
+    ...defaultJourneyReportSettings,
+    ...(state.journeyReport || {})
+  });
   return {
     columnVisibility: state.columnVisibility || {},
     exportOptions: state.exportOptions || {},
@@ -20472,6 +21056,12 @@ function sanitizeClientManagerStateForStorage(state = {}) {
     customActions: state.customActions || [],
     contactAssistant: {
       interval: Number(state.contactAssistant?.interval) || defaultClientManagerState.contactAssistant.interval
+    },
+    journeyReport: {
+      detailedMode: journeyReport.detailedMode,
+      customNotes: journeyReport.customNotes,
+      customFields: journeyReport.customFields,
+      activityLog: journeyReport.activityLog
     }
   };
 }
