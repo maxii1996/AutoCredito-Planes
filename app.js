@@ -5213,11 +5213,15 @@ function bindSettingsMenu() {
   const toggle = document.getElementById('settingsToggle');
   const panel = document.getElementById('settingsPanel');
   const actionPanel = document.getElementById('actionMenuPanel');
+  const utilitiesPanel = document.getElementById('utilitiesMenuPanel');
   if (!toggle || !panel) return;
   toggle.addEventListener('click', () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open') && actionPanel) {
       actionPanel.classList.remove('open');
+    }
+    if (panel.classList.contains('open') && utilitiesPanel) {
+      utilitiesPanel.classList.remove('open');
     }
     updateTopNavVisibility();
   });
@@ -5264,12 +5268,16 @@ function bindActionMenu() {
   const panel = document.getElementById('actionMenuPanel');
   const wrapper = document.getElementById('actionMenu');
   const settingsPanel = document.getElementById('settingsPanel');
+  const utilitiesPanel = document.getElementById('utilitiesMenuPanel');
   if (!toggle || !panel || !wrapper) return;
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     panel.classList.toggle('open');
     if (panel.classList.contains('open') && settingsPanel) {
       settingsPanel.classList.remove('open');
+    }
+    if (panel.classList.contains('open') && utilitiesPanel) {
+      utilitiesPanel.classList.remove('open');
     }
     updateTopNavVisibility();
   });
@@ -16431,7 +16439,7 @@ function formatJourneyEntryDiff(entry = {}) {
   const previous = (entry.o || '').toString().trim();
   const next = (entry.v || '').toString().trim();
   if (previous && next && previous !== next) {
-    return `Antes: ${previous} → Ahora: ${next}`;
+    return `Antes: ${previous} | Ahora: ${next}`;
   }
   if (next && !previous) return `Actualizado a: ${next}`;
   if (previous && !next) return `Valor anterior: ${previous}`;
@@ -16674,6 +16682,14 @@ function downloadJourneyReportPdf() {
     ['Cotizaciones creadas', String(activitySummary.quotes)],
     ['Reasignaciones', String(activitySummary.reassigns)]
   ];
+  const compactTableLayout = {
+    hLineWidth: () => 0.5,
+    vLineWidth: () => 0,
+    paddingLeft: () => 4,
+    paddingRight: () => 4,
+    paddingTop: () => 3,
+    paddingBottom: () => 3
+  };
   const content = [
     { text: 'Informe de Jornada', style: 'title' },
     { text: `Informe del asesor: ${advisorName}`, style: 'subtitle' },
@@ -16689,7 +16705,8 @@ function downloadJourneyReportPdf() {
           ...summaryRows.map(row => ([row[0], row[1]]))
         ]
       },
-      layout: 'lightHorizontalLines'
+      layout: 'lightHorizontalLines',
+      style: 'tableCompact'
     },
     { text: 'Detalle del informe', style: 'section' },
     {
@@ -16701,7 +16718,8 @@ function downloadJourneyReportPdf() {
           ...detailRows.map(row => ([row[0], String(row[1])]))
         ]
       },
-      layout: 'lightHorizontalLines'
+      layout: 'lightHorizontalLines',
+      style: 'tableCompact'
     }
   ];
   if (customFields.length) {
@@ -16715,7 +16733,8 @@ function downloadJourneyReportPdf() {
           ...customFields.map(field => ([field.label || 'Campo personalizado', field.value || '-']))
         ]
       },
-      layout: 'lightHorizontalLines'
+      layout: 'lightHorizontalLines',
+      style: 'tableCompact'
     });
   }
   if (settings.customNotes) {
@@ -16727,15 +16746,15 @@ function downloadJourneyReportPdf() {
     content.push({
       table: {
         headerRows: 1,
-        widths: [70, '*', 90, 90, '*', 80],
+        widths: [60, 90, 70, 70, '*', 70],
         body: [
           [
-            { text: 'Hora', style: 'tableHeader' },
-            { text: 'Cliente', style: 'tableHeader' },
-            { text: 'Teléfono', style: 'tableHeader' },
-            { text: 'Acción', style: 'tableHeader' },
-            { text: 'Detalle', style: 'tableHeader' },
-            { text: 'Cuenta', style: 'tableHeader' }
+            { text: 'Hora', style: 'tableHeaderCompact' },
+            { text: 'Cliente', style: 'tableHeaderCompact' },
+            { text: 'Teléfono', style: 'tableHeaderCompact' },
+            { text: 'Acción', style: 'tableHeaderCompact' },
+            { text: 'Detalle', style: 'tableHeaderCompact' },
+            { text: 'Cuenta', style: 'tableHeaderCompact' }
           ],
           ...activityEntries.map(entry => ([
             formatDateTimeForDisplay(entry.t),
@@ -16747,19 +16766,23 @@ function downloadJourneyReportPdf() {
           ]))
         ]
       },
-      layout: 'lightHorizontalLines'
+      layout: compactTableLayout,
+      style: 'tableDetailCompact'
     });
   }
   const docDefinition = {
     content,
     styles: {
-      title: { fontSize: 18, bold: true, margin: [0, 0, 0, 6] },
-      subtitle: { fontSize: 11, color: '#334155', margin: [0, 2, 0, 2] },
-      section: { fontSize: 12, bold: true, margin: [0, 12, 0, 6] },
-      tableHeader: { bold: true, fillColor: '#e2e8f0' }
+      title: { fontSize: 17, bold: true, margin: [0, 0, 0, 6] },
+      subtitle: { fontSize: 10, color: '#334155', margin: [0, 2, 0, 2] },
+      section: { fontSize: 11, bold: true, margin: [0, 12, 0, 6] },
+      tableHeader: { bold: true, fillColor: '#e2e8f0' },
+      tableHeaderCompact: { bold: true, fillColor: '#e2e8f0', fontSize: 8 },
+      tableCompact: { fontSize: 9 },
+      tableDetailCompact: { fontSize: 8.5 }
     },
     defaultStyle: {
-      fontSize: 10
+      fontSize: 9
     }
   };
   window.pdfMake.createPdf(docDefinition).download(`informe-jornada-${from}-al-${to}.pdf`);
@@ -16852,11 +16875,27 @@ function renderScheduledClients() {
           ${detailTags ? `<div class="schedule-tags">${detailTags}</div>` : ''}
         </div>
         <div class="schedule-actions">
+          <button class="secondary-btn mini" data-action="goto_contact">Ir al contacto</button>
+          <button class="secondary-btn mini" data-action="reschedule">Reprogramar esto</button>
           <button class="ghost-btn mini danger" data-action="delete_schedule">Eliminar esta programación</button>
         </div>
       </div>
     `;
   }).join('');
+
+  timeline.querySelectorAll('[data-action="goto_contact"]').forEach(btn => btn.addEventListener('click', () => {
+    const card = btn.closest('.schedule-card');
+    const id = card?.dataset.id;
+    if (!id) return;
+    focusClientRow(id);
+  }));
+
+  timeline.querySelectorAll('[data-action="reschedule"]').forEach(btn => btn.addEventListener('click', () => {
+    const card = btn.closest('.schedule-card');
+    const id = card?.dataset.id;
+    if (!id) return;
+    openScheduleModal(id);
+  }));
 
   timeline.querySelectorAll('[data-action="delete_schedule"]').forEach(btn => btn.addEventListener('click', () => {
     const card = btn.closest('.schedule-card');
