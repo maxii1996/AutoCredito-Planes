@@ -1650,6 +1650,8 @@ button, .icon-btn { cursor: pointer; }
 .field.is-required textarea,
 .field.is-required select { border-color: #1f2d42; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
 .field.inline { grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }
+.field-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.field-grid .field { margin: 0; }
 .field.inline-variable input { background: #0f1625; }
 .field-group { display: grid; gap: 10px; border: 1px solid var(--border); padding: 12px; border-radius: 12px; background: #0f1625; }
 .field-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }

@@ -704,7 +704,7 @@ const defaultClientManagerState = {
   statusTypeFilter: 'all',
   accountFilter: 'all',
   groupByModel: false,
-  dateRange: { from: '', to: '' },
+  dateRange: { mode: 'systemDate', quick: 'custom', from: '', to: '', relativeValue: '5', relativeUnit: 'minutes' },
   columnVisibility: Object.fromEntries(Object.keys(clientColumns).map(k => [k, !!clientColumns[k].default])),
   selection: {},
   exportScope: 'filtered',
@@ -2062,10 +2062,33 @@ function openExportModal() {
 function openDateFilterModal() {
   const modal = document.getElementById('dateFilterModal');
   if (!modal) return;
+  const dateTypeSelect = document.getElementById('dateFilterType');
+  const quickSelect = document.getElementById('dateFilterQuickMode');
   const fromInput = document.getElementById('dateFilterFrom');
   const toInput = document.getElementById('dateFilterTo');
-  if (fromInput) fromInput.value = clientManagerState.dateRange.from || '';
-  if (toInput) toInput.value = clientManagerState.dateRange.to || '';
+  const relativeValue = document.getElementById('dateFilterRelativeValue');
+  const relativeUnit = document.getElementById('dateFilterRelativeUnit');
+  const customRangeFields = document.getElementById('dateFilterCustomRangeFields');
+  const relativeFields = document.getElementById('dateFilterRelativeFields');
+
+  const rangeState = {
+    ...defaultClientManagerState.dateRange,
+    ...(clientManagerState.dateRange || {})
+  };
+
+  const refreshFieldsVisibility = () => {
+    const quick = quickSelect?.value || 'custom';
+    if (customRangeFields) customRangeFields.classList.toggle('hidden', quick !== 'custom');
+    if (relativeFields) relativeFields.classList.toggle('hidden', !(quick === 'last_minutes' || quick === 'last_hours'));
+  };
+
+  if (dateTypeSelect) dateTypeSelect.value = rangeState.mode || 'systemDate';
+  if (quickSelect) quickSelect.value = rangeState.quick || 'custom';
+  if (fromInput) fromInput.value = rangeState.from || '';
+  if (toInput) toInput.value = rangeState.to || '';
+  if (relativeValue) relativeValue.value = rangeState.relativeValue || '5';
+  if (relativeUnit) relativeUnit.value = rangeState.relativeUnit || 'minutes';
+  refreshFieldsVisibility();
 
   const applyBtn = document.getElementById('applyDateFilter');
   const clearBtn = document.getElementById('clearDateFilter');
@@ -2073,11 +2096,29 @@ function openDateFilterModal() {
 
   const cleanup = () => toggleModal(modal, false);
 
+  if (quickSelect) {
+    quickSelect.onchange = () => refreshFieldsVisibility();
+  }
+
   if (applyBtn) {
     applyBtn.onclick = () => {
+      const selectedType = dateTypeSelect?.value || 'systemDate';
+      const quick = quickSelect?.value || 'custom';
+      const rawRelativeValue = Math.max(1, Number(relativeValue?.value || 1));
+      const selectedRelativeUnit = relativeUnit?.value === 'hours' ? 'hours' : 'minutes';
       const from = fromInput?.value || '';
       const to = toInput?.value || '';
-      clientManagerState.dateRange = { from, to };
+      const quickResolved = quick === 'last_x'
+        ? (selectedRelativeUnit === 'hours' ? 'last_hours' : 'last_minutes')
+        : quick;
+      clientManagerState.dateRange = {
+        mode: selectedType,
+        quick: quickResolved,
+        from: quickResolved === 'custom' ? from : '',
+        to: quickResolved === 'custom' ? to : '',
+        relativeValue: String(rawRelativeValue),
+        relativeUnit: selectedRelativeUnit
+      };
       clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
@@ -2086,7 +2127,7 @@ function openDateFilterModal() {
   }
   if (clearBtn) {
     clearBtn.onclick = () => {
-      clientManagerState.dateRange = { from: '', to: '' };
+      clientManagerState.dateRange = { ...defaultClientManagerState.dateRange };
       clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
@@ -3552,12 +3593,63 @@ function sanitizeSheetName(label) {
   return (label || 'Sin fecha asignada').replace(/[\\/:?*\[\]]/g, '-').slice(0, 31) || 'Sin fecha asignada';
 }
 
-function isWithinDateRange(value, range = {}) {
-  if (!range.from && !range.to) return true;
+function toDateTimestamp(value) {
+  if (!value) return Number.NaN;
+  if (value instanceof Date) return value.getTime();
+  const asDate = new Date(value);
+  if (!Number.isNaN(asDate.getTime())) return asDate.getTime();
   const iso = formatDateISO(value);
-  if (!iso) return false;
-  const meetsFrom = range.from ? iso >= range.from : true;
-  const meetsTo = range.to ? iso <= range.to : true;
+  if (!iso) return Number.NaN;
+  return new Date(`${iso}T00:00:00`).getTime();
+}
+
+function buildDayBounds(dateValue) {
+  const iso = formatDateISO(dateValue);
+  if (!iso) return null;
+  return {
+    from: new Date(`${iso}T00:00:00`).getTime(),
+    to: new Date(`${iso}T23:59:59.999`).getTime()
+  };
+}
+
+function resolveClientDateValue(client = {}, mode = 'systemDate') {
+  if (mode === 'lastModified') {
+    return client.lastModifiedAt || client.contactMeta?.timestamp || client.contactDate || client.systemDate;
+  }
+  return client.systemDate;
+}
+
+function isWithinDateRange(value, range = {}) {
+  const mode = range.quick || 'custom';
+  const timestamp = toDateTimestamp(value);
+  if (Number.isNaN(timestamp)) return false;
+
+  if (mode === 'last_minutes' || mode === 'last_hours') {
+    const raw = Number(range.relativeValue);
+    const amount = Number.isFinite(raw) ? Math.max(1, raw) : 1;
+    const unitMs = mode === 'last_hours' ? 60 * 60 * 1000 : 60 * 1000;
+    return timestamp >= (Date.now() - (amount * unitMs));
+  }
+
+  if (mode === 'today') {
+    const bounds = buildDayBounds(new Date());
+    return !!bounds && timestamp >= bounds.from && timestamp <= bounds.to;
+  }
+
+  if (mode === 'yesterday') {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const bounds = buildDayBounds(yesterday);
+    return !!bounds && timestamp >= bounds.from && timestamp <= bounds.to;
+  }
+
+  const from = range.from || '';
+  const to = range.to || '';
+  if (!from && !to) return true;
+  const fromBounds = from ? buildDayBounds(from) : null;
+  const toBounds = to ? buildDayBounds(to) : null;
+  const meetsFrom = fromBounds ? timestamp >= fromBounds.from : true;
+  const meetsTo = toBounds ? timestamp <= toBounds.to : true;
   return meetsFrom && meetsTo;
 }
 
@@ -3786,6 +3878,7 @@ function updateClientJourneyStatus(client, statusKey, { source = 'manual' } = {}
     accountId: activeAccount?.id || '',
     accountName: activeAccount?.name || 'Sin cuenta'
   });
+  client.lastModifiedAt = timestamp;
   if (previousStatus.key !== option.key) {
     appendJourneyActivityEntry({
       client,
@@ -15086,6 +15179,7 @@ function mapRow(row, headers, systemDate = '') {
   mapped.phone = normalizePhone(mapped.phone || '');
   mapped.type = normalizeNotesValue(mapped.type);
   mapped.systemDate = systemDate;
+  mapped.lastModifiedAt = new Date().toISOString();
   return ensureJourneyStatusData(mapped);
 }
 
@@ -15208,8 +15302,10 @@ function renderStatusFilter() {
   const label = document.getElementById('statusFilterLabel');
   if (!select) return;
   const counts = statusCounters();
+  const baseCount = (counts.contacted || 0) + (counts.no_number || 0) + (counts.favorite || 0) + Object.values(counts.customs || {}).reduce((acc, value) => acc + value, 0);
   const options = [
     { value: 'all', label: 'Todos', count: counts.all },
+    { value: 'base_actions', label: 'Estados base + Acciones rápidas', count: baseCount },
     { value: 'contacted', label: 'Contactados', count: counts.contacted },
     { value: 'no_number', label: 'Número no disponible', count: counts.no_number },
     { value: 'favorite', label: 'Favoritos', count: counts.favorite },
@@ -15230,12 +15326,16 @@ function renderStatusFilter() {
 }
 
 function statusTypeCounters() {
-  const totals = { all: 0 };
+  const totals = { all: 0, groups: {}, states: {} };
   managerClients.forEach(client => {
     const status = clientStatus(client);
     if (status.label === 'Oculto') return;
+    const journey = normalizeJourneyStatus(client);
+    const group = JOURNEY_STATUS_GROUPS.find(item => item.keys.includes(journey.key));
     totals.all += 1;
     totals[status.className] = (totals[status.className] || 0) + 1;
+    if (group?.id) totals.groups[group.id] = (totals.groups[group.id] || 0) + 1;
+    if (journey?.key) totals.states[journey.key] = (totals.states[journey.key] || 0) + 1;
   });
   return totals;
 }
@@ -15247,12 +15347,26 @@ function renderStatusTypeFilter() {
   const counts = statusTypeCounters();
   const options = [
     { value: 'all', label: 'Todos los tipos', count: counts.all || 0 },
+    { value: 'journey:all', label: 'Todos los estados de jornada', count: counts.all || 0 }
+  ];
+
+  JOURNEY_STATUS_GROUPS.forEach(group => {
+    options.push({ value: `journey_group:${group.id}`, label: group.label, count: counts.groups[group.id] || 0 });
+    group.keys.forEach((key) => {
+      const option = getJourneyStatusOption(key);
+      if (!option) return;
+      options.push({ value: `journey:${key}`, label: `↳ ${option.label}`, count: counts.states[key] || 0 });
+    });
+  });
+
+  options.push(
     { value: 'status-pending', label: 'Pendiente', count: counts['status-pending'] || 0 },
     { value: 'status-contacted', label: 'Contactado', count: counts['status-contacted'] || 0 },
     { value: 'status-no-number', label: 'Número no disponible', count: counts['status-no-number'] || 0 },
     { value: 'status-favorite', label: 'Favorito', count: counts['status-favorite'] || 0 },
     { value: 'status-custom', label: 'Personalizado', count: counts['status-custom'] || 0 }
-  ];
+  );
+
   select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
   if (!options.some(opt => opt.value === clientManagerState.statusTypeFilter)) {
     clientManagerState.statusTypeFilter = 'all';
@@ -15261,6 +15375,7 @@ function renderStatusTypeFilter() {
   const current = options.find(opt => opt.value === select.value) || options[0];
   if (label) label.textContent = `${current.label} (${current.count})`;
 }
+
 
 function accountCounters() {
   const settings = mergeGlobalSettings(uiState.globalSettings);
@@ -15304,20 +15419,35 @@ function renderAccountFilter() {
 function renderDateFilterHelper() {
   const helper = document.getElementById('dateFilterHelper');
   if (!helper) return;
-  const { from, to } = clientManagerState.dateRange || {};
-  if (!from && !to) {
+  const range = clientManagerState.dateRange || {};
+  const mode = range.mode || 'systemDate';
+  const quick = range.quick || 'custom';
+  const hasRelative = (quick === 'last_minutes' || quick === 'last_hours') && Number(range.relativeValue) > 0;
+  const hasRange = !!range.from || !!range.to;
+  const hasQuick = quick === 'today' || quick === 'yesterday' || hasRelative;
+  if (!hasRange && !hasQuick) {
     helper.textContent = '';
     helper.classList.add('hidden');
     return;
   }
   helper.classList.remove('hidden');
-  const fromLabel = from ? formatDateLabel(from) : 'Inicio';
-  const toLabel = to ? formatDateLabel(to) : 'Actualidad';
-  helper.innerHTML = `<span class="date-filter-badge">Rango activo: <strong>${fromLabel} → ${toLabel}</strong><button class="ghost-btn mini-btn" id="clearDateFilterInline"><i class='bx bx-x'></i>Limpiar</button></span>`;
+  const dateTypeLabel = mode === 'lastModified' ? 'Fecha de modificación' : 'Fecha de carga';
+  let detail = '';
+  if (quick === 'today') detail = 'Hoy (00:00 a 23:59)';
+  else if (quick === 'yesterday') detail = 'Ayer (00:00 a 23:59)';
+  else if (hasRelative) {
+    const unitLabel = quick === 'last_hours' ? 'hora(s)' : 'minuto(s)';
+    detail = `Menos de ${Math.max(1, Number(range.relativeValue) || 1)} ${unitLabel}`;
+  } else {
+    const fromLabel = range.from ? formatDateLabel(range.from) : 'Inicio';
+    const toLabel = range.to ? formatDateLabel(range.to) : 'Actualidad';
+    detail = `${fromLabel} → ${toLabel}`;
+  }
+  helper.innerHTML = `<span class="date-filter-badge">${dateTypeLabel}: <strong>${detail}</strong><button class="ghost-btn mini-btn" id="clearDateFilterInline"><i class='bx bx-x'></i>Limpiar</button></span>`;
   const clearInline = document.getElementById('clearDateFilterInline');
   if (clearInline) {
     clearInline.onclick = () => {
-      clientManagerState.dateRange = { from: '', to: '' };
+      clientManagerState.dateRange = { ...defaultClientManagerState.dateRange };
       clientManagerState.pagination.page = 1;
       persist();
       renderClientManager();
@@ -15384,17 +15514,32 @@ function filteredManagerClients() {
     if (search) {
       return matchesSearch && status !== 'Oculto';
     }
-    const matchesDate = isWithinDateRange(c.systemDate, clientManagerState.dateRange);
+    const dateValue = resolveClientDateValue(c, clientManagerState.dateRange?.mode || 'systemDate');
+    const matchesDate = isWithinDateRange(dateValue, clientManagerState.dateRange);
     const matchesStatus = (
       clientManagerState.statusFilter === 'all'
         ? true
+        : clientManagerState.statusFilter === 'base_actions'
+          ? !!(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
         : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
         : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
         : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
         : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
         : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
     );
-    const matchesStatusType = statusTypeFilter === 'all' ? true : statusInfo.className === statusTypeFilter;
+    const journey = normalizeJourneyStatus(c);
+    const journeyGroup = JOURNEY_STATUS_GROUPS.find(group => group.keys.includes(journey.key));
+    const matchesStatusType = (
+      statusTypeFilter === 'all'
+        ? true
+        : statusTypeFilter === 'journey:all'
+          ? true
+        : statusTypeFilter?.startsWith('journey_group:')
+          ? journeyGroup?.id === statusTypeFilter.split(':')[1]
+        : statusTypeFilter?.startsWith('journey:')
+          ? journey.key === statusTypeFilter.split(':')[1]
+        : statusInfo.className === statusTypeFilter
+    );
     const matchesAccount = (
       accountFilter === 'all'
         ? true
@@ -15414,7 +15559,7 @@ function hasActiveManagerFilters() {
   const status = clientManagerState.statusFilter || 'all';
   const statusType = clientManagerState.statusTypeFilter || 'all';
   const account = clientManagerState.accountFilter || 'all';
-  return !!search || !!range.from || !!range.to || (status && status !== 'all') || (statusType && statusType !== 'all') || (account && account !== 'all');
+  return !!search || !!range.from || !!range.to || (range.quick && range.quick !== 'custom') || (status && status !== 'all') || (statusType && statusType !== 'all') || (account && account !== 'all');
 }
 
 function normalizeContactAssistantState() {
@@ -16147,7 +16292,8 @@ function buildManualClientPayload(form) {
     type: normalizeNotesValue(data.get('type')),
     systemDate: (data.get('systemDate') || '').toString().trim() || formatLocalISO(),
     flags: {},
-    selected: false
+    selected: false,
+    lastModifiedAt: new Date().toISOString()
   };
   return ensureJourneyStatusData(entry);
 }
@@ -17681,6 +17827,7 @@ function applyClientReassignUpdate() {
     accountName: account.name,
     timestamp
   };
+  client.lastModifiedAt = new Date().toISOString();
   if (previousAccount !== account.name) {
     appendJourneyActivityEntry({
       client,
@@ -17723,6 +17870,7 @@ function applyClientEdit() {
   const previousValue = client[activeEditAction.field] || '';
   client[activeEditAction.field] = newValue || '';
   if ((previousValue || '') !== (newValue || '')) {
+    client.lastModifiedAt = new Date().toISOString();
     appendJourneyActivityEntry({
       client,
       action: 'edit',
@@ -18101,6 +18249,7 @@ function updateContactMeta(client) {
   const status = clientStatus(client);
   const now = new Date().toISOString();
   client.lastContactStatus = status.label;
+  client.lastModifiedAt = now;
   if (status.className !== 'status-pending') {
     const activeAccount = getActiveAccount();
     client.contactDate = now;
@@ -21154,6 +21303,15 @@ function sanitizeClientManagerStateForStorage(state = {}) {
     ...(state.journeyReport || {})
   });
   return {
+    statusFilter: state.statusFilter || defaultClientManagerState.statusFilter,
+    statusTypeFilter: state.statusTypeFilter || defaultClientManagerState.statusTypeFilter,
+    accountFilter: state.accountFilter || defaultClientManagerState.accountFilter,
+    search: state.search || '',
+    pagination: normalizePaginationState(state.pagination || defaultClientManagerState.pagination),
+    dateRange: {
+      ...defaultClientManagerState.dateRange,
+      ...(state.dateRange || {})
+    },
     columnVisibility: state.columnVisibility || {},
     exportOptions: state.exportOptions || {},
     actionVisibility: state.actionVisibility || {},

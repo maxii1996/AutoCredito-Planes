@@ -1195,6 +1195,7 @@
                   <strong id="statusFilterLabel">Todos</strong>
                   <select id="statusFilter">
                     <option value="all">Todos</option>
+                    <option value="base_actions">Estados base + Acciones rápidas</option>
                     <option value="contacted">Contactado</option>
                     <option value="no_number">Número no disponible</option>
                     <option value="favorite">Favoritos</option>
@@ -1206,11 +1207,7 @@
                   <strong id="statusTypeFilterLabel">Todos los tipos</strong>
                   <select id="statusTypeFilter">
                     <option value="all">Todos los tipos</option>
-                    <option value="status-pending">Pendiente</option>
-                    <option value="status-contacted">Contactado</option>
-                    <option value="status-no-number">Número no disponible</option>
-                    <option value="status-favorite">Favorito</option>
-                    <option value="status-custom">Personalizado</option>
+                    <option value="journey:all">Todos los estados de jornada</option>
                   </select>
                 </div>
                 <div class="toggle filter-toggle" title="Filtrar por cuenta de contacto">
@@ -1559,7 +1556,7 @@
     </main>
     <footer class="app-footer">
       <div>
-        <p>Creado por Maximiliano Martinez | version v1.4.2 (beta) | Solo uso interno autorizado</p>
+        <p>Creado por Maximiliano Martinez | version V1.4.3 | Solo uso interno autorizado</p>
       </div>
       <div class="session-footer" id="sessionFooter">
         <span class="muted tiny" id="sessionStatus">Sesión no iniciada.</span>
@@ -2750,18 +2747,49 @@
       <div class="modal-head">
         <div>
           <p class="eyebrow">Filtrar por fecha</p>
-          <h3>Rango de fechas de carga</h3>
-          <p class="muted">Aplica un rango opcional según la fecha de carga al sistema.</p>
+          <h3>Filtros avanzados de fecha</h3>
+          <p class="muted">Combina tipo de fecha, rangos manuales y botones rápidos.</p>
         </div>
         <button id="dateFilterClose" class="ghost-btn icon-only"><i class='bx bx-x'></i></button>
       </div>
       <div class="field">
-        <label for="dateFilterFrom">Desde</label>
-        <input type="date" id="dateFilterFrom">
+        <label for="dateFilterType">Tipo de filtro de fecha</label>
+        <select id="dateFilterType">
+          <option value="systemDate">Por Fecha de carga</option>
+          <option value="lastModified">Por Fecha de modificación</option>
+        </select>
       </div>
       <div class="field">
-        <label for="dateFilterTo">Hasta</label>
-        <input type="date" id="dateFilterTo">
+        <label for="dateFilterQuickMode">Atajo de tiempo</label>
+        <select id="dateFilterQuickMode">
+          <option value="custom">Por rango personalizado</option>
+          <option value="last_x">Modificados hace menos de X tiempo</option>
+          <option value="today">Modificados hoy</option>
+          <option value="yesterday">Modificados ayer</option>
+        </select>
+      </div>
+      <div id="dateFilterRelativeFields" class="field-grid hidden">
+        <div class="field">
+          <label for="dateFilterRelativeValue">X Tiempo</label>
+          <input type="number" id="dateFilterRelativeValue" min="1" step="1" value="5">
+        </div>
+        <div class="field">
+          <label for="dateFilterRelativeUnit">Tipo de tiempo</label>
+          <select id="dateFilterRelativeUnit">
+            <option value="minutes">Minutos</option>
+            <option value="hours">Horas</option>
+          </select>
+        </div>
+      </div>
+      <div id="dateFilterCustomRangeFields">
+        <div class="field">
+          <label for="dateFilterFrom">Desde</label>
+          <input type="date" id="dateFilterFrom">
+        </div>
+        <div class="field">
+          <label for="dateFilterTo">Hasta</label>
+          <input type="date" id="dateFilterTo">
+        </div>
       </div>
       <div class="modal-actions">
         <button id="clearDateFilter" class="ghost-btn">Limpiar filtro</button>
