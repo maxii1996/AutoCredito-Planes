@@ -87,7 +87,7 @@ const panelTitles = {
   quoteGenerator: 'Mis Cotizaciones',
   clientManager: 'Gestor de Clientes',
   scheduledClients: 'Clientes Programados',
-  smsDesigner: 'Diseñador de SMS',
+  smsDesigner: 'Diseñador de Listas',
   importedDataManager: 'Administrar Datos Importados',
   moduleManagement: 'Gestión de Módulos'
 };
@@ -224,7 +224,7 @@ const MODULE_CATALOG = [
   { id: 'quickActions', label: 'Sub Módulo: Acciones Rápidas', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'contactLog', label: 'Sub Módulo: Registro de Contactados', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'journeyReport', label: 'Sub Módulo: Registro de Jornada', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
-  { id: 'smsDesigner', label: 'Sub Módulo: Diseñador de SMS', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
+  { id: 'smsDesigner', label: 'Sub Módulo: Diseñador de Listas', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'scheduledClients', label: 'Clientes Programados', type: 'module', exportable: true, group: 'general' },
   { id: 'templates', label: 'Plantillas', type: 'module', exportable: true, group: 'general' },
   { id: 'plans', label: 'Cotizaciones', type: 'module', exportable: true, group: 'general' },
@@ -808,7 +808,32 @@ const defaultSmsDesignerState = {
   excludeCustomActions: {},
   selection: {},
   listName: '',
-  previewClientId: ''
+  previewClientId: '',
+  enableCharCount: true,
+  includeHeaders: true,
+  channelPreset: 'sms',
+  designName: '',
+  selectedDesignId: '',
+  columnMappings: [
+    { id: 'sms-col-1', header: 'Numero', source: 'phone' },
+    { id: 'sms-col-2', header: 'Mensaje', source: '__message__' }
+  ]
+};
+
+const SMS_CHANNEL_PRESETS = {
+  sms: [
+    { header: 'Numero', source: 'phone' },
+    { header: 'Mensaje', source: '__message__' }
+  ],
+  wapi: [
+    { header: 'Telefono', source: 'phone' },
+    { header: 'Nombre', source: 'cliente' },
+    { header: 'Mensaje', source: '__message__' }
+  ],
+  custom: [
+    { header: 'Columna 1', source: 'phone' },
+    { header: 'Columna 2', source: '__message__' }
+  ]
 };
 
 function normalizeBrand(brand = '') {
@@ -6424,6 +6449,45 @@ function ensureSmsDesignerStateDefaults() {
     ...(smsDesignerState.excludeStatuses || {})
   };
   smsDesignerState.excludeCustomActions = smsDesignerState.excludeCustomActions || {};
+  smsDesignerState.enableCharCount = smsDesignerState.enableCharCount !== false;
+  smsDesignerState.includeHeaders = smsDesignerState.includeHeaders !== false;
+  smsDesignerState.channelPreset = ['sms', 'wapi', 'custom'].includes(smsDesignerState.channelPreset) ? smsDesignerState.channelPreset : 'sms';
+  smsDesignerState.designName = smsDesignerState.designName || '';
+  smsDesignerState.selectedDesignId = smsDesignerState.selectedDesignId || '';
+  smsDesignerState.savedDesigns = Array.isArray(smsDesignerState.savedDesigns) ? smsDesignerState.savedDesigns : [];
+  smsDesignerState.columnMappings = normalizeSmsColumnMappings(smsDesignerState.columnMappings);
+}
+
+function createSmsMappingId() {
+  return `sms-col-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getSmsMappingSourceOptions() {
+  const catalog = getDynamicVariableCatalog();
+  const options = [];
+  catalog.forEach(group => {
+    (group.items || []).forEach(item => {
+      options.push({ key: item.key, label: item.label, group: group.group });
+    });
+  });
+  options.push({ key: '__message__', label: 'Mensaje renderizado', group: 'Especial' });
+  return options;
+}
+
+function normalizeSmsColumnMappings(mappings = []) {
+  const options = new Set(getSmsMappingSourceOptions().map(item => item.key));
+  const normalized = (Array.isArray(mappings) ? mappings : []).map((mapping, index) => {
+    const header = String(mapping?.header || '').trim() || `Columna ${index + 1}`;
+    const source = String(mapping?.source || '').trim();
+    return {
+      id: mapping?.id || createSmsMappingId(),
+      header,
+      source: options.has(source) ? source : 'phone'
+    };
+  }).filter(Boolean);
+  if (normalized.length) return normalized;
+  const preset = SMS_CHANNEL_PRESETS[smsDesignerState?.channelPreset] || SMS_CHANNEL_PRESETS.sms;
+  return preset.map(item => ({ id: createSmsMappingId(), header: item.header, source: item.source }));
 }
 
 function getSelectedSmsTemplate() {
@@ -6687,22 +6751,28 @@ function updateSmsPreview() {
   const encodingEl = document.getElementById('smsCharEncoding');
   const hintEl = document.getElementById('smsCharHint');
   const meter = document.getElementById('smsMeter');
+  const isEnabled = smsDesignerState.enableCharCount !== false;
   if (countEl) {
-    countEl.textContent = `${analysis.length}/${analysis.limit}`;
+    countEl.textContent = isEnabled ? `${analysis.length}/${analysis.limit}` : '--/--';
   }
   if (encodingEl) {
-    encodingEl.textContent = analysis.encoding;
+    encodingEl.textContent = isEnabled ? analysis.encoding : 'OFF';
   }
   if (hintEl) {
-    const remaining = analysis.remaining;
-    const remainingLabel = remaining >= 0 ? `${remaining} caracteres disponibles` : `${Math.abs(remaining)} caracteres por encima`;
-    const warning = analysis.incompatible.length
-      ? `Caracteres incompatibles detectados: ${analysis.incompatible.join(' ')}.`
-      : '';
-    hintEl.textContent = `${remainingLabel}. ${warning}`.trim();
+    if (!isEnabled) {
+      hintEl.textContent = 'Conteo de caracteres desactivado para este diseño.';
+    } else {
+      const remaining = analysis.remaining;
+      const remainingLabel = remaining >= 0 ? `${remaining} caracteres disponibles` : `${Math.abs(remaining)} caracteres por encima`;
+      const warning = analysis.incompatible.length
+        ? `Caracteres incompatibles detectados: ${analysis.incompatible.join(' ')}.`
+        : '';
+      hintEl.textContent = `${remainingLabel}. ${warning}`.trim();
+    }
   }
   if (meter) {
-    meter.classList.toggle('warning', analysis.remaining < 0 || analysis.incompatible.length > 0);
+    meter.classList.toggle('warning', isEnabled && (analysis.remaining < 0 || analysis.incompatible.length > 0));
+    meter.classList.toggle('is-disabled', !isEnabled);
   }
 }
 
@@ -6848,6 +6918,100 @@ function renderSmsSavedLists() {
   }).join('');
 }
 
+function renderSmsDesignTemplates() {
+  const select = document.getElementById('smsSavedDesigns');
+  if (!select) return;
+  const designs = smsDesignerState.savedDesigns || [];
+  if (!designs.length) {
+    select.innerHTML = '<option value="">Sin diseños guardados</option>';
+    return;
+  }
+  select.innerHTML = designs.map(design => `<option value="${design.id}">${design.name}</option>`).join('');
+  if (!designs.some(item => item.id === smsDesignerState.selectedDesignId)) {
+    smsDesignerState.selectedDesignId = designs[0].id;
+  }
+  select.value = smsDesignerState.selectedDesignId;
+}
+
+function renderSmsMappings() {
+  const container = document.getElementById('smsColumnMappings');
+  if (!container) return;
+  const mappings = normalizeSmsColumnMappings(smsDesignerState.columnMappings);
+  smsDesignerState.columnMappings = mappings;
+  const options = getSmsMappingSourceOptions();
+  container.innerHTML = mappings.map((mapping, index) => `
+    <div class="sms-mapping-item" data-sms-mapping="${mapping.id}">
+      <span class="pill subtle">Columna ${index + 1}</span>
+      <input data-sms-mapping-header="${mapping.id}" value="${mapping.header}" placeholder="Nombre de columna" />
+      <select data-sms-mapping-source="${mapping.id}">
+        ${options.map(item => `<option value="${item.key}" ${item.key === mapping.source ? 'selected' : ''}>${item.group} · ${item.label}</option>`).join('')}
+      </select>
+      <button class="ghost-btn mini" data-sms-remove-mapping="${mapping.id}"><i class='bx bx-x'></i></button>
+    </div>
+  `).join('');
+}
+
+function applySmsChannelPreset(preset = 'sms') {
+  const blueprint = SMS_CHANNEL_PRESETS[preset] || SMS_CHANNEL_PRESETS.sms;
+  smsDesignerState.channelPreset = preset;
+  smsDesignerState.columnMappings = blueprint.map(item => ({ id: createSmsMappingId(), header: item.header, source: item.source }));
+  persist();
+  renderSmsMappings();
+}
+
+function saveSmsDesignTemplate() {
+  const rawName = (smsDesignerState.designName || '').trim();
+  const name = rawName || `Diseño ${((smsDesignerState.savedDesigns || []).length + 1)}`;
+  const designs = smsDesignerState.savedDesigns || [];
+  const id = smsDesignerState.selectedDesignId || createTemplateId('sms-design');
+  const payload = {
+    id,
+    name,
+    includeHeaders: smsDesignerState.includeHeaders !== false,
+    enableCharCount: smsDesignerState.enableCharCount !== false,
+    channelPreset: smsDesignerState.channelPreset || 'sms',
+    columnMappings: normalizeSmsColumnMappings(smsDesignerState.columnMappings)
+  };
+  const idx = designs.findIndex(item => item.id === id);
+  if (idx >= 0) designs[idx] = payload;
+  else designs.unshift(payload);
+  smsDesignerState.savedDesigns = designs;
+  smsDesignerState.selectedDesignId = id;
+  smsDesignerState.designName = name;
+  persist();
+  renderSmsDesignTemplates();
+  showToast('Diseño guardado', 'success');
+}
+
+function loadSmsDesignTemplate() {
+  const designs = smsDesignerState.savedDesigns || [];
+  const selectedId = smsDesignerState.selectedDesignId;
+  const design = designs.find(item => item.id === selectedId);
+  if (!design) {
+    showToast('Selecciona un diseño válido.', 'error');
+    return;
+  }
+  smsDesignerState.designName = design.name || '';
+  smsDesignerState.includeHeaders = design.includeHeaders !== false;
+  smsDesignerState.enableCharCount = design.enableCharCount !== false;
+  smsDesignerState.channelPreset = design.channelPreset || 'sms';
+  smsDesignerState.columnMappings = normalizeSmsColumnMappings(design.columnMappings);
+  persist();
+  renderSmsDesigner();
+  showToast('Diseño cargado', 'success');
+}
+
+function deleteSmsDesignTemplate() {
+  const designs = smsDesignerState.savedDesigns || [];
+  const selectedId = smsDesignerState.selectedDesignId;
+  if (!selectedId) return;
+  smsDesignerState.savedDesigns = designs.filter(item => item.id !== selectedId);
+  smsDesignerState.selectedDesignId = smsDesignerState.savedDesigns[0]?.id || '';
+  persist();
+  renderSmsDesignTemplates();
+  showToast('Diseño eliminado', 'success');
+}
+
 function renderSmsDesigner() {
   ensureSmsDesignerStateDefaults();
   const templateSearch = document.getElementById('smsTemplateSearch');
@@ -6862,6 +7026,16 @@ function renderSmsDesigner() {
   if (listNameInput && listNameInput.value !== (smsDesignerState.listName || '')) {
     listNameInput.value = smsDesignerState.listName || '';
   }
+  const designNameInput = document.getElementById('smsDesignName');
+  if (designNameInput && designNameInput.value !== (smsDesignerState.designName || '')) {
+    designNameInput.value = smsDesignerState.designName || '';
+  }
+  const channelPreset = document.getElementById('smsChannelPreset');
+  if (channelPreset) channelPreset.value = smsDesignerState.channelPreset || 'sms';
+  const includeHeaders = document.getElementById('smsIncludeHeaders');
+  if (includeHeaders) includeHeaders.checked = smsDesignerState.includeHeaders !== false;
+  const charToggle = document.getElementById('smsEnableCharCount');
+  if (charToggle) charToggle.checked = smsDesignerState.enableCharCount !== false;
   const excludeToggle = document.getElementById('smsExcludeWrongNumber');
   if (excludeToggle) {
     excludeToggle.checked = !!smsDesignerState.excludeWrongNumber;
@@ -6869,28 +7043,49 @@ function renderSmsDesigner() {
   renderSmsExclusionFilters();
   renderSmsTemplates();
   renderSmsEditor();
+  renderSmsMappings();
+  renderSmsDesignTemplates();
   renderSmsAudience();
   renderSmsSavedLists();
 }
 
-function downloadSmsWorkbook(rows, fileName) {
+function getSmsMappingValue(client, mapping, template) {
+  if (!mapping) return '';
+  if (mapping.source === '__message__') return buildSmsMessage(template, client);
+  if (mapping.source === 'phone') return formatSmsPhone(client.phone || '');
+  const map = buildDynamicVariableMap(client);
+  return map[mapping.source] ?? '';
+}
+
+function getSmsExportRowsFromClients(baseClients = [], template = getSelectedSmsTemplate()) {
+  const mappings = normalizeSmsColumnMappings(smsDesignerState.columnMappings);
+  const headers = mappings.map(item => item.header || 'Columna');
+  const rows = baseClients.map(client => {
+    const row = mappings.map(mapping => getSmsMappingValue(client, mapping, template));
+    const hasContent = row.some(value => String(value || '').trim() !== '');
+    return hasContent ? row : null;
+  }).filter(Boolean);
+  return { headers, rows, mappings };
+}
+
+function downloadSmsWorkbook(headers, rows, fileName, { includeHeaders = true } = {}) {
   if (!rows.length) {
     showToast('No hay datos para exportar.', 'error');
     return;
   }
-  const data = [['Numero', 'Mensaje'], ...rows.map(row => [row.number, row.message])];
+  const data = includeHeaders ? [headers, ...rows] : rows;
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+  ws['!cols'] = headers.map(() => ({ wch: 28 }));
   const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let row = 1; row <= range.e.r; row += 1) {
-    const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 });
-    if (ws[cellAddress]) {
-      ws[cellAddress].t = 's';
-      ws[cellAddress].z = '@';
+  for (let row = includeHeaders ? 1 : 0; row <= range.e.r; row += 1) {
+    const firstCellAddress = XLSX.utils.encode_cell({ r: row, c: 0 });
+    if (ws[firstCellAddress]) {
+      ws[firstCellAddress].t = 's';
+      ws[firstCellAddress].z = '@';
     }
   }
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'SMS');
+  XLSX.utils.book_append_sheet(wb, ws, 'Lista');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
@@ -6902,19 +7097,21 @@ function downloadSmsWorkbook(rows, fileName) {
 }
 
 function exportSmsTemplateFile() {
-  const ws = XLSX.utils.aoa_to_sheet([['Numero', 'Mensaje']]);
-  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+  const mappings = normalizeSmsColumnMappings(smsDesignerState.columnMappings);
+  const headers = mappings.map(item => item.header || 'Columna');
+  const ws = XLSX.utils.aoa_to_sheet([headers]);
+  ws['!cols'] = headers.map(() => ({ wch: 28 }));
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'SMS');
+  XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `plantilla-sms-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  anchor.download = `plantilla-lista-${new Date().toISOString().slice(0, 10)}.xlsx`;
   anchor.click();
   URL.revokeObjectURL(url);
-  showToast('Plantilla descargada', 'success');
+  showToast('Plantilla base descargada', 'success');
 }
 
 function exportSmsSelection() {
@@ -6922,17 +7119,21 @@ function exportSmsSelection() {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
   const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]);
-  const rows = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => !shouldExcludeSmsClient(client)).map(client => ({
-    number: formatSmsPhone(client.phone || ''),
-    message: buildSmsMessage(template, client)
-  })).filter(row => row.number);
-  if (!rows.length) {
-    showToast('No hay clientes seleccionados con teléfono válido.', 'error');
+  const selectedClients = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => !shouldExcludeSmsClient(client));
+  if (!selectedClients.length) {
+    showToast('No hay clientes seleccionados para exportar.', 'error');
     return;
   }
-  const name = (smsDesignerState.listName || 'sms').trim().replace(/\s+/g, '-').toLowerCase();
-  downloadSmsWorkbook(rows, `sms-${name || 'lista'}-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  showToast('Exportación lista', 'success');
+  const exportData = getSmsExportRowsFromClients(selectedClients, template);
+  if (!exportData.rows.length) {
+    showToast('No hay datos válidos para generar la lista.', 'error');
+    return;
+  }
+  const name = (smsDesignerState.listName || 'lista').trim().replace(/\s+/g, '-').toLowerCase();
+  downloadSmsWorkbook(exportData.headers, exportData.rows, `lista-${name || 'general'}-${new Date().toISOString().slice(0, 10)}.xlsx`, {
+    includeHeaders: smsDesignerState.includeHeaders !== false
+  });
+  showToast('Lista exportada correctamente', 'success');
 }
 
 function saveSmsList() {
@@ -6946,7 +7147,7 @@ function saveSmsList() {
     showToast('Selecciona clientes para guardar una lista.', 'error');
     return;
   }
-  const name = (smsDesignerState.listName || '').trim() || `Lista SMS ${smsLists.length + 1}`;
+  const name = (smsDesignerState.listName || '').trim() || `Lista ${smsLists.length + 1}`;
   const template = getSelectedSmsTemplate();
   smsLists.unshift({
     id: createTemplateId('sms-list'),
@@ -6954,7 +7155,9 @@ function saveSmsList() {
     templateId: template?.id || '',
     clientIds: selectedIds,
     createdAt: new Date().toISOString(),
-    excludeWrongNumber: !!smsDesignerState.excludeWrongNumber
+    includeHeaders: smsDesignerState.includeHeaders !== false,
+    channelPreset: smsDesignerState.channelPreset || 'sms',
+    columnMappings: normalizeSmsColumnMappings(smsDesignerState.columnMappings)
   });
   smsDesignerState.listName = name;
   persist();
@@ -6968,15 +7171,16 @@ function downloadSmsListById(listId) {
   const template = smsTemplates.find(item => item.id === list.templateId) || getSelectedSmsTemplate();
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
-  const rows = (list.clientIds || []).map(id => byId.get(id)).filter(Boolean).map(client => ({
-    number: formatSmsPhone(client.phone || ''),
-    message: buildSmsMessage(template, client)
-  })).filter(row => row.number);
-  if (!rows.length) {
-    showToast('La lista no tiene teléfonos válidos para exportar.', 'error');
+  const selectedClients = (list.clientIds || []).map(id => byId.get(id)).filter(Boolean);
+  smsDesignerState.columnMappings = normalizeSmsColumnMappings(list.columnMappings || smsDesignerState.columnMappings);
+  const exportData = getSmsExportRowsFromClients(selectedClients, template);
+  if (!exportData.rows.length) {
+    showToast('La lista no tiene datos válidos para exportar.', 'error');
     return;
   }
-  downloadSmsWorkbook(rows, `sms-${(list.name || 'lista').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  downloadSmsWorkbook(exportData.headers, exportData.rows, `lista-${(list.name || 'lista').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`, {
+    includeHeaders: list.includeHeaders !== false
+  });
   showToast('Lista exportada', 'success');
 }
 
@@ -7089,6 +7293,114 @@ function bindSmsDesigner() {
       persist();
       updateSmsPreview();
     });
+  }
+  const charToggle = document.getElementById('smsEnableCharCount');
+  if (charToggle) {
+    charToggle.checked = smsDesignerState.enableCharCount !== false;
+    charToggle.addEventListener('change', () => {
+      smsDesignerState.enableCharCount = charToggle.checked;
+      persist();
+      updateSmsPreview();
+    });
+  }
+  const includeHeaders = document.getElementById('smsIncludeHeaders');
+  if (includeHeaders) {
+    includeHeaders.checked = smsDesignerState.includeHeaders !== false;
+    includeHeaders.addEventListener('change', () => {
+      smsDesignerState.includeHeaders = includeHeaders.checked;
+      persist();
+    });
+  }
+  const channelPreset = document.getElementById('smsChannelPreset');
+  if (channelPreset) {
+    channelPreset.value = smsDesignerState.channelPreset || 'sms';
+    channelPreset.addEventListener('change', () => applySmsChannelPreset(channelPreset.value));
+  }
+  const mappings = document.getElementById('smsColumnMappings');
+  if (mappings && !mappings.dataset.bound) {
+    mappings.addEventListener('input', (event) => {
+      const headerInput = event.target.closest('[data-sms-mapping-header]');
+      if (headerInput) {
+        const id = headerInput.dataset.smsMappingHeader;
+        const row = smsDesignerState.columnMappings.find(item => item.id === id);
+        if (row) row.header = headerInput.value;
+        persist();
+        return;
+      }
+      const sourceSelect = event.target.closest('[data-sms-mapping-source]');
+      if (sourceSelect) {
+        const id = sourceSelect.dataset.smsMappingSource;
+        const row = smsDesignerState.columnMappings.find(item => item.id === id);
+        if (row) row.source = sourceSelect.value;
+        persist();
+      }
+    });
+    mappings.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('[data-sms-remove-mapping]');
+      if (!removeBtn) return;
+      const id = removeBtn.dataset.smsRemoveMapping;
+      smsDesignerState.columnMappings = (smsDesignerState.columnMappings || []).filter(item => item.id !== id);
+      if (!smsDesignerState.columnMappings.length) {
+        smsDesignerState.columnMappings = normalizeSmsColumnMappings([]);
+      }
+      persist();
+      renderSmsMappings();
+    });
+    mappings.dataset.bound = 'true';
+  }
+  const addMappingBtn = document.getElementById('smsAddMapping');
+  if (addMappingBtn && !addMappingBtn.dataset.bound) {
+    addMappingBtn.addEventListener('click', () => {
+      smsDesignerState.columnMappings.push({ id: createSmsMappingId(), header: `Columna ${smsDesignerState.columnMappings.length + 1}`, source: 'phone' });
+      persist();
+      renderSmsMappings();
+    });
+    addMappingBtn.dataset.bound = 'true';
+  }
+  const designNameInput = document.getElementById('smsDesignName');
+  if (designNameInput) {
+    designNameInput.value = smsDesignerState.designName || '';
+    designNameInput.addEventListener('input', () => {
+      smsDesignerState.designName = designNameInput.value;
+      persist();
+    });
+  }
+  const savedDesigns = document.getElementById('smsSavedDesigns');
+  if (savedDesigns && !savedDesigns.dataset.bound) {
+    savedDesigns.addEventListener('change', () => {
+      smsDesignerState.selectedDesignId = savedDesigns.value;
+      persist();
+    });
+    savedDesigns.dataset.bound = 'true';
+  }
+  const saveDesignBtn = document.getElementById('smsSaveDesign');
+  if (saveDesignBtn && !saveDesignBtn.dataset.bound) {
+    saveDesignBtn.addEventListener('click', saveSmsDesignTemplate);
+    saveDesignBtn.dataset.bound = 'true';
+  }
+  const loadDesignBtn = document.getElementById('smsLoadDesign');
+  if (loadDesignBtn && !loadDesignBtn.dataset.bound) {
+    loadDesignBtn.addEventListener('click', loadSmsDesignTemplate);
+    loadDesignBtn.dataset.bound = 'true';
+  }
+  const deleteDesignBtn = document.getElementById('smsDeleteDesign');
+  if (deleteDesignBtn && !deleteDesignBtn.dataset.bound) {
+    deleteDesignBtn.addEventListener('click', deleteSmsDesignTemplate);
+    deleteDesignBtn.dataset.bound = 'true';
+  }
+  const newDesignBtn = document.getElementById('smsNewDesign');
+  if (newDesignBtn && !newDesignBtn.dataset.bound) {
+    newDesignBtn.addEventListener('click', () => {
+      smsDesignerState.selectedDesignId = '';
+      smsDesignerState.designName = '';
+      smsDesignerState.channelPreset = 'sms';
+      smsDesignerState.includeHeaders = true;
+      smsDesignerState.enableCharCount = true;
+      smsDesignerState.columnMappings = normalizeSmsColumnMappings(SMS_CHANNEL_PRESETS.sms.map(item => ({ ...item, id: createSmsMappingId() })));
+      persist();
+      renderSmsDesigner();
+    });
+    newDesignBtn.dataset.bound = 'true';
   }
   const audienceSearch = document.getElementById('smsAudienceSearch');
   if (audienceSearch) {
@@ -21202,12 +21514,12 @@ const SYNC_ITEM_DEFINITIONS = [
   { key: 'generatedQuotes', label: 'Cotizaciones', group: 'data', kind: 'array', description: 'Cotizaciones generadas y guardadas.' },
   { key: 'managerClients', label: 'Gestor de clientes (seguimiento)', group: 'modules', kind: 'array', description: 'Historial y seguimiento de contactos del gestor de clientes.' },
   { key: 'templates', label: 'Plantillas', group: 'content', kind: 'array', description: 'Mensajes y textos guardados.' },
-  { key: 'smsTemplates', label: 'Plantillas SMS', group: 'content', kind: 'array', description: 'Plantillas dedicadas para envíos por SMS.' },
-  { key: 'smsLists', label: 'Listas SMS', group: 'modules', kind: 'array', description: 'Listas guardadas para exportación de SMS.' },
+  { key: 'smsTemplates', label: 'Plantillas de Listas', group: 'content', kind: 'array', description: 'Plantillas de mensaje para diseñar listas de exportación.' },
+  { key: 'smsLists', label: 'Listas de Exportación', group: 'modules', kind: 'array', description: 'Listas guardadas para exportación configurable.' },
   { key: 'vehicles', label: 'Vehículos', group: 'content', kind: 'array', description: 'Listado de autos y valores.' },
   { key: 'uiState', label: 'Preferencias de cuenta', group: 'config', kind: 'object', description: 'Ajustes principales de cuenta y preferencias visuales.' },
   { key: 'clientManagerState', label: 'Configuración del gestor', group: 'config', kind: 'object', description: 'Columnas y acciones personalizadas del gestor de clientes.' },
-  { key: 'smsDesignerState', label: 'Configuración de SMS', group: 'config', kind: 'object', description: 'Preferencias y filtros del diseñador de SMS.' },
+  { key: 'smsDesignerState', label: 'Configuración de Diseñador de Listas', group: 'config', kind: 'object', description: 'Preferencias, filtros y mapeos del Diseñador de Listas.' },
   { key: 'brandSettings', label: 'Configuración de marcas', group: 'config', kind: 'array', description: 'Esquemas y colores por marca.' }
 ];
 
@@ -21335,7 +21647,14 @@ function sanitizeSmsDesignerStateForStorage(state = {}) {
     excludeCustomActions: state.excludeCustomActions || {},
     selection: state.selection || {},
     listName: state.listName || '',
-    previewClientId: state.previewClientId || ''
+    previewClientId: state.previewClientId || '',
+    enableCharCount: state.enableCharCount !== false,
+    includeHeaders: state.includeHeaders !== false,
+    channelPreset: state.channelPreset || 'sms',
+    designName: state.designName || '',
+    selectedDesignId: state.selectedDesignId || '',
+    savedDesigns: Array.isArray(state.savedDesigns) ? state.savedDesigns : [],
+    columnMappings: state.columnMappings || []
   };
 }
 

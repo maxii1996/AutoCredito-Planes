@@ -152,7 +152,7 @@
                 <button class="menu-item" id="openActionCustomizer"><i class='bx bx-show-alt'></i>Personalizar acciones rápidas</button>
                 <button class="menu-item" id="openContactLog"><i class='bx bx-time-five'></i>Registro de Contactados</button>
                 <button class="menu-item" id="openImportedDataManager"><i class='bx bx-data'></i>Administrar datos importados</button>
-                <button class="menu-item" id="openSmsDesigner"><i class='bx bx-message-square-dots'></i>Diseñador de SMS</button>
+                <button class="menu-item" id="openSmsDesigner"><i class='bx bx-list-ul'></i>Diseñador de Listas</button>
               </div>
             </div>
           </div>
@@ -1267,25 +1267,25 @@
         <div class="panel-head">
           <div>
             <p class="eyebrow">Utilidades conectadas</p>
-            <h2>Diseñador de SMS</h2>
-            <p class="muted subtle">Crea plantillas para SMS, arma listas de clientes y exporta archivos Excel listos para enviar.</p>
+            <h2>Diseñador de Listas</h2>
+            <p class="muted subtle">Diseña exportaciones para SMS, WAPI y otros canales asignando columnas de Excel a datos dinámicos.</p>
           </div>
           <div class="actions compact">
-            <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-download'></i>Descargar plantilla Excel</button>
+            <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-download'></i>Descargar plantilla base</button>
           </div>
         </div>
         <div class="sms-layout">
           <aside class="sms-template-list">
             <div class="template-list-head">
               <div>
-                <p class="eyebrow">Plantillas SMS</p>
+                <p class="eyebrow">Plantillas de mensaje</p>
                 <h3>Biblioteca</h3>
               </div>
               <button id="smsAddTemplate" class="primary-btn ghosted"><i class='bx bx-plus'></i>Nueva plantilla</button>
             </div>
             <div class="search-field template-search">
               <i class='bx bx-search'></i>
-              <input id="smsTemplateSearch" placeholder="Buscar plantillas SMS" />
+              <input id="smsTemplateSearch" placeholder="Buscar plantillas de mensaje" />
             </div>
             <div class="template-list-body" id="smsTemplateList"></div>
           </aside>
@@ -1310,6 +1310,52 @@
                       <span class="pill subtle" id="smsCharEncoding">GSM-7</span>
                     </div>
                     <p class="muted tiny" id="smsCharHint"></p>
+                  </div>
+                  <label class="checkbox-field compact-inline">
+                    <input type="checkbox" id="smsEnableCharCount" checked>
+                    <span>Activar conteo de caracteres</span>
+                  </label>
+                </div>
+              </div>
+              <div class="sms-editor-card sms-design-card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow">Diseño de exportación</p>
+                    <h3>Columnas y plantillas</h3>
+                  </div>
+                </div>
+                <div class="sms-design-controls">
+                  <div class="field compact">
+                    <label for="smsChannelPreset">Canal objetivo</label>
+                    <select id="smsChannelPreset">
+                      <option value="sms">SMS</option>
+                      <option value="wapi">WAPI</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+                  </div>
+                  <label class="checkbox-field compact-inline">
+                    <input type="checkbox" id="smsIncludeHeaders" checked>
+                    <span>Incluir cabezales en Excel</span>
+                  </label>
+                </div>
+                <div class="sms-mapping-list" id="smsColumnMappings"></div>
+                <div class="sms-design-actions">
+                  <button class="ghost-btn mini" id="smsAddMapping"><i class='bx bx-plus'></i>Agregar columna</button>
+                </div>
+                <div class="sms-template-manager">
+                  <div class="field compact">
+                    <label for="smsDesignName">Nombre del diseño</label>
+                    <input id="smsDesignName" placeholder="Ej: Lista WAPI" />
+                  </div>
+                  <div class="field compact">
+                    <label for="smsSavedDesigns">Diseños guardados</label>
+                    <select id="smsSavedDesigns"></select>
+                  </div>
+                  <div class="sms-design-actions">
+                    <button class="secondary-btn mini" id="smsSaveDesign"><i class='bx bx-save'></i>Guardar diseño</button>
+                    <button class="ghost-btn mini" id="smsLoadDesign"><i class='bx bx-folder-open'></i>Cargar</button>
+                    <button class="ghost-btn mini" id="smsDeleteDesign"><i class='bx bx-trash'></i>Eliminar</button>
+                    <button class="ghost-btn mini" id="smsNewDesign"><i class='bx bx-reset'></i>Nuevo</button>
                   </div>
                 </div>
               </div>
@@ -1337,7 +1383,7 @@
                       <div class="dynamic-data-list" id="smsDynamicDataList"></div>
                     </div>
                   </div>
-                  <div id="smsTemplateBody" class="template-editor-input sms-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el mensaje SMS con variables"></div>
+                  <div id="smsTemplateBody" class="template-editor-input sms-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el mensaje con variables dinámicas"></div>
                 </div>
               </div>
               <div class="variables-shell">
