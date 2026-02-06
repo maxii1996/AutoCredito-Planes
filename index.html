@@ -1290,17 +1290,17 @@
           <div class="sms-main-editor">
             <div class="sms-editor-card">
               <div class="sms-editor-title-row">
-                <div class="field">
+                <div class="field sms-list-name-field">
                   <label for="smsListName">Nombre de la lista activa</label>
                   <input id="smsListName" placeholder="Ej: Campaña Octubre" />
                 </div>
                 <div class="sms-list-head-actions">
                   <button class="ghost-btn" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
+                  <button class="ghost-btn sms-dynamic-data-btn" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Datos dinámicos</button>
                 </div>
               </div>
 
               <div class="dynamic-toolbar-row">
-                <button class="ghost-btn mini" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Datos dinámicos</button>
                 <div class="dynamic-data-panel hidden" id="smsDynamicDataPanel">
                   <div class="dynamic-data-head">
                     <div>
@@ -1330,6 +1330,7 @@
                   <p class="muted tiny" id="smsAudienceSummary">Selecciona clientes para exportar.</p>
                 </div>
                 <div class="sms-audience-actions">
+                  <button class="secondary-btn sms-download-list-btn" id="smsDownloadList"><i class='bx bx-download'></i>Descargar esta lista</button>
                   <button class="ghost-btn mini" id="smsSelectAll"><i class='bx bx-check-double'></i>Seleccionar todos</button>
                   <button class="ghost-btn mini" id="smsClearSelection"><i class='bx bx-x'></i>Limpiar</button>
                 </div>

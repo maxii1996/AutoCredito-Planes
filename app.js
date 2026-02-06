@@ -6960,7 +6960,7 @@ function renderSmsColumnBuilder() {
         <button class="sms-column-summary" type="button" data-sms-column-toggle="${col.id}">
           <div>
             <p class="eyebrow">Columna ${index + 1}</p>
-            <h4>Configuración libre</h4>
+            <h4>Configurar contenido</h4>
           </div>
           <i class='bx bx-chevron-down'></i>
         </button>
@@ -6970,9 +6970,6 @@ function renderSmsColumnBuilder() {
               <label>Contenido de la columna ${index + 1}</label>
               <textarea class="sms-editor-input" data-sms-column-custom="${col.id}" placeholder="Escribe el contenido para esta columna">${escapeHtml(col.custom || '')}</textarea>
             </div>
-          </div>
-          <div class="sms-column-actions-row">
-            <button class="ghost-btn mini" type="button" data-sms-column-insert="${col.id}"><i class='bx bx-code-alt'></i>Insertar dato dinámico aquí</button>
           </div>
           <div class="sms-column-preview">
             <strong>Vista previa de esta columna:</strong>
@@ -7425,6 +7422,12 @@ function bindSmsDesigner() {
       scheduleSmsListRealtimeSync();
     });
   }
+  const downloadListBtn = document.getElementById('smsDownloadList');
+  if (downloadListBtn) {
+    downloadListBtn.addEventListener('click', () => {
+      exportSmsSelection();
+    });
+  }
   const clearBtn = document.getElementById('smsClearSelection');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
@@ -7498,16 +7501,6 @@ function bindSmsDesigner() {
         smsDesignerState.focusedColumnId = toggleBtn.dataset.smsColumnToggle;
         persist();
         renderSmsColumnBuilder();
-        return;
-      }
-      const insertBtn = event.target.closest('[data-sms-column-insert]');
-      if (insertBtn) {
-        smsDesignerState.focusedColumnId = insertBtn.dataset.smsColumnInsert;
-        persist();
-        renderSmsVariableChips(extractVariables((smsDesignerState.columnMapping.find(item => item.id === smsDesignerState.focusedColumnId)?.custom) || ''));
-        renderSmsDynamicDataMenu(dynamicSearch?.value || '');
-        toggleSmsDynamicDataMenu(true);
-        dynamicSearch?.focus();
         return;
       }
       const removeBtn = event.target.closest('[data-sms-column-remove]');

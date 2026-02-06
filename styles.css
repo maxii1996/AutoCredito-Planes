@@ -1738,8 +1738,20 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .sms-list-item h4 { margin: 0; }
 .sms-list-item p { margin: 0; color: var(--muted); font-size: 12px; }
 .sms-list-actions { display: flex; gap: 6px; align-items: center; }
-.sms-editor-title-row { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.sms-editor-title-row { display: grid; gap: 12px; grid-template-columns: minmax(260px, 420px) auto; align-items: end; }
+.sms-list-name-field { max-width: 420px; }
 .sms-list-head-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.sms-dynamic-data-btn {
+  border-color: rgba(246, 176, 75, 0.55);
+  color: #f6b04b;
+  background: linear-gradient(135deg, rgba(246, 176, 75, 0.2), rgba(234, 88, 12, 0.15));
+  box-shadow: 0 10px 24px rgba(246, 176, 75, 0.22);
+}
+.sms-dynamic-data-btn:hover {
+  border-color: rgba(246, 176, 75, 0.9);
+  color: #ffd28c;
+  background: linear-gradient(135deg, rgba(246, 176, 75, 0.34), rgba(234, 88, 12, 0.2));
+}
 .sms-left-sidebar #smsCreateList { padding: 7px 12px; border-radius: 10px; font-size: 12px; }
 .dynamic-toolbar-row { display: grid; gap: 8px; justify-items: start; }
 .sms-column-builder.redesigned { display: grid; gap: 10px; }
@@ -1759,7 +1771,20 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .sms-column-preview { border: 1px dashed rgba(148, 163, 184, 0.4); border-radius: 12px; padding: 10px; background: rgba(15, 23, 42, 0.42); display: grid; gap: 8px; }
 .sms-column-preview pre { margin: 0; white-space: pre-wrap; font-size: 13px; }
 .sms-column-footer { display: flex; justify-content: flex-end; }
-.sms-audience-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.sms-audience-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
+.sms-download-list-btn {
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+  border-color: rgba(250, 204, 21, 0.85);
+  color: #1f2937;
+  font-weight: 800;
+  padding: 10px 16px;
+  border-radius: 12px;
+}
+.sms-download-list-btn:hover {
+  color: #111827;
+  border-color: #fcd34d;
+  box-shadow: 0 12px 26px rgba(250, 204, 21, 0.34);
+}
 .sms-audience-controls { display: grid; gap: 10px; }
 .sms-audience-search-group { width: 100%; align-items: stretch; }
 .sms-audience-search-group .search-field { flex: 1; width: 100%; }
