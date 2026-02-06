@@ -795,6 +795,8 @@ const DEFAULT_SMS_TEMPLATES = [
 
 const defaultSmsDesignerState = {
   selectedTemplateId: '',
+  selectedListId: '',
+  focusedColumnId: '',
   templateSearch: '',
   audienceSearch: '',
   excludeWrongNumber: false,
@@ -6426,6 +6428,8 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.listName = smsDesignerState.listName || '';
   smsDesignerState.previewClientId = smsDesignerState.previewClientId || '';
   smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
+  smsDesignerState.selectedListId = smsDesignerState.selectedListId || '';
+  smsDesignerState.focusedColumnId = smsDesignerState.focusedColumnId || '';
   smsDesignerState.useHeaders = smsDesignerState.useHeaders !== false;
   smsDesignerState.enableCharCount = smsDesignerState.enableCharCount !== false;
   smsDesignerState.channelType = smsDesignerState.channelType || 'sms';
@@ -6437,8 +6441,12 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.columnMapping = (providedMapping.length ? providedMapping : fallbackMapping).map((item, index) => ({
     id: item?.id || createTemplateId(`col-${index + 1}`),
     header: String(item?.header || `Columna ${index + 1}`).trim() || `Columna ${index + 1}`,
-    field: item?.field || 'custom'
+    field: item?.field || 'custom',
+    custom: String(item?.custom || '')
   }));
+  if (!smsDesignerState.focusedColumnId || !smsDesignerState.columnMapping.some(item => item.id === smsDesignerState.focusedColumnId)) {
+    smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
+  }
   smsDesignerState.excludeStatuses = {
     ...defaultSmsDesignerState.excludeStatuses,
     ...(smsDesignerState.excludeStatuses || {})
@@ -6490,29 +6498,16 @@ function updateSmsBodyHighlight({ preserveSelection = false } = {}) {
 }
 
 function insertSmsVariable(variable) {
-  const editor = document.getElementById('smsTemplateBody');
-  if (!editor) return;
   const insertion = `{{${variable}}}`;
-  editor.focus();
-  const updated = `${getSmsBodyValue()}${insertion}`;
-  editor.textContent = updated;
-  const currentTemplate = getSelectedSmsTemplate();
-  if (currentTemplate) {
-    currentTemplate.body = updated;
-    persist();
+  const focusedId = smsDesignerState.focusedColumnId;
+  const column = (smsDesignerState.columnMapping || []).find(item => item.id === focusedId);
+  if (!column || column.field !== 'custom') {
+    showToast('Abre una columna personalizada para insertar datos dinámicos.', 'info');
+    return;
   }
-  renderSmsVariableChips(extractVariables(updated));
-  updateSmsBodyHighlight();
-  const range = document.createRange();
-  range.selectNodeContents(editor);
-  range.collapse(false);
-  const selection = window.getSelection();
-  if (selection) {
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-  rememberSmsSelection();
-  updateSmsPreview();
+  column.custom = `${column.custom || ''}${insertion}`;
+  persist();
+  renderSmsColumnBuilder();
 }
 
 function analyzeSmsContent(text = '') {
@@ -6879,6 +6874,14 @@ function resolveSmsMappedValue(field, client, template) {
   return '';
 }
 
+function resolveSmsColumnPreviewValue(column, client, template) {
+  if (!column) return '';
+  if (column.field === 'custom') {
+    return buildSmsMessage({ body: column.custom || '' }, client);
+  }
+  return resolveSmsMappedValue(column.field, client, template);
+}
+
 function buildSmsWorkbookData(rows = []) {
   const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
   const activeMapping = mapping.length ? mapping : [
@@ -6886,7 +6889,10 @@ function buildSmsWorkbookData(rows = []) {
     { id: 'col-message', header: 'Mensaje', field: 'message' }
   ];
   const headers = activeMapping.map((item, index) => item.header || `Columna ${index + 1}`);
-  const dataRows = rows.map(({ client, template }) => activeMapping.map(item => resolveSmsMappedValue(item.field, client, template)));
+  const dataRows = rows.map(({ client, template }) => activeMapping.map(item => {
+    if (item.field === 'custom') return buildSmsMessage({ body: item.custom || '' }, client);
+    return resolveSmsMappedValue(item.field, client, template);
+  }));
   return smsDesignerState.useHeaders === false ? dataRows : [headers, ...dataRows];
 }
 
@@ -6895,48 +6901,80 @@ function renderSmsColumnBuilder() {
   if (!container) return;
   const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
   const options = getSmsExportFieldOptions();
+  const pool = filterSmsAudience(getSmsAudiencePool());
+  const previewClient = pool.find(item => item.id === smsDesignerState.previewClientId) || pool[0] || {};
+  const template = getSelectedSmsTemplate();
   if (!mapping.length) {
     container.innerHTML = '<p class="muted tiny">No hay columnas configuradas.</p>';
     return;
   }
-  container.innerHTML = mapping.map((col, index) => `
-    <div class="sms-column-row" data-sms-column-row="${col.id}">
-      <div class="field compact">
-        <label>Columna ${index + 1} - Nombre</label>
-        <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Telefono" />
-      </div>
-      <div class="field compact">
-        <label>Asignar a</label>
-        <select data-sms-column-field="${col.id}">
-          ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
-        </select>
-      </div>
-      <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i></button>
-    </div>
-  `).join('');
+  container.innerHTML = mapping.map((col, index) => {
+    const isOpen = col.id === smsDesignerState.focusedColumnId;
+    const previewValue = resolveSmsColumnPreviewValue(col, previewClient, template);
+    return `
+      <article class="sms-column-accordion ${isOpen ? 'open' : ''}" data-sms-column-card="${col.id}">
+        <button class="sms-column-summary" type="button" data-sms-column-toggle="${col.id}">
+          <div>
+            <p class="eyebrow">Columna ${index + 1}</p>
+            <h4>${escapeHtml(col.header || `Columna ${index + 1}`)}</h4>
+          </div>
+          <i class='bx bx-chevron-down'></i>
+        </button>
+        <div class="sms-column-content">
+          <div class="sms-column-content-grid">
+            <div class="field compact">
+              <label>Nombre de columna</label>
+              <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Teléfono" />
+            </div>
+            <div class="field compact">
+              <label>Contenido</label>
+              <select data-sms-column-field="${col.id}">
+                ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="field compact ${col.field === 'custom' ? '' : 'hidden'}" data-sms-column-custom-wrap="${col.id}">
+            <label>Contenido personalizado</label>
+            <textarea class="sms-editor-input" data-sms-column-custom="${col.id}" placeholder="Escribe el contenido para esta columna">${escapeHtml(col.custom || '')}</textarea>
+          </div>
+          <div class="sms-column-preview">
+            <strong>Preview del Contenido:</strong>
+            <pre>${escapeHtml(previewValue || 'Sin contenido')}</pre>
+          </div>
+          <div class="sms-column-footer">
+            <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i>Eliminar columna</button>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderSmsSavedLists() {
   const container = document.getElementById('smsSavedLists');
   if (!container) return;
-  if (!smsLists.length) {
-    container.innerHTML = '<p class="muted tiny">Aún no hay listas guardadas.</p>';
+  const term = (smsDesignerState.templateSearch || '').trim().toLowerCase();
+  const filtered = smsLists.filter(list => !term || (list.name || '').toLowerCase().includes(term));
+  if (!filtered.length) {
+    container.innerHTML = '<p class="muted tiny">No tienes ninguna lista creada.</p>';
     return;
   }
-  container.innerHTML = smsLists.map(list => {
+  container.innerHTML = filtered.map(list => {
     const template = smsTemplates.find(item => item.id === list.templateId);
     const templateLabel = template?.title || 'Plantilla eliminada';
     const created = list.createdAt ? formatAdminDate(list.createdAt) : '-';
     const count = list.clientIds?.length || 0;
+    const active = list.id === smsDesignerState.selectedListId;
     return `
-      <div class="sms-list-item" data-sms-list="${list.id}">
-        <div>
+      <div class="sms-list-item ${active ? 'active' : ''}" data-sms-list="${list.id}">
+        <button class="sms-list-main" type="button" data-sms-list-action="load" data-sms-list-id="${list.id}">
           <h4>${list.name || 'Lista sin nombre'}</h4>
           <p>${count} clientes · ${templateLabel} · ${created}</p>
-        </div>
+        </button>
         <div class="sms-list-actions">
-          <button class="ghost-btn mini" data-sms-list-action="download" data-sms-list-id="${list.id}"><i class='bx bx-download'></i>Descargar</button>
-          <button class="ghost-btn mini" data-sms-list-action="delete" data-sms-list-id="${list.id}"><i class='bx bx-trash'></i>Eliminar</button>
+          <button class="ghost-btn mini" data-sms-list-action="rename" data-sms-list-id="${list.id}"><i class='bx bx-edit'></i></button>
+          <button class="ghost-btn mini" data-sms-list-action="download" data-sms-list-id="${list.id}"><i class='bx bx-download'></i></button>
+          <button class="ghost-btn mini" data-sms-list-action="delete" data-sms-list-id="${list.id}"><i class='bx bx-trash'></i></button>
         </div>
       </div>
     `;
@@ -6961,18 +6999,13 @@ function renderSmsDesigner() {
   if (excludeToggle) {
     excludeToggle.checked = !!smsDesignerState.excludeWrongNumber;
   }
-  const useHeadersToggle = document.getElementById('smsUseHeaders');
-  if (useHeadersToggle) useHeadersToggle.checked = smsDesignerState.useHeaders !== false;
-  const enableCharCountToggle = document.getElementById('smsEnableCharCount');
-  if (enableCharCountToggle) enableCharCountToggle.checked = smsDesignerState.enableCharCount !== false;
-  const channelSelect = document.getElementById('smsChannelType');
-  if (channelSelect) channelSelect.value = smsDesignerState.channelType || 'sms';
   renderSmsExclusionFilters();
-  renderSmsTemplates();
-  renderSmsEditor();
   renderSmsAudience();
   renderSmsColumnBuilder();
   renderSmsSavedLists();
+  renderSmsDynamicDataMenu('');
+  const focusedColumn = (smsDesignerState.columnMapping || []).find(item => item.id === smsDesignerState.focusedColumnId);
+  renderSmsVariableChips(extractVariables(focusedColumn?.custom || ''));
 }
 
 function downloadSmsWorkbook(rows, fileName) {
@@ -7055,18 +7088,32 @@ function saveSmsList() {
   }
   const name = (smsDesignerState.listName || '').trim() || `Lista SMS ${smsLists.length + 1}`;
   const template = getSelectedSmsTemplate();
-  smsLists.unshift({
-    id: createTemplateId('sms-list'),
-    name,
-    templateId: template?.id || '',
-    clientIds: selectedIds,
-    createdAt: new Date().toISOString(),
-    excludeWrongNumber: !!smsDesignerState.excludeWrongNumber
-  });
+  const existing = smsLists.find(item => item.id === smsDesignerState.selectedListId);
+  if (existing) {
+    existing.name = name;
+    existing.templateId = template?.id || '';
+    existing.clientIds = selectedIds;
+    existing.excludeWrongNumber = !!smsDesignerState.excludeWrongNumber;
+    existing.columnMapping = (smsDesignerState.columnMapping || []).map(item => ({ ...item }));
+    existing.updatedAt = new Date().toISOString();
+    showToast('Lista actualizada', 'success');
+  } else {
+    const created = {
+      id: createTemplateId('sms-list'),
+      name,
+      templateId: template?.id || '',
+      clientIds: selectedIds,
+      createdAt: new Date().toISOString(),
+      excludeWrongNumber: !!smsDesignerState.excludeWrongNumber,
+      columnMapping: (smsDesignerState.columnMapping || []).map(item => ({ ...item }))
+    };
+    smsLists.unshift(created);
+    smsDesignerState.selectedListId = created.id;
+    showToast('Lista guardada', 'success');
+  }
   smsDesignerState.listName = name;
   persist();
   renderSmsSavedLists();
-  showToast('Lista guardada', 'success');
 }
 
 function downloadSmsListById(listId) {
@@ -7102,7 +7149,7 @@ function bindSmsDesigner() {
     templateSearch.addEventListener('input', () => {
       smsDesignerState.templateSearch = templateSearch.value;
       persist();
-      renderSmsTemplates();
+      renderSmsSavedLists();
     });
   }
   const titleInput = document.getElementById('smsTemplateTitle');
@@ -7112,7 +7159,7 @@ function bindSmsDesigner() {
       if (!template) return;
       template.title = titleInput.value;
       persist();
-      renderSmsTemplates();
+      renderSmsSavedLists();
     });
   }
   const bodyEditor = document.getElementById('smsTemplateBody');
@@ -7287,6 +7334,18 @@ function bindSmsDesigner() {
       persist();
     });
   }
+  const createListBtn = document.getElementById('smsCreateList');
+  if (createListBtn && !createListBtn.dataset.bound) {
+    createListBtn.addEventListener('click', () => {
+      confirmAction({
+        title: 'Crear nueva lista',
+        message: 'Se creará una nueva lista en blanco. ¿Deseas continuar?',
+        confirmText: 'Crear',
+        onConfirm: createSmsList
+      });
+    });
+    createListBtn.dataset.bound = 'true';
+  }
   const saveListBtn = document.getElementById('smsSaveList');
   if (saveListBtn) {
     saveListBtn.addEventListener('click', saveSmsList);
@@ -7325,24 +7384,48 @@ function bindSmsDesigner() {
   if (columnBuilder && !columnBuilder.dataset.bound) {
     columnBuilder.addEventListener('input', (event) => {
       const headerInput = event.target.closest('[data-sms-column-header]');
-      if (!headerInput) return;
-      const col = smsDesignerState.columnMapping.find(item => item.id === headerInput.dataset.smsColumnHeader);
+      if (headerInput) {
+        const col = smsDesignerState.columnMapping.find(item => item.id === headerInput.dataset.smsColumnHeader);
+        if (!col) return;
+        col.header = headerInput.value;
+        persist();
+        renderSmsColumnBuilder();
+        return;
+      }
+      const customInput = event.target.closest('[data-sms-column-custom]');
+      if (!customInput) return;
+      const col = smsDesignerState.columnMapping.find(item => item.id === customInput.dataset.smsColumnCustom);
       if (!col) return;
-      col.header = headerInput.value;
+      col.custom = customInput.value;
       persist();
+      renderSmsColumnBuilder();
     });
     columnBuilder.addEventListener('change', (event) => {
+      const toggle = event.target.closest('[data-sms-column-toggle]');
+      if (toggle) return;
       const fieldSelect = event.target.closest('[data-sms-column-field]');
       if (!fieldSelect) return;
       const col = smsDesignerState.columnMapping.find(item => item.id === fieldSelect.dataset.smsColumnField);
       if (!col) return;
       col.field = fieldSelect.value;
+      if (col.field !== 'custom') col.custom = '';
       persist();
+      renderSmsColumnBuilder();
     });
     columnBuilder.addEventListener('click', (event) => {
+      const toggleBtn = event.target.closest('[data-sms-column-toggle]');
+      if (toggleBtn) {
+        smsDesignerState.focusedColumnId = toggleBtn.dataset.smsColumnToggle;
+        persist();
+        renderSmsColumnBuilder();
+        return;
+      }
       const removeBtn = event.target.closest('[data-sms-column-remove]');
       if (!removeBtn) return;
       smsDesignerState.columnMapping = smsDesignerState.columnMapping.filter(item => item.id !== removeBtn.dataset.smsColumnRemove);
+      if (smsDesignerState.focusedColumnId === removeBtn.dataset.smsColumnRemove) {
+        smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
+      }
       if (!smsDesignerState.columnMapping.length) {
         smsDesignerState.columnMapping = [{ id: createTemplateId('col'), header: 'Numero', field: 'number' }];
       }
@@ -7354,7 +7437,9 @@ function bindSmsDesigner() {
   const addColumnBtn = document.getElementById('smsAddColumn');
   if (addColumnBtn && !addColumnBtn.dataset.bound) {
     addColumnBtn.addEventListener('click', () => {
-      smsDesignerState.columnMapping.push({ id: createTemplateId('col'), header: `Columna ${smsDesignerState.columnMapping.length + 1}`, field: 'custom' });
+      const createdId = createTemplateId('col');
+      smsDesignerState.columnMapping.push({ id: createdId, header: `Columna ${smsDesignerState.columnMapping.length + 1}`, field: 'custom', custom: '' });
+      smsDesignerState.focusedColumnId = createdId;
       persist();
       renderSmsColumnBuilder();
     });
@@ -7366,6 +7451,17 @@ function bindSmsDesigner() {
       const action = event.target.closest('[data-sms-list-action]');
       if (!action) return;
       const listId = action.dataset.smsListId;
+      if (action.dataset.smsListAction === 'load') {
+        loadSmsListById(listId);
+      }
+      if (action.dataset.smsListAction === 'rename') {
+        confirmAction({
+          title: 'Renombrar lista',
+          message: '¿Deseas cambiar el nombre de esta lista?',
+          confirmText: 'Continuar',
+          onConfirm: () => renameSmsListById(listId)
+        });
+      }
       if (action.dataset.smsListAction === 'download') {
         downloadSmsListById(listId);
       }
@@ -7380,6 +7476,75 @@ function bindSmsDesigner() {
     });
     savedLists.dataset.bound = 'true';
   }
+}
+
+
+function createSmsList() {
+  const name = window.prompt('Ingresa el nombre para la nueva lista:');
+  if (name === null) return;
+  const cleanName = String(name || '').trim();
+  if (!cleanName) {
+    showToast('Debes indicar un nombre para la lista.', 'error');
+    return;
+  }
+  const newList = {
+    id: createTemplateId('sms-list'),
+    name: cleanName,
+    templateId: getSelectedSmsTemplate()?.id || '',
+    clientIds: [],
+    createdAt: new Date().toISOString(),
+    excludeWrongNumber: false,
+    columnMapping: (smsDesignerState.columnMapping || []).map(item => ({ ...item }))
+  };
+  smsLists.unshift(newList);
+  smsDesignerState.selectedListId = newList.id;
+  smsDesignerState.listName = cleanName;
+  smsDesignerState.selection = {};
+  persist();
+  renderSmsSavedLists();
+  renderSmsDesigner();
+  showToast('Nueva lista creada', 'success');
+}
+
+function loadSmsListById(listId) {
+  const list = smsLists.find(item => item.id === listId);
+  if (!list) return;
+  smsDesignerState.selectedListId = list.id;
+  smsDesignerState.listName = list.name || '';
+  smsDesignerState.selection = {};
+  (list.clientIds || []).forEach(id => { smsDesignerState.selection[id] = true; });
+  smsDesignerState.excludeWrongNumber = !!list.excludeWrongNumber;
+  if (Array.isArray(list.columnMapping) && list.columnMapping.length) {
+    smsDesignerState.columnMapping = list.columnMapping.map((item, index) => ({
+      id: item.id || createTemplateId(`col-${index + 1}`),
+      header: item.header || `Columna ${index + 1}`,
+      field: item.field || 'custom',
+      custom: item.custom || ''
+    }));
+    smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
+  }
+  persist();
+  renderSmsDesigner();
+  showToast('Lista cargada', 'success');
+}
+
+function renameSmsListById(listId) {
+  const list = smsLists.find(item => item.id === listId);
+  if (!list) return;
+  const nextName = window.prompt('Nuevo nombre de la lista:', list.name || '');
+  if (nextName === null) return;
+  const cleanName = String(nextName || '').trim();
+  if (!cleanName) {
+    showToast('El nombre no puede estar vacío.', 'error');
+    return;
+  }
+  list.name = cleanName;
+  if (smsDesignerState.selectedListId === listId) {
+    smsDesignerState.listName = cleanName;
+  }
+  persist();
+  renderSmsSavedLists();
+  showToast('Lista renombrada', 'success');
 }
 
 function nextVariationTitle(variations = []) {

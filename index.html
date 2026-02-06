@@ -1264,184 +1264,129 @@
       </section>
 
       <section id="smsDesigner" class="panel">
-        <div class="panel-head">
+        <div class="panel-head sms-designer-head">
           <div>
             <p class="eyebrow">Utilidades conectadas</p>
             <h2>Diseñador de Listas</h2>
-            <p class="muted subtle">Diseña estructuras para SMS, WAPI y otros canales; asigna columnas, guarda plantillas y exporta archivos listos para integrar.</p>
+            <p class="muted subtle">Lavado de cara completo: administra tus listas, arma columnas en acordeón y define a quiénes incluir antes de descargar.</p>
           </div>
           <div class="actions compact">
-            <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-download'></i>Descargar plantilla Excel</button>
+            <button class="primary-btn" id="smsExportList"><i class='bx bx-download'></i>Descargar esta lista</button>
+            <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-file'></i>Descargar plantilla Excel</button>
           </div>
         </div>
-        <div class="sms-layout">
-          <aside class="sms-template-list">
-            <div class="template-list-head">
-              <div>
-                <p class="eyebrow">Plantillas de listas</p>
-                <h3>Biblioteca</h3>
+        <div class="sms-redesign-layout">
+          <aside class="sms-left-sidebar">
+            <div class="sms-sidebar-card">
+              <div class="template-list-head">
+                <div>
+                  <p class="eyebrow">Nuestras listas</p>
+                  <h3>Mis listas</h3>
+                </div>
+                <button id="smsCreateList" class="primary-btn ghosted"><i class='bx bx-plus'></i>Crear nueva lista</button>
               </div>
-              <button id="smsAddTemplate" class="primary-btn ghosted"><i class='bx bx-plus'></i>Nueva plantilla</button>
+              <div class="search-field template-search">
+                <i class='bx bx-search'></i>
+                <input id="smsTemplateSearch" placeholder="Buscar listas" />
+              </div>
+              <div class="template-list-body" id="smsSavedLists"></div>
             </div>
-            <div class="search-field template-search">
-              <i class='bx bx-search'></i>
-              <input id="smsTemplateSearch" placeholder="Buscar plantillas" />
-            </div>
-            <div class="template-list-body" id="smsTemplateList"></div>
           </aside>
-          <div class="sms-workspace">
+
+          <div class="sms-main-editor">
             <div class="sms-editor-card">
-              <div class="preview-stack">
-                <div class="preview-box sms-preview-box">
-                  <div class="sms-preview-head">
-                    <div>
-                      <p class="eyebrow">Previsualización</p>
-                      <h3>Vista previa dinámica</h3>
-                    </div>
-                    <div class="field compact">
-                      <label for="smsPreviewClient">Cliente para preview</label>
-                      <select id="smsPreviewClient"></select>
-                    </div>
-                  </div>
-                  <pre id="smsTemplatePreview"></pre>
-                  <div class="sms-meter" id="smsMeter">
-                    <div class="sms-meter-row">
-                      <span id="smsCharCount">0/160</span>
-                      <span class="pill subtle" id="smsCharEncoding">GSM-7</span>
-                    </div>
-                    <p class="muted tiny" id="smsCharHint"></p>
-                  </div>
+              <div class="sms-editor-title-row">
+                <div class="field">
+                  <label for="smsListName">Nombre de la lista activa</label>
+                  <input id="smsListName" placeholder="Ej: Campaña Octubre" />
+                </div>
+                <div class="sms-list-head-actions">
+                  <button class="secondary-btn" id="smsSaveList"><i class='bx bx-save'></i>Guardar cambios</button>
+                  <button class="ghost-btn" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
                 </div>
               </div>
-              <div class="field">
-                <label for="smsTemplateTitle">Nombre del diseño</label>
-                <input id="smsTemplateTitle" placeholder="Ej: Campaña bienvenida WAPI" />
-              </div>
-              <div class="field textarea-field">
-                <label for="smsTemplateBody">Contenido principal</label>
-                <div class="textarea-shell">
-                  <div class="template-editor-toolbar">
-                    <button class="ghost-btn mini" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Agregar Dato Dinámico...</button>
-                    <div class="dynamic-data-panel hidden" id="smsDynamicDataPanel">
-                      <div class="dynamic-data-head">
-                        <div>
-                          <p class="eyebrow">Datos dinámicos</p>
-                          <h4>Insertar variables</h4>
-                        </div>
-                        <button class="ghost-btn icon-only" id="closeSmsDynamicData" title="Cerrar"><i class='bx bx-x'></i></button>
-                      </div>
-                      <div class="search-field compact">
-                        <i class='bx bx-search'></i>
-                        <input id="smsDynamicDataSearch" placeholder="Buscar variable..." />
-                      </div>
-                      <div class="dynamic-data-list" id="smsDynamicDataList"></div>
-                    </div>
+
+              <div class="preview-box sms-preview-box">
+                <div class="sms-preview-head">
+                  <div>
+                    <p class="eyebrow">Preview global</p>
+                    <h3>Cliente de referencia</h3>
                   </div>
-                  <div id="smsTemplateBody" class="template-editor-input sms-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el contenido con variables dinámicas"></div>
-                </div>
-              </div>
-              <div class="sms-config-grid">
-                <label class="checkbox-field">
-                  <input type="checkbox" id="smsUseHeaders" checked>
-                  <span>Incluir cabezales en la exportación</span>
-                </label>
-                <label class="checkbox-field">
-                  <input type="checkbox" id="smsEnableCharCount" checked>
-                  <span>Activar conteo de caracteres</span>
-                </label>
-                <div class="field compact">
-                  <label for="smsChannelType">Canal de salida</label>
-                  <select id="smsChannelType">
-                    <option value="sms">SMS</option>
-                    <option value="wapi">WAPI</option>
-                    <option value="custom">Personalizado</option>
-                  </select>
-                </div>
-              </div>
-              <div class="variables-shell">
-                <div class="variables-head">
-                  <p class="eyebrow">Variables detectadas</p>
-                  <p class="muted tiny">Se reemplazan con datos reales del cliente.</p>
+                  <div class="field compact">
+                    <label for="smsPreviewClient">Cliente para preview</label>
+                    <select id="smsPreviewClient"></select>
+                  </div>
                 </div>
                 <div class="chips variable-chip-row" id="smsVariableChips"></div>
               </div>
-            </div>
-            <div class="sms-audience-stack">
-              <div class="sms-audience-card">
-                <div class="card-head">
-                  <div>
-                    <p class="eyebrow">Destinatarios</p>
-                    <h3>Lista de clientes</h3>
-                    <p class="muted tiny" id="smsAudienceSummary">Selecciona clientes para exportar.</p>
+
+              <div class="dynamic-toolbar-row">
+                <button class="ghost-btn mini" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Insertar Dato Dinámico</button>
+                <div class="dynamic-data-panel hidden" id="smsDynamicDataPanel">
+                  <div class="dynamic-data-head">
+                    <div>
+                      <p class="eyebrow">Datos dinámicos</p>
+                      <h4>Insertar variables</h4>
+                    </div>
+                    <button class="ghost-btn icon-only" id="closeSmsDynamicData" title="Cerrar"><i class='bx bx-x'></i></button>
                   </div>
-                  <div class="sms-audience-actions">
-                    <button class="ghost-btn mini" id="smsSelectAll"><i class='bx bx-check-double'></i>Seleccionar visibles</button>
-                    <button class="ghost-btn mini" id="smsClearSelection"><i class='bx bx-x'></i>Limpiar selección</button>
-                  </div>
-                </div>
-                <div class="sms-audience-controls">
                   <div class="search-field compact">
                     <i class='bx bx-search'></i>
-                    <input id="smsAudienceSearch" placeholder="Buscar cliente o teléfono..." />
+                    <input id="smsDynamicDataSearch" placeholder="Buscar variable" />
                   </div>
-                  <label class="checkbox-field">
-                    <input type="checkbox" id="smsExcludeWrongNumber">
-                    <span>Excluir contactos con estado "Número equivocado"</span>
-                  </label>
-                  <div class="sms-exclusion-panel" id="smsExclusionPanel">
-                    <div class="sms-exclusion-head">
-                      <strong>Exclusiones por estado y acciones</strong>
-                      <button class="ghost-btn mini" type="button" id="smsClearExclusions"><i class='bx bx-eraser'></i>Limpiar exclusiones</button>
-                    </div>
-                    <div class="sms-exclusion-group">
-                      <p class="muted tiny">Estados de contacto</p>
-                      <div class="sms-exclusion-list" id="smsExcludeStatusList"></div>
-                    </div>
-                    <div class="sms-exclusion-group">
-                      <p class="muted tiny">Acciones personalizadas</p>
-                      <div class="sms-exclusion-list" id="smsExcludeCustomList"></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="sms-audience-meta">
-                  <span class="pill subtle">Total: <strong id="smsAudienceCount">0</strong></span>
-                  <span class="pill subtle">Seleccionados: <strong id="smsSelectedCount">0</strong></span>
-                  <span class="pill subtle">Sin teléfono: <strong id="smsMissingCount">0</strong></span>
-                </div>
-                <div class="sms-audience-list" id="smsAudienceList"></div>
-                <div class="sms-export-panel">
-                  <div class="field">
-                    <label for="smsListName">Nombre de la lista</label>
-                    <input id="smsListName" placeholder="Ej: Campaña Octubre" />
-                  </div>
-                  <div class="sms-export-actions">
-                    <button class="secondary-btn" id="smsSaveList"><i class='bx bx-save'></i>Guardar lista</button>
-                    <button class="primary-btn" id="smsExportList"><i class='bx bx-download'></i>Descargar SMS</button>
-                  </div>
+                  <div class="dynamic-data-list" id="smsDynamicDataList"></div>
                 </div>
               </div>
-              <div class="sms-lists-card">
-                <div class="card-head">
-                  <div>
-                    <p class="eyebrow">Asignación de columnas</p>
-                    <h3>Estructura del Excel</h3>
-                    <p class="muted tiny">Define qué dato irá en cada columna del archivo exportado.</p>
-                  </div>
-                  <button class="ghost-btn mini" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
-                </div>
-                <div class="sms-column-builder" id="smsColumnBuilder"></div>
-              </div>
-              <div class="sms-lists-card">
-                <div class="card-head">
-                  <div>
-                    <p class="eyebrow">Listas guardadas</p>
-                    <h3>Historial</h3>
-                  </div>
-                </div>
-                <div class="sms-saved-lists" id="smsSavedLists"></div>
-              </div>
+
+              <div class="sms-column-builder redesigned" id="smsColumnBuilder"></div>
             </div>
           </div>
+
+          <aside class="sms-right-audience">
+            <div class="sms-audience-card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Destinatarios</p>
+                  <h3>¿A quién incluir?</h3>
+                  <p class="muted tiny" id="smsAudienceSummary">Selecciona clientes para exportar.</p>
+                </div>
+                <div class="sms-audience-actions">
+                  <button class="ghost-btn mini" id="smsSelectAll"><i class='bx bx-check-double'></i>Seleccionar visibles</button>
+                  <button class="ghost-btn mini" id="smsClearSelection"><i class='bx bx-x'></i>Limpiar</button>
+                </div>
+              </div>
+              <div class="sms-audience-controls">
+                <div class="search-field compact">
+                  <i class='bx bx-search'></i>
+                  <input id="smsAudienceSearch" placeholder="Buscar cliente o teléfono..." />
+                </div>
+                <label class="checkbox-field">
+                  <input type="checkbox" id="smsExcludeWrongNumber">
+                  <span>Excluir estado "Número equivocado"</span>
+                </label>
+                <div class="sms-exclusion-panel" id="smsExclusionPanel">
+                  <div class="sms-exclusion-head">
+                    <strong>Exclusiones por estado y acciones</strong>
+                    <button class="ghost-btn mini" type="button" id="smsClearExclusions"><i class='bx bx-eraser'></i>Limpiar exclusiones</button>
+                  </div>
+                  <div class="sms-exclusion-group">
+                    <p class="muted tiny">Estados de contacto</p>
+                    <div class="sms-exclusion-list" id="smsExcludeStatusList"></div>
+                  </div>
+                  <div class="sms-exclusion-group">
+                    <p class="muted tiny">Acciones personalizadas</p>
+                    <div class="sms-exclusion-list" id="smsExcludeCustomList"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="sms-audience-meta">
+                <span class="pill subtle">Total: <strong id="smsAudienceCount">0</strong></span>
+                <span class="pill subtle">Seleccionados: <strong id="smsSelectedCount">0</strong></span>
+                <span class="pill subtle">Sin teléfono: <strong id="smsMissingCount">0</strong></span>
+              </div>
+              <div class="sms-audience-list" id="smsAudienceList"></div>
+            </div>
+          </aside>
         </div>
       </section>
 
