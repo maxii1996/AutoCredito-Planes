@@ -816,7 +816,7 @@ const defaultSmsDesignerState = {
   enableCharCount: true,
   channelType: 'sms',
   columnMapping: [
-    { id: 'col-1', custom: 'Hola {{cliente}}, soy {{asesor}}.' },
+    { id: 'col-1', custom: '' },
     { id: 'col-2', custom: '{{telefono}}' }
   ]
 };
@@ -7416,7 +7416,7 @@ function bindSmsDesigner() {
   const selectAllBtn = document.getElementById('smsSelectAll');
   if (selectAllBtn) {
     selectAllBtn.addEventListener('click', () => {
-      const pool = filterSmsAudience(getSmsAudiencePool());
+      const pool = getSmsAudiencePool();
       pool.forEach(client => {
         smsDesignerState.selection[client.id] = true;
       });
@@ -7454,14 +7454,6 @@ function bindSmsDesigner() {
       });
     });
     createListBtn.dataset.bound = 'true';
-  }
-  const exportListBtn = document.getElementById('smsExportList');
-  if (exportListBtn) {
-    exportListBtn.addEventListener('click', exportSmsSelection);
-  }
-  const exportTemplateBtn = document.getElementById('smsExportTemplate');
-  if (exportTemplateBtn) {
-    exportTemplateBtn.addEventListener('click', exportSmsTemplateFile);
   }
   const useHeadersToggle = document.getElementById('smsUseHeaders');
   if (useHeadersToggle) {
@@ -7602,12 +7594,16 @@ function createSmsList() {
     excludeWrongNumber: false,
     excludeStatuses: { ...defaultSmsDesignerState.excludeStatuses },
     excludeCustomActions: {},
-    columnMapping: (smsDesignerState.columnMapping || []).map(item => ({ ...item }))
+    columnMapping: [
+      { id: createTemplateId('col'), custom: '' }
+    ]
   };
   smsLists.unshift(newList);
   smsDesignerState.selectedListId = newList.id;
   smsDesignerState.listName = cleanName;
   smsDesignerState.selection = {};
+  smsDesignerState.columnMapping = newList.columnMapping.map(item => ({ ...item }));
+  smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
   persist();
   renderSmsSavedLists();
   renderSmsDesigner();
