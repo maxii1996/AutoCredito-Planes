@@ -15364,14 +15364,6 @@ function renderStatusTypeFilter() {
     });
   });
 
-  options.push(
-    { value: 'status-pending', label: 'Pendiente', count: counts['status-pending'] || 0 },
-    { value: 'status-contacted', label: 'Contactado', count: counts['status-contacted'] || 0 },
-    { value: 'status-no-number', label: 'Número no disponible', count: counts['status-no-number'] || 0 },
-    { value: 'status-favorite', label: 'Favorito', count: counts['status-favorite'] || 0 },
-    { value: 'status-custom', label: 'Personalizado', count: counts['status-custom'] || 0 }
-  );
-
   select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
   if (!options.some(opt => opt.value === clientManagerState.statusTypeFilter)) {
     clientManagerState.statusTypeFilter = 'all';
