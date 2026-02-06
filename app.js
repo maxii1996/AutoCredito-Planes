@@ -87,7 +87,7 @@ const panelTitles = {
   quoteGenerator: 'Mis Cotizaciones',
   clientManager: 'Gestor de Clientes',
   scheduledClients: 'Clientes Programados',
-  smsDesigner: 'Diseñador de SMS',
+  smsDesigner: 'Diseñador de Listas',
   importedDataManager: 'Administrar Datos Importados',
   moduleManagement: 'Gestión de Módulos'
 };
@@ -224,7 +224,7 @@ const MODULE_CATALOG = [
   { id: 'quickActions', label: 'Sub Módulo: Acciones Rápidas', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'contactLog', label: 'Sub Módulo: Registro de Contactados', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'journeyReport', label: 'Sub Módulo: Registro de Jornada', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
-  { id: 'smsDesigner', label: 'Sub Módulo: Diseñador de SMS', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
+  { id: 'smsDesigner', label: 'Sub Módulo: Diseñador de Listas', type: 'submodule', parent: 'clientManager', exportable: true, group: 'general' },
   { id: 'scheduledClients', label: 'Clientes Programados', type: 'module', exportable: true, group: 'general' },
   { id: 'templates', label: 'Plantillas', type: 'module', exportable: true, group: 'general' },
   { id: 'plans', label: 'Cotizaciones', type: 'module', exportable: true, group: 'general' },
@@ -788,7 +788,7 @@ const defaultTemplates = [DEFAULT_INITIAL_TEMPLATE, ...DEFAULT_ADDITIONAL_TEMPLA
 
 const DEFAULT_SMS_TEMPLATES = [
   {
-    title: 'Diseño base SMS',
+    title: 'Diseño base de lista',
     body: 'Hola {{cliente}}, soy {{asesor}}. ¿Seguís con tu {{modelo_actual}}? Estoy para ayudarte.'
   }
 ];
@@ -799,6 +799,7 @@ const defaultSmsDesignerState = {
   focusedColumnId: '',
   templateSearch: '',
   audienceSearch: '',
+  audienceSearchApplied: '',
   excludeWrongNumber: false,
   excludeStatuses: {
     pending: false,
@@ -6425,6 +6426,7 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.selection = smsDesignerState.selection || {};
   smsDesignerState.templateSearch = smsDesignerState.templateSearch || '';
   smsDesignerState.audienceSearch = smsDesignerState.audienceSearch || '';
+  smsDesignerState.audienceSearchApplied = smsDesignerState.audienceSearchApplied || smsDesignerState.audienceSearch || '';
   smsDesignerState.listName = smsDesignerState.listName || '';
   smsDesignerState.previewClientId = smsDesignerState.previewClientId || '';
   smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
@@ -6636,7 +6638,7 @@ function getSmsAudiencePool() {
 }
 
 function filterSmsAudience(pool = []) {
-  const term = (smsDesignerState.audienceSearch || '').trim().toLowerCase();
+  const term = (smsDesignerState.audienceSearchApplied || '').trim().toLowerCase();
   return pool.filter(client => {
     if (shouldExcludeSmsClient(client)) return false;
     if (!term) return true;
@@ -6805,6 +6807,7 @@ function renderSmsAudience() {
   const selection = smsDesignerState.selection || {};
   let selectedCount = 0;
   let missingCount = 0;
+  const activeSearchTerm = String(smsDesignerState.audienceSearchApplied || '').trim();
   list.innerHTML = filtered.map(client => {
     const isSelected = !!selection[client.id];
     const phoneLabel = formatPhoneDisplay(client.phone || '') || client.phone || 'Sin teléfono';
@@ -6830,6 +6833,12 @@ function renderSmsAudience() {
     summary.textContent = filtered.length
       ? `Mostrando ${filtered.length} clientes filtrados.`
       : 'No hay clientes disponibles con el filtro actual.';
+  }
+  const notice = document.getElementById('smsAudienceSearchNotice');
+  const noticeTerm = document.getElementById('smsAudienceSearchTerm');
+  if (notice && noticeTerm) {
+    notice.classList.toggle('hidden', !activeSearchTerm);
+    noticeTerm.textContent = activeSearchTerm;
   }
   const totalEl = document.getElementById('smsAudienceCount');
   if (totalEl) totalEl.textContent = String(filtered.length);
@@ -7103,6 +7112,39 @@ function exportSmsSelection() {
   showToast('Exportación lista', 'success');
 }
 
+let smsRealtimeListSyncTimer = null;
+
+function syncSelectedSmsListRealtime() {
+  const listId = smsDesignerState.selectedListId;
+  if (!listId) return;
+  const list = smsLists.find(item => item.id === listId);
+  if (!list) return;
+  const pool = getSmsAudiencePool();
+  const byId = new Map(pool.map(client => [client.id, client]));
+  const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]).filter(id => {
+    const client = byId.get(id);
+    return client ? !shouldExcludeSmsClient(client) : false;
+  });
+  list.name = String(smsDesignerState.listName || list.name || '').trim() || list.name || 'Lista sin nombre';
+  list.templateId = getSelectedSmsTemplate()?.id || list.templateId || '';
+  list.clientIds = selectedIds;
+  list.excludeWrongNumber = !!smsDesignerState.excludeWrongNumber;
+  list.excludeStatuses = { ...(smsDesignerState.excludeStatuses || {}) };
+  list.excludeCustomActions = { ...(smsDesignerState.excludeCustomActions || {}) };
+  list.columnMapping = (smsDesignerState.columnMapping || []).map(item => ({ ...item }));
+  list.updatedAt = new Date().toISOString();
+  persist();
+  renderSmsSavedLists();
+}
+
+function scheduleSmsListRealtimeSync(delay = 850) {
+  if (smsRealtimeListSyncTimer) clearTimeout(smsRealtimeListSyncTimer);
+  smsRealtimeListSyncTimer = setTimeout(() => {
+    syncSelectedSmsListRealtime();
+    smsRealtimeListSyncTimer = null;
+  }, delay);
+}
+
 function saveSmsList() {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
@@ -7114,7 +7156,7 @@ function saveSmsList() {
     showToast('Selecciona clientes para guardar una lista.', 'error');
     return;
   }
-  const name = (smsDesignerState.listName || '').trim() || `Lista SMS ${smsLists.length + 1}`;
+  const name = (smsDesignerState.listName || '').trim() || `Lista ${smsLists.length + 1}`;
   const template = getSelectedSmsTemplate();
   const existing = smsLists.find(item => item.id === smsDesignerState.selectedListId);
   if (existing) {
@@ -7123,6 +7165,8 @@ function saveSmsList() {
     existing.clientIds = selectedIds;
     existing.excludeWrongNumber = !!smsDesignerState.excludeWrongNumber;
     existing.columnMapping = (smsDesignerState.columnMapping || []).map(item => ({ ...item }));
+    existing.excludeStatuses = { ...(smsDesignerState.excludeStatuses || {}) };
+    existing.excludeCustomActions = { ...(smsDesignerState.excludeCustomActions || {}) };
     existing.updatedAt = new Date().toISOString();
     showToast('Lista actualizada', 'success');
   } else {
@@ -7133,7 +7177,9 @@ function saveSmsList() {
       clientIds: selectedIds,
       createdAt: new Date().toISOString(),
       excludeWrongNumber: !!smsDesignerState.excludeWrongNumber,
-      columnMapping: (smsDesignerState.columnMapping || []).map(item => ({ ...item }))
+      columnMapping: (smsDesignerState.columnMapping || []).map(item => ({ ...item })),
+      excludeStatuses: { ...(smsDesignerState.excludeStatuses || {}) },
+      excludeCustomActions: { ...(smsDesignerState.excludeCustomActions || {}) }
     };
     smsLists.unshift(created);
     smsDesignerState.selectedListId = created.id;
@@ -7229,6 +7275,11 @@ function bindSmsDesigner() {
   if (closeDynamic) {
     closeDynamic.addEventListener('click', () => toggleSmsDynamicDataMenu(false));
   }
+  const dynamicPanel = document.getElementById('smsDynamicDataPanel');
+  if (dynamicPanel && !dynamicPanel.dataset.bound) {
+    dynamicPanel.addEventListener('click', (event) => event.stopPropagation());
+    dynamicPanel.dataset.bound = 'true';
+  }
   if (dynamicList) {
     dynamicList.addEventListener('click', (event) => {
       const item = event.target.closest('[data-sms-var]');
@@ -7237,6 +7288,9 @@ function bindSmsDesigner() {
       toggleSmsDynamicDataMenu(false);
     });
   }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') toggleSmsDynamicDataMenu(false);
+  });
   document.addEventListener('click', (event) => {
     const panel = document.getElementById('smsDynamicDataPanel');
     if (!panel || panel.classList.contains('hidden')) return;
@@ -7261,18 +7315,45 @@ function bindSmsDesigner() {
       if (!item) return;
       smsDesignerState.selectedTemplateId = item.dataset.smsTemplate;
       persist();
+      scheduleSmsListRealtimeSync();
       renderSmsDesigner();
     });
     templateList.dataset.bound = 'true';
   }
   const audienceSearch = document.getElementById('smsAudienceSearch');
+  const audienceSearchBtn = document.getElementById('smsAudienceSearchBtn');
+  const applySmsAudienceSearch = () => {
+    smsDesignerState.audienceSearchApplied = String(smsDesignerState.audienceSearch || '').trim();
+    persist();
+    renderSmsAudience();
+  };
   if (audienceSearch) {
     audienceSearch.value = smsDesignerState.audienceSearch || '';
     audienceSearch.addEventListener('input', () => {
       smsDesignerState.audienceSearch = audienceSearch.value;
       persist();
-      renderSmsAudience();
     });
+    audienceSearch.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      applySmsAudienceSearch();
+    });
+  }
+  if (audienceSearchBtn && !audienceSearchBtn.dataset.bound) {
+    audienceSearchBtn.addEventListener('click', applySmsAudienceSearch);
+    audienceSearchBtn.dataset.bound = 'true';
+  }
+  const audienceSearchReset = document.getElementById('smsAudienceSearchReset');
+  if (audienceSearchReset && !audienceSearchReset.dataset.bound) {
+    audienceSearchReset.addEventListener('click', () => {
+      smsDesignerState.audienceSearch = '';
+      smsDesignerState.audienceSearchApplied = '';
+      if (audienceSearch) audienceSearch.value = '';
+      persist();
+      renderSmsAudience();
+      scheduleSmsListRealtimeSync();
+    });
+    audienceSearchReset.dataset.bound = 'true';
   }
   const excludeToggle = document.getElementById('smsExcludeWrongNumber');
   if (excludeToggle) {
@@ -7282,6 +7363,7 @@ function bindSmsDesigner() {
       persist();
       renderSmsExclusionFilters();
       renderSmsAudience();
+      scheduleSmsListRealtimeSync();
     });
   }
   const exclusionPanel = document.getElementById('smsExclusionPanel');
@@ -7293,6 +7375,7 @@ function bindSmsDesigner() {
         smsDesignerState.excludeStatuses[key] = statusInput.checked;
         persist();
         renderSmsAudience();
+        scheduleSmsListRealtimeSync();
         return;
       }
       const customInput = event.target.closest('[data-sms-exclude-custom]');
@@ -7301,6 +7384,7 @@ function bindSmsDesigner() {
         smsDesignerState.excludeCustomActions[key] = customInput.checked;
         persist();
         renderSmsAudience();
+        scheduleSmsListRealtimeSync();
       }
     });
     exclusionPanel.dataset.bound = 'true';
@@ -7313,6 +7397,7 @@ function bindSmsDesigner() {
       persist();
       renderSmsExclusionFilters();
       renderSmsAudience();
+      scheduleSmsListRealtimeSync();
     });
     clearExclusions.dataset.bound = 'true';
   }
@@ -7324,6 +7409,7 @@ function bindSmsDesigner() {
       smsDesignerState.selection[target.dataset.smsClient] = target.checked;
       persist();
       renderSmsAudience();
+      scheduleSmsListRealtimeSync();
     });
     audienceList.dataset.bound = 'true';
   }
@@ -7336,6 +7422,7 @@ function bindSmsDesigner() {
       });
       persist();
       renderSmsAudience();
+      scheduleSmsListRealtimeSync();
     });
   }
   const clearBtn = document.getElementById('smsClearSelection');
@@ -7344,6 +7431,7 @@ function bindSmsDesigner() {
       smsDesignerState.selection = {};
       persist();
       renderSmsAudience();
+      scheduleSmsListRealtimeSync();
     });
   }
   const listNameInput = document.getElementById('smsListName');
@@ -7352,6 +7440,7 @@ function bindSmsDesigner() {
     listNameInput.addEventListener('input', () => {
       smsDesignerState.listName = listNameInput.value;
       persist();
+      scheduleSmsListRealtimeSync();
     });
   }
   const createListBtn = document.getElementById('smsCreateList');
@@ -7365,10 +7454,6 @@ function bindSmsDesigner() {
       });
     });
     createListBtn.dataset.bound = 'true';
-  }
-  const saveListBtn = document.getElementById('smsSaveList');
-  if (saveListBtn) {
-    saveListBtn.addEventListener('click', saveSmsList);
   }
   const exportListBtn = document.getElementById('smsExportList');
   if (exportListBtn) {
@@ -7409,6 +7494,7 @@ function bindSmsDesigner() {
       if (!col) return;
       col.custom = customInput.value;
       persist();
+      scheduleSmsListRealtimeSync();
       updateSmsColumnPreviewById(col.id);
       if (smsDesignerState.focusedColumnId === col.id) {
         renderSmsVariableChips(extractVariables(col.custom || ''));
@@ -7442,6 +7528,7 @@ function bindSmsDesigner() {
         smsDesignerState.columnMapping = [{ id: createTemplateId('col'), custom: '' }];
       }
       persist();
+      scheduleSmsListRealtimeSync();
       renderSmsColumnBuilder();
     });
     columnBuilder.addEventListener('focusin', (event) => {
@@ -7461,6 +7548,7 @@ function bindSmsDesigner() {
       smsDesignerState.columnMapping.push({ id: createdId, custom: '' });
       smsDesignerState.focusedColumnId = createdId;
       persist();
+      scheduleSmsListRealtimeSync();
       renderSmsColumnBuilder();
     });
     addColumnBtn.dataset.bound = 'true';
@@ -7512,6 +7600,8 @@ function createSmsList() {
     clientIds: [],
     createdAt: new Date().toISOString(),
     excludeWrongNumber: false,
+    excludeStatuses: { ...defaultSmsDesignerState.excludeStatuses },
+    excludeCustomActions: {},
     columnMapping: (smsDesignerState.columnMapping || []).map(item => ({ ...item }))
   };
   smsLists.unshift(newList);
@@ -7532,6 +7622,8 @@ function loadSmsListById(listId) {
   smsDesignerState.selection = {};
   (list.clientIds || []).forEach(id => { smsDesignerState.selection[id] = true; });
   smsDesignerState.excludeWrongNumber = !!list.excludeWrongNumber;
+  smsDesignerState.excludeStatuses = { ...defaultSmsDesignerState.excludeStatuses, ...(list.excludeStatuses || {}) };
+  smsDesignerState.excludeCustomActions = { ...(list.excludeCustomActions || {}) };
   if (Array.isArray(list.columnMapping) && list.columnMapping.length) {
     smsDesignerState.columnMapping = list.columnMapping.map((item, index) => ({
       id: item.id || createTemplateId(`col-${index + 1}`),
@@ -7799,6 +7891,9 @@ function attachTemplateActions() {
       toggleDynamicDataMenu(false);
     });
   }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') toggleDynamicDataMenu(false);
+  });
   document.addEventListener('click', (event) => {
     const panel = document.getElementById('dynamicDataPanel');
     if (!panel || panel.classList.contains('hidden')) return;

@@ -1268,7 +1268,6 @@
           <div>
             <p class="eyebrow">Utilidades conectadas</p>
             <h2>Diseñador de Listas</h2>
-            <p class="muted subtle">Lavado de cara completo: administra tus listas, arma columnas en acordeón y define a quiénes incluir antes de descargar.</p>
           </div>
           <div class="actions compact">
             <button class="primary-btn" id="smsExportList"><i class='bx bx-download'></i>Descargar esta lista</button>
@@ -1280,10 +1279,9 @@
             <div class="sms-sidebar-card">
               <div class="template-list-head">
                 <div>
-                  <p class="eyebrow">Nuestras listas</p>
                   <h3>Mis listas</h3>
                 </div>
-                <button id="smsCreateList" class="primary-btn ghosted"><i class='bx bx-plus'></i>Crear nueva lista</button>
+                <button id="smsCreateList" class="primary-btn ghosted mini"><i class='bx bx-plus'></i>Nueva Lista</button>
               </div>
               <div class="search-field template-search">
                 <i class='bx bx-search'></i>
@@ -1301,23 +1299,12 @@
                   <input id="smsListName" placeholder="Ej: Campaña Octubre" />
                 </div>
                 <div class="sms-list-head-actions">
-                  <button class="secondary-btn" id="smsSaveList"><i class='bx bx-save'></i>Guardar cambios</button>
                   <button class="ghost-btn" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
                 </div>
               </div>
 
-              <div class="preview-box sms-preview-box">
-                <div class="sms-preview-head slim">
-                  <div>
-                    <p class="eyebrow">Edición avanzada</p>
-                    <h3>Variables detectadas en la columna activa</h3>
-                  </div>
-                </div>
-                <div class="chips variable-chip-row" id="smsVariableChips"></div>
-              </div>
-
               <div class="dynamic-toolbar-row">
-                <button class="ghost-btn mini" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Insertar Dato Dinámico</button>
+                <button class="ghost-btn mini" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Datos dinámicos</button>
                 <div class="dynamic-data-panel hidden" id="smsDynamicDataPanel">
                   <div class="dynamic-data-head">
                     <div>
@@ -1352,11 +1339,21 @@
                 </div>
               </div>
               <div class="sms-audience-controls">
-                <div class="search-field compact">
-                  <i class='bx bx-search'></i>
-                  <input id="smsAudienceSearch" placeholder="Buscar cliente o teléfono..." />
+                <div class="search-group sms-audience-search-group">
+                  <div class="search-field compact">
+                    <i class='bx bx-search'></i>
+                    <input id="smsAudienceSearch" placeholder="Buscar cliente o teléfono..." />
+                  </div>
+                  <button class="secondary-btn mini" id="smsAudienceSearchBtn"><i class='bx bx-search'></i>Buscar</button>
                 </div>
-                <label class="checkbox-field">
+                <div class="search-notice hidden" id="smsAudienceSearchNotice">
+                  <div class="search-notice-text">
+                    <i class='bx bx-filter-alt'></i>
+                    <span>Estás filtrando por: <strong id="smsAudienceSearchTerm"></strong></span>
+                  </div>
+                  <button class="ghost-btn mini" id="smsAudienceSearchReset">Quitar filtro</button>
+                </div>
+                <label class="checkbox-field compact soft">
                   <input type="checkbox" id="smsExcludeWrongNumber">
                   <span>Excluir estado "Número equivocado"</span>
                 </label>
