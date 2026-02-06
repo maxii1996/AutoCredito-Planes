@@ -4021,3 +4021,57 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .selection-mode { margin-top: 4px; }
 .new-vehicle-auto, .new-vehicle-manual { margin-top: 8px; }
 .is-hidden { display: none !important; }
+
+.client-manager-shell {
+  border: 1px solid rgba(125, 211, 176, 0.24);
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(10, 17, 31, 0.92));
+}
+.client-manager-shell .client-controls,
+.client-manager-shell .column-pills,
+.client-manager-shell .table-wrapper {
+  border-radius: 14px;
+}
+.client-table-toolbar {
+  border-color: rgba(125, 211, 176, 0.25);
+  background: linear-gradient(140deg, rgba(13, 21, 38, 0.96), rgba(9, 17, 33, 0.96));
+}
+
+#smsDesigner .panel-head {
+  align-items: flex-start;
+}
+.sms-layout {
+  gap: 18px;
+}
+.sms-template-list,
+.sms-editor-card,
+.sms-audience-card,
+.sms-lists-card {
+  border-color: rgba(125, 211, 176, 0.22);
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.95), rgba(10, 17, 31, 0.92));
+}
+.sms-preview-box {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.4);
+}
+.sms-audience-list {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  padding: 8px;
+  background: rgba(8, 14, 27, 0.7);
+}
+.sms-column-row {
+  grid-template-columns: minmax(130px, 0.8fr) minmax(180px, 1fr) minmax(240px, 1.25fr) auto;
+  border-color: rgba(125, 211, 176, 0.2);
+}
+.sms-column-content input {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  .sms-column-row {
+    grid-template-columns: 1fr;
+  }
+}

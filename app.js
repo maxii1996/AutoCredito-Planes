@@ -811,10 +811,9 @@ const defaultSmsDesignerState = {
   previewClientId: '',
   useHeaders: true,
   enableCharCount: true,
-  channelType: 'sms',
   columnMapping: [
-    { id: 'col-number', header: 'Numero', field: 'number' },
-    { id: 'col-message', header: 'Mensaje', field: 'message' }
+    { id: 'col-number', header: 'Numero', field: 'number', content: '' },
+    { id: 'col-message', header: 'Mensaje', field: 'message', content: '' }
   ]
 };
 
@@ -6428,16 +6427,16 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
   smsDesignerState.useHeaders = smsDesignerState.useHeaders !== false;
   smsDesignerState.enableCharCount = smsDesignerState.enableCharCount !== false;
-  smsDesignerState.channelType = smsDesignerState.channelType || 'sms';
   const fallbackMapping = [
-    { id: 'col-number', header: 'Numero', field: 'number' },
-    { id: 'col-message', header: 'Mensaje', field: 'message' }
+    { id: 'col-number', header: 'Numero', field: 'number', content: '' },
+    { id: 'col-message', header: 'Mensaje', field: 'message', content: '' }
   ];
   const providedMapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
   smsDesignerState.columnMapping = (providedMapping.length ? providedMapping : fallbackMapping).map((item, index) => ({
     id: item?.id || createTemplateId(`col-${index + 1}`),
     header: String(item?.header || `Columna ${index + 1}`).trim() || `Columna ${index + 1}`,
-    field: item?.field || 'custom'
+    field: item?.field || 'custom',
+    content: String(item?.content || '')
   }));
   smsDesignerState.excludeStatuses = {
     ...defaultSmsDesignerState.excludeStatuses,
@@ -6858,11 +6857,23 @@ function getSmsExportFieldOptions() {
     { value: 'model', label: 'Modelo' },
     { value: 'advisor', label: 'Asesor activo' },
     { value: 'status', label: 'Estado contacto' },
-    { value: 'custom', label: 'Valor personalizado' }
+    { value: 'custom', label: 'Contenido personalizado' }
   ];
 }
 
-function resolveSmsMappedValue(field, client, template) {
+function renderSmsCustomColumnContent(content, client) {
+  let rendered = String(content || '');
+  const map = buildDynamicVariableMap(client);
+  extractVariables(rendered).forEach(key => {
+    const value = map[key] ?? '';
+    const regex = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'gi');
+    rendered = rendered.replace(regex, value);
+  });
+  return rendered;
+}
+
+function resolveSmsMappedValue(column, client, template) {
+  const field = column?.field || 'custom';
   const map = buildDynamicVariableMap(client);
   if (field === 'number') return formatSmsPhone(client.phone || '');
   if (field === 'message') return buildSmsMessage(template, client);
@@ -6872,6 +6883,7 @@ function resolveSmsMappedValue(field, client, template) {
   if (field === 'model') return client.model || '';
   if (field === 'advisor') return resolveAccountAdvisorName(getActiveAccount()) || '';
   if (field === 'status') return journeyStatusShortLabel(client) || '';
+  if (field === 'custom') return renderSmsCustomColumnContent(column?.content || '', client);
   if (field && field.startsWith('var:')) {
     const key = field.slice(4);
     return map[key] || '';
@@ -6882,11 +6894,11 @@ function resolveSmsMappedValue(field, client, template) {
 function buildSmsWorkbookData(rows = []) {
   const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
   const activeMapping = mapping.length ? mapping : [
-    { id: 'col-number', header: 'Numero', field: 'number' },
-    { id: 'col-message', header: 'Mensaje', field: 'message' }
+    { id: 'col-number', header: 'Numero', field: 'number', content: '' },
+    { id: 'col-message', header: 'Mensaje', field: 'message', content: '' }
   ];
   const headers = activeMapping.map((item, index) => item.header || `Columna ${index + 1}`);
-  const dataRows = rows.map(({ client, template }) => activeMapping.map(item => resolveSmsMappedValue(item.field, client, template)));
+  const dataRows = rows.map(({ client, template }) => activeMapping.map(item => resolveSmsMappedValue(item, client, template)));
   return smsDesignerState.useHeaders === false ? dataRows : [headers, ...dataRows];
 }
 
@@ -6906,10 +6918,14 @@ function renderSmsColumnBuilder() {
         <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Telefono" />
       </div>
       <div class="field compact">
-        <label>Asignar a</label>
+        <label>Origen del contenido</label>
         <select data-sms-column-field="${col.id}">
           ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
         </select>
+      </div>
+      <div class="field compact sms-column-content ${col.field === 'custom' ? '' : 'hidden'}" data-sms-column-content-wrap="${col.id}">
+        <label>Contenido de la columna</label>
+        <input data-sms-column-content="${col.id}" value="${escapeHtml(col.content || '')}" placeholder="Ej: {{cliente}} - Seguimiento {{fecha_hoy}}" />
       </div>
       <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i></button>
     </div>
@@ -6965,8 +6981,6 @@ function renderSmsDesigner() {
   if (useHeadersToggle) useHeadersToggle.checked = smsDesignerState.useHeaders !== false;
   const enableCharCountToggle = document.getElementById('smsEnableCharCount');
   if (enableCharCountToggle) enableCharCountToggle.checked = smsDesignerState.enableCharCount !== false;
-  const channelSelect = document.getElementById('smsChannelType');
-  if (channelSelect) channelSelect.value = smsDesignerState.channelType || 'sms';
   renderSmsExclusionFilters();
   renderSmsTemplates();
   renderSmsEditor();
@@ -7314,13 +7328,6 @@ function bindSmsDesigner() {
       updateSmsPreview();
     });
   }
-  const channelSelect = document.getElementById('smsChannelType');
-  if (channelSelect) {
-    channelSelect.addEventListener('change', () => {
-      smsDesignerState.channelType = channelSelect.value;
-      persist();
-    });
-  }
   const columnBuilder = document.getElementById('smsColumnBuilder');
   if (columnBuilder && !columnBuilder.dataset.bound) {
     columnBuilder.addEventListener('input', (event) => {
@@ -7331,20 +7338,30 @@ function bindSmsDesigner() {
       col.header = headerInput.value;
       persist();
     });
+    columnBuilder.addEventListener('input', (event) => {
+      const contentInput = event.target.closest('[data-sms-column-content]');
+      if (!contentInput) return;
+      const col = smsDesignerState.columnMapping.find(item => item.id === contentInput.dataset.smsColumnContent);
+      if (!col) return;
+      col.content = contentInput.value;
+      persist();
+    });
     columnBuilder.addEventListener('change', (event) => {
       const fieldSelect = event.target.closest('[data-sms-column-field]');
       if (!fieldSelect) return;
       const col = smsDesignerState.columnMapping.find(item => item.id === fieldSelect.dataset.smsColumnField);
       if (!col) return;
       col.field = fieldSelect.value;
+      if (col.field !== 'custom') col.content = col.content || '';
       persist();
+      renderSmsColumnBuilder();
     });
     columnBuilder.addEventListener('click', (event) => {
       const removeBtn = event.target.closest('[data-sms-column-remove]');
       if (!removeBtn) return;
       smsDesignerState.columnMapping = smsDesignerState.columnMapping.filter(item => item.id !== removeBtn.dataset.smsColumnRemove);
       if (!smsDesignerState.columnMapping.length) {
-        smsDesignerState.columnMapping = [{ id: createTemplateId('col'), header: 'Numero', field: 'number' }];
+        smsDesignerState.columnMapping = [{ id: createTemplateId('col'), header: 'Numero', field: 'number', content: '' }];
       }
       persist();
       renderSmsColumnBuilder();
@@ -7354,7 +7371,7 @@ function bindSmsDesigner() {
   const addColumnBtn = document.getElementById('smsAddColumn');
   if (addColumnBtn && !addColumnBtn.dataset.bound) {
     addColumnBtn.addEventListener('click', () => {
-      smsDesignerState.columnMapping.push({ id: createTemplateId('col'), header: `Columna ${smsDesignerState.columnMapping.length + 1}`, field: 'custom' });
+      smsDesignerState.columnMapping.push({ id: createTemplateId('col'), header: `Columna ${smsDesignerState.columnMapping.length + 1}`, field: 'custom', content: '' });
       persist();
       renderSmsColumnBuilder();
     });
@@ -21507,7 +21524,6 @@ function sanitizeSmsDesignerStateForStorage(state = {}) {
     previewClientId: state.previewClientId || '',
     useHeaders: state.useHeaders !== false,
     enableCharCount: state.enableCharCount !== false,
-    channelType: state.channelType || 'sms',
     columnMapping: Array.isArray(state.columnMapping) ? state.columnMapping : []
   };
 }

@@ -1182,11 +1182,12 @@
         <div class="panel-head">
           <div>
             <p class="eyebrow">Clientes importados</p>
-            <h2>Gestor de Clientes</h2>
+            <h2>Centro de Clientes</h2>
+            <p class="muted subtle">Buscador inteligente, filtros avanzados y control total del listado en una sola vista.</p>
           </div>
         </div>
 
-        <div class="card">
+        <div class="card client-manager-shell">
           <div class="client-controls">
             <div class="client-actions-row">
               <div class="advisor-filters">
@@ -1213,7 +1214,7 @@
                   <strong id="accountFilterLabel">Todas</strong>
                   <select id="accountFilter"></select>
                 </div>
-                <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtro por fecha</button>
+                <button class="ghost-btn" id="openDateFilter"><i class='bx bx-calendar'></i>Filtrar por fecha</button>
               </div>
             </div>
           </div>
@@ -1222,16 +1223,16 @@
           <div class="search-notice hidden" id="clientSearchNotice">
             <div class="search-notice-text">
               <i class='bx bx-filter-alt'></i>
-              <span>Se están mostrando los resultados de la búsqueda: <strong id="clientSearchTerm"></strong></span>
+              <span>Resultados activos para: <strong id="clientSearchTerm"></strong></span>
             </div>
-            <button class="ghost-btn mini" id="clientSearchReset">Restablecer</button>
+            <button class="ghost-btn mini" id="clientSearchReset">Limpiar búsqueda</button>
           </div>
           <div class="table-wrapper dense">
-            <div class="table-toolbar">
+            <div class="table-toolbar client-table-toolbar">
               <div class="search-group">
                 <div class="search-field compact expandable">
                   <i class='bx bx-search'></i>
-                  <input id="clientManagerSearch" placeholder="Escribe cualquier contenido a buscar..." />
+                  <input id="clientManagerSearch" placeholder="Buscar por nombre, teléfono, marca, modelo o cualquier dato..." />
                 </div>
                 <button class="secondary-btn" id="clientManagerSearchBtn"><i class='bx bx-search'></i>Buscar</button>
               </div>
@@ -1268,7 +1269,7 @@
           <div>
             <p class="eyebrow">Utilidades conectadas</p>
             <h2>Diseñador de Listas</h2>
-            <p class="muted subtle">Diseña estructuras para SMS, WAPI y otros canales; asigna columnas, guarda plantillas y exporta archivos listos para integrar.</p>
+            <p class="muted subtle">Construye listas profesionales: define columnas ilimitadas, diseña contenido por columna y administra listas guardadas con edición completa.</p>
           </div>
           <div class="actions compact">
             <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-download'></i>Descargar plantilla Excel</button>
@@ -1349,14 +1350,7 @@
                   <input type="checkbox" id="smsEnableCharCount" checked>
                   <span>Activar conteo de caracteres</span>
                 </label>
-                <div class="field compact">
-                  <label for="smsChannelType">Canal de salida</label>
-                  <select id="smsChannelType">
-                    <option value="sms">SMS</option>
-                    <option value="wapi">WAPI</option>
-                    <option value="custom">Personalizado</option>
-                  </select>
-                </div>
+
               </div>
               <div class="variables-shell">
                 <div class="variables-head">
@@ -1416,7 +1410,7 @@
                   </div>
                   <div class="sms-export-actions">
                     <button class="secondary-btn" id="smsSaveList"><i class='bx bx-save'></i>Guardar lista</button>
-                    <button class="primary-btn" id="smsExportList"><i class='bx bx-download'></i>Descargar SMS</button>
+                    <button class="primary-btn" id="smsExportList"><i class='bx bx-download'></i>Descargar lista</button>
                   </div>
                 </div>
               </div>
@@ -1424,8 +1418,8 @@
                 <div class="card-head">
                   <div>
                     <p class="eyebrow">Asignación de columnas</p>
-                    <h3>Estructura del Excel</h3>
-                    <p class="muted tiny">Define qué dato irá en cada columna del archivo exportado.</p>
+                    <h3>Constructor de columnas</h3>
+                    <p class="muted tiny">Cada columna puede tener su propio origen o contenido dinámico con variables.</p>
                   </div>
                   <button class="ghost-btn mini" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
                 </div>
