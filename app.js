@@ -7538,6 +7538,13 @@ function bindSmsDesigner() {
     });
     addColumnBtn.dataset.bound = 'true';
   }
+  const saveListBtn = document.getElementById('smsSaveList');
+  if (saveListBtn && !saveListBtn.dataset.bound) {
+    saveListBtn.addEventListener('click', () => {
+      saveSmsList();
+    });
+    saveListBtn.dataset.bound = 'true';
+  }
   const savedLists = document.getElementById('smsSavedLists');
   if (savedLists && !savedLists.dataset.bound) {
     savedLists.addEventListener('click', (event) => {
