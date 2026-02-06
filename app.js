@@ -2079,7 +2079,7 @@ function openDateFilterModal() {
   const refreshFieldsVisibility = () => {
     const quick = quickSelect?.value || 'custom';
     if (customRangeFields) customRangeFields.classList.toggle('hidden', quick !== 'custom');
-    if (relativeFields) relativeFields.classList.toggle('hidden', !(quick === 'last_minutes' || quick === 'last_hours'));
+    if (relativeFields) relativeFields.classList.toggle('hidden', quick !== 'last_x');
   };
 
   if (dateTypeSelect) dateTypeSelect.value = rangeState.mode || 'systemDate';
@@ -2105,11 +2105,12 @@ function openDateFilterModal() {
       const selectedType = dateTypeSelect?.value || 'systemDate';
       const quick = quickSelect?.value || 'custom';
       const rawRelativeValue = Math.max(1, Number(relativeValue?.value || 1));
-      const selectedRelativeUnit = relativeUnit?.value === 'hours' ? 'hours' : 'minutes';
+      const allowedRelativeUnits = ['minutes', 'hours', 'days'];
+      const selectedRelativeUnit = allowedRelativeUnits.includes(relativeUnit?.value) ? relativeUnit.value : 'minutes';
       const from = fromInput?.value || '';
       const to = toInput?.value || '';
       const quickResolved = quick === 'last_x'
-        ? (selectedRelativeUnit === 'hours' ? 'last_hours' : 'last_minutes')
+        ? (selectedRelativeUnit === 'hours' ? 'last_hours' : selectedRelativeUnit === 'days' ? 'last_days' : 'last_minutes')
         : quick;
       clientManagerState.dateRange = {
         mode: selectedType,
@@ -3624,10 +3625,10 @@ function isWithinDateRange(value, range = {}) {
   const timestamp = toDateTimestamp(value);
   if (Number.isNaN(timestamp)) return false;
 
-  if (mode === 'last_minutes' || mode === 'last_hours') {
+  if (mode === 'last_minutes' || mode === 'last_hours' || mode === 'last_days') {
     const raw = Number(range.relativeValue);
     const amount = Number.isFinite(raw) ? Math.max(1, raw) : 1;
-    const unitMs = mode === 'last_hours' ? 60 * 60 * 1000 : 60 * 1000;
+    const unitMs = mode === 'last_days' ? 24 * 60 * 60 * 1000 : mode === 'last_hours' ? 60 * 60 * 1000 : 60 * 1000;
     return timestamp >= (Date.now() - (amount * unitMs));
   }
 
@@ -15302,21 +15303,26 @@ function renderStatusFilter() {
   const label = document.getElementById('statusFilterLabel');
   if (!select) return;
   const counts = statusCounters();
-  const baseCount = (counts.contacted || 0) + (counts.no_number || 0) + (counts.favorite || 0) + Object.values(counts.customs || {}).reduce((acc, value) => acc + value, 0);
   const options = [
-    { value: 'all', label: 'Todos', count: counts.all },
-    { value: 'base_actions', label: 'Estados base + Acciones rápidas', count: baseCount },
+    { value: 'all', label: 'Mostrar todos', count: counts.all },
     { value: 'contacted', label: 'Contactados', count: counts.contacted },
     { value: 'no_number', label: 'Número no disponible', count: counts.no_number },
     { value: 'favorite', label: 'Favoritos', count: counts.favorite },
     { value: 'pending', label: 'Pendientes', count: counts.pending },
-    ...Object.entries(counts.customs || {}).map(([id, count]) => {
-      const custom = getCustomActionById(id);
-      const label = custom?.label || 'Acción personalizada';
-      return { value: `custom:${id}`, label, count };
-    })
   ];
-  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
+  const baseOptions = options
+    .map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`)
+    .join('');
+  const customOptions = Object.entries(counts.customs || {})
+    .map(([id, count]) => {
+      const custom = getCustomActionById(id);
+      const customLabel = custom?.label || 'Acción personalizada';
+      return `<option value="custom:${id}">${customLabel} (${count})</option>`;
+    })
+    .join('');
+  select.innerHTML = customOptions
+    ? `${baseOptions}<optgroup label="Acciones rápidas">${customOptions}</optgroup>`
+    : baseOptions;
   if (!options.some(opt => opt.value === clientManagerState.statusFilter)) {
     clientManagerState.statusFilter = 'all';
   }
@@ -15346,8 +15352,7 @@ function renderStatusTypeFilter() {
   if (!select) return;
   const counts = statusTypeCounters();
   const options = [
-    { value: 'all', label: 'Todos los tipos', count: counts.all || 0 },
-    { value: 'journey:all', label: 'Todos los estados de jornada', count: counts.all || 0 }
+    { value: 'all', label: 'Todos los estados', count: counts.all || 0 }
   ];
 
   JOURNEY_STATUS_GROUPS.forEach(group => {
@@ -15422,7 +15427,7 @@ function renderDateFilterHelper() {
   const range = clientManagerState.dateRange || {};
   const mode = range.mode || 'systemDate';
   const quick = range.quick || 'custom';
-  const hasRelative = (quick === 'last_minutes' || quick === 'last_hours') && Number(range.relativeValue) > 0;
+  const hasRelative = (quick === 'last_minutes' || quick === 'last_hours' || quick === 'last_days') && Number(range.relativeValue) > 0;
   const hasRange = !!range.from || !!range.to;
   const hasQuick = quick === 'today' || quick === 'yesterday' || hasRelative;
   if (!hasRange && !hasQuick) {
@@ -15436,7 +15441,7 @@ function renderDateFilterHelper() {
   if (quick === 'today') detail = 'Hoy (00:00 a 23:59)';
   else if (quick === 'yesterday') detail = 'Ayer (00:00 a 23:59)';
   else if (hasRelative) {
-    const unitLabel = quick === 'last_hours' ? 'hora(s)' : 'minuto(s)';
+    const unitLabel = quick === 'last_days' ? 'día(s)' : quick === 'last_hours' ? 'hora(s)' : 'minuto(s)';
     detail = `Menos de ${Math.max(1, Number(range.relativeValue) || 1)} ${unitLabel}`;
   } else {
     const fromLabel = range.from ? formatDateLabel(range.from) : 'Inicio';
@@ -15519,8 +15524,6 @@ function filteredManagerClients() {
     const matchesStatus = (
       clientManagerState.statusFilter === 'all'
         ? true
-        : clientManagerState.statusFilter === 'base_actions'
-          ? !!(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
         : clientManagerState.statusFilter === 'contacted' ? c.flags?.contacted
         : clientManagerState.statusFilter === 'no_number' ? c.flags?.noNumber
         : clientManagerState.statusFilter === 'favorite' ? c.flags?.favorite
@@ -15532,8 +15535,6 @@ function filteredManagerClients() {
     const matchesStatusType = (
       statusTypeFilter === 'all'
         ? true
-        : statusTypeFilter === 'journey:all'
-          ? true
         : statusTypeFilter?.startsWith('journey_group:')
           ? journeyGroup?.id === statusTypeFilter.split(':')[1]
         : statusTypeFilter?.startsWith('journey:')

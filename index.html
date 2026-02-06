@@ -1192,10 +1192,9 @@
               <div class="advisor-filters">
                 <div class="toggle filter-toggle" title="Filtrar por estado de contacto">
                   <i class='bx bx-filter-alt'></i>
-                  <strong id="statusFilterLabel">Todos</strong>
+                  <strong id="statusFilterLabel">Mostrar todos</strong>
                   <select id="statusFilter">
-                    <option value="all">Todos</option>
-                    <option value="base_actions">Estados base + Acciones rápidas</option>
+                    <option value="all">Mostrar todos</option>
                     <option value="contacted">Contactado</option>
                     <option value="no_number">Número no disponible</option>
                     <option value="favorite">Favoritos</option>
@@ -1204,10 +1203,9 @@
                 </div>
                 <div class="toggle filter-toggle" title="Filtrar por tipo de estado">
                   <i class='bx bx-category-alt'></i>
-                  <strong id="statusTypeFilterLabel">Todos los tipos</strong>
+                  <strong id="statusTypeFilterLabel">Todos los estados</strong>
                   <select id="statusTypeFilter">
-                    <option value="all">Todos los tipos</option>
-                    <option value="journey:all">Todos los estados de jornada</option>
+                    <option value="all">Todos los estados</option>
                   </select>
                 </div>
                 <div class="toggle filter-toggle" title="Filtrar por cuenta de contacto">
@@ -2770,14 +2768,15 @@
       </div>
       <div id="dateFilterRelativeFields" class="field-grid hidden">
         <div class="field">
-          <label for="dateFilterRelativeValue">X Tiempo</label>
+          <label for="dateFilterRelativeValue">Cantidad de tiempo</label>
           <input type="number" id="dateFilterRelativeValue" min="1" step="1" value="5">
         </div>
         <div class="field">
-          <label for="dateFilterRelativeUnit">Tipo de tiempo</label>
+          <label for="dateFilterRelativeUnit">Unidad de tiempo</label>
           <select id="dateFilterRelativeUnit">
             <option value="minutes">Minutos</option>
             <option value="hours">Horas</option>
+            <option value="days">Días</option>
           </select>
         </div>
       </div>
