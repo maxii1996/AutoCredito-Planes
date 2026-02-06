@@ -701,6 +701,7 @@ const defaultJourneyReportSettings = {
 const defaultClientManagerState = {
   search: '',
   statusFilter: 'all',
+  statusTypeFilter: 'all',
   accountFilter: 'all',
   groupByModel: false,
   dateRange: { from: '', to: '' },
@@ -1156,10 +1157,17 @@ async function resolvePriceFilePaths(tab) {
 }
 
 async function discoverPriceTabs() {
+  const tabsById = new Map();
+  const registerTab = (tab = null) => {
+    const normalized = ensurePriceTabDefaults(tab || {});
+    if (!normalized?.id || tabsById.has(normalized.id)) return;
+    tabsById.set(normalized.id, normalized);
+  };
+
   const manifest = await fetchJsonIfExists(`${PRICE_FILES_ROOT}/manifest.json`);
   if (manifest?.entries?.length) {
-    const checks = await Promise.all(manifest.entries.map(async entry => {
-      const tab = ensurePriceTabDefaults({
+    manifest.entries.forEach(entry => {
+      registerTab({
         id: entry.id || buildPriceTabId(entry.year, entry.month),
         year: Number(entry.year),
         month: entry.month,
@@ -1167,54 +1175,58 @@ async function discoverPriceTabs() {
         pricePath: entry.pricePath || `${PRICE_FILES_ROOT}/${entry.year}/${entry.month}/precios.json`,
         files: entry.files || []
       });
-      const paths = await resolvePriceFilePaths(tab);
-      return paths.length ? tab : null;
-    }));
-    return checks.filter(Boolean);
+    });
   }
   if (manifest?.years) {
-    const entries = [];
     Object.entries(manifest.years).forEach(([year, months]) => {
       (months || []).forEach(month => {
-        entries.push(ensurePriceTabDefaults({
+        registerTab({
           id: buildPriceTabId(year, month),
           year: Number(year),
           month,
           folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
           pricePath: `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`
-        }));
+        });
       });
     });
-    const checks = await Promise.all(entries.map(async tab => {
-      const paths = await resolvePriceFilePaths(tab);
-      return paths.length ? tab : null;
-    }));
-    return checks.filter(Boolean);
   }
 
   const now = new Date();
   const currentYear = now.getFullYear();
   const years = [];
-  for (let year = currentYear + 1; year >= currentYear - 5; year -= 1) {
+  for (let year = currentYear + 5; year >= currentYear - 8; year -= 1) {
     years.push(year);
   }
+  if (manifest?.entries?.length) {
+    manifest.entries.forEach(entry => {
+      const year = Number(entry?.year);
+      if (Number.isFinite(year) && !years.includes(year)) years.push(year);
+    });
+  }
+  if (manifest?.years) {
+    Object.keys(manifest.years).forEach(key => {
+      const year = Number(key);
+      if (Number.isFinite(year) && !years.includes(year)) years.push(year);
+    });
+  }
+
   const checks = [];
   years.forEach(year => {
     MONTH_NAMES.forEach(month => {
-      const pricePath = `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`;
-      const tab = ensurePriceTabDefaults({
+      registerTab({
         id: buildPriceTabId(year, month),
         year,
         month,
         folder: `${PRICE_FILES_ROOT}/${year}/${month}`,
-        pricePath
+        pricePath: `${PRICE_FILES_ROOT}/${year}/${month}/precios.json`
       });
-      checks.push(resolvePriceFilePaths(tab).then(paths => {
-        if (!paths.length) return null;
-        return tab;
-      }));
     });
   });
+
+  tabsById.forEach(tab => {
+    checks.push(resolvePriceFilePaths(tab).then(paths => (paths.length ? tab : null)));
+  });
+
   const results = await Promise.all(checks);
   return results.filter(Boolean);
 }
@@ -11834,6 +11846,18 @@ function bindClientManager() {
   }
   renderStatusFilter();
 
+  const statusTypeFilter = document.getElementById('statusTypeFilter');
+  if (statusTypeFilter) {
+    statusTypeFilter.value = clientManagerState.statusTypeFilter || 'all';
+    statusTypeFilter.addEventListener('change', () => {
+      clientManagerState.statusTypeFilter = statusTypeFilter.value;
+      clientManagerState.pagination.page = 1;
+      persist();
+      renderClientManager();
+    });
+  }
+  renderStatusTypeFilter();
+
   const accountFilter = document.getElementById('accountFilter');
   if (accountFilter) {
     accountFilter.value = clientManagerState.accountFilter || 'all';
@@ -15205,6 +15229,39 @@ function renderStatusFilter() {
   if (label) label.textContent = `${current.label} (${current.count})`;
 }
 
+function statusTypeCounters() {
+  const totals = { all: 0 };
+  managerClients.forEach(client => {
+    const status = clientStatus(client);
+    if (status.label === 'Oculto') return;
+    totals.all += 1;
+    totals[status.className] = (totals[status.className] || 0) + 1;
+  });
+  return totals;
+}
+
+function renderStatusTypeFilter() {
+  const select = document.getElementById('statusTypeFilter');
+  const label = document.getElementById('statusTypeFilterLabel');
+  if (!select) return;
+  const counts = statusTypeCounters();
+  const options = [
+    { value: 'all', label: 'Todos los tipos', count: counts.all || 0 },
+    { value: 'status-pending', label: 'Pendiente', count: counts['status-pending'] || 0 },
+    { value: 'status-contacted', label: 'Contactado', count: counts['status-contacted'] || 0 },
+    { value: 'status-no-number', label: 'Número no disponible', count: counts['status-no-number'] || 0 },
+    { value: 'status-favorite', label: 'Favorito', count: counts['status-favorite'] || 0 },
+    { value: 'status-custom', label: 'Personalizado', count: counts['status-custom'] || 0 }
+  ];
+  select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label} (${opt.count})</option>`).join('');
+  if (!options.some(opt => opt.value === clientManagerState.statusTypeFilter)) {
+    clientManagerState.statusTypeFilter = 'all';
+  }
+  select.value = clientManagerState.statusTypeFilter;
+  const current = options.find(opt => opt.value === select.value) || options[0];
+  if (label) label.textContent = `${current.label} (${current.count})`;
+}
+
 function accountCounters() {
   const settings = mergeGlobalSettings(uiState.globalSettings);
   const counts = Object.fromEntries((settings.accounts || []).map(account => [account.id, 0]));
@@ -15317,11 +15374,16 @@ function clientSearchHaystack(client) {
 }
 
 function filteredManagerClients() {
-  const search = (clientManagerState.search || '').toLowerCase();
+  const search = (clientManagerState.search || '').trim().toLowerCase();
   const accountFilter = clientManagerState.accountFilter || 'all';
+  const statusTypeFilter = clientManagerState.statusTypeFilter || 'all';
   return managerClients.filter(c => {
-    const status = clientStatus(c).label;
+    const statusInfo = clientStatus(c);
+    const status = statusInfo.label;
     const matchesSearch = !search || clientSearchHaystack(c).includes(search);
+    if (search) {
+      return matchesSearch && status !== 'Oculto';
+    }
     const matchesDate = isWithinDateRange(c.systemDate, clientManagerState.dateRange);
     const matchesStatus = (
       clientManagerState.statusFilter === 'all'
@@ -15332,12 +15394,13 @@ function filteredManagerClients() {
         : clientManagerState.statusFilter?.startsWith('custom:') ? c.flags?.customStatus?.id === clientManagerState.statusFilter.split(':')[1]
         : !(c.flags?.contacted || c.flags?.noNumber || c.flags?.favorite || c.flags?.customStatus)
     );
+    const matchesStatusType = statusTypeFilter === 'all' ? true : statusInfo.className === statusTypeFilter;
     const matchesAccount = (
       accountFilter === 'all'
         ? true
         : c.contactMeta?.accountId === accountFilter
     );
-    return matchesSearch && matchesStatus && matchesDate && matchesAccount && status !== 'Oculto';
+    return matchesSearch && matchesStatus && matchesStatusType && matchesDate && matchesAccount && status !== 'Oculto';
   });
 }
 
@@ -15349,8 +15412,9 @@ function hasActiveManagerFilters() {
   const search = (clientManagerState.search || '').trim();
   const range = clientManagerState.dateRange || {};
   const status = clientManagerState.statusFilter || 'all';
+  const statusType = clientManagerState.statusTypeFilter || 'all';
   const account = clientManagerState.accountFilter || 'all';
-  return !!search || !!range.from || !!range.to || (status && status !== 'all') || (account && account !== 'all');
+  return !!search || !!range.from || !!range.to || (status && status !== 'all') || (statusType && statusType !== 'all') || (account && account !== 'all');
 }
 
 function normalizeContactAssistantState() {
@@ -15879,6 +15943,7 @@ function renderClientManager() {
   const bodyContainer = grid.querySelector('.grid-body');
   if (!head || !bodyContainer) return;
   renderStatusFilter();
+  renderStatusTypeFilter();
   renderAccountFilter();
   renderDateFilterHelper();
   renderSearchNotice();
