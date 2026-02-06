@@ -1756,6 +1756,10 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .sms-preview-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
 .sms-meter { display: grid; gap: 6px; padding: 10px; border-radius: 12px; border: 1px dashed rgba(148, 163, 184, 0.2); background: rgba(15, 23, 42, 0.35); }
 .sms-meter.warning { border-color: rgba(248, 113, 113, 0.5); box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.12); }
+.sms-meter.is-disabled { opacity: 0.65; border-style: solid; }
+.sms-config-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); align-items: end; }
+.sms-column-builder { display: grid; gap: 10px; }
+.sms-column-row { display: grid; gap: 10px; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto; align-items: end; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: rgba(15, 22, 37, 0.6); }
 .sms-meter-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
 .sms-audience-stack { display: grid; gap: 16px; }
 .sms-audience-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
@@ -4012,6 +4016,7 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 @media (max-width: 980px) {
   .sms-layout { grid-template-columns: 1fr; }
   .sms-template-list { max-height: none; }
+  .sms-column-row { grid-template-columns: 1fr; }
 }
 .selection-mode { margin-top: 4px; }
 .new-vehicle-auto, .new-vehicle-manual { margin-top: 8px; }

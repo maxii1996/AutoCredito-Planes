@@ -788,7 +788,7 @@ const defaultTemplates = [DEFAULT_INITIAL_TEMPLATE, ...DEFAULT_ADDITIONAL_TEMPLA
 
 const DEFAULT_SMS_TEMPLATES = [
   {
-    title: 'SMS de bienvenida',
+    title: 'Diseño base SMS',
     body: 'Hola {{cliente}}, soy {{asesor}}. ¿Seguís con tu {{modelo_actual}}? Estoy para ayudarte.'
   }
 ];
@@ -808,7 +808,14 @@ const defaultSmsDesignerState = {
   excludeCustomActions: {},
   selection: {},
   listName: '',
-  previewClientId: ''
+  previewClientId: '',
+  useHeaders: true,
+  enableCharCount: true,
+  channelType: 'sms',
+  columnMapping: [
+    { id: 'col-number', header: 'Numero', field: 'number' },
+    { id: 'col-message', header: 'Mensaje', field: 'message' }
+  ]
 };
 
 function normalizeBrand(brand = '') {
@@ -6419,6 +6426,19 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.listName = smsDesignerState.listName || '';
   smsDesignerState.previewClientId = smsDesignerState.previewClientId || '';
   smsDesignerState.selectedTemplateId = smsDesignerState.selectedTemplateId || '';
+  smsDesignerState.useHeaders = smsDesignerState.useHeaders !== false;
+  smsDesignerState.enableCharCount = smsDesignerState.enableCharCount !== false;
+  smsDesignerState.channelType = smsDesignerState.channelType || 'sms';
+  const fallbackMapping = [
+    { id: 'col-number', header: 'Numero', field: 'number' },
+    { id: 'col-message', header: 'Mensaje', field: 'message' }
+  ];
+  const providedMapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
+  smsDesignerState.columnMapping = (providedMapping.length ? providedMapping : fallbackMapping).map((item, index) => ({
+    id: item?.id || createTemplateId(`col-${index + 1}`),
+    header: String(item?.header || `Columna ${index + 1}`).trim() || `Columna ${index + 1}`,
+    field: item?.field || 'custom'
+  }));
   smsDesignerState.excludeStatuses = {
     ...defaultSmsDesignerState.excludeStatuses,
     ...(smsDesignerState.excludeStatuses || {})
@@ -6687,22 +6707,28 @@ function updateSmsPreview() {
   const encodingEl = document.getElementById('smsCharEncoding');
   const hintEl = document.getElementById('smsCharHint');
   const meter = document.getElementById('smsMeter');
+  const charCountEnabled = smsDesignerState.enableCharCount !== false;
   if (countEl) {
-    countEl.textContent = `${analysis.length}/${analysis.limit}`;
+    countEl.textContent = charCountEnabled ? `${analysis.length}/${analysis.limit}` : 'Conteo desactivado';
   }
   if (encodingEl) {
-    encodingEl.textContent = analysis.encoding;
+    encodingEl.textContent = charCountEnabled ? analysis.encoding : '-';
   }
   if (hintEl) {
-    const remaining = analysis.remaining;
-    const remainingLabel = remaining >= 0 ? `${remaining} caracteres disponibles` : `${Math.abs(remaining)} caracteres por encima`;
-    const warning = analysis.incompatible.length
-      ? `Caracteres incompatibles detectados: ${analysis.incompatible.join(' ')}.`
-      : '';
-    hintEl.textContent = `${remainingLabel}. ${warning}`.trim();
+    if (charCountEnabled) {
+      const remaining = analysis.remaining;
+      const remainingLabel = remaining >= 0 ? `${remaining} caracteres disponibles` : `${Math.abs(remaining)} caracteres por encima`;
+      const warning = analysis.incompatible.length
+        ? `Caracteres incompatibles detectados: ${analysis.incompatible.join(' ')}.`
+        : '';
+      hintEl.textContent = `${remainingLabel}. ${warning}`.trim();
+    } else {
+      hintEl.textContent = 'Activa el conteo para validar límites y codificación.';
+    }
   }
   if (meter) {
-    meter.classList.toggle('warning', analysis.remaining < 0 || analysis.incompatible.length > 0);
+    meter.classList.toggle('warning', charCountEnabled && (analysis.remaining < 0 || analysis.incompatible.length > 0));
+    meter.classList.toggle('is-disabled', !charCountEnabled);
   }
 }
 
@@ -6821,6 +6847,75 @@ function renderSmsExclusionFilters() {
   }).join('');
 }
 
+
+function getSmsExportFieldOptions() {
+  return [
+    { value: 'number', label: 'Número (normalizado)' },
+    { value: 'message', label: 'Mensaje renderizado' },
+    { value: 'name', label: 'Nombre cliente' },
+    { value: 'phone', label: 'Teléfono original' },
+    { value: 'brand', label: 'Marca' },
+    { value: 'model', label: 'Modelo' },
+    { value: 'advisor', label: 'Asesor activo' },
+    { value: 'status', label: 'Estado contacto' },
+    { value: 'custom', label: 'Valor personalizado' }
+  ];
+}
+
+function resolveSmsMappedValue(field, client, template) {
+  const map = buildDynamicVariableMap(client);
+  if (field === 'number') return formatSmsPhone(client.phone || '');
+  if (field === 'message') return buildSmsMessage(template, client);
+  if (field === 'name') return client.name || '';
+  if (field === 'phone') return client.phone || '';
+  if (field === 'brand') return client.brand || '';
+  if (field === 'model') return client.model || '';
+  if (field === 'advisor') return resolveAccountAdvisorName(getActiveAccount()) || '';
+  if (field === 'status') return journeyStatusShortLabel(client) || '';
+  if (field && field.startsWith('var:')) {
+    const key = field.slice(4);
+    return map[key] || '';
+  }
+  return '';
+}
+
+function buildSmsWorkbookData(rows = []) {
+  const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
+  const activeMapping = mapping.length ? mapping : [
+    { id: 'col-number', header: 'Numero', field: 'number' },
+    { id: 'col-message', header: 'Mensaje', field: 'message' }
+  ];
+  const headers = activeMapping.map((item, index) => item.header || `Columna ${index + 1}`);
+  const dataRows = rows.map(({ client, template }) => activeMapping.map(item => resolveSmsMappedValue(item.field, client, template)));
+  return smsDesignerState.useHeaders === false ? dataRows : [headers, ...dataRows];
+}
+
+function renderSmsColumnBuilder() {
+  const container = document.getElementById('smsColumnBuilder');
+  if (!container) return;
+  const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
+  const options = getSmsExportFieldOptions();
+  if (!mapping.length) {
+    container.innerHTML = '<p class="muted tiny">No hay columnas configuradas.</p>';
+    return;
+  }
+  container.innerHTML = mapping.map((col, index) => `
+    <div class="sms-column-row" data-sms-column-row="${col.id}">
+      <div class="field compact">
+        <label>Columna ${index + 1} - Nombre</label>
+        <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Telefono" />
+      </div>
+      <div class="field compact">
+        <label>Asignar a</label>
+        <select data-sms-column-field="${col.id}">
+          ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
+        </select>
+      </div>
+      <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i></button>
+    </div>
+  `).join('');
+}
+
 function renderSmsSavedLists() {
   const container = document.getElementById('smsSavedLists');
   if (!container) return;
@@ -6866,10 +6961,17 @@ function renderSmsDesigner() {
   if (excludeToggle) {
     excludeToggle.checked = !!smsDesignerState.excludeWrongNumber;
   }
+  const useHeadersToggle = document.getElementById('smsUseHeaders');
+  if (useHeadersToggle) useHeadersToggle.checked = smsDesignerState.useHeaders !== false;
+  const enableCharCountToggle = document.getElementById('smsEnableCharCount');
+  if (enableCharCountToggle) enableCharCountToggle.checked = smsDesignerState.enableCharCount !== false;
+  const channelSelect = document.getElementById('smsChannelType');
+  if (channelSelect) channelSelect.value = smsDesignerState.channelType || 'sms';
   renderSmsExclusionFilters();
   renderSmsTemplates();
   renderSmsEditor();
   renderSmsAudience();
+  renderSmsColumnBuilder();
   renderSmsSavedLists();
 }
 
@@ -6878,11 +6980,13 @@ function downloadSmsWorkbook(rows, fileName) {
     showToast('No hay datos para exportar.', 'error');
     return;
   }
-  const data = [['Numero', 'Mensaje'], ...rows.map(row => [row.number, row.message])];
+  const data = buildSmsWorkbookData(rows);
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+  const columnCount = data[0]?.length || 1;
+  ws['!cols'] = new Array(columnCount).fill(0).map(() => ({ wch: 28 }));
   const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let row = 1; row <= range.e.r; row += 1) {
+  const dataStartRow = smsDesignerState.useHeaders === false ? 0 : 1;
+  for (let row = dataStartRow; row <= range.e.r; row += 1) {
     const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 });
     if (ws[cellAddress]) {
       ws[cellAddress].t = 's';
@@ -6902,8 +7006,10 @@ function downloadSmsWorkbook(rows, fileName) {
 }
 
 function exportSmsTemplateFile() {
-  const ws = XLSX.utils.aoa_to_sheet([['Numero', 'Mensaje']]);
-  ws['!cols'] = [{ wch: 20 }, { wch: 80 }];
+  const headers = (smsDesignerState.columnMapping || []).map((item, index) => item.header || `Columna ${index + 1}`);
+  const templateRow = smsDesignerState.useHeaders === false ? [['']] : [headers];
+  const ws = XLSX.utils.aoa_to_sheet(templateRow);
+  ws['!cols'] = new Array(Math.max(headers.length, 1)).fill(0).map(() => ({ wch: 28 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'SMS');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -6923,8 +7029,9 @@ function exportSmsSelection() {
   const byId = new Map(pool.map(client => [client.id, client]));
   const selectedIds = Object.keys(smsDesignerState.selection || {}).filter(id => smsDesignerState.selection[id]);
   const rows = selectedIds.map(id => byId.get(id)).filter(Boolean).filter(client => !shouldExcludeSmsClient(client)).map(client => ({
-    number: formatSmsPhone(client.phone || ''),
-    message: buildSmsMessage(template, client)
+    client,
+    template,
+    number: formatSmsPhone(client.phone || '')
   })).filter(row => row.number);
   if (!rows.length) {
     showToast('No hay clientes seleccionados con teléfono válido.', 'error');
@@ -6969,8 +7076,9 @@ function downloadSmsListById(listId) {
   const pool = getSmsAudiencePool();
   const byId = new Map(pool.map(client => [client.id, client]));
   const rows = (list.clientIds || []).map(id => byId.get(id)).filter(Boolean).map(client => ({
-    number: formatSmsPhone(client.phone || ''),
-    message: buildSmsMessage(template, client)
+    client,
+    template,
+    number: formatSmsPhone(client.phone || '')
   })).filter(row => row.number);
   if (!rows.length) {
     showToast('La lista no tiene teléfonos válidos para exportar.', 'error');
@@ -7064,7 +7172,7 @@ function bindSmsDesigner() {
   if (addTemplateBtn && !addTemplateBtn.dataset.bound) {
     addTemplateBtn.addEventListener('click', () => {
       const id = createTemplateId('sms');
-      smsTemplates.push({ id, title: 'Nuevo SMS', body: 'Hola {{cliente}}' });
+      smsTemplates.push({ id, title: 'Nuevo diseño', body: 'Hola {{cliente}}' });
       smsDesignerState.selectedTemplateId = id;
       persist();
       renderSmsDesigner();
@@ -7190,6 +7298,67 @@ function bindSmsDesigner() {
   const exportTemplateBtn = document.getElementById('smsExportTemplate');
   if (exportTemplateBtn) {
     exportTemplateBtn.addEventListener('click', exportSmsTemplateFile);
+  }
+  const useHeadersToggle = document.getElementById('smsUseHeaders');
+  if (useHeadersToggle) {
+    useHeadersToggle.addEventListener('change', () => {
+      smsDesignerState.useHeaders = useHeadersToggle.checked;
+      persist();
+    });
+  }
+  const enableCharCountToggle = document.getElementById('smsEnableCharCount');
+  if (enableCharCountToggle) {
+    enableCharCountToggle.addEventListener('change', () => {
+      smsDesignerState.enableCharCount = enableCharCountToggle.checked;
+      persist();
+      updateSmsPreview();
+    });
+  }
+  const channelSelect = document.getElementById('smsChannelType');
+  if (channelSelect) {
+    channelSelect.addEventListener('change', () => {
+      smsDesignerState.channelType = channelSelect.value;
+      persist();
+    });
+  }
+  const columnBuilder = document.getElementById('smsColumnBuilder');
+  if (columnBuilder && !columnBuilder.dataset.bound) {
+    columnBuilder.addEventListener('input', (event) => {
+      const headerInput = event.target.closest('[data-sms-column-header]');
+      if (!headerInput) return;
+      const col = smsDesignerState.columnMapping.find(item => item.id === headerInput.dataset.smsColumnHeader);
+      if (!col) return;
+      col.header = headerInput.value;
+      persist();
+    });
+    columnBuilder.addEventListener('change', (event) => {
+      const fieldSelect = event.target.closest('[data-sms-column-field]');
+      if (!fieldSelect) return;
+      const col = smsDesignerState.columnMapping.find(item => item.id === fieldSelect.dataset.smsColumnField);
+      if (!col) return;
+      col.field = fieldSelect.value;
+      persist();
+    });
+    columnBuilder.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('[data-sms-column-remove]');
+      if (!removeBtn) return;
+      smsDesignerState.columnMapping = smsDesignerState.columnMapping.filter(item => item.id !== removeBtn.dataset.smsColumnRemove);
+      if (!smsDesignerState.columnMapping.length) {
+        smsDesignerState.columnMapping = [{ id: createTemplateId('col'), header: 'Numero', field: 'number' }];
+      }
+      persist();
+      renderSmsColumnBuilder();
+    });
+    columnBuilder.dataset.bound = 'true';
+  }
+  const addColumnBtn = document.getElementById('smsAddColumn');
+  if (addColumnBtn && !addColumnBtn.dataset.bound) {
+    addColumnBtn.addEventListener('click', () => {
+      smsDesignerState.columnMapping.push({ id: createTemplateId('col'), header: `Columna ${smsDesignerState.columnMapping.length + 1}`, field: 'custom' });
+      persist();
+      renderSmsColumnBuilder();
+    });
+    addColumnBtn.dataset.bound = 'true';
   }
   const savedLists = document.getElementById('smsSavedLists');
   if (savedLists && !savedLists.dataset.bound) {
@@ -21202,12 +21371,12 @@ const SYNC_ITEM_DEFINITIONS = [
   { key: 'generatedQuotes', label: 'Cotizaciones', group: 'data', kind: 'array', description: 'Cotizaciones generadas y guardadas.' },
   { key: 'managerClients', label: 'Gestor de clientes (seguimiento)', group: 'modules', kind: 'array', description: 'Historial y seguimiento de contactos del gestor de clientes.' },
   { key: 'templates', label: 'Plantillas', group: 'content', kind: 'array', description: 'Mensajes y textos guardados.' },
-  { key: 'smsTemplates', label: 'Plantillas SMS', group: 'content', kind: 'array', description: 'Plantillas dedicadas para envíos por SMS.' },
-  { key: 'smsLists', label: 'Listas SMS', group: 'modules', kind: 'array', description: 'Listas guardadas para exportación de SMS.' },
+  { key: 'smsTemplates', label: 'Plantillas de listas', group: 'content', kind: 'array', description: 'Plantillas para construir listas exportables por canal.' },
+  { key: 'smsLists', label: 'Listas de difusión', group: 'modules', kind: 'array', description: 'Listas guardadas para exportación e integración.' },
   { key: 'vehicles', label: 'Vehículos', group: 'content', kind: 'array', description: 'Listado de autos y valores.' },
   { key: 'uiState', label: 'Preferencias de cuenta', group: 'config', kind: 'object', description: 'Ajustes principales de cuenta y preferencias visuales.' },
   { key: 'clientManagerState', label: 'Configuración del gestor', group: 'config', kind: 'object', description: 'Columnas y acciones personalizadas del gestor de clientes.' },
-  { key: 'smsDesignerState', label: 'Configuración de SMS', group: 'config', kind: 'object', description: 'Preferencias y filtros del diseñador de SMS.' },
+  { key: 'smsDesignerState', label: 'Configuración del diseñador de listas', group: 'config', kind: 'object', description: 'Preferencias, columnas y filtros del diseñador de listas.' },
   { key: 'brandSettings', label: 'Configuración de marcas', group: 'config', kind: 'array', description: 'Esquemas y colores por marca.' }
 ];
 
@@ -21335,7 +21504,11 @@ function sanitizeSmsDesignerStateForStorage(state = {}) {
     excludeCustomActions: state.excludeCustomActions || {},
     selection: state.selection || {},
     listName: state.listName || '',
-    previewClientId: state.previewClientId || ''
+    previewClientId: state.previewClientId || '',
+    useHeaders: state.useHeaders !== false,
+    enableCharCount: state.enableCharCount !== false,
+    channelType: state.channelType || 'sms',
+    columnMapping: Array.isArray(state.columnMapping) ? state.columnMapping : []
   };
 }
 
