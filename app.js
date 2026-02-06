@@ -815,8 +815,8 @@ const defaultSmsDesignerState = {
   enableCharCount: true,
   channelType: 'sms',
   columnMapping: [
-    { id: 'col-number', header: 'Numero', field: 'number' },
-    { id: 'col-message', header: 'Mensaje', field: 'message' }
+    { id: 'col-1', custom: 'Hola {{cliente}}, soy {{asesor}}.' },
+    { id: 'col-2', custom: '{{telefono}}' }
   ]
 };
 
@@ -6434,15 +6434,13 @@ function ensureSmsDesignerStateDefaults() {
   smsDesignerState.enableCharCount = smsDesignerState.enableCharCount !== false;
   smsDesignerState.channelType = smsDesignerState.channelType || 'sms';
   const fallbackMapping = [
-    { id: 'col-number', header: 'Numero', field: 'number' },
-    { id: 'col-message', header: 'Mensaje', field: 'message' }
+    { id: 'col-1', custom: 'Hola {{cliente}}, soy {{asesor}}.' },
+    { id: 'col-2', custom: '{{telefono}}' }
   ];
   const providedMapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
   smsDesignerState.columnMapping = (providedMapping.length ? providedMapping : fallbackMapping).map((item, index) => ({
     id: item?.id || createTemplateId(`col-${index + 1}`),
-    header: String(item?.header || `Columna ${index + 1}`).trim() || `Columna ${index + 1}`,
-    field: item?.field || 'custom',
-    custom: String(item?.custom || '')
+    custom: resolveSmsLegacyColumnCustom(item, index)
   }));
   if (!smsDesignerState.focusedColumnId || !smsDesignerState.columnMapping.some(item => item.id === smsDesignerState.focusedColumnId)) {
     smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
@@ -6452,6 +6450,22 @@ function ensureSmsDesignerStateDefaults() {
     ...(smsDesignerState.excludeStatuses || {})
   };
   smsDesignerState.excludeCustomActions = smsDesignerState.excludeCustomActions || {};
+}
+
+
+function resolveSmsLegacyColumnCustom(item, index = 0) {
+  if (item?.custom !== undefined && item?.custom !== null && String(item.custom).trim() !== '') {
+    return String(item.custom);
+  }
+  if (item?.field === 'number') return '{{telefono}}';
+  if (item?.field === 'name') return '{{cliente}}';
+  if (item?.field === 'phone') return '{{telefono}}';
+  if (item?.field === 'brand') return '{{marca}}';
+  if (item?.field === 'model') return '{{modelo_actual}}';
+  if (item?.field === 'advisor') return '{{asesor}}';
+  if (item?.field === 'status') return '{{estado_contacto}}';
+  if (item?.field === 'message') return 'Hola {{cliente}}, soy {{asesor}}.';
+  return '';
 }
 
 function getSelectedSmsTemplate() {
@@ -6501,8 +6515,23 @@ function insertSmsVariable(variable) {
   const insertion = `{{${variable}}}`;
   const focusedId = smsDesignerState.focusedColumnId;
   const column = (smsDesignerState.columnMapping || []).find(item => item.id === focusedId);
-  if (!column || column.field !== 'custom') {
-    showToast('Abre una columna personalizada para insertar datos dinámicos.', 'info');
+  if (!column) {
+    showToast('Abre una columna para insertar datos dinámicos.', 'info');
+    return;
+  }
+  const textarea = document.querySelector(`[data-sms-column-custom="${focusedId}"]`);
+  const raw = String(column.custom || '');
+  if (textarea) {
+    const start = Number.isFinite(textarea.selectionStart) ? textarea.selectionStart : raw.length;
+    const end = Number.isFinite(textarea.selectionEnd) ? textarea.selectionEnd : start;
+    column.custom = `${raw.slice(0, start)}${insertion}${raw.slice(end)}`;
+    persist();
+    textarea.value = column.custom;
+    const nextCaret = start + insertion.length;
+    textarea.focus();
+    textarea.setSelectionRange(nextCaret, nextCaret);
+    updateSmsColumnPreviewById(focusedId);
+    renderSmsVariableChips(extractVariables(column.custom || ''));
     return;
   }
   column.custom = `${column.custom || ''}${insertion}`;
@@ -6876,33 +6905,39 @@ function resolveSmsMappedValue(field, client, template) {
 
 function resolveSmsColumnPreviewValue(column, client, template) {
   if (!column) return '';
-  if (column.field === 'custom') {
-    return buildSmsMessage({ body: column.custom || '' }, client);
-  }
-  return resolveSmsMappedValue(column.field, client, template);
+  return buildSmsMessage({ body: column.custom || '' }, client);
 }
 
 function buildSmsWorkbookData(rows = []) {
   const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
   const activeMapping = mapping.length ? mapping : [
-    { id: 'col-number', header: 'Numero', field: 'number' },
-    { id: 'col-message', header: 'Mensaje', field: 'message' }
+    { id: 'col-1', custom: '' }
   ];
-  const headers = activeMapping.map((item, index) => item.header || `Columna ${index + 1}`);
+  const headers = activeMapping.map((_, index) => `Columna ${index + 1}`);
   const dataRows = rows.map(({ client, template }) => activeMapping.map(item => {
-    if (item.field === 'custom') return buildSmsMessage({ body: item.custom || '' }, client);
-    return resolveSmsMappedValue(item.field, client, template);
+    return buildSmsMessage({ body: item.custom || '' }, client);
   }));
   return smsDesignerState.useHeaders === false ? dataRows : [headers, ...dataRows];
+}
+
+function updateSmsColumnPreviewById(columnId) {
+  const preview = document.querySelector(`[data-sms-column-preview="${columnId}"]`);
+  if (!preview) return;
+  const column = (smsDesignerState.columnMapping || []).find(item => item.id === columnId);
+  if (!column) return;
+  const pool = filterSmsAudience(getSmsAudiencePool());
+  const previewClient = pool[0] || {};
+  const template = getSelectedSmsTemplate();
+  const value = resolveSmsColumnPreviewValue(column, previewClient, template);
+  preview.textContent = value || 'Sin contenido';
 }
 
 function renderSmsColumnBuilder() {
   const container = document.getElementById('smsColumnBuilder');
   if (!container) return;
   const mapping = Array.isArray(smsDesignerState.columnMapping) ? smsDesignerState.columnMapping : [];
-  const options = getSmsExportFieldOptions();
   const pool = filterSmsAudience(getSmsAudiencePool());
-  const previewClient = pool.find(item => item.id === smsDesignerState.previewClientId) || pool[0] || {};
+  const previewClient = pool[0] || {};
   const template = getSelectedSmsTemplate();
   if (!mapping.length) {
     container.innerHTML = '<p class="muted tiny">No hay columnas configuradas.</p>';
@@ -6916,30 +6951,23 @@ function renderSmsColumnBuilder() {
         <button class="sms-column-summary" type="button" data-sms-column-toggle="${col.id}">
           <div>
             <p class="eyebrow">Columna ${index + 1}</p>
-            <h4>${escapeHtml(col.header || `Columna ${index + 1}`)}</h4>
+            <h4>Configuración libre</h4>
           </div>
           <i class='bx bx-chevron-down'></i>
         </button>
         <div class="sms-column-content">
-          <div class="sms-column-content-grid">
+          <div class="sms-column-content-grid single-column">
             <div class="field compact">
-              <label>Nombre de columna</label>
-              <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Teléfono" />
-            </div>
-            <div class="field compact">
-              <label>Contenido</label>
-              <select data-sms-column-field="${col.id}">
-                ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
-              </select>
+              <label>Contenido de la columna ${index + 1}</label>
+              <textarea class="sms-editor-input" data-sms-column-custom="${col.id}" placeholder="Escribe el contenido para esta columna">${escapeHtml(col.custom || '')}</textarea>
             </div>
           </div>
-          <div class="field compact ${col.field === 'custom' ? '' : 'hidden'}" data-sms-column-custom-wrap="${col.id}">
-            <label>Contenido personalizado</label>
-            <textarea class="sms-editor-input" data-sms-column-custom="${col.id}" placeholder="Escribe el contenido para esta columna">${escapeHtml(col.custom || '')}</textarea>
+          <div class="sms-column-actions-row">
+            <button class="ghost-btn mini" type="button" data-sms-column-insert="${col.id}"><i class='bx bx-code-alt'></i>Insertar dato dinámico aquí</button>
           </div>
           <div class="sms-column-preview">
-            <strong>Preview del Contenido:</strong>
-            <pre>${escapeHtml(previewValue || 'Sin contenido')}</pre>
+            <strong>Vista previa de esta columna:</strong>
+            <pre data-sms-column-preview="${col.id}">${escapeHtml(previewValue || 'Sin contenido')}</pre>
           </div>
           <div class="sms-column-footer">
             <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i>Eliminar columna</button>
@@ -7039,7 +7067,7 @@ function downloadSmsWorkbook(rows, fileName) {
 }
 
 function exportSmsTemplateFile() {
-  const headers = (smsDesignerState.columnMapping || []).map((item, index) => item.header || `Columna ${index + 1}`);
+  const headers = (smsDesignerState.columnMapping || []).map((_, index) => `Columna ${index + 1}`);
   const templateRow = smsDesignerState.useHeaders === false ? [['']] : [headers];
   const ws = XLSX.utils.aoa_to_sheet(templateRow);
   ws['!cols'] = new Array(Math.max(headers.length, 1)).fill(0).map(() => ({ wch: 28 }));
@@ -7237,14 +7265,6 @@ function bindSmsDesigner() {
     });
     templateList.dataset.bound = 'true';
   }
-  const previewSelect = document.getElementById('smsPreviewClient');
-  if (previewSelect) {
-    previewSelect.addEventListener('change', () => {
-      smsDesignerState.previewClientId = previewSelect.value;
-      persist();
-      updateSmsPreview();
-    });
-  }
   const audienceSearch = document.getElementById('smsAudienceSearch');
   if (audienceSearch) {
     audienceSearch.value = smsDesignerState.audienceSearch || '';
@@ -7383,34 +7403,16 @@ function bindSmsDesigner() {
   const columnBuilder = document.getElementById('smsColumnBuilder');
   if (columnBuilder && !columnBuilder.dataset.bound) {
     columnBuilder.addEventListener('input', (event) => {
-      const headerInput = event.target.closest('[data-sms-column-header]');
-      if (headerInput) {
-        const col = smsDesignerState.columnMapping.find(item => item.id === headerInput.dataset.smsColumnHeader);
-        if (!col) return;
-        col.header = headerInput.value;
-        persist();
-        renderSmsColumnBuilder();
-        return;
-      }
       const customInput = event.target.closest('[data-sms-column-custom]');
       if (!customInput) return;
       const col = smsDesignerState.columnMapping.find(item => item.id === customInput.dataset.smsColumnCustom);
       if (!col) return;
       col.custom = customInput.value;
       persist();
-      renderSmsColumnBuilder();
-    });
-    columnBuilder.addEventListener('change', (event) => {
-      const toggle = event.target.closest('[data-sms-column-toggle]');
-      if (toggle) return;
-      const fieldSelect = event.target.closest('[data-sms-column-field]');
-      if (!fieldSelect) return;
-      const col = smsDesignerState.columnMapping.find(item => item.id === fieldSelect.dataset.smsColumnField);
-      if (!col) return;
-      col.field = fieldSelect.value;
-      if (col.field !== 'custom') col.custom = '';
-      persist();
-      renderSmsColumnBuilder();
+      updateSmsColumnPreviewById(col.id);
+      if (smsDesignerState.focusedColumnId === col.id) {
+        renderSmsVariableChips(extractVariables(col.custom || ''));
+      }
     });
     columnBuilder.addEventListener('click', (event) => {
       const toggleBtn = event.target.closest('[data-sms-column-toggle]');
@@ -7420,6 +7422,16 @@ function bindSmsDesigner() {
         renderSmsColumnBuilder();
         return;
       }
+      const insertBtn = event.target.closest('[data-sms-column-insert]');
+      if (insertBtn) {
+        smsDesignerState.focusedColumnId = insertBtn.dataset.smsColumnInsert;
+        persist();
+        renderSmsVariableChips(extractVariables((smsDesignerState.columnMapping.find(item => item.id === smsDesignerState.focusedColumnId)?.custom) || ''));
+        renderSmsDynamicDataMenu(dynamicSearch?.value || '');
+        toggleSmsDynamicDataMenu(true);
+        dynamicSearch?.focus();
+        return;
+      }
       const removeBtn = event.target.closest('[data-sms-column-remove]');
       if (!removeBtn) return;
       smsDesignerState.columnMapping = smsDesignerState.columnMapping.filter(item => item.id !== removeBtn.dataset.smsColumnRemove);
@@ -7427,10 +7439,18 @@ function bindSmsDesigner() {
         smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
       }
       if (!smsDesignerState.columnMapping.length) {
-        smsDesignerState.columnMapping = [{ id: createTemplateId('col'), header: 'Numero', field: 'number' }];
+        smsDesignerState.columnMapping = [{ id: createTemplateId('col'), custom: '' }];
       }
       persist();
       renderSmsColumnBuilder();
+    });
+    columnBuilder.addEventListener('focusin', (event) => {
+      const customInput = event.target.closest('[data-sms-column-custom]');
+      if (!customInput) return;
+      smsDesignerState.focusedColumnId = customInput.dataset.smsColumnCustom;
+      persist();
+      const col = smsDesignerState.columnMapping.find(item => item.id === smsDesignerState.focusedColumnId);
+      renderSmsVariableChips(extractVariables(col?.custom || ''));
     });
     columnBuilder.dataset.bound = 'true';
   }
@@ -7438,7 +7458,7 @@ function bindSmsDesigner() {
   if (addColumnBtn && !addColumnBtn.dataset.bound) {
     addColumnBtn.addEventListener('click', () => {
       const createdId = createTemplateId('col');
-      smsDesignerState.columnMapping.push({ id: createdId, header: `Columna ${smsDesignerState.columnMapping.length + 1}`, field: 'custom', custom: '' });
+      smsDesignerState.columnMapping.push({ id: createdId, custom: '' });
       smsDesignerState.focusedColumnId = createdId;
       persist();
       renderSmsColumnBuilder();
@@ -7480,11 +7500,9 @@ function bindSmsDesigner() {
 
 
 function createSmsList() {
-  const name = window.prompt('Ingresa el nombre para la nueva lista:');
-  if (name === null) return;
-  const cleanName = String(name || '').trim();
+  const cleanName = String(smsDesignerState.listName || '').trim();
   if (!cleanName) {
-    showToast('Debes indicar un nombre para la lista.', 'error');
+    showToast('Debes escribir el nombre de la lista en el campo superior.', 'error');
     return;
   }
   const newList = {
@@ -7517,9 +7535,7 @@ function loadSmsListById(listId) {
   if (Array.isArray(list.columnMapping) && list.columnMapping.length) {
     smsDesignerState.columnMapping = list.columnMapping.map((item, index) => ({
       id: item.id || createTemplateId(`col-${index + 1}`),
-      header: item.header || `Columna ${index + 1}`,
-      field: item.field || 'custom',
-      custom: item.custom || ''
+      custom: resolveSmsLegacyColumnCustom(item, index)
     }));
     smsDesignerState.focusedColumnId = smsDesignerState.columnMapping[0]?.id || '';
   }
@@ -7531,11 +7547,9 @@ function loadSmsListById(listId) {
 function renameSmsListById(listId) {
   const list = smsLists.find(item => item.id === listId);
   if (!list) return;
-  const nextName = window.prompt('Nuevo nombre de la lista:', list.name || '');
-  if (nextName === null) return;
-  const cleanName = String(nextName || '').trim();
+  const cleanName = String(smsDesignerState.listName || '').trim();
   if (!cleanName) {
-    showToast('El nombre no puede estar vacío.', 'error');
+    showToast('Escribe el nuevo nombre en "Nombre de la lista activa" y vuelve a intentar.', 'error');
     return;
   }
   list.name = cleanName;

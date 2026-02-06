@@ -1749,6 +1749,9 @@ input[type="color"] { width: 54px; height: 36px; padding: 0; border-radius: 12px
 .sms-column-content { display: none; gap: 10px; padding: 12px; }
 .sms-column-accordion.open .sms-column-content { display: grid; }
 .sms-column-content-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sms-column-content-grid.single-column { grid-template-columns: 1fr; }
+.sms-column-actions-row { display: flex; justify-content: flex-start; }
+.sms-preview-head.slim { align-items: center; }
 .sms-column-preview { border: 1px dashed rgba(148, 163, 184, 0.4); border-radius: 12px; padding: 10px; background: rgba(15, 23, 42, 0.42); display: grid; gap: 8px; }
 .sms-column-preview pre { margin: 0; white-space: pre-wrap; font-size: 13px; }
 .sms-column-footer { display: flex; justify-content: flex-end; }
