@@ -6741,13 +6741,19 @@ function renderSmsTemplates() {
     return (template.title || '').toLowerCase().includes(term) || (template.body || '').toLowerCase().includes(term);
   });
   if (!filtered.length) {
-    list.innerHTML = '<p class="muted tiny">No hay plantillas SMS con ese criterio.</p>';
+    list.innerHTML = '<p class="muted tiny sms-empty-note">No tienes ninguna lista creada.</p>';
     return;
   }
   list.innerHTML = filtered.map(template => `
     <div class="sms-template-item ${template.id === selected?.id ? 'active' : ''}" data-sms-template="${template.id}">
-      <h4>${template.title || 'Sin título'}</h4>
-      <p>${(template.body || '').slice(0, 90) || 'Sin contenido'}</p>
+      <div class="sms-template-main">
+        <h4>${template.title || 'Sin título'}</h4>
+        <p>${(template.body || '').slice(0, 70) || 'Sin contenido'}</p>
+      </div>
+      <div class="sms-template-actions">
+        <button class="ghost-btn mini" type="button" data-sms-template-action="rename" data-sms-template-id="${template.id}"><i class='bx bx-pencil'></i></button>
+        <button class="ghost-btn mini" type="button" data-sms-template-action="delete" data-sms-template-id="${template.id}"><i class='bx bx-trash'></i></button>
+      </div>
     </div>
   `).join('');
 }
@@ -6911,25 +6917,91 @@ function renderSmsColumnBuilder() {
     container.innerHTML = '<p class="muted tiny">No hay columnas configuradas.</p>';
     return;
   }
+  const previewClient = getSmsPreviewClient();
+  const template = getSelectedSmsTemplate();
   container.innerHTML = mapping.map((col, index) => `
-    <div class="sms-column-row" data-sms-column-row="${col.id}">
-      <div class="field compact">
-        <label>Columna ${index + 1} - Nombre</label>
-        <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Telefono" />
+    <details class="sms-column-accordion" data-sms-column-row="${col.id}" ${index === 0 ? 'open' : ''}>
+      <summary>
+        <div>
+          <p class="eyebrow">Columna ${index + 1}</p>
+          <strong>${escapeHtml(col.header || `Columna ${index + 1}`)}</strong>
+        </div>
+        <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i>Eliminar</button>
+      </summary>
+      <div class="sms-column-body">
+        <div class="field compact">
+          <label>Nombre de la columna</label>
+          <input data-sms-column-header="${col.id}" value="${escapeHtml(col.header || '')}" placeholder="Ej: Telefono" />
+        </div>
+        <div class="field compact">
+          <label>Origen del contenido</label>
+          <select data-sms-column-field="${col.id}">
+            ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field compact sms-column-content ${col.field === 'custom' ? '' : 'hidden'}" data-sms-column-content-wrap="${col.id}">
+          <label>Contenido</label>
+          <textarea data-sms-column-content="${col.id}" rows="4" placeholder="Escribe el contenido y usa datos dinámicos como {{cliente}}">${escapeHtml(col.content || '')}</textarea>
+        </div>
+        <div class="sms-column-preview">
+          <p class="muted tiny">Preview del Contenido:</p>
+          <strong>${escapeHtml(resolveSmsMappedValue(col, previewClient || {}, template || {})) || 'X'}</strong>
+        </div>
       </div>
-      <div class="field compact">
-        <label>Origen del contenido</label>
-        <select data-sms-column-field="${col.id}">
-          ${options.map(option => `<option value="${option.value}" ${option.value === col.field ? 'selected' : ''}>${option.label}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field compact sms-column-content ${col.field === 'custom' ? '' : 'hidden'}" data-sms-column-content-wrap="${col.id}">
-        <label>Contenido de la columna</label>
-        <input data-sms-column-content="${col.id}" value="${escapeHtml(col.content || '')}" placeholder="Ej: {{cliente}} - Seguimiento {{fecha_hoy}}" />
-      </div>
-      <button class="ghost-btn mini" type="button" data-sms-column-remove="${col.id}"><i class='bx bx-trash'></i></button>
-    </div>
+    </details>
   `).join('');
+}
+
+function createSmsTemplate() {
+  const requestedName = window.prompt('Nombre para la nueva lista:', 'Nueva lista');
+  if (requestedName === null) return;
+  const cleanName = requestedName.trim() || `Lista ${smsTemplates.length + 1}`;
+  const id = createTemplateId('sms');
+  smsTemplates.push({ id, title: cleanName, body: 'Hola {{cliente}}' });
+  smsDesignerState.selectedTemplateId = id;
+  persist();
+  renderSmsDesigner();
+}
+
+function renameSmsTemplate(templateId) {
+  const template = smsTemplates.find(item => item.id === templateId);
+  if (!template) return;
+  const requestedName = window.prompt('Nuevo nombre para la lista:', template.title || '');
+  if (requestedName === null) return;
+  const cleanName = requestedName.trim();
+  if (!cleanName) return;
+  confirmAction({
+    title: 'Confirmar renombrado',
+    message: `La lista pasará a llamarse "${cleanName}". ¿Deseas continuar?`,
+    confirmText: 'Renombrar',
+    onConfirm: () => {
+      template.title = cleanName;
+      persist();
+      renderSmsDesigner();
+    }
+  });
+}
+
+function deleteSmsTemplate(templateId) {
+  const template = smsTemplates.find(item => item.id === templateId);
+  if (!template) return;
+  confirmAction({
+    title: 'Eliminar lista',
+    message: `Se eliminará la lista "${template.title || 'Sin título'}". Esta acción no se puede deshacer.`,
+    confirmText: 'Eliminar',
+    onConfirm: () => {
+      smsTemplates = smsTemplates.filter(item => item.id !== templateId);
+      if (!smsTemplates.length) {
+        const id = createTemplateId('sms');
+        smsTemplates = [{ id, title: 'Lista principal', body: 'Hola {{cliente}}' }];
+      }
+      if (smsDesignerState.selectedTemplateId === templateId) {
+        smsDesignerState.selectedTemplateId = smsTemplates[0]?.id || '';
+      }
+      persist();
+      renderSmsDesigner();
+    }
+  });
 }
 
 function renderSmsSavedLists() {
@@ -7184,18 +7256,20 @@ function bindSmsDesigner() {
   });
   const addTemplateBtn = document.getElementById('smsAddTemplate');
   if (addTemplateBtn && !addTemplateBtn.dataset.bound) {
-    addTemplateBtn.addEventListener('click', () => {
-      const id = createTemplateId('sms');
-      smsTemplates.push({ id, title: 'Nuevo diseño', body: 'Hola {{cliente}}' });
-      smsDesignerState.selectedTemplateId = id;
-      persist();
-      renderSmsDesigner();
-    });
+    addTemplateBtn.addEventListener('click', createSmsTemplate);
     addTemplateBtn.dataset.bound = 'true';
   }
   const templateList = document.getElementById('smsTemplateList');
   if (templateList && !templateList.dataset.bound) {
     templateList.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-sms-template-action]');
+      if (action) {
+        event.stopPropagation();
+        const templateId = action.dataset.smsTemplateId;
+        if (action.dataset.smsTemplateAction === 'rename') renameSmsTemplate(templateId);
+        if (action.dataset.smsTemplateAction === 'delete') deleteSmsTemplate(templateId);
+        return;
+      }
       const item = event.target.closest('[data-sms-template]');
       if (!item) return;
       smsDesignerState.selectedTemplateId = item.dataset.smsTemplate;

@@ -1267,59 +1267,53 @@
       <section id="smsDesigner" class="panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Utilidades conectadas</p>
+            <p class="eyebrow">Diseñador renovado</p>
             <h2>Diseñador de Listas</h2>
-            <p class="muted subtle">Construye listas profesionales: define columnas ilimitadas, diseña contenido por columna y administra listas guardadas con edición completa.</p>
+            <p class="muted subtle">Gestiona tus listas, edita cada columna en acordeón y define rápidamente a quién incluir antes de descargar.</p>
           </div>
-          <div class="actions compact">
-            <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-download'></i>Descargar plantilla Excel</button>
+          <div class="actions compact sms-header-actions">
+            <button class="primary-btn sms-download-main" id="smsExportList"><i class='bx bx-download'></i>Descargar esta lista</button>
+            <button class="ghost-btn" id="smsExportTemplate"><i class='bx bx-download'></i>Plantilla Excel</button>
           </div>
         </div>
         <div class="sms-layout">
           <aside class="sms-template-list">
-            <div class="template-list-head">
+            <div class="template-list-head sms-list-head">
               <div>
-                <p class="eyebrow">Plantillas de listas</p>
-                <h3>Biblioteca</h3>
+                <p class="eyebrow">Nuestras listas</p>
+                <h3>Mis listas</h3>
               </div>
-              <button id="smsAddTemplate" class="primary-btn ghosted"><i class='bx bx-plus'></i>Nueva plantilla</button>
+              <button id="smsAddTemplate" class="primary-btn ghosted"><i class='bx bx-plus'></i>Crear nueva lista</button>
             </div>
             <div class="search-field template-search">
               <i class='bx bx-search'></i>
-              <input id="smsTemplateSearch" placeholder="Buscar plantillas" />
+              <input id="smsTemplateSearch" placeholder="Buscar lista" />
             </div>
             <div class="template-list-body" id="smsTemplateList"></div>
+            <div class="sms-lists-card sms-mini-history">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow">Guardadas</p>
+                  <h3>Descargas</h3>
+                </div>
+              </div>
+              <div class="sms-saved-lists" id="smsSavedLists"></div>
+            </div>
           </aside>
           <div class="sms-workspace">
             <div class="sms-editor-card">
-              <div class="preview-stack">
-                <div class="preview-box sms-preview-box">
-                  <div class="sms-preview-head">
-                    <div>
-                      <p class="eyebrow">Previsualización</p>
-                      <h3>Vista previa dinámica</h3>
-                    </div>
-                    <div class="field compact">
-                      <label for="smsPreviewClient">Cliente para preview</label>
-                      <select id="smsPreviewClient"></select>
-                    </div>
-                  </div>
-                  <pre id="smsTemplatePreview"></pre>
-                  <div class="sms-meter" id="smsMeter">
-                    <div class="sms-meter-row">
-                      <span id="smsCharCount">0/160</span>
-                      <span class="pill subtle" id="smsCharEncoding">GSM-7</span>
-                    </div>
-                    <p class="muted tiny" id="smsCharHint"></p>
-                  </div>
+              <div class="sms-editor-top">
+                <div class="field">
+                  <label for="smsTemplateTitle">Nombre de la lista activa</label>
+                  <input id="smsTemplateTitle" placeholder="Ej: Campaña bienvenida WAPI" />
+                </div>
+                <div class="field compact">
+                  <label for="smsPreviewClient">Cliente para preview</label>
+                  <select id="smsPreviewClient"></select>
                 </div>
               </div>
-              <div class="field">
-                <label for="smsTemplateTitle">Nombre del diseño</label>
-                <input id="smsTemplateTitle" placeholder="Ej: Campaña bienvenida WAPI" />
-              </div>
               <div class="field textarea-field">
-                <label for="smsTemplateBody">Contenido principal</label>
+                <label for="smsTemplateBody">Contenido base</label>
                 <div class="textarea-shell">
                   <div class="template-editor-toolbar">
                     <button class="ghost-btn mini" id="openSmsDynamicData"><i class='bx bx-code-alt'></i>Agregar Dato Dinámico...</button>
@@ -1341,6 +1335,22 @@
                   <div id="smsTemplateBody" class="template-editor-input sms-editor-input" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Escribe el contenido con variables dinámicas"></div>
                 </div>
               </div>
+              <div class="preview-box sms-preview-box">
+                <div class="sms-preview-head">
+                  <div>
+                    <p class="eyebrow">Preview del Contenido</p>
+                    <h3>Resultado dinámico</h3>
+                  </div>
+                </div>
+                <pre id="smsTemplatePreview">X</pre>
+                <div class="sms-meter" id="smsMeter">
+                  <div class="sms-meter-row">
+                    <span id="smsCharCount">0/160</span>
+                    <span class="pill subtle" id="smsCharEncoding">GSM-7</span>
+                  </div>
+                  <p class="muted tiny" id="smsCharHint"></p>
+                </div>
+              </div>
               <div class="sms-config-grid">
                 <label class="checkbox-field">
                   <input type="checkbox" id="smsUseHeaders" checked>
@@ -1350,7 +1360,6 @@
                   <input type="checkbox" id="smsEnableCharCount" checked>
                   <span>Activar conteo de caracteres</span>
                 </label>
-
               </div>
               <div class="variables-shell">
                 <div class="variables-head">
@@ -1358,6 +1367,17 @@
                   <p class="muted tiny">Se reemplazan con datos reales del cliente.</p>
                 </div>
                 <div class="chips variable-chip-row" id="smsVariableChips"></div>
+              </div>
+              <div class="sms-lists-card sms-column-card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow">El editor</p>
+                    <h3>Columnas de exportación</h3>
+                    <p class="muted tiny">Cada sección representa una columna. Define contenido, vista previa y elimina las que no necesites.</p>
+                  </div>
+                  <button class="ghost-btn mini" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
+                </div>
+                <div class="sms-column-builder" id="smsColumnBuilder"></div>
               </div>
             </div>
             <div class="sms-audience-stack">
@@ -1370,7 +1390,6 @@
                   </div>
                   <div class="sms-audience-actions">
                     <button class="ghost-btn mini" id="smsSelectAll"><i class='bx bx-check-double'></i>Seleccionar visibles</button>
-                    <button class="ghost-btn mini" id="smsClearSelection"><i class='bx bx-x'></i>Limpiar selección</button>
                   </div>
                 </div>
                 <div class="sms-audience-controls">
@@ -1410,29 +1429,9 @@
                   </div>
                   <div class="sms-export-actions">
                     <button class="secondary-btn" id="smsSaveList"><i class='bx bx-save'></i>Guardar lista</button>
-                    <button class="primary-btn" id="smsExportList"><i class='bx bx-download'></i>Descargar lista</button>
+                    <button class="ghost-btn" id="smsClearSelection"><i class='bx bx-x'></i>Limpiar selección</button>
                   </div>
                 </div>
-              </div>
-              <div class="sms-lists-card">
-                <div class="card-head">
-                  <div>
-                    <p class="eyebrow">Asignación de columnas</p>
-                    <h3>Constructor de columnas</h3>
-                    <p class="muted tiny">Cada columna puede tener su propio origen o contenido dinámico con variables.</p>
-                  </div>
-                  <button class="ghost-btn mini" id="smsAddColumn"><i class='bx bx-plus'></i>Agregar columna</button>
-                </div>
-                <div class="sms-column-builder" id="smsColumnBuilder"></div>
-              </div>
-              <div class="sms-lists-card">
-                <div class="card-head">
-                  <div>
-                    <p class="eyebrow">Listas guardadas</p>
-                    <h3>Historial</h3>
-                  </div>
-                </div>
-                <div class="sms-saved-lists" id="smsSavedLists"></div>
               </div>
             </div>
           </div>
